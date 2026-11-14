@@ -1,3 +1,4 @@
+import { takeInAfter } from "@/lib/jobs/take-in-server";
 import "server-only";
 
 import { supabaseAdmin } from "@/lib/supabase-server";
@@ -99,6 +100,8 @@ export async function landJobPdf(ctx: MobileCtx, jobId: string, documentId: stri
   if (!doc || doc.kind !== "job_document" || doc.sm8_job_uuid !== job) return { ok: false, error: "That upload no longer exists.", status: 404 };
   const landed = await landSlot(ctx.orgId, staffId, documentId);
   if (!landed.ok) return { ok: false, error: landed.error, status: 409 };
+  /* every PDF on a job is read once and used (lib/jobs/take-in-server.ts) */
+  await takeInAfter(ctx.orgId, job, [{ documentId }], staffId);
   return { ok: true, value: { documentId } };
 }
 

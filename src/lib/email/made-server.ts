@@ -8,6 +8,7 @@ import type { EmailProposal } from "./proposal";
 import { matchedNow } from "./proposal-server";
 import { shareLinksIn, type ShareLink } from "./share-links";
 import { addJobPlans } from "@/lib/jobs/plans-server";
+import { takeInAfter } from "@/lib/jobs/take-in-server";
 
 /* An email to Tiff, after its card: what the card shows, and a job made from
    it. The job's files: each kept PDF and picture copied onto the job's
@@ -141,7 +142,9 @@ export async function markMade(orgId: string, id: string, jobUuid: string, by: s
     .not("state", "in", "(filed,made)")
     .select("id");
   if (!claimed?.length) return true;
-  await fileOnJob(orgId, row, jobUuid, staffId);
+  const filed = await fileOnJob(orgId, row, jobUuid, staffId);
+  /* the new job's drawings and specs into its Plans and read: every PDF on a job is read once and used */
+  await takeInAfter(orgId, jobUuid, filed.map((f) => ({ documentId: f.documentId })), staffId);
   return true;
 }
 
@@ -178,6 +181,8 @@ export async function markFiled(orgId: string, id: string, jobUuid: string, user
     .select("id");
   if (!claimed?.length) return { ok: true, planIds: [], planned: [] };
   const filed = await fileOnJob(orgId, row, jobUuid, staffId);
+  /* every PDF on the job read once and used; what the card ticked is pressed in below as before */
+  await takeInAfter(orgId, jobUuid, filed.map((f) => ({ documentId: f.documentId })), staffId);
   await writeJobNote({ orgId, userId, jobUuid, body: noteOfEmail(row), composeId: row.id }).catch((err) =>
     console.error("[email-in] the email's note couldn't go on the job:", err instanceof Error ? err.message : err)
   );

@@ -9,9 +9,11 @@ import { mmPerPxFor, printedScaleOf } from "@/lib/studio/plan-set";
 import { scaleFromDimensions, type PlanReading, type PlanWord } from "@/lib/studio/reading";
 import { READING_MODEL, readDimensions, readRoof, readSheet, readSite, type SheetToRead } from "@/lib/studio/reading-server";
 import { SONNET_FALLBACK } from "@/lib/tiff/sonnet-fallback";
+import { openPdf } from "@/lib/tiff/extract";
+import { airPages, plainWords } from "./take-in";
 import { staffDisplayNames } from "@/lib/workboard/job-notes-query";
 import type { DrawnFull, DrawnPreview, PlanPagesAnswer } from "@/app/print/plan-pages/plan-pages";
-import { guessPageByWords, pageKey, stackLevels, stateOfRead, type JobPlan, type JobPlanPage, type JobPlanRead, type PageGuess, type PlanPageKind, type PlanPick } from "./plans";
+import { guessPageByWords, pageKey, stackLevels, stateOfRead, type JobPlan, type JobPlanKind, type SpecWords, type JobPlanPage, type JobPlanRead, type PageGuess, type PlanPageKind, type PlanPick } from "./plans";
 import { planRoomsOf, planRoomsSaid, type JobPlanRooms } from "./plan-rooms";
 
 /* PLANS ON THE JOB, THE SERVER SIDE (lib/jobs/plans.ts says what a plan is).
@@ -51,6 +53,7 @@ type Row = {
   name: string;
   source_ref: string | null;
   source_kind: "pdf" | "image";
+  kind?: JobPlanKind | null;
   page_count: number;
   pages: JobPlanPage[] | null;
   reading: PlanReading | null;
@@ -60,7 +63,7 @@ type Row = {
   added_at: string;
   read_at: string | null;
 };
-const COLS = "id, org_id, job_uuid, document_id, attachment_id, name, source_ref, source_kind, page_count, pages, reading, state, said, added_by, added_at, read_at";
+const COLS = "id, org_id, job_uuid, document_id, attachment_id, name, source_ref, source_kind, kind, page_count, pages, reading, state, said, added_by, added_at, read_at";
 
 const planOf = (r: Row, names: Map<string, string>): JobPlan => ({
   id: r.id,
@@ -70,6 +73,8 @@ const planOf = (r: Row, names: Map<string, string>): JobPlan => ({
   name: r.name,
   sourceRef: r.source_ref,
   sourceKind: r.source_kind === "image" ? "image" : "pdf",
+  kind: r.kind === "spec" ? "spec" : "drawings",
+  spec: (r.reading as { spec?: SpecWords } | null)?.spec ?? null,
   pageCount: r.page_count,
   pages: Array.isArray(r.pages) ? r.pages : [],
   reading: r.reading ?? null,
@@ -128,12 +133,12 @@ export async function readJobPlan(orgId: string, planId: string): Promise<JobPla
 
 export type { PlanPick };
 
-type FileAt = { name: string; ref: string; mime: string | null };
+export type FileAt = { name: string; ref: string; mime: string | null };
 
 /** Where the picked file's bytes are, in the documents bucket: one of ours
     on this job, or ServiceM8's cached copy. Null when the file isn't this
     job's or its bytes aren't here yet. */
-async function fileFor(orgId: string, jobUuid: string, pick: PlanPick): Promise<FileAt | null> {
+export async function fileFor(orgId: string, jobUuid: string, pick: PlanPick): Promise<FileAt | null> {
   if ("documentId" in pick) {
     const { data } = await supabaseAdmin
       .from("documents")
@@ -155,7 +160,7 @@ async function fileFor(orgId: string, jobUuid: string, pick: PlanPick): Promise<
   return { name: a.attachment_name ?? "Plan", ref: c.storage_ref, mime: c.mime_type ?? (a.file_type === ".pdf" ? "application/pdf" : null) };
 }
 
-const kindOf = (f: FileAt): "pdf" | "image" | null => {
+export const kindOf = (f: FileAt): "pdf" | "image" | null => {
   const m = (f.mime ?? "").toLowerCase();
   if (m === "application/pdf" || /\.pdf$/i.test(f.name)) return "pdf";
   if (/^image\/(png|jpe?g|webp)$/.test(m) || /\.(png|jpe?g|webp)$/i.test(f.name)) return "image";
@@ -166,15 +171,16 @@ export type AddPlansResult = { ok: true; planIds: string[]; already: number } | 
 
 /** The picked files into the job's Plans, each a row in "reading"; a file
     already there is left as it is. The reads are started by the caller
-    (readPlan), one route call each. */
-export async function addJobPlans(orgId: string, jobUuid: string, picks: readonly PlanPick[], staffId: string | null): Promise<AddPlansResult> {
+    (readPlan), one route call each. A specification is a plan read by its
+    words (take-in.ts says which a file is). */
+export async function addJobPlans(orgId: string, jobUuid: string, picks: readonly PlanPick[], staffId: string | null, kind: JobPlanKind = "drawings"): Promise<AddPlansResult> {
   const planIds: string[] = [];
   let already = 0;
   for (const pick of picks.slice(0, 12)) {
     const file = await fileFor(orgId, jobUuid, pick);
     if (!file) return { ok: false, error: "That file isn't on this job, or isn't here yet." };
-    const kind = kindOf(file);
-    if (!kind) return { ok: false, error: `${file.name} isn't a PDF or a picture, so it can't be read as a plan.` };
+    const fileKind = kindOf(file);
+    if (!fileKind) return { ok: false, error: `${file.name} isn't a PDF or a picture, so it can't be read as a plan.` };
     const have = await supabaseAdmin
       .from("job_plans")
       .select("id")
@@ -194,7 +200,8 @@ export async function addJobPlans(orgId: string, jobUuid: string, picks: readonl
       document_id: "documentId" in pick ? pick.documentId : null,
       attachment_id: "attachmentId" in pick ? pick.attachmentId : null,
       name: file.name,
-      source_kind: kind,
+      source_kind: fileKind,
+      ...(kind === "spec" ? { kind } : {}),
       state: "reading",
       added_by: staffId,
     });
@@ -400,6 +407,50 @@ export async function jobPlanRooms(orgId: string, jobUuid: string, opts: { add?:
 
 export type ReadPlanOutcome = { ok: true; state: JobPlan["state"] } | { ok: false; error: string };
 
+/** A read claimed before it starts, for ten minutes: an upload's own read
+    and a press of Add plans asking at once pay for one. A workspace whose
+    job_plans has no claimed_at yet reads as before. */
+async function claimRead(orgId: string, planId: string): Promise<boolean> {
+  const cutoff = new Date(Date.now() - 10 * 60_000).toISOString();
+  const { data, error } = await supabaseAdmin
+    .from("job_plans")
+    .update({ claimed_at: new Date().toISOString() })
+    .eq("org_id", orgId)
+    .eq("id", planId)
+    .eq("state", "reading")
+    .or(`claimed_at.is.null,claimed_at.lt.${cutoff}`)
+    .select("id");
+  if (error) return true;
+  return (data ?? []).length > 0;
+}
+
+/** The most of a specification's words kept for the supplied scope. */
+const SPEC_WORDS_MAX = 80_000;
+
+/** A specification, read by its own words: the pages on the air kept with
+    their words for the supplied scope, and nothing drawn or asked of Tiff. */
+async function readSpec(orgId: string, planId: string, file: FileAt): Promise<ReadPlanOutcome> {
+  const { data: blob, error } = await supabaseAdmin.storage.from(DOCUMENTS_BUCKET).download(file.ref);
+  if (error || !blob) {
+    await write(orgId, planId, { state: "failed", said: "The file couldn't be opened" });
+    return { ok: false, error: "The file couldn't be opened" };
+  }
+  const doc = await openPdf(new Uint8Array(await blob.arrayBuffer()));
+  try {
+    const texts: string[] = [];
+    for (let n = 1; n <= doc.numPages; n++) texts.push(await doc.pageText(n));
+    const pages = airPages(texts);
+    const words = pages.map((n) => `[page ${n}]\n${plainWords(texts[n - 1] ?? "")}`).join("\n\n").slice(0, SPEC_WORDS_MAX);
+    const spec: SpecWords = { pages, words };
+    const reading = { at: new Date().toISOString(), model: "words", floors: {}, failed: [], spec };
+    const state = pages.length ? "read" : "check";
+    await write(orgId, planId, { reading, pages: [], page_count: doc.numPages, state, said: pages.length ? null : "No page names the air conditioning, ventilation or exhaust", read_at: new Date().toISOString() });
+    return { ok: true, state };
+  } finally {
+    await doc.destroy();
+  }
+}
+
 /** Tiff reads a plan: its pages drawn, the floors found, each read, the
     roof and the site off the set, the row written as it goes. Only what is
     missing is done: a plan whose pages are drawn goes straight to the read,
@@ -408,6 +459,8 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
   const plan = await readJobPlan(orgId, planId);
   if (!plan) return { ok: false, error: "That plan isn't on the job." };
   if (plan.reading && plan.state !== "reading") return { ok: true, state: plan.state };
+  /* two doors asking at once pay for one read */
+  if (!(await claimRead(orgId, planId))) return { ok: true, state: plan.state };
   const pick: PlanPick = plan.documentId ? { documentId: plan.documentId } : { attachmentId: plan.attachmentId ?? "" };
   const failed = async (why: string): Promise<ReadPlanOutcome> => {
     await write(orgId, planId, { state: "failed", said: why }).catch(() => {});
@@ -416,6 +469,7 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
   try {
     const file = await fileFor(orgId, plan.jobUuid, pick);
     if (!file) return failed("The file isn't on the job any more.");
+    if (plan.kind === "spec") return await readSpec(orgId, planId, file);
     /* 1. the set's own copy */
     const sourceRef = plan.sourceRef ?? (await copySource(orgId, file, plan.sourceKind));
     if (!plan.sourceRef) await write(orgId, planId, { source_ref: sourceRef });

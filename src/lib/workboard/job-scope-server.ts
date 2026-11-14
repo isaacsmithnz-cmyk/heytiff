@@ -181,7 +181,7 @@ export async function refreshJobScope(orgId: string, remoteId: string, client: A
   const row = await readRow(orgId, read.cardId);
   const stored = asScope(row);
   const stamp = scopeStamp(read.entries);
-  if (!stamp || !scopeWanted(read.status, read.createdOn)) return { ok: true, scope: stored, wrote: false };
+  if (!stamp || !scopeWanted(read.status, read.createdOn, { quoteSentOn: read.quoteSentOn, completedOn: read.completedOn, visitBooked: read.visitBooked })) return { ok: true, scope: stored, wrote: false };
   const quoteStamp = await quoteStampOf(orgId, read.cardId);
   if (stored && stored.stamp === stamp && quoteStamp === (row?.quote_stamp ?? null)) return { ok: true, scope: stored, wrote: false };
   const quote = quoteStamp ? await readQuoteWords(orgId, read.cardId, await getSm8Timezone(orgId)) : null;
@@ -209,8 +209,11 @@ export async function refreshJobScope(orgId: string, remoteId: string, client: A
   if (row && stored) {
     /* handed back unchanged: the note is taken in, and the last change is still the one to undo */
     if (!scopeMoved(stored, scope)) {
-      const kept = await writeOver(orgId, read.cardId, row, { story_stamp: stamp, quote_stamp: quoteStamp, written_at: writtenAt });
-      return { ok: true, scope: kept ? { ...stored, stamp, writtenAt } : await readStoredJobScope(orgId, read.cardId), wrote: false };
+      /* a brief written before it had a description takes the one this read wrote */
+      const described = !stored.description && scope.description ? { brief: { ...(row.brief as Record<string, unknown>), description: scope.description } } : {};
+      const kept = await writeOver(orgId, read.cardId, row, { ...described, story_stamp: stamp, quote_stamp: quoteStamp, written_at: writtenAt });
+      const now = described.brief ? { ...stored, description: scope.description } : stored;
+      return { ok: true, scope: kept ? { ...now, stamp, writtenAt } : await readStoredJobScope(orgId, read.cardId), wrote: false };
     }
     /* only a note's addition waits on the quote: the quote's own words are on it already */
     const landed = stored.stamp !== stamp ? newlyAdded(stored, scope) : [];

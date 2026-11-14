@@ -19,6 +19,7 @@ import {
   type JobRecordRead,
 } from "@/app/actions/workboard";
 import type { JobConversationRead } from "@/lib/jobs/job-conversation";
+import { readJobConversation } from "@/app/actions/job-conversation";
 import { paymentsTotalCents } from "@/lib/workboard/job-ledger";
 import { claimFor, isPartialInvoiceLine } from "@/lib/workboard/job-family";
 import { readBilling } from "@/lib/workboard/job-billing";
@@ -41,7 +42,8 @@ import {
 import { JobMaterialsFace } from "./job-materials-face";
 import { JobPhotosFace } from "./job-photos-face";
 import { JobDocumentsFace } from "./job-documents-face";
-import { scopeStamp, scopeWanted, type JobScopeRead } from "@/lib/jobs/job-scope";
+import { descriptionOf, scopeStamp, scopeWanted, type JobScopeRead } from "@/lib/jobs/job-scope";
+import type { SummaryGroup } from "@/lib/jobs/job-summary-rows";
 import { JobDesignFace } from "./job-design-face";
 import { JobQuoteCard } from "./job-quote-card";
 import { JobVisits, VisitDialog, type ComingVisit } from "./job-visit-tasks";
@@ -98,6 +100,7 @@ import { sm8JobUrl } from "@/lib/integrations/sm8-links";
 import { useHydrated } from "@/lib/use-hydrated";
 import { JobPageHead } from "@/components/jobs/job-page-head";
 import { JobOverview } from "@/components/jobs/job-overview";
+import { JobScopeTab } from "@/components/jobs/job-scope-tab";
 import { jobHue } from "@/lib/workboard/job-hue";
 import { SECTION_FACES, SECTION_LABEL, sectionOfFace, sectionsFor, type JobSection } from "@/lib/jobs/job-sections";
 
@@ -161,6 +164,7 @@ const MAX_READ_ROUNDS = 70;
 export type JobSheetTab =
   | "summary"
   | "diary"
+  | "scope"
   | "quote"
   | "design"
   | "money"
@@ -175,6 +179,7 @@ type TabKey = JobSheetTab;
 const FACE_NAME: Record<TabKey, string> = {
   summary: "Summary",
   diary: "Timeline",
+  scope: "Scope",
   quote: "Quote",
   design: "Design",
   money: "Billing",
@@ -941,7 +946,15 @@ export function JobSheet({
   const scopeAsked = useRef<string | null>(null);
   const scopeInFlight = useRef(false);
   const [scopeStuckAt, setScopeStuckAt] = useState<string | null>(null);
-  const scopeDue = !!detail && scopeWanted(detail.status, detail.date) && media !== null && picklist !== null;
+  const scopeDue =
+    !!detail &&
+    scopeWanted(detail.status, detail.date, {
+      quoteSentOn: detail.quoteSentOn ?? null,
+      completedOn: detail.completionDate,
+      visitBooked: (detail.booked ?? []).some((b) => !b.leftover) || (!detail.booked && !!detail.nextBooking),
+    }) &&
+    media !== null &&
+    picklist !== null;
   const scopeStampNow = scopeDue ? scopeStamp(story) : null;
   useEffect(() => {
     if (!cardId || !scopeStampNow || record === undefined || record === null || recordFailed) return;
@@ -1503,6 +1516,24 @@ export function JobSheet({
   const [seen, setSeen] = useState<ReadonlySet<JobSection>>(() => new Set([page.section]));
   if (!seen.has(page.section)) setSeen(new Set([...seen, page.section]));
   const faceSeen = (k: TabKey) => [...seen].some((s) => SECTION_FACES[s].includes(k));
+
+  /* THE SCOPE TAB'S SUMMARY, for a job with no Scope: the quote's groups,
+     read with the Overview's conversation on the server; read here only when
+     that read failed and the tab is opened */
+  const [quoteGroups, setQuoteGroups] = useState<SummaryGroup[] | null | undefined>(() =>
+    pageRead?.conversation !== undefined ? (pageRead.conversation?.summary ?? null) : undefined
+  );
+  const groupsWanted = seen.has("scope") && quoteGroups === undefined && !!cardId && (record !== undefined || recordFailed) && !record?.scope;
+  useEffect(() => {
+    if (!groupsWanted || !cardId) return;
+    let live = true;
+    void readJobConversation(cardId)
+      .then((r) => live && setQuoteGroups(r?.summary ?? null))
+      .catch(() => live && setQuoteGroups(null));
+    return () => {
+      live = false;
+    };
+  }, [groupsWanted, cardId]);
 
   const go = (key: string) => {
     if (key !== "diary") {
@@ -2285,6 +2316,7 @@ export function JobSheet({
       <div className="wb2-sheet jc jp-sheet">
         <JobPageHead
           name={jobPlateName(detail, row)}
+          description={record?.scope ? descriptionOf(record.scope) : null}
           number={cardNumber}
           hue={jobHue(categoryColour, status)}
           sm8Href={sm8Href}
@@ -2328,12 +2360,6 @@ export function JobSheet({
               loading={loading && !detail}
               moneyVisible={moneyVisible}
               detail={detail}
-              scope={record?.scope ?? null}
-              scopeReading={scopeReading}
-              onUndoScope={undoScope}
-              onLeaveScope={leaveScope}
-              scopeUpdateHref={cardId ? quoteHref(cardId, { update: true }) : undefined}
-              fallbackWhat={row.title}
               head={
                 <JobProgressLine
                   /* no stage is the job's until its detail is read: the line
@@ -2435,6 +2461,24 @@ export function JobSheet({
                 ) : null
               }
             />
+            )}
+          </div>
+          {/* SCOPE: the job's Scope, Since the quote and Latest updates, or
+              its Summary where it has none (mock A, 14 November 2026) */}
+          <div className="jp-scope jp-fit" hidden={page.section !== "scope"}>
+            {seen.has("scope") && (
+              <JobScopeTab
+                scope={record?.scope ?? null}
+                reading={scopeReading}
+                onUndo={undoScope}
+                onLeave={leaveScope}
+                updateHref={cardId ? quoteHref(cardId, { update: true }) : undefined}
+                summary={{
+                  fromQuote: quoteGroups ?? null,
+                  description: (detail?.description ?? row.title ?? "").trim(),
+                  read: quoteGroups !== undefined && (record !== undefined || recordFailed),
+                }}
+              />
             )}
           </div>
           {faceMoney}

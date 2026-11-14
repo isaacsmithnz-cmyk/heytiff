@@ -60,6 +60,12 @@ export type ScopeUpdate = { on: string; from: string; said: string };
 export type ScopeSetAside = { on: string; said: string };
 
 export type JobScope = {
+  /** What the job is, in one plain sentence: the lede's first, word for
+      word. It stands under the job's name on every tab (Isaac, 14 November
+      2026, call 22: "the line under the name = a description of the job").
+      Written in the same read as the rest, so nothing has to guess where a
+      sentence ends. A brief written before it existed has none (""). */
+  description: string;
   lede: string;
   systems: ScopeSystem[];
   added: ScopeAdded[];
@@ -92,13 +98,14 @@ export type ScopeQuoted = { on: string; version: number };
 
 /* Clamped on our side as well as asked of the model: a rule the schema
    can't state is a rule that will eventually be broken. */
-const MAX = { lede: 400, text: 700, short: 120, line: 240, systems: 12, added: 12, notOurs: 8, clarify: 12, updates: 4, from: 6 };
+const MAX = { description: 300, lede: 400, text: 700, short: 120, line: 240, systems: 12, added: 12, notOurs: 8, clarify: 12, updates: 4, from: 6 };
 
 /* No nullable fields: an empty string or an empty list says "none"
    (structured outputs take few nullable fields). */
 export const SCOPE_SCHEMA = {
   type: "object",
   properties: {
+    description: { type: "string" },
     lede: { type: "string" },
     systems: {
       type: "array",
@@ -144,7 +151,7 @@ export const SCOPE_SCHEMA = {
     },
     undoSaid: { type: "string" },
   },
-  required: ["lede", "systems", "added", "notOurs", "clarify", "updates", "undoSaid"],
+  required: ["description", "lede", "systems", "added", "notOurs", "clarify", "updates", "undoSaid"],
   additionalProperties: false,
 } as const;
 
@@ -159,6 +166,9 @@ export const SCOPE_SYSTEM_PROMPT =
   "drawings or brief, their date, a site visit), and anything missing from them that " +
   "matters, such as no mechanical drawings. On a small service job, say the fault as it was " +
   "reported and stop: never list what a small job hasn't got.\n\n" +
+  "`description`: the lede's first sentence, word for word: what the job is, in one plain " +
+  "sentence. It stands alone under the job's name, so it must read whole without the rest. " +
+  "When you're handed a brief whose lede opens with the same sentence, keep it as it is.\n\n" +
   "`systems`: one per system, area by area, in the order of the building. `area` is where " +
   "(\"Ground floor\", \"First floor, front\", \"Studio\"); `kind` is the system in a few " +
   "words (\"ducted, under the floor\", \"VRV heads\", \"split system\"). `text` is a short " +
@@ -211,7 +221,7 @@ export function scopePrompt(read: {
   /* a sent quote's scope carries its total: the writer never sees a priced line */
   const workDone = read.workDone?.split("\n").filter((l) => !/\$\s?\d/.test(l)).join("\n") || null;
   const was = read.previous;
-  const previous = was && { lede: was.lede, systems: was.systems, added: was.added, notOurs: was.notOurs, clarify: was.clarify, updates: was.updates };
+  const previous = was && { description: was.description || descriptionOf(was), lede: was.lede, systems: was.systems, added: was.added, notOurs: was.notOurs, clarify: was.clarify, updates: was.updates };
   return [
     `Client: ${read.clientName ?? "unknown"}`,
     `Job status: ${read.status ?? "unknown"}`,
@@ -262,7 +272,7 @@ export function scopeOf(raw: unknown): JobScope | null {
     .slice(0, MAX.updates);
   const lede = str(r.lede, MAX.lede);
   if (!lede && systems.length === 0 && added.length === 0) return null;
-  return { lede, systems, added, notOurs, clarify, updates, undoSaid: str(r.undoSaid, MAX.line) };
+  return { description: str(r.description, MAX.description), lede, systems, added, notOurs, clarify, updates, undoSaid: str(r.undoSaid, MAX.line) };
 }
 
 /** Whether a rewrite changed what's going in. Its words on the change itself
@@ -386,10 +396,56 @@ export function scopeStamp(entries: readonly StoryEntry[]): string | null {
     A fixed day, not a rolling month, so no job loses its brief by ageing. */
 export const SCOPE_JOBS_FROM = "2026-10-01";
 
-/** Whose jobs get a brief: one created since SCOPE_JOBS_FROM and being quoted
-    or worked. A finished or lost job keeps the brief it has and is never
-    written for. */
-export const scopeWanted = (status: string | null | undefined, createdOn: string | null | undefined): boolean => {
-  const s = (status ?? "").trim().toLowerCase();
-  return (s === "quote" || s === "work order") && (createdOn ?? "").slice(0, 10) >= SCOPE_JOBS_FROM;
+/** What says a finished job is still moving: a quote sent on it since it
+    was finished (a return visit's, out with the client), or a visit booked
+    from today on. */
+export type ScopeStillOpen = {
+  /** The day ServiceM8 last sent a quote on the job (quote_sent_stamp). */
+  quoteSentOn?: string | null;
+  /** The day ServiceM8 marked it completed. */
+  completedOn?: string | null;
+  /** A visit is booked from today on. */
+  visitBooked?: boolean;
 };
+
+/** Whose jobs get a brief: one created since SCOPE_JOBS_FROM and being quoted
+    or worked. A finished job is read again while it has a quote awaiting
+    approval or a visit booked, so its description stays current (Isaac, 14
+    November 2026, call 23: "Yes"); otherwise a finished or lost job keeps
+    the brief it has and is never written for. */
+export const scopeWanted = (status: string | null | undefined, createdOn: string | null | undefined, open: ScopeStillOpen = {}): boolean => {
+  if ((createdOn ?? "").slice(0, 10) < SCOPE_JOBS_FROM) return false;
+  const s = (status ?? "").trim().toLowerCase();
+  if (s === "quote" || s === "work order") return true;
+  if (s !== "completed") return false;
+  if (open.visitBooked) return true;
+  const sent = (open.quoteSentOn ?? "").slice(0, 10);
+  return !!sent && sent >= (open.completedOn ?? "").slice(0, 10);
+};
+
+/* a word that ends in a full stop without ending a sentence: "St", "Dr", "No", a
+   single letter or a figure ("7.1kW" never reaches here: no space after it) */
+const NOT_AN_END = /(?:^|\s)(?:st|dr|mr|mrs|ms|mt|no|vs|approx|incl|ea|[a-z]|\d+)\.$/i;
+
+/** The description under the job's name: the brief's own, or, for a brief
+    written before it had one, its lede's first sentence. */
+export function descriptionOf(s: Pick<JobScope, "description" | "lede">): string {
+  if (s.description) return s.description;
+  const lede = s.lede.trim();
+  const ends = /[.!?](?=\s+[A-Z(])/g;
+  for (let m = ends.exec(lede); m; m = ends.exec(lede)) {
+    const upTo = lede.slice(0, m.index + 1);
+    if (!NOT_AN_END.test(upTo)) return upTo;
+  }
+  return lede;
+}
+
+/** The lede as the Scope tab shows it, from its second sentence: the first
+    is the description, already under the job's name (Isaac, 14 November
+    2026, "drop the repeat", mock A). A lede that doesn't open with it is
+    shown whole. */
+export function ledeAfterDescription(s: Pick<JobScope, "description" | "lede">): string {
+  const lede = s.lede.trim();
+  const first = descriptionOf(s).trim();
+  return first && lede.startsWith(first) ? lede.slice(first.length).trim() : lede;
+}

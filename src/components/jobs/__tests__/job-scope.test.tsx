@@ -6,6 +6,7 @@ import type { JobScopeRead } from "@/lib/jobs/job-scope";
    Isaac, 28 October 2026), and its latest updates. */
 
 const scope = (over: Partial<JobScopeRead> = {}): JobScopeRead => ({
+  description: "Four systems for the Carney Residence.",
   lede: "Four systems for the Carney Residence, from Anna Vaughan Architects' tender set (30 Sep).",
   systems: [
     { area: "Ground floor", kind: "ducted, under the floor", text: "Living/Dining, Kids Play, Guest Bed. Fan coil under the living room.", from: ["A200", "A202"] },
@@ -132,4 +133,18 @@ describe("after it's sent", () => {
     expect(quoted).toHaveTextContent("Version 2 sent from ServiceM8, Wed 4 Nov");
     expect(quoted).toHaveTextContent(study.text + "Version 2, from " + study.from);
   });
+});
+
+/* ON THE SCOPE TAB (mock A, 14 November 2026): the brief on the left, from
+   its second sentence, and Since the quote and Latest updates on the right */
+it("draws the brief alone from its second sentence, and the rail alone", () => {
+  const { unmount } = render(<JobScope scope={scope({ lede: "Four systems for the Carney Residence. From the tender set (30 Sep)." })} part="brief" />);
+  const s = screen.getByRole("region", { name: "Scope" });
+  expect(s).toHaveTextContent("From the tender set (30 Sep).");
+  expect(s).not.toHaveTextContent("Four systems for the Carney Residence.");
+  expect(screen.queryByRole("region", { name: "Latest updates" })).toBeNull();
+  unmount();
+  render(<JobScope scope={scope()} part="rail" />);
+  expect(screen.queryByRole("region", { name: "Scope" })).toBeNull();
+  expect(screen.getByRole("region", { name: "Latest updates" })).toBeInTheDocument();
 });

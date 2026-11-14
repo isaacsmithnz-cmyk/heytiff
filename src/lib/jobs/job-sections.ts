@@ -1,12 +1,17 @@
 import type { JobSheetTab } from "@/components/workboard/board/job-sheet";
 
-/* A JOB'S EIGHT SECTIONS (docs/design.md rule 31): Overview, Quote, Design,
-   Visits, Materials, Photos, Documents, Billing. The job page (app/dashboard/jobs)
-   draws each from the job card's own faces, so the card and the page never
-   tell two stories about one job:
+/* A JOB'S NINE SECTIONS (docs/design.md rule 31): Overview, Scope, Quote,
+   Design, Visits, Materials, Photos, Documents, Billing. The job page
+   (app/dashboard/jobs) draws each from the job card's own faces, so the card
+   and the page never tell two stories about one job:
 
      Overview  = the summary and the diary, under the stages line (the line
                  lives on Overview only, 6-revisions, 17 October)
+     Scope     = the job's Scope, Since the quote and Latest updates, or its
+                 Summary where it has no Scope (Isaac, 13 November 2026:
+                 "Give scope its own tab"; mock A, 14 November). The six-tab
+                 regroup (Overview, Scope, Price, On site, Files, Billing)
+                 comes later, with old names landing
      Quote     = the quote
      Design    = the job's designs in the Studio, only for whoever holds
                  `studio` (Isaac, 28 October 2026: "a separate tab outside
@@ -22,11 +27,12 @@ import type { JobSheetTab } from "@/components/workboard/board/job-sheet";
 
    Pure, so the page, the quote page's tabs and the tests read one list. */
 
-export const JOB_SECTIONS = ["overview", "quote", "design", "visits", "materials", "photos", "documents", "billing"] as const;
+export const JOB_SECTIONS = ["overview", "scope", "quote", "design", "visits", "materials", "photos", "documents", "billing"] as const;
 export type JobSection = (typeof JOB_SECTIONS)[number];
 
 export const SECTION_LABEL: Record<JobSection, string> = {
   overview: "Overview",
+  scope: "Scope",
   quote: "Quote",
   design: "Design",
   visits: "Visits",
@@ -39,6 +45,7 @@ export const SECTION_LABEL: Record<JobSection, string> = {
 /** The card's faces each section shows, in the order it shows them. */
 export const SECTION_FACES: Record<JobSection, readonly JobSheetTab[]> = {
   overview: ["summary", "diary"],
+  scope: ["scope"],
   quote: ["quote"],
   design: ["design"],
   visits: ["visits"],

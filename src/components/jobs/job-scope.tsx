@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/parts/button";
 import { StateWord } from "@/components/parts/state";
-import { pastQuote, quotedLine, sinceRows, versionFrom, type JobScopeRead } from "@/lib/jobs/job-scope";
+import { ledeAfterDescription, pastQuote, quotedLine, sinceRows, versionFrom, type JobScopeRead } from "@/lib/jobs/job-scope";
 import { JobSection } from "./job-section";
 
 /* THE SCOPE, AT THE TOP OF A JOB'S OVERVIEW (Isaac, 28 October 2026: "a
@@ -30,7 +30,14 @@ import { JobSection } from "./job-section";
    Taken into a variation, it's back in Added.
 
    Tiff keeps it (lib/workboard/job-scope-server.ts): written from
-   everything on the job, rewritten when something new lands. */
+   everything on the job, rewritten when something new lands.
+
+   ON THE JOB'S SCOPE TAB (Isaac, 14 November 2026, mock A on
+   https://claude.ai/artifact/6JjEtQm7aukwxDsHQfKY5e) it's drawn in two
+   parts: the brief on the left (`part="brief"`), starting from the lede's
+   second sentence as the first is under the job's name ("drop the repeat"),
+   and Since the quote then Latest updates on the right (`part="rail"`). The
+   Studio's column draws it whole. */
 
 export function JobScope({
   scope,
@@ -38,8 +45,12 @@ export function JobScope({
   onUndo,
   updateHref,
   onLeave,
+  part = "all",
 }: {
   scope: JobScopeRead;
+  /** The whole of it (the Studio's column), the brief alone from its second
+      sentence, or Since the quote and Latest updates (the Scope tab). */
+  part?: "all" | "brief" | "rail";
   /** Tiff is reading something new on the job. */
   reading?: boolean;
   onUndo?: () => Promise<void>;
@@ -70,56 +81,59 @@ export function JobScope({
     setUndoing(true);
     void onUndo().finally(() => setUndoing(false));
   };
+  const lede = part === "brief" ? ledeAfterDescription(scope) : scope.lede;
   return (
     <>
-      <JobSection name={scope.quoted ? "Scope as quoted" : "Scope"} line={scope.quoted ? quotedLine(scope.quoted) : null} icon="file" hue="pink" className="jov-summary">
-        <div className="jsc">
-          {scope.lede && <p className="jsc-lede">{scope.lede}</p>}
-          {scope.systems.map((s, i) => (
-            <div className="jsc-part" key={`${s.area}-${i}`}>
-              <h3 className="jsc-h">{[s.area, s.kind].filter(Boolean).join(": ")}</h3>
-              <p className="jsc-p">
-                {s.text}
-                {s.from.length > 0 && <span className="jsc-from">{s.from.join(", ")}</span>}
-              </p>
-            </div>
-          ))}
-          {added.length > 0 && (
-            <div className="jsc-part">
-              <h3 className="jsc-h">Added</h3>
-              <ul className="jsc-ul">
-                {added.map((a, i) => (
-                  <li key={i}>
-                    {a.text}
-                    {a.from && <span className="jsc-from">{a.from}</span>}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {scope.notOurs.length > 0 && (
-            <div className="jsc-part">
-              <h3 className="jsc-h">Not ours</h3>
-              <p className="jsc-p">{scope.notOurs.join("; ")}</p>
-            </div>
-          )}
-          {scope.clarify.length > 0 && (
-            <div className="jsc-part">
-              <h3 className="jsc-h">To clarify</h3>
-              <ol className="jsc-ol">
-                {scope.clarify.map((c, i) => (
-                  <li key={i}>
-                    <span className="jsc-n">{i + 1}</span>
-                    <span>{c.q}</span>
-                    <span className="jsc-who">{c.who}</span>
-                  </li>
-                ))}
-              </ol>
-            </div>
-          )}
-        </div>
-      </JobSection>
-      {since.length > 0 && (
+      {part !== "rail" && (
+        <JobSection name={scope.quoted ? "Scope as quoted" : "Scope"} line={scope.quoted ? quotedLine(scope.quoted) : null} icon="file" hue="pink" className="jov-summary">
+          <div className="jsc">
+            {lede && <p className="jsc-lede">{lede}</p>}
+            {scope.systems.map((s, i) => (
+              <div className="jsc-part" key={`${s.area}-${i}`}>
+                <h3 className="jsc-h">{[s.area, s.kind].filter(Boolean).join(": ")}</h3>
+                <p className="jsc-p">
+                  {s.text}
+                  {s.from.length > 0 && <span className="jsc-from">{s.from.join(", ")}</span>}
+                </p>
+              </div>
+            ))}
+            {added.length > 0 && (
+              <div className="jsc-part">
+                <h3 className="jsc-h">Added</h3>
+                <ul className="jsc-ul">
+                  {added.map((a, i) => (
+                    <li key={i}>
+                      {a.text}
+                      {a.from && <span className="jsc-from">{a.from}</span>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {scope.notOurs.length > 0 && (
+              <div className="jsc-part">
+                <h3 className="jsc-h">Not ours</h3>
+                <p className="jsc-p">{scope.notOurs.join("; ")}</p>
+              </div>
+            )}
+            {scope.clarify.length > 0 && (
+              <div className="jsc-part">
+                <h3 className="jsc-h">To clarify</h3>
+                <ol className="jsc-ol">
+                  {scope.clarify.map((c, i) => (
+                    <li key={i}>
+                      <span className="jsc-n">{i + 1}</span>
+                      <span>{c.q}</span>
+                      <span className="jsc-who">{c.who}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
+          </div>
+        </JobSection>
+      )}
+      {part !== "brief" && since.length > 0 && (
         <JobSection
           name="Since the quote"
           icon="plus"
@@ -155,7 +169,7 @@ export function JobScope({
           </ul>
         </JobSection>
       )}
-      {(scope.updates.length > 0 || reading) && (
+      {part !== "brief" && (scope.updates.length > 0 || reading) && (
         <JobSection name="Latest updates" icon="clock" hue="purple">
           <ul className="jsc-ups">
             {reading && (

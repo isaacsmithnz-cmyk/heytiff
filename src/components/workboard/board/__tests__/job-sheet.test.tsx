@@ -713,6 +713,7 @@ describe("the summary refresh", () => {
      note, on a job made since the first of October */
   const OCT = "2026-10-08 00:00:00";
   const stored = (over: Partial<JobScopeRead> = {}): JobScopeRead => ({
+    description: "",
     lede: "Four systems.",
     systems: [],
     added: [],
@@ -781,7 +782,7 @@ describe("the summary refresh", () => {
       })
     ) as string;
     allLanded({ scope: stored() }, OCT);
-    render(<Job row={row()} {...props} />);
+    render(<Job row={row()} {...props} section="scope" />);
     expect(await screen.findByText("Reading the new note")).toBeInTheDocument();
     expect(screen.getByText("Four systems.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Undo" })).toBeNull();

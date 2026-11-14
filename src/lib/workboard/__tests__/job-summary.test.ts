@@ -140,6 +140,9 @@ const serverRead = (over: Partial<JobStoryServerRead> = {}): JobStoryServerRead 
     status: "Completed",
     clientName: "Susie Peterson",
     createdOn: null,
+    quoteSentOn: null,
+    completedOn: "2026-08-21",
+    visitBooked: false,
     ...over,
   };
 };

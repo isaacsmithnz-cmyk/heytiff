@@ -15,7 +15,8 @@ import { Icon } from "@/components/shell/icon";
 import { Tooltip } from "@/components/parts/tooltip";
 import type { OrgBrand } from "@/lib/org/brand";
 import type { JobSearch } from "./job-search";
-export type { JobSearch };
+import type { JobLists } from "./job-picker";
+export type { JobSearch, JobLists };
 import {
   createDesign,
   newId,
@@ -82,7 +83,7 @@ import { airRows, airTags } from "@/lib/studio/air-view";
 import { SetupPanel } from "./setup-panel";
 import { pastPrint, sheetUnitOf } from "@/lib/studio/figure-bounds";
 import { RoomPanel, RoomsPanel } from "./rooms-panel";
-import { foundOn, joinRooms, keepFound } from "@/lib/studio/room-edit";
+import { foundOn, joinRooms, keepFound, readyFromPlans } from "@/lib/studio/room-edit";
 import type { Suggestion } from "@/lib/studio/rooms-from-reading";
 import { RISER_PAINT } from "@/lib/studio/duct-size";
 import { StudioFlowContext, useStudioFlow, type StudioFlow } from "./flow";
@@ -223,6 +224,7 @@ export function Studio({
   packLoader,
   sm8Jobs,
   jobSearch,
+  jobLists,
   openDesignId,
   forJob,
   jobPlans,
@@ -240,6 +242,8 @@ export function Studio({
       route decides both. Off means the new-design step never mentions it. */
   sm8Jobs?: boolean;
   jobSearch?: JobSearch;
+  /** New design's Recent and All jobs; a host with its own job search brings its own, or none */
+  jobLists?: JobLists;
   /** `?design=<id>` — open this design instead of landing on Home. What a
       link from the Workboard's job sheet arrives with. */
   openDesignId?: string;
@@ -543,6 +547,18 @@ export function Studio({
   const jobSearchFn = useCallback(
     (q: string) => (jobSearch ?? ((t: string) => studioActions().then((a) => a.searchStudioJobs(t))))(q),
     [jobSearch]
+  );
+  /* New design's Recent and All jobs, from the same actions as the search */
+  const jobListsFn = useMemo<JobLists | undefined>(
+    () =>
+      jobLists ??
+      (jobSearch
+        ? undefined
+        : {
+            recent: (ids) => studioActions().then((a) => a.readStudioJobs(ids)),
+            list: (from, limit) => studioActions().then((a) => a.listStudioJobs(from, limit)),
+          }),
+    [jobLists, jobSearch]
   );
 
   const openDesign = useCallback((d: DesignDocument) => {
@@ -967,6 +983,7 @@ export function Studio({
             autoNew={homeAutoNew}
             sm8Jobs={sm8Jobs}
             jobSearch={jobSearchFn}
+            jobLists={jobListsFn}
             openFailed={openFailed}
             library={library}
             planImages={planImagesInst}
@@ -990,7 +1007,8 @@ export function Studio({
                  (lib/jobs/plans.ts): nothing is read again */
               const made = designFromPlans(plans);
               const d: DesignDocument = { ...newDesignFor(name, "plan", job), floors: made.floors, planImport: made.planImport };
-              const withReading = made.reading ? { ...d, reading: withChecks(made.reading, d) } : d;
+              /* and it opens with its scale and its rooms on: the loads are there to look at */
+              const withReading = made.reading ? readyFromPlans({ ...d, reading: withChecks(made.reading, d) }) : d;
               return throughSwap(async () => {
                 await saveDoc(withReading);
                 return withReading;

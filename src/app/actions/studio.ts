@@ -7,6 +7,7 @@ import { recordContribution } from "@/lib/studio/contributions-server";
 import type { StudioJobHit } from "@/lib/studio/job-link";
 import type { DesignSummary } from "@/lib/studio/store";
 import { searchMirrorJobs } from "@/lib/workboard/projects-query";
+import { studioJobsByIds, studioJobsByNumber } from "@/lib/studio/job-cards-server";
 
 /* Design Studio persistence — server side. Follows the invite-action pattern:
    authenticate the Auth0 session, then read/write via the service role with
@@ -153,15 +154,37 @@ export async function searchStudioJobs(query: string): Promise<StudioJobHit[]> {
   if (q.length < 2) return [];
 
   const hits = await searchMirrorJobs(orgId, q, 8);
-  return hits.map((h) => ({
-    remoteId: h.remoteId,
-    jobNumber: h.jobNumber,
-    clientName: h.clientName,
-    status: h.status,
-    address: h.address,
-    suburb: h.suburb,
-    description: h.description,
-  }));
+  /* each found job as its card: its kind, its colour and whether it has
+     plans read; one the card read loses keeps its plain answer */
+  const cards = new Map((await studioJobsByIds(orgId, hits.map((h) => h.remoteId))).map((c) => [c.remoteId, c]));
+  return hits.map(
+    (h) =>
+      cards.get(h.remoteId) ?? {
+        remoteId: h.remoteId,
+        jobNumber: h.jobNumber,
+        clientName: h.clientName,
+        status: h.status,
+        address: h.address,
+        suburb: h.suburb,
+        description: h.description,
+      }
+  );
+}
+
+/* NEW DESIGN'S JOBS (Isaac, 14 November 2026): Recent is the jobs this
+   browser last opened, read fresh by id; All jobs is the newest number
+   first, a page at a time. The same two gates as the search. */
+export async function readStudioJobs(ids: string[]): Promise<StudioJobHit[]> {
+  const { orgId } = await requireOrg("studio");
+  if (!(await can("workboard"))) return [];
+  if (!Array.isArray(ids)) return [];
+  return studioJobsByIds(orgId, ids.filter((id): id is string => typeof id === "string").slice(0, 20));
+}
+
+export async function listStudioJobs(from: number, limit: number): Promise<StudioJobHit[]> {
+  const { orgId } = await requireOrg("studio");
+  if (!(await can("workboard"))) return [];
+  return studioJobsByNumber(orgId, Number(from) || 0, Number(limit) || 0);
 }
 
 export async function deleteStudioDesign(id: string): Promise<void> {

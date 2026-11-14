@@ -1,6 +1,6 @@
 import { createDesign, type DesignDocument, type DesignObject } from "../document";
 import type { ReadOpening, SheetReading } from "../reading";
-import { canJoin, foundOn, insertCorner, joinRooms, keepFound, removeCorner, shapeAfterEdit, wallsAfterInsert, wallsAfterRemove, wallsWithOpenings } from "../room-edit";
+import { canJoin, foundOn, insertCorner, joinRooms, keepFound, readyFromPlans, removeCorner, shapeAfterEdit, wallsAfterInsert, wallsAfterRemove, wallsWithOpenings } from "../room-edit";
 import { glassM2, suggestionsFor } from "../rooms-from-reading";
 
 const rect = (x: number, y: number, w: number, h: number) => [
@@ -166,6 +166,53 @@ describe("Tiff's rooms, kept from the plan", () => {
     const d = design();
     const unscaled = { ...d, floors: [{ ...d.floors[0], scaleMmPerUnit: null }] };
     expect(keepFound(unscaled, "gf", ["s1:0"])).toBe(unscaled);
+  });
+});
+
+describe("a design as it opens from a job's plans", () => {
+  test("the rooms inside the house are marked, the garage left found", () => {
+    const d = readyFromPlans(design());
+    expect(d.objects.filter((o) => o.type === "room").map((o) => o.props.name)).toEqual(["Bedroom", "Living"]);
+    expect(foundOn(d, "gf").map((s) => s.name)).toEqual(["Garage"]);
+  });
+
+  test("wet rooms and halls are marked too, not only the rooms a unit usually serves", () => {
+    const d = design();
+    const more: SheetReading = { ...sheet, spaces: [...sheet.spaces, space("Bath", "wet", rect(0, 320, 200, 60)), space("Hall", "circulation", rect(210, 320, 300, 60))] };
+    const out = readyFromPlans({ ...d, reading: { ...d.reading!, floors: { gf: [more] } } });
+    expect(out.objects.filter((o) => o.type === "room").map((o) => o.props.name)).toEqual(["Bedroom", "Living", "Bath", "Hall"]);
+  });
+
+  test("a floor with no scale takes the one Tiff measured off its page, then its rooms", () => {
+    const d = design();
+    const unscaled: DesignDocument = {
+      ...d,
+      floors: [{ ...d.floors[0], scaleMmPerUnit: null }],
+      planImport: { sources: [], placed: { 0: "r" }, chosen: [0], names: {}, measured: { 0: { from: "the 4000 mm printed on it", sure: true, mmPerPx: 10 } } },
+    };
+    const out = readyFromPlans(unscaled);
+    expect(out.floors[0].scaleMmPerUnit).toBe(10);
+    expect(out.objects.filter((o) => o.type === "room")).toHaveLength(2);
+  });
+
+  test("a scale already on the floor is left as it is", () => {
+    const d = design();
+    const out = readyFromPlans({
+      ...d,
+      planImport: { sources: [], placed: { 0: "r" }, chosen: [0], names: {}, measured: { 0: { from: "x", sure: true, mmPerPx: 25 } } },
+    });
+    expect(out.floors[0].scaleMmPerUnit).toBe(10);
+  });
+
+  test("with no scale to be had, the rooms stay found and the design is untouched", () => {
+    const d = design();
+    const unscaled = { ...d, floors: [{ ...d.floors[0], scaleMmPerUnit: null }] };
+    expect(readyFromPlans(unscaled)).toBe(unscaled);
+  });
+
+  test("opening twice marks nothing twice", () => {
+    const once = readyFromPlans(design());
+    expect(readyFromPlans(once)).toBe(once);
   });
 });
 

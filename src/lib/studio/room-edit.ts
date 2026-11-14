@@ -13,6 +13,7 @@ import { releaseZones } from "./builder";
 import type { DesignDocument, DesignObject, Point } from "./document";
 import { distToSegment, isAxisAlignedRect } from "./geometry";
 import type { DataPack } from "./packs/schema";
+import { proposedScale } from "./plan-set";
 import type { ReadOpening } from "./reading";
 import { joinOutlines, roomFrom, suggestionsFor, type Suggestion } from "./rooms-from-reading";
 
@@ -133,6 +134,33 @@ export function keepFound(doc: DesignDocument, floorId: string, keys: string[], 
     });
   }
   return added.length ? { ...doc, objects: [...doc.objects, ...added] } : doc;
+}
+
+/** A design as it opens from a job's plans: each floor that has no scale
+    takes the one its page gives (the printed one, else the one Tiff
+    measured off its dimensions), and the rooms inside the house are marked
+    from her read, so the rooms and their heat loads are there on open. A
+    garage or a carport stays a suggestion, and so does every room of a
+    floor with no scale to mark it by (Isaac, 14 November 2026: "Yes" to
+    building from https://claude.ai/artifact/61nqwanqUAtQx4iG6AxoYs, where
+    3465 opens with its twelve rooms marked and the carport left found). */
+export function readyFromPlans(doc: DesignDocument): DesignDocument {
+  let d = doc;
+  for (const { id } of doc.floors) {
+    const floor = d.floors.find((f) => f.id === id);
+    if (floor && !floor.scaleMmPerUnit) {
+      const scale = proposedScale(d, id);
+      if (scale) d = { ...d, floors: d.floors.map((f) => (f.id === id ? { ...f, scaleMmPerUnit: scale.mmPerUnit } : f)) };
+    }
+    d = keepFound(
+      d,
+      id,
+      foundOn(d, id)
+        .filter((s) => s.kind !== "garage")
+        .map((s) => s.key),
+    );
+  }
+  return d;
 }
 
 /** The ceiling height the set gives a room, in metres, and where it says

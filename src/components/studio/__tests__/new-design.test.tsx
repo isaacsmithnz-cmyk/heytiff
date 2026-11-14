@@ -239,9 +239,14 @@ describe("New design, opened on a job", () => {
     const user = userEvent.setup();
     render(<Studio store={new LocalDesignStore(window.localStorage)} planImages={new FakePlanImages()} sm8Jobs forJob={job} />);
     const dialog = await screen.findByRole("dialog", { name: "New design" });
-    expect(within(dialog).getByText("3406 Tandem")).toBeInTheDocument();
-    expect(within(dialog).queryByRole("combobox", { name: "Find the ServiceM8 job" })).toBeNull();
-    expect(within(dialog).queryByLabelText("Find the ServiceM8 job")).toBeNull();
+    // the job it was opened on is its card, with no cross and nothing to search for
+    const card = within(dialog).getByText("3406").closest(".ds2-nd-picked")!;
+    expect(card).toHaveClass("sc-card");
+    expect(within(card as HTMLElement).getByText("Tandem")).toBeInTheDocument();
+    expect(within(card as HTMLElement).getByText("6 Bishops Avenue, Randwick NSW 2031")).toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "Clear the job" })).toBeNull();
+    expect(within(dialog).queryByLabelText("Find a job")).toBeNull();
+    expect(within(dialog).queryByRole("button", { name: "Start without a job" })).toBeNull();
     expect(within(dialog).getByPlaceholderText(/Design name/)).toHaveValue("6 Bishops Avenue");
 
     await user.click(within(dialog).getByRole("button", { name: "Start with a blank canvas" }));

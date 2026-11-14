@@ -408,7 +408,19 @@ the fourth on the customer's messages, below).
     13 with a dot. A project's page, the letter editor and the SWMS sign-on
     keep the block.
   The facts' labels are 13/500 with an icon: Site a house and Contact a
-  person in grey, Next visit a calendar in pink, Money a dollar in purple.
+  person in grey, Next visit a calendar in pink.
+  Since 14 November 2026 (mocks C and D on
+  https://claude.ai/artifact/MkfHutEG1PanPDCW7fyV5a, and his calls 4, 5, 11,
+  19 and 21) the Overview is two columns fitted to the screen, each card
+  scrolling inside itself and never under 420 high, the job's head staying
+  put above them when a short window scrolls: on the left one facts card 320
+  wide, Next visit first, then Google's map of the site, the address with its
+  first line at 16 bold and Directions, then the contacts in full, no email
+  underlined or faded; on the right the Activity feed. The stages line stands
+  beside the job's name, off its card, on the Overview only, its last step
+  "Not paid" in orange while money is owing. Money and the Job tracker are
+  Billing's, and a tracked job's board is a line in Actions. A long client
+  name wraps beside its number and never fades.
 - **The Job tracker's bar turns red past the quote** (`.jtr-over`),
   despite rule 16, no chart is red (Isaac, 3 November 2026: over the
   allowance is "a red line and how much over"). Used is grey, overtime's

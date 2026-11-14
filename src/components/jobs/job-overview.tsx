@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { readJobConversation } from "@/app/actions/job-conversation";
 import { undoNote } from "@/app/actions/workboard-notes";
@@ -11,11 +11,11 @@ import { nextVisitOf, type JobConversationRead, type RailTask } from "@/lib/jobs
 import type { StoryEntry } from "@/lib/workboard/job-story";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import { JobConversation, type ConversationDiary } from "./job-conversation";
-import { JobFacts } from "./job-facts";
-import { JobEquipment } from "./job-equipment";
+import { JobFacts, JobMap } from "./job-facts";
+import { mapAddress } from "@/lib/jobs/job-map";
+import type { Hue } from "@/components/parts/state";
 import { JobTodo } from "./job-todo";
-import { JobTracker } from "./job-tracker";
-import type { TrackerRead } from "@/lib/jobs/job-tracker";
+import { useFitHeight } from "./use-fit-height";
 import { useTasksChanged } from "@/lib/tasks/changed";
 import dynamic from "next/dynamic";
 
@@ -24,24 +24,22 @@ import dynamic from "next/dynamic";
 const TaskForm = dynamic(() => import("@/components/making/task-form").then((m) => m.TaskForm), { ssr: false });
 
 /* A JOB'S OVERVIEW (v2, step 6, slice A; the board JC-1; laid out again as
-   Isaac's refined Overview A, 25 October 2026: "Yes, build the refined
-   Overview A"). Top to bottom:
+   Isaac's refined Overview A, 25 October 2026, and again on 13 and 14
+   November 2026: "Give scope its own tab ... That way the activity section
+   can get as much width as it needs"; mocks C and D approved on
+   https://claude.ai/artifact/MkfHutEG1PanPDCW7fyV5a). Two columns, fitted
+   to the screen, each card scrolling inside itself and never under 420 high
+   (use-fit-height; below that the page scrolls and the job's head stays put):
 
-     the stages line, handed in by the page (it lives on Overview only);
-     the strip of facts (job-facts.tsx): Site, Contact, Next visit and,
-       for whoever sees money, Money;
-     what the page puts under the strip: a tracked job's board;
-     two columns split by a full-height hairline: on the left To do
-       (job-todo.tsx), on the right the Activity feed (job-conversation.tsx),
-       Tiff's box at its head. The Summary, or the job's Scope with Since
-       the quote and Latest updates, moved to the Scope tab (Isaac, 13
-       November 2026: "Give scope its own tab"; job-scope-tab.tsx);
-     for whoever sees money, the Job tracker (job-tracker.tsx) heads the
-       left column: labour, materials and equipment against the quote
-       (Isaac, 4 November 2026, "build it").
+     on the left, 320 wide, the facts card (job-facts.tsx): Next visit, the
+       site with Directions, the contacts in full; To do under it
+       (job-todo.tsx), until it joins the feed;
+     on the right, the Activity feed (job-conversation.tsx), Tiff's box at
+       its head.
 
-   It all stands on a grey ground, each part a white card (design.md, "On
-   a job's page").
+   The stages line stands beside the job's name (job-page-head.tsx), the
+   Scope or Summary on its own tab (job-scope-tab.tsx), Money and the Job
+   tracker on Billing, and a tracked job's board is a line in Actions.
 
    Every section is one recipe (job-section.tsx): a coloured block and its
    title, at most one button on the right, then rows under hairlines.
@@ -61,38 +59,6 @@ const TaskForm = dynamic(() => import("@/components/making/task-form").then((m) 
    (lib/lang/policy, in the router). It never listens by itself; the box's
    microphone puts said words in the box, which go as voice. */
 
-/** The room a sticking column keeps above it, and below it, in the page's scroller. */
-const STICK_GAP = 24;
-
-/* THE LEFT COLUMN STAYS IN VIEW (the walk of 25 October 2026: the feed
-   runs long, and Summary and To do ended halfway down). It sticks in the
-   page's scroller as the feed scrolls, but only while it fits in the
-   scroller's height: a Summary taller than that scrolls with the page, so
-   nothing in it is ever out of reach. */
-function useStickWhileItFits() {
-  const ref = useRef<HTMLDivElement | null>(null);
-  const [fits, setFits] = useState(false);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const scroller = el.closest<HTMLElement>(".outlet");
-    const measure = () => {
-      const room = (scroller?.clientHeight ?? window.innerHeight) - 2 * STICK_GAP;
-      setFits(el.offsetHeight > 0 && el.offsetHeight <= room);
-    };
-    measure();
-    const seen = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
-    seen?.observe(el);
-    if (scroller) seen?.observe(scroller);
-    window.addEventListener("resize", measure);
-    return () => {
-      seen?.disconnect();
-      window.removeEventListener("resize", measure);
-    };
-  }, []);
-  return [ref, fits] as const;
-}
-
 const OPENING: Opening = { origin: null, still: true, at: 0, room: "diary" };
 
 /* The tick's actions, reached when a tick is pressed: the job card carries
@@ -108,11 +74,10 @@ export function JobOverview({
   loading,
   moneyVisible,
   detail,
+  hue = "grey",
   diary,
   onToast,
-  head,
   doors,
-  under,
 }: {
   cardId: string | null;
   /** The read below as the page already made it, on the server: drawn at
@@ -124,16 +89,14 @@ export function JobOverview({
   loading: boolean;
   moneyVisible: boolean;
   detail: MirrorJobDetail | null;
+  /** The job's colour: the pin on its map. */
+  hue?: Hue;
   diary: ConversationDiary;
   onToast: (message: string, undo?: () => void | Promise<void>) => void;
-  /** Over the strip: the stages line. */
-  head?: ReactNode;
   /** The sections' doors and the Money cell's insides, the page's own. */
   doors: {
     onVisits: () => void;
     onBook?: () => void;
-    money?: ReactNode;
-    onMoney?: () => void;
     onAddTask?: () => void;
     /** Contact's Edit, where saving customers is on. */
     onEditContact?: () => void;
@@ -141,12 +104,10 @@ export function JobOverview({
     open?: ReactNode;
     openCount?: number;
   };
-  /** Under the strip: a tracked job's board. */
-  under?: ReactNode;
 }) {
   const router = useRouter();
   const scope = useNoteScope();
-  const [mainRef, mainFits] = useStickWhileItFits();
+  const [fitRef, fitH] = useFitHeight<HTMLDivElement>();
   const tiff = useTiff();
   const convo = useConversation({
     opening: OPENING,
@@ -186,25 +147,6 @@ export function JobOverview({
       live = false;
     };
   }, [cardId, kick, filedHere, ours, landed]);
-
-  /* THE JOB TRACKER'S READ, a route of its own (the card's server actions
-     run one at a time): only for whoever sees money */
-  const [tracker, setTracker] = useState<TrackerRead | null | "none">(null);
-  useEffect(() => {
-    if (!cardId || !moneyVisible) return;
-    let live = true;
-    void fetch(`/api/workboard/job-tracker?job=${encodeURIComponent(cardId)}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j: { ok?: boolean; tracker?: TrackerRead } | null) => {
-        if (live) setTracker(j?.ok && j.tracker ? j.tracker : "none");
-      })
-      .catch(() => {
-        if (live) setTracker("none");
-      });
-    return () => {
-      live = false;
-    };
-  }, [cardId, moneyVisible]);
 
   /* a task made, changed or ticked anywhere on the page (New › Task, a row's
      own form) is read again here: it never reached this To do until a
@@ -263,57 +205,55 @@ export function JobOverview({
   const tasks = (read?.tasks ?? []).filter((t) => !ticked.has(t.id));
 
   return (
-    <div className="jov">
-      {head && <div className="jov-line">{head}</div>}
-      <JobFacts
-        detail={detail}
-        next={detail ? nextVisitOf({ booked: detail.booked ?? null, nextBooking: detail.nextBooking }, today) : null}
-        nextRead={!!detail}
-        onVisits={doors.onVisits}
-        onBook={doors.onBook}
-        money={doors.money}
-        onMoney={doors.onMoney}
-        onEditContact={doors.onEditContact}
-      />
-      {under}
-      <div className="jov-cols">
-        <div className={`jov-main${mainFits ? " jov-main--stick" : ""}`} ref={mainRef}>
-          {moneyVisible && cardId && tracker !== "none" && <JobTracker read={tracker} jobId={cardId} onRead={setTracker} />}
-          {cardId ? <JobEquipment jobId={cardId} /> : null}
-          <JobTodo
-            tasks={tasks}
-            tasksRead={!!read}
-            onTick={tick}
-            onAddTask={doors.onAddTask}
-            open={doors.open}
-            openCount={doors.openCount ?? 0}
-            done={read?.done ?? []}
-            onOpenTask={setOpenTask}
-          />
-          {openTask ? <TaskForm taskId={openTask} onClose={() => setOpenTask(null)} onChanged={again} /> : null}
-        </div>
-        <div className="jov-side">
-          <JobConversation
-            story={story}
-            talks={read?.notes ?? []}
-            today={today}
-            loading={loading}
-            moneyVisible={moneyVisible}
-            diary={diary}
-            convo={convo}
-            canSend={!!cardId}
-            viewerName={read?.viewer.name ?? null}
-            voiceEnabled={scope.voiceEnabled}
-            onUndoTalk={undoTalk}
-            jobUuid={cardId ?? null}
-            onSaved={() => {
-              router.refresh();
-              again();
-            }}
-            customer={read?.customer}
-            comms={read?.comms}
-          />
-        </div>
+    <div className="jov jov--fit" ref={fitRef} style={fitH == null ? undefined : ({ "--fit-h": `${fitH}px` } as CSSProperties)}>
+      <div className="jov-left">
+        <JobFacts
+          detail={detail}
+          next={detail ? nextVisitOf({ booked: detail.booked ?? null, nextBooking: detail.nextBooking }, today) : null}
+          nextRead={!!detail}
+          onVisits={doors.onVisits}
+          onBook={doors.onBook}
+          onEditContact={doors.onEditContact}
+          jobUuid={cardId}
+          map={
+            cardId && mapAddress({ address: detail?.address, geoLine: detail?.geoLine }) ? (
+              <JobMap jobUuid={cardId} hue={hue} address={mapAddress({ address: detail?.address, geoLine: detail?.geoLine })!} />
+            ) : null
+          }
+        />
+        <JobTodo
+          tasks={tasks}
+          tasksRead={!!read}
+          onTick={tick}
+          onAddTask={doors.onAddTask}
+          open={doors.open}
+          openCount={doors.openCount ?? 0}
+          done={read?.done ?? []}
+          onOpenTask={setOpenTask}
+        />
+        {openTask ? <TaskForm taskId={openTask} onClose={() => setOpenTask(null)} onChanged={again} /> : null}
+      </div>
+      <div className="jov-side">
+        <JobConversation
+          story={story}
+          talks={read?.notes ?? []}
+          today={today}
+          loading={loading}
+          moneyVisible={moneyVisible}
+          diary={diary}
+          convo={convo}
+          canSend={!!cardId}
+          viewerName={read?.viewer.name ?? null}
+          voiceEnabled={scope.voiceEnabled}
+          onUndoTalk={undoTalk}
+          jobUuid={cardId ?? null}
+          onSaved={() => {
+            router.refresh();
+            again();
+          }}
+          customer={read?.customer}
+          comms={read?.comms}
+        />
       </div>
     </div>
   );

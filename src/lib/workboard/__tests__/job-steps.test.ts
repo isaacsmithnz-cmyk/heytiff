@@ -197,6 +197,13 @@ describe("the work-order line", () => {
     ).toEqual(["enquiry:done:20 Aug", "booked:done:12 Sept", "onsite:done:1 day", "done:done:12 Sept", "invoiced:done:12 Sept", "paid:warn:Invoiced, not paid"]);
   });
 
+  /* Isaac, 14 November 2026, call 4: the last step reads "Not paid" while money is owing */
+  it("says Not paid while money is owing on a finished job, and Paid once it's in", () => {
+    const owing = family([claim({ stage: "Final", state: "awaiting", raisedOn: "2026-09-12" })], { awaitingCents: 300000, toComeCents: 0 });
+    expect(jobSteps({ ...base, ...wo, status: "Completed", completionDate: "2026-09-12", visitDays: ["2026-09-12"], family: owing }, true).at(-1)?.label).toBe("Not paid");
+    expect(jobSteps({ ...base, ...wo, status: "Work Order", family: null }, true).at(-1)?.label).toBe("Paid");
+  });
+
   it("a job booked as a Quote that became do-and-charge moves to it on its own; a sent quote keeps the quote line", () => {
     expect(lineOf({ status: "Quote", quoteSentOn: null })).toBe("quote");
     expect(lineOf({ status: "Work Order", quoteSentOn: null })).toBe("work");

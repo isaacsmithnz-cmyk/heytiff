@@ -409,6 +409,8 @@ export function JobSheet({
      card already has for it. `taskAsk` is bumped by Add > Task, which opens
      the Visits face's own Add a task. */
   const [taskAsk, setTaskAsk] = useState(0);
+  /* Add › To do: the Overview's feed opens on To do with its box ready */
+  const [todoAsk, setTodoAsk] = useState(0);
   /* Add › Cost's form, open over the job */
   const [costing, setCosting] = useState(false);
   /* Add › Purchase, and what Materials' Bought reloads on once one's added */
@@ -1577,6 +1579,10 @@ export function JobSheet({
     /* Book in, where the deployment books and the reader may */
     ...(bookings?.canBook ? [{ key: "visit", label: "Visit" }] : []),
     /* the Visits face's Add a task is a manager's (workboard_manage) */
+    /* a To do is the people's (the feed's To do tab); a Task is site work
+       (On site's Add a task): Isaac, 14 November 2026, "task only ever means
+       site work" */
+    ...(detail ? [{ key: "todo", label: "To do" }] : []),
     ...(manage && detail ? [{ key: "task", label: "Task" }] : []),
     /* the quote is everyone's on the Workboard; its money is not in it */
     { key: "quote", label: variation ? "Variation" : "Quote" },
@@ -1598,6 +1604,10 @@ export function JobSheet({
       case "task":
         openStep("installation");
         setTaskAsk((n) => n + 1);
+        return;
+      case "todo":
+        go("diary");
+        setTodoAsk((n) => n + 1);
         return;
       case "quote":
         /* until the card knows where the quote stands, the Quote section
@@ -2367,10 +2377,10 @@ export function JobSheet({
               moneyVisible={moneyVisible}
               detail={detail}
               hue={jobHue(categoryColour, status)}
+              askTodo={todoAsk}
               doors={{
                 onVisits: () => go("visits"),
                 onBook: bookings?.canBook ? () => addPick("visit") : undefined,
-                onAddTask: manage && detail ? () => addPick("task") : undefined,
                 onEditContact: customerEdit && cardId ? () => setEditingCustomer(true) : undefined,
                 open: attentionStripOf(true),
                 openCount: attention?.total ?? 0,

@@ -99,6 +99,8 @@ export type ThreadBubble = {
   /** what came with this message, said under its own bubble */
   files: MessageFile[];
   full: { subject: string | null; from: string | null; to: string | null; when: string; text: string; files: MessageFile[] };
+  /** An email, shown trimmed, with Whole email and Reply under it (call 12). */
+  email?: boolean;
 };
 
 export type ThreadLine = ThreadBubble | { kind: "line"; key: string; words: string; reply: string | null };
@@ -409,11 +411,11 @@ export function customerFeed(
         side: m.side,
         name: who === speaker ? null : (m.name ?? (m.side === "them" ? opts.customer : "ServiceM8")),
         last: true,
-        /* a bubble reads as a text does: the paragraphs' blank lines closed up */
-        words: m.text.trim().replace(/\n\s*\n+/g, "\n"),
+        /* a bubble reads as a text does: the paragraphs' blank lines closed up;
+           an email's sign-off and its signature's pictures go */
+        ...bubbleOf(m),
         time: clockOf(m.stamp),
         seen: seenWords(m),
-        files: m.files,
         full: { subject: m.subject, from: m.from, to: m.to, when: `${fmtAuWeekdayDayMonth(day)}, ${clockOf(m.stamp)}`, text: m.text.trim(), files: m.files },
       });
       speaker = who;
@@ -507,11 +509,10 @@ export function commsThreads(messages: readonly CustomerMessage[], opts: { custo
       key: `msg:${m.id}`,
       side: m.side,
       name: who === speaker ? null : (m.name ?? (m.side === "them" ? opts.customer : "ServiceM8")),
-      words: m.text.trim().replace(/\n\s*\n+/g, "\n"),
+      ...bubbleOf(m),
       last: true,
       time: clockOf(m.stamp),
       seen: seenWords(m),
-      files: m.files,
       full: { subject: m.subject, from: m.from, to: m.to, when: `${fmtAuWeekdayDayMonth(day)}, ${clockOf(m.stamp)}`, text: m.text.trim(), files: m.files },
     });
     speaker = who;
@@ -570,6 +571,34 @@ export function withoutEchoes(story: readonly StoryEntry[], customer: readonly C
   }
   return story.filter((e) => !paired.has(e) && !(e.kind === "milestone" && sent.has(`${e.label}:${e.day}`)));
 }
+
+/* AN EMAIL IN THE FEED IS TRIMMED (Isaac, 14 November 2026, call 12, mock D):
+   its words up to the sign-off, and what came with it less the pictures a
+   signature carries; the whole of it is a press away (Whole email). */
+
+/* a line that only signs off, or a mail program's own tail */
+const SIGN_OFF = /^(?:(?:kind|best|warm|many|with)\s+)?(?:regards|thanks|thank you|thanks again|cheers|ta)\b[\s,.!]*$|^sent from my\b|^get outlook for\b|^--\s*$/i;
+
+/** An email's own words, without its sign-off and what follows it: the name,
+    the title, the numbers and the disclaimer. A message that is only a
+    sign-off ("Thanks!") is kept whole. */
+export function withoutSignature(text: string): string {
+  const lines = text.split("\n");
+  const at = lines.findIndex((l, i) => i > 0 && SIGN_OFF.test(l.trim()));
+  return (at < 0 ? text : lines.slice(0, at).join("\n")).trim();
+}
+
+/* the pictures a signature carries: Outlook's image001.png, a logo */
+const LOGO = /^(?:image\d{3}|outlook-[\w-]+|logo[\w-]*|signature[\w-]*)\.(?:png|jpe?g|gif|bmp)$/i;
+
+/** What came with an email, less its signature's pictures. */
+export const withoutLogos = (files: readonly MessageFile[]): MessageFile[] => files.filter((f) => !LOGO.test((f.name ?? "").trim()));
+
+/** A bubble's words and files: an email's trimmed, a text's as sent. */
+const bubbleOf = (m: CustomerMessage): Pick<ThreadBubble, "words" | "files" | "email"> =>
+  m.kind === "email"
+    ? { words: withoutSignature(m.text.trim()).replace(/\n\s*\n+/g, "\n"), files: withoutLogos(m.files), email: true }
+    : { words: m.text.trim().replace(/\n\s*\n+/g, "\n"), files: m.files };
 
 const ENTITIES: Record<string, string> = {
   nbsp: " ", amp: "&", lt: "<", gt: ">", quot: '"', apos: "'",

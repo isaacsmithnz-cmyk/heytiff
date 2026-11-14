@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { listJobDiaryEntries } from "@/lib/dashboard/journal-query";
 import { staffDisplayNames } from "@/lib/workboard/job-notes-query";
 import { todayInZone } from "@/lib/workboard/dates";
+import { naiveInZone } from "@/lib/workboard/job-story";
 import { readLines } from "@/lib/quotes/lines-server";
 import { readByHand } from "@/lib/quotes/lines-job-server";
 import { summaryFromQuote, type SummaryGroup } from "./job-summary-rows";
@@ -13,6 +14,7 @@ import {
   railTasksOf,
   repliesOf,
   taskLine,
+  todoLine,
   talkWithoutMoney,
   withoutMoney,
   type JobConversationRead,
@@ -62,9 +64,11 @@ type TaskRow = {
   due_date: string | null;
   remind_at: string | null;
   remind_kind: string | null;
+  created_at?: string | null;
+  created_by?: string | null;
 };
 
-const TASK_COLUMNS = "id, title, assigned_to, status, due_date, remind_at, remind_kind";
+const TASK_COLUMNS = "id, title, assigned_to, status, due_date, remind_at, remind_kind, created_at, created_by";
 
 type DbError = { code?: string } | null;
 const missingColumn = (e: DbError) => e?.code === "42703" || e?.code === "PGRST204";
@@ -149,7 +153,7 @@ export async function readJobConversationFor(input: {
       try {
         const r = await supabaseAdmin
           .from("tasks")
-          .select("id, title, done_at, done_by")
+          .select("id, title, done_at, done_by, assigned_to, due_date, created_at, created_by")
           .eq("org_id", orgId)
           .eq("sm8_job_uuid", jobUuid)
           .eq("status", "done")
@@ -162,12 +166,23 @@ export async function readJobConversationFor(input: {
       }
     })(),
   ]);
-  const doneRows = (doneOnJob.data ?? []) as { id: string; title: string | null; done_at: string | null; done_by: string | null }[];
+  const doneRows = (doneOnJob.data ?? []) as {
+    id: string;
+    title: string | null;
+    done_at: string | null;
+    done_by: string | null;
+    assigned_to?: string | null;
+    due_date?: string | null;
+    created_at?: string | null;
+    created_by?: string | null;
+  }[];
 
   const taskRows = [...((linked.data ?? []) as TaskRow[]), ...((onJob.data ?? []) as TaskRow[])];
   const names = await staffDisplayNames(orgId, [
     ...taskRows.map((t) => t.assigned_to),
     ...doneRows.map((t) => t.done_by),
+    ...taskRows.map((t) => t.created_by ?? null),
+    ...doneRows.flatMap((t) => [t.created_by ?? null, t.assigned_to ?? null]),
     ...entries.map((e) => e.authorId),
     staffId,
   ]);
@@ -216,6 +231,29 @@ export async function readJobConversationFor(input: {
   /* a task a note made is Tiff's words; one New › Task put on the job is a
      person's, and stays as they typed it */
   const tiffMade = new Set(noteTaskIds);
+  /* A TO DO AS THE FEED SAYS IT (Isaac, 14 November 2026, calls 6 and 7,
+     mock D): who made it ("Tiff, for Isaac Smith" when a note did), when, on
+     the account's clock, and who it's for and when it's due */
+  const madeOf = (t: { id: string; created_at?: string | null; created_by?: string | null }) => {
+    const maker = t.created_by ? (names.get(t.created_by) ?? null) : null;
+    const stamp = t.created_at ? naiveInZone(t.created_at, tz) : null;
+    return {
+      by: tiffMade.has(t.id) ? (maker ? `Tiff, for ${maker}` : "Tiff") : maker,
+      day: stamp ? stamp.slice(0, 10) : null,
+      at: stamp,
+      time: t.created_at ? clockIn(tz, t.created_at) : null,
+    };
+  };
+  const forOf = (t: { assigned_to?: string | null; due_date?: string | null; remind_at?: string | null; remind_kind?: string | null }) =>
+    todoLine(
+      {
+        who: t.assigned_to ? firstName(names.get(t.assigned_to)) : null,
+        dueDate: t.due_date ?? null,
+        time: t.remind_at ? clockIn(tz, t.remind_at) : null,
+        by: t.remind_kind === "by",
+      },
+      today,
+    );
   const titleOf = (t: TaskRow) => {
     const title = (t.title ?? "").trim() || "A task";
     return money || !tiffMade.has(t.id) ? title : withoutMoney(title);
@@ -232,6 +270,9 @@ export async function readJobConversationFor(input: {
         dueDate: t.due_date,
         line: lineOf(t),
         assigneeId: t.assigned_to,
+        forLine: forOf(t).line,
+        tone: forOf(t).tone,
+        ...madeOf(t),
       })),
     ),
     done: doneRows.map((t) => {
@@ -239,7 +280,7 @@ export async function readJobConversationFor(input: {
       const at = t.done_at ? clockIn(tz, t.done_at) : null;
       const who = t.done_by === staffId ? "you" : (names.get(t.done_by ?? "") ?? "someone");
       const when = day ? (day === today ? `today${at ? `, ${at}` : ""}` : `${fmtAuWeekdayDayMonth(day)}${at ? `, ${at}` : ""}`) : "";
-      return { id: t.id, title: (t.title ?? "").trim() || "A task", line: `Done by ${who}${when ? `, ${when}` : ""}` };
+      return { id: t.id, title: (t.title ?? "").trim() || "A task", line: `Done by ${who}${when ? `, ${when}` : ""}`, forLine: forOf(t).line, ...madeOf(t) };
     }),
     viewer: { id: staffId, name: staffId ? (names.get(staffId) ?? null) : null },
     summary,

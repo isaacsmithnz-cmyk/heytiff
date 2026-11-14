@@ -14,7 +14,6 @@ import { JobConversation, type ConversationDiary } from "./job-conversation";
 import { JobFacts, JobMap } from "./job-facts";
 import { mapAddress } from "@/lib/jobs/job-map";
 import type { Hue } from "@/components/parts/state";
-import { JobTodo } from "./job-todo";
 import { useFitHeight } from "./use-fit-height";
 import { useTasksChanged } from "@/lib/tasks/changed";
 import dynamic from "next/dynamic";
@@ -32,10 +31,9 @@ const TaskForm = dynamic(() => import("@/components/making/task-form").then((m) 
    (use-fit-height; below that the page scrolls and the job's head stays put):
 
      on the left, 320 wide, the facts card (job-facts.tsx): Next visit, the
-       site with Directions, the contacts in full; To do under it
-       (job-todo.tsx), until it joins the feed;
-     on the right, the Activity feed (job-conversation.tsx), Tiff's box at
-       its head.
+       map, the site with Directions, the contacts in full;
+     on the right, the Activity feed (job-conversation.tsx) like a chat, its
+       box at the foot, To do one of its tabs (mock D).
 
    The stages line stands beside the job's name (job-page-head.tsx), the
    Scope or Summary on its own tab (job-scope-tab.tsx), Money and the Job
@@ -75,6 +73,7 @@ export function JobOverview({
   moneyVisible,
   detail,
   hue = "grey",
+  askTodo = 0,
   diary,
   onToast,
   doors,
@@ -91,13 +90,14 @@ export function JobOverview({
   detail: MirrorJobDetail | null;
   /** The job's colour: the pin on its map. */
   hue?: Hue;
+  /** Bumped by Actions' Add › To do: the feed opens on To do, its box ready. */
+  askTodo?: number;
   diary: ConversationDiary;
   onToast: (message: string, undo?: () => void | Promise<void>) => void;
   /** The sections' doors and the Money cell's insides, the page's own. */
   doors: {
     onVisits: () => void;
     onBook?: () => void;
-    onAddTask?: () => void;
     /** Contact's Edit, where saving customers is on. */
     onEditContact?: () => void;
     /** What's open on the job (the attention rows), at the head of To do. */
@@ -173,7 +173,7 @@ export function JobOverview({
     setTicked((s) => new Set(s).add(t.id));
     void taskActions()
       .then((a) => a.completeTask(t.id, { postDone: true }))
-      .catch(() => ({ ok: false as const, error: "Couldn't complete that task." }))
+      .catch(() => ({ ok: false as const, error: "Couldn't tick that to do." }))
       .then((res) => {
         if (!res.ok) {
           untick(t.id);
@@ -181,15 +181,33 @@ export function JobOverview({
           return;
         }
         again();
-        onToast("Task done", async () => {
+        onToast("To do ticked", async () => {
           const back = await taskActions()
             .then((a) => a.reopenTask(t.id, { takeBackDone: true }))
-            .catch(() => ({ ok: false as const, error: "Couldn't reopen that task." }));
+            .catch(() => ({ ok: false as const, error: "Couldn't open that to do again." }));
           untick(t.id);
           if (!back.ok) onToast(back.error);
           again();
         });
       });
+  };
+
+  /* SAVE ON THE TO DO TAB (call 8): the words as written, a To do for you on
+     the job with no date; the toast's Undo takes it back */
+  const addTodo = async (words: string): Promise<boolean> => {
+    if (!cardId) return false;
+    const a = await taskActions().catch(() => null);
+    const res = a ? await a.makeTasks({ text: words, jobUuid: cardId }).catch(() => null) : null;
+    if (!res?.ok) {
+      onToast(res && !res.ok ? res.error : "That to do didn't save. Try it again.");
+      return false;
+    }
+    again();
+    onToast(res.taskIds.length === 1 ? "To do added" : `${res.taskIds.length} to dos added`, async () => {
+      await Promise.all(res.taskIds.map((id) => a!.deleteTask(id).catch(() => null)));
+      again();
+    });
+    return true;
   };
 
   const undoTalk = async (noteId: string) => {
@@ -221,16 +239,6 @@ export function JobOverview({
             ) : null
           }
         />
-        <JobTodo
-          tasks={tasks}
-          tasksRead={!!read}
-          onTick={tick}
-          onAddTask={doors.onAddTask}
-          open={doors.open}
-          openCount={doors.openCount ?? 0}
-          done={read?.done ?? []}
-          onOpenTask={setOpenTask}
-        />
         {openTask ? <TaskForm taskId={openTask} onClose={() => setOpenTask(null)} onChanged={again} /> : null}
       </div>
       <div className="jov-side">
@@ -253,6 +261,17 @@ export function JobOverview({
           }}
           customer={read?.customer}
           comms={read?.comms}
+          askTodo={askTodo}
+          todos={{
+            tasks,
+            done: read?.done ?? [],
+            read: !!read,
+            onTick: tick,
+            onOpen: setOpenTask,
+            open: doors.open,
+            openCount: doors.openCount ?? 0,
+            onAdd: cardId ? addTodo : undefined,
+          }}
         />
       </div>
     </div>

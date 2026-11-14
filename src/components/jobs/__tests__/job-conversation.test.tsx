@@ -103,6 +103,7 @@ const convo = (over: Partial<Conversation> = {}): Conversation =>
     answer: jest.fn(),
     undo: jest.fn(async () => undefined),
     questionOpen: false,
+    aimRoom: jest.fn(),
     ...over,
   }) as unknown as Conversation;
 
@@ -138,7 +139,8 @@ const draw = (p: {
 
 /* THE ACTIVITY FEED (Isaac's refined Overview A, 25 October 2026): newest
    first, a grey line between the days, Tiff's box at the head */
-it("reads newest first, a line between the days, each message with its person and time", () => {
+/* like a chat (Isaac, 14 November 2026, mock D): oldest at the top, the newest at the foot over the box */
+it("reads oldest first, a line between the days, each message with its person and time", () => {
   draw({
     story: [
       note({ key: "note:b", text: "Second", at: "2026-10-13 10:02:00" }),
@@ -146,16 +148,16 @@ it("reads newest first, a line between the days, each message with its person an
     ],
   });
   const days = screen.getAllByText(/^(Today|Fri 9 Oct)$/).map((d) => d.textContent);
-  expect(days).toEqual(["Today", "Fri 9 Oct"]);
+  expect(days).toEqual(["Fri 9 Oct", "Today"]);
   expect(screen.getByText("Today")).toHaveClass("jc-dayname");
   const msgs = screen.getAllByRole("article");
-  expect(msgs.map((m) => within(m).getByText(/First|Second/).textContent)).toEqual(["Second", "First"]);
-  expect(within(msgs[1]!).getByText("Dane Hill")).toBeInTheDocument();
-  expect(within(msgs[1]!).getByText("3:00 pm")).toBeInTheDocument();
-  expect(within(msgs[0]!).getByText("10:02 am")).toBeInTheDocument();
+  expect(msgs.map((m) => within(m).getByText(/First|Second/).textContent)).toEqual(["First", "Second"]);
+  expect(within(msgs[0]!).getByText("Dane Hill")).toBeInTheDocument();
+  expect(within(msgs[0]!).getByText("3:00 pm")).toBeInTheDocument();
+  expect(within(msgs[1]!).getByText("10:02 am")).toBeInTheDocument();
 });
 
-it("puts a day's entries newest first too, and says Yesterday for yesterday", () => {
+it("puts a day's entries oldest first too, and says Yesterday for yesterday", () => {
   draw({
     story: [
       note({ key: "note:late", text: "Later on", day: "2026-10-12", at: "2026-10-12 16:43:00" }),
@@ -163,21 +165,21 @@ it("puts a day's entries newest first too, and says Yesterday for yesterday", ()
     ],
   });
   expect(screen.getByText("Yesterday")).toHaveClass("jc-dayname");
-  expect(screen.getAllByRole("article").map((m) => within(m).getByText(/on$/).textContent)).toEqual(["Later on", "Early on"]);
+  expect(screen.getAllByRole("article").map((m) => within(m).getByText(/on$/).textContent)).toEqual(["Early on", "Later on"]);
 });
 
-it("is a section like the others: the green block, Activity feed, the soft tabs on its right, Tiff's box above the feed", () => {
+it("is a section like the others: the green block, Activity feed, the soft tabs on its right, the box at its foot", () => {
   draw({ story: [note()] });
   const feed = screen.getByRole("region", { name: "Activity feed" });
   const head = feed.querySelector(".jov-head") as HTMLElement;
   expect(head.querySelector(".hm-blk")).toHaveClass("hm-blk--green");
   expect(within(head).getByRole("heading", { level: 2 })).toHaveTextContent("Activity feed");
   const filter = within(head).getByRole("group", { name: "Show in the feed" });
-  expect(within(filter).getAllByRole("button").map((t) => t.textContent)).toEqual(["All", "Comms", "Notes", "Photos"]);
-  /* the box comes before the feed */
+  expect(within(filter).getAllByRole("button").map((t) => t.textContent)).toEqual(["All", "To do", "Comms", "Notes", "Photos", "Tiff"]);
+  /* the box comes after the feed, at the card's foot */
   const box = screen.getByRole("textbox", { name: "Write a note on this job" });
   const list = feed.querySelector(".jc-feed") as HTMLElement;
-  expect(box.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(box.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
   /* Tiff's button says her name by her arrow, blue; the + (a photo or a file) is quiet */
   /* the phone's box (Isaac, 9 November 2026: "I want the boxes to pretty
      much be identical"): Tiff's round blue ↑, and the plus a round button */
@@ -537,11 +539,13 @@ it("draws ServiceM8's sends as rows and the conversation as a thread, oldest fir
   expect(reply.tagName).toBe("B");
   const thread = screen.getByText("Email with Marco").closest(".jc-thread") as HTMLElement;
   const bubbles = [...thread.querySelectorAll(".jc-bm")].map((b) => b.querySelector(".jc-bmtime")?.textContent);
-  expect(bubbles).toEqual(["9:31 amSeen 9:56 am", "10:03 am", "11:06 am", "11:51 amSeen 11:56 am"]);
+  /* an email says its time and Seen, then Whole email (call 12) */
+  expect(bubbles).toEqual(["9:31 amSeen 9:56 amWhole email", "10:03 amWhole email", "11:06 amWhole email", "11:51 amSeen 11:56 amWhole email"]);
   expect(within(thread).getByText("Booking for 2:00 pm texted").closest(".jc-thline")).toHaveTextContent("Marco: Yes");
   /* the newest day first: the invoice's day over the first quote's */
   const days = screen.getAllByText(/^(Tue 20 Oct|Tue 29 Sept?)$/).map((d) => d.textContent);
-  expect(days).toEqual(["Tue 20 Oct", expect.stringMatching(/^Tue 29 Sept?$/)]);
+  /* oldest first, like a chat */
+  expect(days).toEqual([expect.stringMatching(/^Tue 29 Sept?$/), "Tue 20 Oct"]);
 });
 
 /* COMMS (Isaac, 26 October 2026, "Yes, build the Comms tab as mocked") */
@@ -761,7 +765,7 @@ it("fills each side's bubbles its own way, and says a run's name once above it a
     "jc-bm jc-bm--us jc-bm--first jc-bm--last",
   ]);
   expect(run.map((b) => b.querySelector(".jc-bmname")?.textContent ?? null)).toEqual(["Marco", null, "Dana"]);
-  expect(run.map((b) => b.querySelector(".jc-bmtime")?.textContent ?? null)).toEqual([null, "10:01 am", "10:02 amSeen 10:05 am"]);
+  expect(run.map((b) => b.querySelector(".jc-bmtime")?.textContent ?? null)).toEqual([null, "10:01 amWhole email", "10:02 amSeen 10:05 amWhole email"]);
 });
 
 /* the walk of 26 October 2026: the 20 October invoice showed twice */
@@ -792,4 +796,88 @@ it("leaves the claim's own row where it isn't the invoice that went out", () => 
   });
   expect(screen.getByText(/Payment 1, Deposit raised/)).toBeInTheDocument();
   expect(screen.getByText("Invoice sent, $13,200").closest(".jc-send")).not.toHaveTextContent("Payment 1");
+});
+
+/* ── To do in the feed (Isaac, 14 November 2026, mock D and calls 6, 7, 8, 18) ── */
+
+const todoTask = (over: Partial<import("@/lib/jobs/job-conversation").RailTask> = {}) => ({
+  id: "t1",
+  title: "Chase Sharon for the $385",
+  line: "Isaac, Wed 18 Nov",
+  assigneeId: "s-isaac",
+  forLine: "For Isaac, due Wed 18 Nov",
+  tone: null,
+  by: "Isaac Smith",
+  day: "2026-10-13",
+  at: "2026-10-13 09:40",
+  time: "9:40 am",
+  ...over,
+});
+
+const drawTodos = (tasks = [todoTask()], extra: { onAdd?: (w: string) => Promise<boolean>; c?: Conversation } = {}) =>
+  render(
+    <div className="fg">
+      <JobConversation
+        story={[note({ key: "note:b", text: "Second", at: "2026-10-13 10:02:00" })]}
+        talks={[]}
+        today="2026-10-13"
+        loading={false}
+        moneyVisible
+        diary={diary()}
+        convo={extra.c ?? convo()}
+        canSend
+        jobUuid="job-3465"
+        viewerName="Isaac Smith"
+        voiceEnabled={false}
+        todos={{ tasks, done: [{ id: "t0", title: "Send Sharon the invoice", line: "Done by Isaac, Wed 11 Nov" }], read: true, onTick: jest.fn(), onAdd: extra.onAdd }}
+      />
+    </div>,
+  );
+
+it("puts a To do in All on the day it was made: who made it above, who it's for and when under it, the time below", () => {
+  drawTodos();
+  const row = screen.getByText("Chase Sharon for the $385").closest("article") as HTMLElement;
+  expect(within(row).getByText("Isaac Smith")).toHaveClass("jc-bmname");
+  expect(within(row).getByText("For Isaac, due Wed 18 Nov")).toBeInTheDocument();
+  expect(within(row).getByText("9:40 am")).toHaveClass("jc-bmtime");
+  /* made at 9:40, before the 10:02 note */
+  expect(row.compareDocumentPosition(screen.getByText("Second")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});
+
+it("lists Open then Done on the To do tab, and its box adds a to do", async () => {
+  drawTodos();
+  await userEvent.click(screen.getByRole("button", { name: "To do" }));
+  const names = screen.getAllByText(/^(Open|Done)$/).map((n) => n.textContent);
+  expect(names).toEqual(["Open", "Done"]);
+  expect(screen.getByText("Send Sharon the invoice")).toBeInTheDocument();
+  expect(screen.queryByText("Second")).toBeNull();
+  expect(screen.getByRole("textbox", { name: "Add a to do" })).toBeInTheDocument();
+});
+
+it("words the To do tab amber when one is due today and red when one is overdue, that row's line red", async () => {
+  const { unmount } = drawTodos([todoTask({ tone: "look", forLine: "For Isaac, due today" })]);
+  expect(screen.getByRole("button", { name: /^To do/ })).toHaveClass("pt-vtab--look");
+  unmount();
+  drawTodos([todoTask({ tone: "wrong", forLine: "For Isaac, was due Wed 11 Nov" })]);
+  expect(screen.getByRole("button", { name: /^To do/ })).toHaveClass("pt-vtab--wrong");
+  expect(screen.getByText("For Isaac, was due Wed 11 Nov")).toHaveClass("jc-task-line--late");
+});
+
+it("has no box on Comms", async () => {
+  drawTodos();
+  await userEvent.click(screen.getByRole("button", { name: "Comms" }));
+  expect(screen.queryByRole("textbox")).toBeNull();
+});
+
+it("saves a to do as written on the To do tab, and the arrow there asks Tiff in a task list", async () => {
+  const onAdd = jest.fn(async () => true);
+  const send = jest.fn();
+  const aimRoom = jest.fn();
+  drawTodos([todoTask()], { onAdd, c: convo({ draft: "Order the FilterTrack", send, aimRoom }) });
+  await userEvent.click(screen.getByRole("button", { name: "To do" }));
+  await userEvent.click(screen.getByRole("button", { name: "Save" }));
+  expect(onAdd).toHaveBeenCalledWith("Order the FilterTrack");
+  await userEvent.click(screen.getByRole("button", { name: "Send to Tiff" }));
+  expect(aimRoom).toHaveBeenCalledWith("tasks");
+  expect(send).toHaveBeenCalled();
 });

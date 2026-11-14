@@ -295,6 +295,7 @@ describe("the job's page head", () => {
     const menu = await actionsMenu();
     expect(within(menu).getAllByRole("menuitem").map((i) => i.textContent)).toEqual([
       "Add visit",
+      "Add to do",
       "Add task",
       "Add quote",
       "Add cost",
@@ -377,7 +378,7 @@ describe("the job's sections are the card's faces", () => {
      the Scope tab (13 November 2026) */
   /* mocks C and D (14 November 2026): the stages line beside the name, the
      facts card and To do on the left, the Activity feed on the right */
-  it("shows Overview as the facts card and To do beside the Activity feed, the stages line in the head", async () => {
+  it("shows Overview as the facts card beside the Activity feed, To do one of its tabs, the stages line in the head", async () => {
     const { container } = draw("overview", { moneyVisible: true });
     await ready();
     expect(jobTab("Overview")).toHaveAttribute("aria-selected", "true");
@@ -386,7 +387,7 @@ describe("the job's sections are the card's faces", () => {
     const over = container.querySelector(".jov") as HTMLElement;
     const facts = within(screen.getByRole("group", { name: "The job's facts" }));
     expect(facts.getAllByRole("region").map((r) => r.querySelector(".jov-lab")?.firstChild?.textContent)).toEqual(["Next visit", "Site", "Contact"]);
-    expect([...over.querySelectorAll(".jov-left .jov-title")].map((h) => h.textContent)).toEqual(["To do"]);
+    expect([...over.querySelectorAll(".jov-left .jov-title")].map((h) => h.textContent)).toEqual([]);
     expect([...over.querySelectorAll(".jov-side .jov-title")].map((h) => h.textContent)).toEqual(["Activity feed"]);
     expect(screen.getByRole("region", { name: "Activity feed" })).toBeVisible();
     expect(screen.getByRole("textbox", { name: "Write a note on this job" })).toBeVisible();
@@ -395,8 +396,9 @@ describe("the job's sections are the card's faces", () => {
     /* Next visit opens Visits from anywhere on it */
     await userEvent.click(facts.getByRole("button", { name: "Next visit" }));
     expect(onSection).toHaveBeenCalledWith("visits");
-    /* a manager adds a task from To do */
-    expect(within(screen.getByRole("region", { name: "To do" })).getByRole("button", { name: "Add task" })).toBeInTheDocument();
+    /* To do is a tab of the feed, with a box of its own (mock D) */
+    await userEvent.click(within(screen.getByRole("group", { name: "Show in the feed" })).getByRole("button", { name: /^To do/ }));
+    expect(screen.getByRole("textbox", { name: "Add a to do" })).toBeVisible();
   });
 
   it("draws none of the card's own faces on Overview", async () => {

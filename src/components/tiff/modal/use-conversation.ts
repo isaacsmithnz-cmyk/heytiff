@@ -235,6 +235,9 @@ export function useConversation({
 
   const still = opening.still;
   const room = opening.room;
+  /* A ROOM FOR ONE SEND: the job's To do tab sends as said in a task list
+     (call 8), the rest of the box as said where it opened */
+  const aimedRoom = useRef<TiffRoom | null>(null);
   const day = opening.day;
   const words0 = opening.words?.trim() ?? "";
   /* OPENED AGAIN ON A CONVERSATION (a diary entry's Tiff line): what was
@@ -494,7 +497,7 @@ export function useConversation({
        by what came before it ("and the same for Smith St"); a first note is
        sent exactly as it always was. */
     const prior = earlierTurns(spoken(before));
-    const input: Parameters<typeof routeNote>[0] = { transcript: words, target, source, room };
+    const input: Parameters<typeof routeNote>[0] = { transcript: words, target, source, room: aimedRoom.current ?? room };
     if (prior.length) input.before = prior;
     if (receiptId) input.receiptId = receiptId;
     let r: RouteResult;
@@ -1227,6 +1230,10 @@ export function useConversation({
     undoEvents,
     publishKb,
     close,
+    /** The room the next words are said in, for this send: null is where it opened. */
+    aimRoom: (r: TiffRoom | null) => {
+      aimedRoom.current = r;
+    },
   };
 }
 

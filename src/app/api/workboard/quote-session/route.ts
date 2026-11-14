@@ -5,8 +5,10 @@ import { resolveJobCard } from "@/lib/workboard/all-jobs-query";
 import { namesBySignIn } from "@/lib/quotes/lines-server";
 import { sessionModelFor } from "@/lib/quotes/session/model-server";
 import { startTurn } from "@/lib/quotes/session/session-server";
-import { hasQueued, holding, queueAnswerEvent, queueMessage, readSession, readThread, readThreadFrom, readTurnTimes, STILL_WORKING } from "@/lib/quotes/session/store-server";
-import { answerQuestion, answerTyped, priceQuestions } from "@/lib/quotes/session/answers-server";
+import { hasQueued, holding, queueAnswerEvent, queueMessage, queueTap, readSession, readThread, readThreadFrom, readTurnTimes, STILL_WORKING, tapWaiting } from "@/lib/quotes/session/store-server";
+import { answerQuestion, answerTyped, priceQuestions, TAP_WAITS } from "@/lib/quotes/session/answers-server";
+import { answeredOf } from "@/lib/quotes/session/answers";
+import { isErr, questionOf } from "@/lib/quotes/session/tools";
 import { researchDetailOf } from "@/lib/quotes/research";
 import { putResearchedOn } from "@/lib/quotes/lines-job-server";
 import { briefOf } from "@/lib/quotes/session/job-sources";
@@ -103,6 +105,17 @@ export async function POST(req: Request) {
     /* the question on, whatever its age, with every answer since */
     const events = await readThreadFrom(g.orgId, target.parentRemoteId, event);
     const r = await answerQuestion(g.orgId, target.parentRemoteId, g.userId, event, index, events);
+    /* she's at it: the tap waits its turn, its changes made once she's free */
+    if (!r.ok && r.reason === TAP_WAITS) {
+      const s = await readSession(g.orgId, target.parentRemoteId);
+      const ev = events.find((e) => e.id === event && e.kind === "question");
+      const q = ev ? questionOf(ev.body) : null;
+      const a = q && !isErr(q) ? q.answers[index] : undefined;
+      if (!s || !q || isErr(q) || !a) return Response.json({ ok: false, reason: "That isn't one of its answers." }, { status: 409 });
+      if (answeredOf(events).has(event) || (await tapWaiting(g.orgId, s.id, event))) return Response.json({ ok: false, reason: "That question has been answered." }, { status: 409 });
+      await queueTap(g.orgId, s.id, g.userId, { event, index, label: a.label, question: q.question });
+      return Response.json({ ok: true, working: true, queued: true });
+    }
     if (!r.ok) return Response.json(r, { status: 409 });
     /* an answer that leaves her work starts her, with it */
     if (!r.goOn) return Response.json({ ok: true });

@@ -3,7 +3,8 @@ import { namesBySignIn, readEngine } from "../lines-server";
 import type { ModelCall } from "./model";
 import { anthropicModel, chosenEffort, sessionModelFor, writeUpFirst } from "./model-server";
 import { openingMessage, openWords, sessionSystemPrompt } from "./prompt";
-import { addEvents, beginTurn, claimQueued, endTurn, readOpenQuestions, saveRound, takeAnswers } from "./store-server";
+import { addEvents, beginTurn, claimQueued, endTurn, readOpenQuestions, readThread, saveRound, takeAnswers } from "./store-server";
+import { answerQuestion } from "./answers-server";
 import { briefOf } from "./job-sources";
 import { readJobSources } from "./job-sources-server";
 import { SESSION_TOOLS } from "./tools";
@@ -23,6 +24,9 @@ export const SESSION_OFF = "Tiff's session isn't switched on for this business y
 /** Before words sent while she worked (startTurn `fromQueue`). */
 export const QUEUED_NOTE =
   "They sent this while you were working on what came before, so before they saw what you did with it. Where what you did since changed or dropped the question it answers, use it only where it still clearly fits; otherwise ask the question again as it now stands.";
+
+/** Her reply after answers alone. */
+export const ONE_LINE = "Reply in one short line: the total now, and what changed if it's more than the answers say. Nothing else unless a line is wrong or something new needs asking.";
 
 /** Her check once her questions are all answered with numbers put straight on their lines. */
 export const CHECK_NOTE =
@@ -63,7 +67,29 @@ export async function startTurn(
       await endTurn(session.id, turnId);
       return { ok: false, reason: "Nothing is waiting for her.", status: 409 };
     }
-    const typed = claimed.filter((c) => c.body.answered == null && String(c.body.text ?? "").trim());
+    /* a tap made while she worked: its changes now, as the one who tapped; one
+       that can't be made any more comes to her as their words */
+    const taps = claimed.filter((c) => c.body.tap && typeof c.body.tap === "object");
+    const unmade: string[] = [];
+    let tapGoOn = false;
+    if (taps.length) {
+      const { events } = await readThread(orgId, jobUuid);
+      for (const t of taps) {
+        const tap = t.body.tap as { event?: unknown; index?: unknown };
+        const r = await answerQuestion(orgId, jobUuid, t.author, Number(tap.event), Number(tap.index), events, { inTurn: true, asEvent: t.id });
+        if (r.ok) tapGoOn ||= r.goOn;
+        else unmade.push(`${String(t.body.question ?? "")} ${String(t.body.text ?? "")}`.trim());
+      }
+    }
+    const typed = [
+      ...claimed.filter((c) => c.body.answered == null && !c.body.tap && String(c.body.text ?? "").trim()),
+      ...unmade.map((text, i) => ({ id: -1 - i, author: taps[0]!.author, body: { text } })),
+    ];
+    /* only taps that leave her nothing to do: they're on the quote, and she's let go */
+    if (taps.length === claimed.length && unmade.length === 0 && !tapGoOn) {
+      await endTurn(session.id, turnId);
+      return { ok: false, reason: "Answered.", status: 409 };
+    }
     /* sent before they'd seen what she did with the last: an answer to a
        question that's changed or gone since isn't put on blind (Isaac, 13
        November 2026: "What if one of the questions would affect the answer
@@ -71,7 +97,7 @@ export async function startTurn(
     const joined = typed.map((c) => String(c.body.text).trim()).join("\n\n");
     text = joined ? `${QUEUED_NOTE}\n\n${joined}`.slice(0, 8000) : "";
     speakerId = typed[0]?.author ?? claimed[0]!.author;
-    if (!text) goOnAnswer = true;
+    if (!text || tapGoOn) goOnAnswer = true;
   }
   /* the job's words open the session's first turn only; what was answered
      since her last turn, and already put on the quote, comes first */
@@ -92,7 +118,9 @@ export async function startTurn(
      job's brief names (the 3465 review, 5 November 2026) */
   const speaker = text ? ((await namesBySignIn(orgId, [speakerId]).catch(() => ({}) as Record<string, string>))[speakerId] ?? null) : null;
   const spoken = text && speaker ? `${speaker} says:\n${text}` : text;
-  const said = [answered, openWords(open), moneyWords, spoken, goOn].filter(Boolean).join("\n\n");
+  /* answers alone, nothing typed and nothing left her to do: she says it in a line (the mock's Done board, 13 November 2026) */
+  const brief1 = answers.length > 0 && !text && (!goOnAnswer || opts.check) ? ONE_LINE : "";
+  const said = [answered, openWords(open), moneyWords, spoken, goOn, brief1].filter(Boolean).join("\n\n");
   /* a first turn opened with typed words, not Read the job, still has the
      job in front of her: every source, as Read the job ticks them. 3421, 21
      October: "Add an option for Linear Mitsubishi Zone kit" reached her with

@@ -326,3 +326,43 @@ describe("the site round the house", () => {
     expect(sceneOf(base).site).toBeNull();
   });
 });
+
+describe("a subfloor (floor-spaces.ts)", () => {
+  const unit = (id: string, odu: boolean, plane: DesignObject["plane"]): DesignObject =>
+    ({ id, type: "unit", floorId: "gf", systemId: "sys", plane, geometry: { kind: "point", at: { x: 100, y: 100 } }, props: odu ? { role: "odu", widthMm: 1050 } : { model: "PEA" } }) as DesignObject;
+  const house = (under?: Floor["under"], objects: DesignObject[] = []) =>
+    sceneOf(
+      design([floor("gf", 0, under ? { under } : {}), floor("l1", 1)], { gf: [read("s-gf", [space("Lounge", "room", [0, 0, 400, 300])])], l1: [read("s-l1", [space("Bed", "room", [0, 0, 400, 300])])] }, objects),
+      () => ({ form_factor: "ducted", height_mm: 380 })
+    );
+
+  it("stands the house on it: a storey of its own under the lowest floor, the floors up by its height", () => {
+    const s = house({ heightMm: 1400, outline: null, from: "hand" });
+    expect(s.floors.map((f) => f.name)).toEqual(["Subfloor", "gf", "l1"]);
+    expect(s.floors[0].y0).toBe(0);
+    expect(s.floors[0].ceiling).toBe(1.4);
+    expect(s.floors[1].y0).toBe(1.4);
+    /* the ground floor's outline, 4 m by 3 m */
+    const xs = s.floors[0].spaces[0].pts.map((p) => p[0]);
+    expect(Math.max(...xs) - Math.min(...xs)).toBeCloseTo(4, 0);
+  });
+
+  it("is not drawn until its height is known", () => {
+    const s = house({ heightMm: null, outline: null, from: "hand" });
+    expect(s.floors.map((f) => f.name)).toEqual(["gf", "l1"]);
+    expect(s.floors[0].y0).toBe(0);
+  });
+
+  it("takes an outdoor unit put there and a head hung under the floor; one outside stands on the ground beside it", () => {
+    const s = house({ heightMm: 1400, outline: null, from: "hand" }, [unit("odu-in", true, "floor-cavity"), unit("odu-out", true, "external-ground"), unit("head", false, "floor-cavity")]);
+    const by = new Map(s.units.map((u) => [u.id, u]));
+    expect(by.get("odu-in")!.floorId).toBe("gf:under");
+    expect(by.get("odu-in")!.y).toBe(0);
+    expect(by.get("odu-out")!.floorId).toBe("gf");
+    expect(by.get("odu-out")!.y).toBe(0);
+    expect(by.get("head")!.floorId).toBe("gf:under");
+    /* hung under the ground floor, inside the subfloor */
+    expect(by.get("head")!.y).toBeGreaterThan(0.9);
+    expect(by.get("head")!.y).toBeLessThan(1.4);
+  });
+});

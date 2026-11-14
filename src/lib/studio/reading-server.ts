@@ -13,6 +13,7 @@ import {
   type ReadPoint,
   type ReadLevel,
   type ReadRake,
+  type ReadSubfloor,
   type ReadRoofPart,
   type ReadSpace,
   type ReadSurface,
@@ -355,6 +356,16 @@ export const roofSchema = (floors: string[]): Json =>
     raked: arr(S({ floor: en(floors), room: str(), low_mm: num(), high_mm: num() })),
     material: str(),
     roof_space: str("what the set shows about the roof space and what could go in it"),
+    subfloor: S({
+      shown: en(["drawn", "mentioned", "none"]),
+      floor: en(floors),
+      outline: OUTLINE('drawn only: the part of that floor it runs under, on that floor\'s plan image; "" when only mentioned'),
+      rooms: str('the rooms it runs under as a short list, as you would say it: "the kitchen, laundry and sitting rooms"; "" when only mentioned'),
+      height_mm: num("the ground to the underside of the floor, written or measured off a section at its printed scale; 0 when neither"),
+      height_from: str('a few words: "measured off section 1 on A401" or "written on section BB, CD202"; "" when 0'),
+      sheet: str("the drawing number it is shown or named on, as printed: A401"),
+      words: str("its own label or note as written, the one that names it, nothing more"),
+    }),
   });
 
 export const roofPrompt = (plans: { floor: string; w: number; h: number; mm: number | null }[]) =>
@@ -366,6 +377,7 @@ You are reading it for an air conditioning installer who needs the building in 3
 2. roof_parts: the roof as rectangular parts. Break an L, T or U roof into rectangles, one per ridge. For each part: which floor's walls carry it, its form (gable: two slopes and gable ends; hip: slopes on all four sides; skillion: one slope; flat), its footprint as the 4 corners of the rectangle it covers AT THE WALL LINE, on THAT floor's plan image, in that image's pixels; which way its ridge runs on that image (across = along x, down = along y; for a skillion, the direction its edges run, not its slope); for a skillion, the side of the image it falls to (left, right, up or down; none for the others); its pitch in degrees; the top of the walls it sits on above that floor's level, in mm; its eaves overhang in mm; and whether it is existing. A verandah or patio roof is its own part. A neighbouring building or an existing garage drawn on the plan only gets a part if the set shows its roof.
 3. raked: every room whose ceiling follows the roof, with its low and high ceiling heights above its floor.
 4. material, and what the set shows about the roof space: how high it is at the ridge, whether anything is noted for it, and what would fit.
+5. subfloor: the space between the ground and a suspended floor, where equipment can go. drawn: a plan or a section draws it as a space (labelled subfloor, sub-floor void, store under floor, crawl space, or a band or hatch marked as one). mentioned: a note or schedule only names one ("subfloor ventilation", "underfloor ducted system", "suspended floor with enclosed subfloor"). none: neither. Underfloor heating, a subfloor sheet or board under the flooring, or a slab on ground is not a subfloor. When drawn: the floor it is under, its outline on that floor's plan image round the rooms it runs under (where a section shows it under only some rooms, only those; a new slab beside it has none), those rooms in words, its height from the ground to the floor's underside (written, or measured off the section at its printed scale), and where that came from. Either way, the drawing number it is on and its words as written.
 
 Put coordinates on the wall lines of the plan images, not on labels or dimension strings.`;
 
@@ -404,7 +416,33 @@ export function toRoof(raw: Raw, plans: { floorId: string; floor: string; sheetI
     const at = byName.get(s(r.floor));
     if (at && s(r.room)) raked.push({ floorId: at.floorId, room: s(r.room), lowMm: n(r.low_mm), highMm: n(r.high_mm) });
   }
-  return { levels, parts, raked, material: s(raw.material), roofSpace: s(raw.roof_space) };
+  const subfloor = toSubfloor(raw.subfloor, byName, P);
+  return { levels, parts, raked, material: s(raw.material), roofSpace: s(raw.roof_space), ...(subfloor ? { subfloor } : {}) };
+}
+
+/** Her subfloor: drawn with its outline on the floor it is under, or only mentioned; nothing when neither. */
+export function toSubfloor<At extends { floorId: string; sheetId: string }>(raw: unknown, byName: Map<string, At>, P: (p: ReadPoint, at: At) => ReadPoint): ReadSubfloor | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const r = raw as Record<string, unknown>;
+  const shown = s(r.shown);
+  if (shown !== "drawn" && shown !== "mentioned") return undefined;
+  const at = byName.get(s(r.floor)) ?? [...byName.values()][0];
+  if (!at) return undefined;
+  const outline = shown === "drawn" ? parseOutline(s(r.outline)).map((p) => P(p, at)) : [];
+  /* drawn with no shape to set out is as good as named */
+  const drawn = shown === "drawn" && outline.length >= 3;
+  const height = Math.round(n(r.height_mm));
+  return {
+    shown: drawn ? "drawn" : "mentioned",
+    floorId: at.floorId,
+    sheetId: at.sheetId,
+    outline: drawn ? outline : [],
+    rooms: drawn ? s(r.rooms).slice(0, 200) : "",
+    heightMm: height >= 100 && height <= 6000 ? height : 0,
+    heightFrom: height >= 100 && height <= 6000 ? s(r.height_from).slice(0, 120) : "",
+    sheet: s(r.sheet).slice(0, 40),
+    words: s(r.words).slice(0, 300),
+  };
 }
 
 /** A reading as she wrote it: each floor by its name, its points back in that floor's plan image's pixels. */
@@ -431,6 +469,18 @@ export function fromRoof(r: RoofReading, plans: { floorId: string; floor: string
     raked: r.raked.map((k) => ({ floor: name(k.floorId), room: k.room, low_mm: k.lowMm, high_mm: k.highMm })),
     material: r.material,
     roof_space: r.roofSpace,
+    subfloor: r.subfloor
+      ? {
+          shown: r.subfloor.shown,
+          floor: name(r.subfloor.floorId),
+          outline: byId.has(r.subfloor.floorId) ? r.subfloor.outline.map((pt) => img(pt, byId.get(r.subfloor!.floorId)!)).join(" ") : "",
+          rooms: r.subfloor.rooms,
+          height_mm: r.subfloor.heightMm,
+          height_from: r.subfloor.heightFrom,
+          sheet: r.subfloor.sheet,
+          words: r.subfloor.words,
+        }
+      : { shown: "none", floor: name(r.levels[0]?.floorId ?? ""), outline: "", rooms: "", height_mm: 0, height_from: "", sheet: "", words: "" },
   };
 }
 

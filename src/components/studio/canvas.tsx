@@ -919,7 +919,10 @@ export function StudioCanvas({
   onFound,
   picked,
   onPickMore,
+  worldOverlay,
 }: {
+  /** drawn in the plan's world over the rooms: the subfloor or roof space, given the zoom */
+  worldOverlay?: (zoom: number) => React.ReactNode;
   doc: DesignDocument;
   floor: Floor;
   tool: CanvasTool;
@@ -5494,6 +5497,9 @@ export function StudioCanvas({
               </g>
             );
           })}
+
+          {/* the subfloor or roof space hung off this floor (floor-space-overlay.tsx) */}
+          {worldOverlay?.(zoom)}
 
           {/* drawn runs (Stage 4 + Draw tools) — system colour, length when
               calibrated. Pipe wears the pairing's line sizes (per-run props

@@ -3,7 +3,7 @@
 import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
 import { staffProfileIdFor } from "@/lib/fleet/query";
-import { addJobPlans, planPageForScale, readJobPlans, setPlanScale, type AddPlansResult, type PageForScale } from "@/lib/jobs/plans-server";
+import { addJobPlans, choosePlanFloors, planPageForScale, readJobPlans, setPlanScale, type AddPlansResult, type PageForScale } from "@/lib/jobs/plans-server";
 import type { JobPlanRead, PlanPick } from "@/lib/jobs/plans";
 
 /* PLANS ON THE JOB: the job card's actions (lib/jobs/plans-server.ts).
@@ -93,4 +93,21 @@ export async function savePlanScaleFromDesign(planId: string, n: number, mmPerPx
   const scale = num(mmPerPx);
   if (!plan || page == null || scale == null || scale <= 0) return "That scale can't be used.";
   return setPlanScale(orgId, plan, page, { mmPerPx: scale }, await staffProfileIdFor(orgId, userId));
+}
+
+/** The floors chosen for a set's pages in the Plans dialog, from the job's
+    Plans or a design's Edit plans: page number to a level, or "none" for
+    Not a floor plan. Null once saved, or the reason. */
+export async function chooseFloorsOnPlan(jobUuid: string, planId: string, chosen: Record<number, string>): Promise<string | null> {
+  const ctx = await context();
+  const job = trim(jobUuid);
+  const plan = trim(planId);
+  if (!ctx || !job || !plan) return "You can't change a plan's floors.";
+  const clean: Record<number, string> = {};
+  for (const [k, v] of Object.entries(chosen && typeof chosen === "object" ? chosen : {})) {
+    const n = Number(k);
+    const value = String(v);
+    if (Number.isInteger(n) && n > 0 && (value === "none" || /^-?\d{1,2}$/.test(value))) clean[n] = value;
+  }
+  return choosePlanFloors(ctx.orgId, plan, clean, ctx.staffId, job);
 }

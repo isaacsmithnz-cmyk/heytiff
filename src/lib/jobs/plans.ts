@@ -64,6 +64,10 @@ export type JobPlanPage = {
   /** the scale somebody set on the page (Set scale): from then on it is the
       page's scale, over what's printed and what Tiff measured */
   set?: SetScale | null;
+  /** somebody chose this page's floor, or that it isn't a floor plan, in
+      the Plans dialog: from then on what it is is theirs, not a guess to
+      check (Isaac, 14 November 2026, on the mock's "Changing a floor") */
+  picked?: { by: string | null; at: string } | null;
 };
 
 /** A scale set by hand: the length between two points pressed on the page
@@ -334,14 +338,74 @@ export function stateOfRead(pages: readonly JobPlanPage[], reading: PlanReading 
   const said: string[] = [];
   for (const f of reading.failed) {
     const n = Number(f.floorId.replace(/^p/, ""));
+    /* a page somebody said isn't a floor plan was never one to read */
+    if (Number.isFinite(n) && pages.some((p) => p.n === n && p.kind !== "floor")) continue;
     said.push(`Page ${Number.isFinite(n) ? n : f.floorId} couldn't be read: ${f.reason}`);
   }
   for (const p of floors) {
     const sheets = reading.floors[pageKey(p.n)];
-    if (!sheets?.length) continue;
+    if (!sheets?.length || p.picked) continue;
     if (roomsOnPage(reading, p.n) < 2) said.push(`Page ${p.n} has no rooms on it, so it may not be a floor plan`);
   }
   return said.length ? { state: "check", said: said.join(". ") } : { state: "read", said: null };
+}
+
+/* ── choosing a page's floor ──────────────────────────────────────────────── */
+
+/** The pages of a set that can be given a floor: the ones she drew, which
+    are the ones she read as floor plans, whatever they've been called since. */
+export const choosablePages = (plan: { pages: readonly JobPlanPage[] }): JobPlanPage[] => plan.pages.filter((p) => !!p.ref);
+
+/** "Not a floor plan" in a page's floor menu. */
+export const NOT_A_FLOOR_PLAN = "none";
+
+/** A page's floor menu: from a basement up to one above the set's top
+    floor, each by the name the set gives it where it has one, then Not a
+    floor plan (the mock of 14 November 2026: Basement 1, Ground floor,
+    Level 1, Level 2, Not a floor plan). */
+export function floorOptions(plan: { pages: readonly JobPlanPage[] }): { value: string; label: string }[] {
+  const floors = plan.pages.filter((p) => p.kind === "floor" && p.level !== null);
+  const levels = floors.map((p) => p.level as number);
+  const low = Math.min(-1, ...levels);
+  const high = Math.max(1, ...levels.map((l) => l + 1));
+  const out: { value: string; label: string }[] = [];
+  for (let level = low; level <= high; level++) out.push({ value: String(level), label: floorNameAt(plan, level) });
+  out.push({ value: NOT_A_FLOOR_PLAN, label: "Not a floor plan" });
+  return out;
+}
+
+/** A level's name in a set: what its floor page there is called, else the
+    plain name for the level. */
+function floorNameAt(plan: { pages: readonly JobPlanPage[] }, level: number): string {
+  return plan.pages.find((p) => p.kind === "floor" && p.level === level && p.name)?.name || defaultFloorName(level);
+}
+
+/** A page's place in its floor menu. */
+export const floorValueOf = (p: JobPlanPage): string => (p.kind === "floor" && p.level !== null ? String(p.level) : NOT_A_FLOOR_PLAN);
+
+/** The set's pages with the floors somebody chose: a page given a level is
+    a floor plan at it, named as the set names that level; Not a floor plan
+    takes it out of the floors, its picture kept so it can be put back.
+    Every page that can be chosen is marked picked, since whoever saved
+    them looked at each. */
+export function chooseFloors(pages: readonly JobPlanPage[], chosen: Readonly<Record<number, string>>, by: string | null, at: string): JobPlanPage[] {
+  const picked = { by, at };
+  const next = pages.map((p): JobPlanPage => {
+    if (!p.ref) return p;
+    const value = chosen[p.n] ?? floorValueOf(p);
+    if (value === NOT_A_FLOOR_PLAN) return { ...p, kind: "other", level: null, picked };
+    const level = Number(value);
+    if (!Number.isInteger(level)) return { ...p, picked };
+    if (p.kind === "floor" && p.level === level) return { ...p, picked };
+    return { ...p, kind: "floor", level, picked };
+  });
+  /* a page moved to a level is called what the set calls that level */
+  return next.map((p) => {
+    const was = pages.find((q) => q.n === p.n)!;
+    if (p.kind !== "floor" || p.level === null || (was.kind === "floor" && was.level === p.level)) return p;
+    const named = next.find((q) => q.n !== p.n && q.kind === "floor" && q.level === p.level && q.name)?.name;
+    return { ...p, name: named || defaultFloorName(p.level) };
+  });
 }
 
 /* ── the words a row says ─────────────────────────────────────────────────── */

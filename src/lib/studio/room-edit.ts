@@ -145,16 +145,20 @@ export function keepFound(doc: DesignDocument, floorId: string, keys: string[], 
     building from https://claude.ai/artifact/61nqwanqUAtQx4iG6AxoYs, where
     3465 opens with its twelve rooms marked and the carport left found). */
 export function readyFromPlans(doc: DesignDocument): DesignDocument {
+  return doc.floors.reduce((d, { id }) => readyFloor(d, id), doc);
+}
+
+/** One floor as a design from a job's plans opens: its scale off the plan
+    where it has none, and its rooms inside the house marked. Also a floor a
+    plan newly brings in through the Plans dialog (job-plan-floors.ts). */
+export function readyFloor(doc: DesignDocument, id: string): DesignDocument {
   let d = doc;
-  for (const { id } of doc.floors) {
-    const floor = d.floors.find((f) => f.id === id);
-    if (floor && !floor.scaleMmPerUnit) {
-      const scale = proposedScale(d, id);
-      if (scale) d = { ...d, floors: d.floors.map((f) => (f.id === id ? { ...f, scaleMmPerUnit: scale.mmPerUnit } : f)) };
-    }
-    d = keepFound(d, id, insideOn(d, id));
+  const floor = d.floors.find((f) => f.id === id);
+  if (floor && !floor.scaleMmPerUnit) {
+    const scale = proposedScale(d, id);
+    if (scale) d = { ...d, floors: d.floors.map((f) => (f.id === id ? { ...f, scaleMmPerUnit: scale.mmPerUnit } : f)) };
   }
-  return d;
+  return keepFound(d, id, insideOn(d, id));
 }
 
 /** The found rooms inside the house on a floor, by key: all but a garage or a carport. */

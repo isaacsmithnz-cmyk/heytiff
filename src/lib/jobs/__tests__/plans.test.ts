@@ -1,5 +1,5 @@
 import type { PlanReading, SheetReading } from "@/lib/studio/reading";
-import { areaM2Of, designFromPlan, designFromPlans, floorNamesOf, guessPageByWords, levelOfTitle, pagesWordOf, planLine, planReadLine, planStateWord, scaleAsks, scaleSaid, stackLevels, stateOfRead, startablePlans, type JobPlan, type JobPlanPage, type JobPlanRead } from "../plans";
+import { areaM2Of, chooseFloors, choosablePages, designFromPlan, floorOptions, floorValueOf, designFromPlans, floorNamesOf, guessPageByWords, levelOfTitle, pagesWordOf, planLine, planReadLine, planStateWord, scaleAsks, scaleSaid, stackLevels, stateOfRead, startablePlans, type JobPlan, type JobPlanPage, type JobPlanRead } from "../plans";
 
 /* PLANS ON THE JOB, the pure side (lib/jobs/plans.ts): which pages are
    floors by their words, what a read came to, what the row says, and a
@@ -261,5 +261,44 @@ describe("a read plan's scale", () => {
     const at = { a: { x: 0, y: 0 }, b: { x: 744, y: 0 }, mm: 7440 };
     const made = designFromPlan(one([photo({ measured: { ...measured, at } })]));
     expect(made.planImport.measured).toEqual({ 2: measured });
+  });
+});
+
+describe("choosing a page's floor", () => {
+  it("offers a basement up to one above the top floor, by the set's names, then Not a floor plan", () => {
+    expect(floorOptions(plan())).toEqual([
+      { value: "-1", label: "Basement 1" },
+      { value: "0", label: "Ground floor" },
+      { value: "1", label: "Level 1" },
+      { value: "2", label: "Level 2" },
+      { value: "none", label: "Not a floor plan" },
+    ]);
+  });
+
+  it("lists only the pages she drew, and where each sits in its menu", () => {
+    const p = plan();
+    expect(choosablePages(p).map((pg) => pg.n)).toEqual([3, 4]);
+    expect(p.pages.slice(2).map(floorValueOf)).toEqual(["0", "1"]);
+  });
+
+  it("moves a page to a level by that level's name, takes one out as Not a floor plan, and marks each as looked at", () => {
+    const out = chooseFloors(plan().pages, { 4: "0" }, "Isaac Smith", "2026-11-15T01:00:00Z");
+    expect(out[3]).toMatchObject({ kind: "floor", level: 0, name: "Ground floor", picked: { by: "Isaac Smith", at: "2026-11-15T01:00:00Z" } });
+    expect(out[2]).toMatchObject({ kind: "floor", level: 0, name: "Ground floor", picked: { by: "Isaac Smith" } });
+    expect(out[0]).toEqual(plan().pages[0]);
+    const none = chooseFloors(plan().pages, { 3: "none" }, null, "2026-11-15T01:00:00Z");
+    expect(none[2]).toMatchObject({ kind: "other", level: null, ref: "org/o1/plan_3.png" });
+    /* and back again: a floor plan at its level, called what the level's called */
+    expect(chooseFloors(none, { 3: "2" }, null, "x")[2]).toMatchObject({ kind: "floor", level: 2, name: "Level 2" });
+  });
+
+  it("stops asking about a page somebody chose, and about one they said isn't a floor plan", () => {
+    const thin = reading({ floors: { p3: [sheet("p3", ["Living", "Kitchen"])], p4: [sheet("p4", ["Hall"])] }, failed: [] });
+    expect(stateOfRead(plan().pages, thin).state).toBe("check");
+    const looked = chooseFloors(plan().pages, {}, "Isaac Smith", "x");
+    expect(stateOfRead(looked, thin)).toEqual({ state: "read", said: null });
+    const failed = reading({ failed: [{ floorId: "p4", sheetId: "p4", reason: "blank" }] });
+    expect(stateOfRead(plan().pages, failed).state).toBe("check");
+    expect(stateOfRead(chooseFloors(plan().pages, { 4: "none" }, null, "x"), failed)).toEqual({ state: "read", said: null });
   });
 });

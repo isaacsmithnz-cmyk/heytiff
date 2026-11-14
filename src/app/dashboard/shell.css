@@ -8143,6 +8143,8 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jpl-page img { display:block; width:160px; height:113px; object-fit:cover; border:1px solid var(--edge); border-radius:var(--r-control); background:var(--white); }
 .fg .jpl-page > span { font-size:12px; line-height:16px; font-weight:500; color:var(--q); }
 .fg .jpl-page .pt-btn { align-self:flex-start; margin-top:4px; }
+/* under a set she isn't sure of: its pages, then Choose floors */
+.fg .jpl-below { display:flex; flex-direction:column; align-items:flex-start; gap:12px; position:relative; z-index:var(--z-raised); }
 .pt-dialog .jpl-add { display:flex; flex-direction:column; gap:16px; }
 .pt-dialog .jpl-add .pt-rows { border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
 .pt-dialog .jpl-add .pt-row { padding-left:0; padding-right:0; }
@@ -8154,12 +8156,17 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .cv-job-plans .pt-tick { align-items:flex-start; }
 .fg .cv-job-plans .pt-tick__box { margin-top:2px; }
 /* New design's Plans field: the job's plans as rows with ticks, their floors
-   small under each, and a quiet Add plans; the dialog is outside `.fg` */
-.pt-dialog .ds2-nd-plans { display:flex; flex-direction:column; gap:8px; }
-.pt-dialog .ds2-nd-plans .pt-rows { border:1px solid var(--edge); border-radius:var(--r-control); }
-.pt-dialog .ds2-nd-plans .pt-row { padding-left:12px; padding-right:12px; }
-.pt-dialog .ds2-nd-plans .jdoc-tick { position:relative; z-index:var(--z-raised); display:inline-flex; width:16px; }
-.pt-dialog .ds2-nd-addword { align-self:flex-start; }
+   small under each, and a quiet Add plans; the dialog is outside `.fg`.
+   The Plans dialog (14 November 2026) is the same rows, each page with its
+   floor in a menu under it. */
+.pt-dialog .ds2-nd-plans, .pt-dialog .jpl-plans { display:flex; flex-direction:column; gap:8px; }
+.pt-dialog .ds2-nd-plans .pt-rows, .pt-dialog .jpl-plans .pt-rows { border:1px solid var(--edge); border-radius:var(--r-control); }
+.pt-dialog .ds2-nd-plans .pt-row, .pt-dialog .jpl-plans .pt-row { padding-left:12px; padding-right:12px; }
+.pt-dialog .ds2-nd-plans .jdoc-tick, .pt-dialog .jpl-plans .jdoc-tick { position:relative; z-index:var(--z-raised); display:inline-flex; width:16px; }
+.pt-dialog .ds2-nd-addword, .pt-dialog .jpl-plans-add { align-self:flex-start; }
+.pt-dialog .jpl-pages--floors { position:relative; z-index:var(--z-raised); gap:16px; }
+.pt-dialog .jpl-pages--floors .jpl-page { width:160px; }
+.pt-dialog .jpl-pages--floors .jpl-page img { width:160px; height:113px; }
 /* SET SCALE (14 November 2026): the page, the two ends pressed on it, and
    the length typed. The dots keep their size whatever the page's; the line
    and the dots are the press colour, as the button that saves them is. */
@@ -8174,7 +8181,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .pt-dialog .jpl-pages { display:flex; flex-wrap:wrap; gap:12px; margin-top:8px; }
 .pt-dialog .jpl-page { display:flex; flex-direction:column; gap:4px; width:120px; }
 .pt-dialog .jpl-page img { display:block; width:120px; height:85px; object-fit:cover; border:1px solid var(--edge); border-radius:var(--r-control); background:var(--white); }
-.pt-dialog .jpl-page span { font-size:12px; line-height:16px; font-weight:500; color:var(--q); }
+.pt-dialog .jpl-page > span { font-size:12px; line-height:16px; font-weight:500; color:var(--q); }
 
 /* STOCK (components/stock/stock-page.tsx): the shopping list and By job, in
    the phone's look on the desktop, its groups white cards lifted off the

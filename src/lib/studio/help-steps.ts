@@ -9,9 +9,13 @@ import type { DesignDocument } from "./document";
 import { allocationsOf, hasAllocations } from "./builder";
 import { installState } from "./install";
 import { setupNeeds } from "./plan-set";
+import { systemNeedsWork } from "./status";
 import { zoneIdsOf } from "./zones";
 
-export type HelpState = "done" | "now" | "todo";
+/* "skip": a step a blank canvas has no use for, Plans and Scale and north
+   (Isaac, 14 November 2026: "Do both", so a blank design starts at Zones,
+   where the Next chip says Draw a zone) */
+export type HelpState = "done" | "now" | "todo" | "skip";
 
 export interface HelpStep {
   title: string;
@@ -34,7 +38,9 @@ const STEPS: { title: string; line: string }[] = [
 ];
 
 /** what each step has, off the design; the first not done is the one you're
-    on. A design drawn on a blank floor has no plans to add or scale. */
+    on. A design started on a blank canvas has no plans to add or scale, so
+    those two are skipped till a plan is added. Build system waits for every
+    zone covered and the combination valid, as the system's card does. */
 export function helpSteps(doc: DesignDocument, pack: DataPack | null): HelpStep[] {
   const rooms = doc.objects.some((o) => o.type === "room");
   const hasPlans = doc.floors.some((f) => f.plans.length > 0);
@@ -42,7 +48,11 @@ export function helpSteps(doc: DesignDocument, pack: DataPack | null): HelpStep[
   const systems = doc.systems;
   const placed = new Set(doc.objects.map((o) => o.id));
   const built = (s: (typeof systems)[number]) =>
-    hasAllocations(s) && allocationsOf(s).some((a) => a.model) && allocationsOf(s).every((a) => !a.model || placed.has(a.id));
+    hasAllocations(s) &&
+    allocationsOf(s).some((a) => a.model) &&
+    allocationsOf(s).every((a) => !a.model || placed.has(a.id)) &&
+    (pack == null || !systemNeedsWork(doc, pack, doc.settings.sizingBasis, s));
+  const blank = doc.meta.mode === "blank" && !hasPlans;
   const done = [
     hasPlans || rooms,
     hasPlans ? needs.scale.length === 0 && needs.north.length === 0 : rooms,
@@ -53,8 +63,12 @@ export function helpSteps(doc: DesignDocument, pack: DataPack | null): HelpStep[
     pack != null && systems.length > 0 && systems.every((s) => installState(doc, pack, s) === "complete"),
     false,
   ];
-  const now = done.indexOf(false);
-  return STEPS.map((s, i) => ({ ...s, state: done[i] ? "done" : i === now ? "now" : "todo" }));
+  const skip = (i: number) => blank && i < 2;
+  const now = done.findIndex((d, i) => !d && !skip(i));
+  return STEPS.map((s, i) => ({
+    ...s,
+    state: skip(i) ? "skip" : done[i] ? "done" : i === now ? "now" : "todo",
+  }));
 }
 
 /** the keys on the plan, as the Help lists them */

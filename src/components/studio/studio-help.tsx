@@ -37,7 +37,7 @@ export function StudioHelp({
             </span>
             <div>
               <div className="ds-help-t">{s.title}</div>
-              {s.state !== "done" && <div className="ds-help-l">{s.line}</div>}
+              {(s.state === "now" || s.state === "todo") && <div className="ds-help-l">{s.line}</div>}
             </div>
           </li>
         ))}

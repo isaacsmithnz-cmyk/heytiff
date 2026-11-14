@@ -8,7 +8,7 @@ import { StudioHelp } from "../studio-help";
 describe("StudioHelp", () => {
   it("marks where you're up to, lists the keys, and closes", () => {
     const onClose = jest.fn();
-    render(<StudioHelp doc={createDesign({ name: "x", mode: "blank" })} pack={null} onClose={onClose} />);
+    render(<StudioHelp doc={createDesign({ name: "x", mode: "plan" })} pack={null} onClose={onClose} />);
     const dialog = screen.getByRole("dialog", { name: "How to design" });
     expect(dialog).toBeInTheDocument();
     const current = dialog.querySelector('[aria-current="step"]')!;

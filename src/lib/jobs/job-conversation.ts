@@ -59,7 +59,45 @@ export type JobNoteTalk = {
 };
 
 /** One of the job's open tasks, for the rail. */
-export type RailTask = { id: string; title: string; line: string; assigneeId: string | null };
+export type RailTask = {
+  id: string;
+  title: string;
+  line: string;
+  assigneeId: string | null;
+  /** As the feed says it (calls 6 and 7): "For Isaac, due Mon 16 Nov". */
+  forLine?: string;
+  /** Due today ("look") or overdue ("wrong"). */
+  tone?: TodoTone | null;
+  /** Who made it, "Isaac Smith", or "Tiff, for Isaac Smith" for one she made. */
+  by?: string | null;
+  /** When it was made, on the account's clock: its day, its stamp, its time. */
+  day?: string | null;
+  at?: string | null;
+  time?: string | null;
+};
+
+/** A To do's tone: amber when it's due today, red once it's overdue (rule 29). */
+export type TodoTone = "look" | "wrong";
+
+/** A To do's second line and its tone (Isaac, 14 November 2026, calls 6 and
+    7, mock D): who it's for and when it's due, "For Isaac, due Mon 16 Nov";
+    "due today" in amber, "was due Wed 11 Nov" in red. The name is the first
+    name, the viewer's too, as the mock reads; nobody's is anyone's. */
+export function todoLine(
+  t: { who: string | null; dueDate: string | null; time: string | null; by: boolean },
+  today: string | null,
+): { line: string; tone: TodoTone | null } {
+  const whom = `For ${t.who?.trim() || "anyone"}`;
+  if (!t.dueDate) return { line: whom, tone: null };
+  if (today && t.dueDate < today) return { line: `${whom}, was due ${fmtAuWeekdayDayMonth(t.dueDate) || t.dueDate}`, tone: "wrong" };
+  const clock = t.time ? `${t.by ? " by" : ","} ${t.time}` : "";
+  return { line: `${whom}, due ${dueWords(t.dueDate, today)}${clock}`, tone: today && t.dueDate === today ? "look" : null };
+}
+
+/** The To do tab's word: red when one is overdue, amber when one is due
+    today, plain otherwise (call 7). */
+export const todoTone = (tasks: readonly Pick<RailTask, "tone">[]): TodoTone | null =>
+  tasks.some((t) => t.tone === "wrong") ? "wrong" : tasks.some((t) => t.tone === "look") ? "look" : null;
 
 /** Everything the Overview reads beyond the card's own record. */
 export type JobConversationRead = {
@@ -69,8 +107,8 @@ export type JobConversationRead = {
   tasks: RailTask[];
   /** The job's tasks ticked in the last fortnight, newest first, each with
       who ticked it and when (Isaac, 24 October 2026: "Completing a task
-      shows by who and when"). */
-  done?: { id: string; title: string; line: string }[];
+      shows by who and when"), and, for All, who made it and when. */
+  done?: ({ id: string; title: string; line: string } & Partial<Pick<RailTask, "forLine" | "by" | "day" | "at" | "time">>)[];
   /** Who is looking: their staff card and their name. */
   viewer: { id: string | null; name: string | null };
   /** The Summary's groups from the job's quote in HeyTiff (job-summary-rows),
@@ -99,8 +137,11 @@ export function stampClock(stamp: string | null | undefined): string {
   return m ? clock12(Number(m[1]) * 60 + Number(m[2])) : "";
 }
 
+/** A To do in All, on the day it was made (call 6), open or ticked. */
+export type FeedTodo = RailTask & { done: boolean };
+
 /** One thing in the conversation: a diary entry, a note's talk, or both. */
-export type ConvItem = { key: string; entry: StoryEntry | null; talk: JobNoteTalk | null; customer?: CustomerItem | null };
+export type ConvItem = { key: string; entry: StoryEntry | null; talk: JobNoteTalk | null; customer?: CustomerItem | null; todo?: FeedTodo | null };
 
 export type ConvDay = { day: string; label: string; items: ConvItem[] };
 
@@ -120,6 +161,7 @@ export function conversationDays(
   hide: ReadonlySet<string> = new Set(),
   withTaken = true,
   customer: readonly CustomerItem[] = [],
+  todos: readonly FeedTodo[] = [],
 ): ConvDay[] {
   const byId = new Map(talks.map((t) => [t.id, t]));
   const items: (ConvItem & { day: string; at: string | null })[] = [];
@@ -145,9 +187,17 @@ export function conversationDays(
     if (at < 0) items.push(item);
     else items.splice(at, 0, item);
   }
+  /* a To do on the day it was made, where its moment puts it */
+  for (const t of todos) {
+    if (!t.day) continue;
+    const at = items.findIndex((i) => i.day > t.day! || (i.day === t.day && !!i.at && !!t.at && i.at > t.at));
+    const item = { key: `todo:${t.id}`, entry: null, talk: null, todo: t, day: t.day, at: t.at ?? null };
+    if (at < 0) items.push(item);
+    else items.splice(at, 0, item);
+  }
   const days: ConvDay[] = [];
-  for (const { key, entry, talk, customer: c, day } of items) {
-    const it: ConvItem = c ? { key, entry, talk, customer: c } : { key, entry, talk };
+  for (const { key, entry, talk, customer: c, todo, day } of items as (ConvItem & { day: string })[]) {
+    const it: ConvItem = c ? { key, entry, talk, customer: c } : todo ? { key, entry, talk, todo } : { key, entry, talk };
     const cur = days.at(-1);
     if (cur && cur.day === day) cur.items.push(it);
     else days.push({ day, label: dayLabel(day, today), items: [it] });
@@ -291,7 +341,7 @@ function andList(names: readonly string[]): string {
     its notes and the ones New › Task put on it, soonest due first, then the
     order they came in. */
 export function railTasksOf(
-  rows: readonly { id: string; title: string; status: string; dueDate: string | null; line: string; assigneeId: string | null }[],
+  rows: readonly ({ id: string; title: string; status: string; dueDate: string | null; line: string; assigneeId: string | null } & Partial<RailTask>)[],
 ): RailTask[] {
   const seen = new Set<string>();
   const open: (typeof rows)[number][] = [];
@@ -307,7 +357,13 @@ export function railTasksOf(
       const bd = b.r.dueDate ?? "9999";
       return ad < bd ? -1 : ad > bd ? 1 : a.i - b.i;
     })
-    .map(({ r }) => ({ id: r.id, title: r.title, line: r.line, assigneeId: r.assigneeId }));
+    .map(({ r }) => ({
+      id: r.id,
+      title: r.title,
+      line: r.line,
+      assigneeId: r.assigneeId,
+      ...(r.forLine !== undefined ? { forLine: r.forLine, tone: r.tone ?? null, by: r.by ?? null, day: r.day ?? null, at: r.at ?? null, time: r.time ?? null } : {}),
+    }));
 }
 
 /* ── money held back (decision 15) ── */

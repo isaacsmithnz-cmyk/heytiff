@@ -459,6 +459,22 @@ the fourth on the customer's messages, below).
   bottom of the page"). Under a bubble its time and doors are quiet words
   with no underline, and Remove is the red word (rule 25).
 
+- **The Activity feed reads like a chat** (`.jc-convo`, job-conversation.tsx;
+  Isaac, 14 November 2026, mock D on
+  https://claude.ai/artifact/MkfHutEG1PanPDCW7fyV5a and calls 6, 7, 8, 12
+  and 18): oldest at the top, opening at the newest, the box at the card's
+  foot, holding its place while pictures load and while you read back. Its
+  tabs are All, To do, Comms, Notes, Photos and Tiff; To do and Tiff always
+  show. A To do stands in All on the day it was made, who made it above, the
+  time below, and a second line saying who it's for and when it's due ("For
+  Isaac, due Mon 16 Nov"), red once it's overdue; the To do tab lists Open,
+  headed by what's open on the job, then Done, and its word is amber when one
+  is due today and red when one is overdue (rule 29). On the To do tab the
+  box reads "Add a to do": Save adds it as written for you, the arrow has
+  Tiff set who and when. Comms has no box. An email shows its words without
+  its sign-off or its signature's pictures, with Whole email and Reply under
+  it. "Task" only ever means site work: Actions' Add says "Add to do".
+
 - **Plans stand first among a job's Documents** (`.jdoc-group` "Plans",
   job-documents-face), above Drawings (Isaac, 9 November 2026, on
   https://claude.ai/artifact/3gzx9mP747FgTX7qxsH9fe: "Yes, a plans group at

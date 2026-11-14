@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button, IconButton } from "@/components/parts/button";
 import { Fade } from "@/components/parts/fade";
 import { StateWord, type Tone } from "@/components/parts/state";
@@ -26,8 +26,9 @@ import { fmtAud } from "@/lib/workboard/project-money";
 import { removeJobNote, saveJobNote } from "@/app/actions/job-notes";
 import type { OurJobNote } from "@/lib/workboard/job-notes-query";
 import { WindowsContext } from "@/components/records/records-context";
-import { emptyStoryLine, filterStory, fmtStoryMinutes, type StoryEntry, type StoryFilter } from "@/lib/workboard/job-story";
-import { conversationDays, stampClock, type JobNoteTalk, type MadeCard, type MadeKind } from "@/lib/jobs/job-conversation";
+import { filterStory, fmtStoryMinutes, type StoryEntry, type StoryFilter } from "@/lib/workboard/job-story";
+import { conversationDays, stampClock, todoTone, type FeedTodo, type JobConversationRead, type JobNoteTalk, type MadeCard, type MadeKind, type RailTask } from "@/lib/jobs/job-conversation";
+import { Tick } from "@/components/parts/tick";
 import type { FlagState } from "@/lib/integrations/sm8-note-plan";
 import type { NoteSender } from "@/lib/integrations/links";
 import { JobSection } from "./job-section";
@@ -89,17 +90,47 @@ import { pairClaims, withoutEchoes, type CommsThread, type CustomerItem } from "
 /** The feed's views: the diary's, and Comms, every text and email with the
     customer as a phone shows them, and nothing else (Isaac, 26 October
     2026: "Yes, build the Comms tab as mocked"; it was Customer). */
-type FeedFilter = Extract<StoryFilter, "all" | "notes" | "photos"> | "comms";
+type FeedFilter = Extract<StoryFilter, "all" | "notes" | "photos"> | "comms" | "todo" | "tiff";
 
 const NONE: CustomerItem[] = [];
 const NO_COMMS: CommsThread[] = [];
 
+/* All, To do, Comms, Notes, Photos, Tiff (Isaac, 14 November 2026: "Put it
+   next to all", mock D); To do and Tiff always show, so the row never shifts
+   and a job's first To do has somewhere to be added */
 const FILTERS: { key: FeedFilter; label: string }[] = [
   { key: "all", label: "All" },
+  { key: "todo", label: "To do" },
   { key: "comms", label: "Comms" },
   { key: "notes", label: "Notes" },
   { key: "photos", label: "Photos" },
+  { key: "tiff", label: "Tiff" },
 ];
+
+/** The box's words on each tab: none on Comms, where a thread's own Reply answers a customer (call 18). */
+const BOX_WORDS: Partial<Record<FeedFilter, string>> = {
+  all: "Write a note on this job",
+  notes: "Write a note on this job",
+  photos: "Write a note on this job",
+  todo: "Add a to do",
+  tiff: "Ask Tiff about this job",
+};
+
+/** The job's To dos as the feed draws them (Isaac, 14 November 2026, mock D). */
+export type FeedTodos = {
+  tasks: RailTask[];
+  done: NonNullable<JobConversationRead["done"]>;
+  /** read: empty means none, not not-yet */
+  read: boolean;
+  onTick: (task: RailTask) => void;
+  /** a To do's own form, over the page */
+  onOpen?: (taskId: string) => void;
+  /** What's open on the job, an ask in a note or a flag: it heads Open. */
+  open?: ReactNode;
+  openCount?: number;
+  /** Save on the To do tab: the words as written, a To do for you on the job. */
+  onAdd?: (words: string) => Promise<boolean>;
+};
 
 /** The diary's doors and what the card holds for them. */
 export type ConversationDiary = {
@@ -168,7 +199,6 @@ export function JobConversation({
   talks,
   today,
   loading,
-  moneyVisible,
   diary,
   convo,
   canSend,
@@ -179,6 +209,8 @@ export function JobConversation({
   onSaved,
   customer = NONE,
   comms = NO_COMMS,
+  todos = null,
+  askTodo = 0,
 }: {
   /** The diary's entries, newest first, as job-story builds them. */
   story: StoryEntry[];
@@ -205,6 +237,10 @@ export function JobConversation({
   customer?: CustomerItem[];
   /** Every text and email with the customer, as Comms shows them. */
   comms?: CommsThread[];
+  /** The job's To dos, on their tab and in All on the day each was made. */
+  todos?: FeedTodos | null;
+  /** Bumped by Actions' Add › To do: the To do tab, its box ready to type in. */
+  askTodo?: number;
 }) {
   const [filter, setFilter] = useState<FeedFilter>("all");
   /* a row the customer's messages already say ("Quote sent") is said once */
@@ -216,7 +252,42 @@ export function JobConversation({
     const kept = new Set(unechoed);
     return new Set(story.flatMap((e) => (e.kind === "milestone" && e.label === "Quote sent" && !kept.has(e) ? [e.day] : [])));
   }, [story, unechoed]);
-  const shown = useMemo(() => (filter === "comms" ? [] : filterStory(unechoed, filter)), [unechoed, filter]);
+  /* the Tiff tab is the notes told to her, with what she said back */
+  const toldTiff = useMemo(() => new Set(talks.filter((t) => t.replies.length > 0 || t.made.length > 0).map((t) => t.id)), [talks]);
+  const shown = useMemo(
+    () =>
+      filter === "comms" || filter === "todo"
+        ? []
+        : filter === "tiff"
+          ? unechoed.filter((e) => e.kind === "note" && !!e.id && toldTiff.has(e.id))
+          : filterStory(unechoed, filter),
+    [unechoed, filter, toldTiff],
+  );
+  /* TO DOS IN ALL, each on the day it was made (call 6), ticked or not */
+  const feedTodos = useMemo<FeedTodo[]>(
+    () =>
+      todos
+        ? [
+            ...todos.tasks.map((t) => ({ ...t, done: false })),
+            ...todos.done.map((t) => ({ id: t.id, title: t.title, line: t.line, assigneeId: null, forLine: t.line, by: t.by ?? null, day: t.day ?? null, at: t.at ?? null, time: t.time ?? null, done: true })),
+          ]
+        : [],
+    [todos],
+  );
+  const tone = todos ? todoTone(todos.tasks) : null;
+  /* Add › To do, and the strip's Reply or a flag's door: the feed goes where
+     it was sent */
+  const [askSeen, setAskSeen] = useState(askTodo);
+  if (askTodo !== askSeen) {
+    setAskSeen(askTodo);
+    if (askTodo > 0) setFilter("todo");
+  }
+  const sentTo = diary.replyFor ?? (diary.focusFlagged ? "flagged" : null);
+  const [sentSeen, setSentSeen] = useState<string | null>(null);
+  if (sentTo !== sentSeen) {
+    setSentSeen(sentTo);
+    if (sentTo) setFilter("all");
+  }
   /* the door a send keeps from the row it stands in for: the quote's, or the claim's Open */
   const sendDoor = (send: Extract<CustomerItem, { kind: "send" }>): { label: string; onOpen: () => void } | null => {
     const claim = claims.get(send.key);
@@ -229,14 +300,20 @@ export function JobConversation({
   const theirs = filter === "all" ? customer : NONE;
   const live = convo.turns;
   const liveNotes = useMemo(() => new Set(live.flatMap((t) => (t.noteId ? [t.noteId] : []))), [live]);
-  /* newest first: the days, and each day's entries, the other way up from
-     the conversation's own order */
+  /* LIKE A CHAT (Isaac, 14 November 2026, mock D): oldest at the top, the
+     newest at the foot over the box */
   const days = useMemo(
     () =>
-      conversationDays(shown, filter === "comms" ? [] : talks, today, liveNotes, filter === "all" || filter === "notes", theirs)
-        .reverse()
-        .map((d) => ({ ...d, items: [...d.items].reverse() })),
-    [shown, talks, today, liveNotes, filter, theirs],
+      conversationDays(
+        shown,
+        filter === "comms" || filter === "todo" ? [] : filter === "tiff" ? talks.filter((t) => toldTiff.has(t.id)) : talks,
+        today,
+        liveNotes,
+        filter === "all" || filter === "notes" || filter === "tiff",
+        theirs,
+        filter === "all" ? feedTodos : [],
+      ),
+    [shown, talks, today, liveNotes, filter, theirs, feedTodos, toldTiff],
   );
   const you = viewerName ?? "You";
 
@@ -343,6 +420,9 @@ export function JobConversation({
   const send = () => {
     if (!canSend || !convo.draft.trim() || photo?.state === "up") return;
     stamp();
+    /* on the To do tab the arrow has Tiff make it a To do and set who and
+       when (call 8): the words go as said in a task list */
+    convo.aimRoom(filter === "todo" ? "tasks" : null);
     if (photo?.state === "ready") {
       convo.sendWithReceipt(photo.id);
       /* the claim adopts it now: the chip goes, the document stays */
@@ -364,6 +444,18 @@ export function JobConversation({
   const save = () => {
     const words = convo.draft.trim();
     if (!words || saving || !jobUuid) return;
+    /* ON THE TO DO TAB Save adds it as written, a To do for you with no date
+       (call 8); the toast's Undo is the To do's own */
+    if (filter === "todo" && todos?.onAdd) {
+      setSaving(true);
+      void todos
+        .onAdd(words)
+        .then((ok) => {
+          if (ok) convo.setDraft("");
+        })
+        .finally(() => setSaving(false));
+      return;
+    }
     setSaving(true);
     void saveJobNote(jobUuid, words, { id: crypto.randomUUID() })
       .then((note) => {
@@ -408,122 +500,97 @@ export function JobConversation({
   /* THE FILTER: the soft tabs' dress (rule 29), but buttons that say
      whether they are pressed, each its own stop for the keyboard (the walk
      of 25 October 2026: they were tabs with one stop between them) */
-  const tabs =
-    story.length > 0 || customer.length > 0 || comms.length > 0 ? (
-      <div className="pt-vtabs jc-filter" role="group" aria-label="Show in the feed">
-        {FILTERS.map((f) => (
+  const tabs = (
+    <div className="pt-vtabs jc-filter" role="group" aria-label="Show in the feed">
+      {FILTERS.map((f) => {
+        /* To do's word: amber when one is due today, red when one is overdue (call 7) */
+        const t = f.key === "todo" ? tone : null;
+        return (
           <button
             key={f.key}
             type="button"
-            className="pt-vtab"
+            className={t ? `pt-vtab pt-vtab--${t}` : "pt-vtab"}
             aria-pressed={filter === f.key}
             onClick={() => setFilter(f.key)}
           >
             <span className="pt-vtab-word">{f.label}</span>
+            {t && <span className="pt-tabs-sr">, {t === "wrong" ? "one is overdue" : "one is due today"}</span>}
           </button>
-        ))}
-      </div>
-    ) : null;
-  /* the box's own exchange stands under "Today" at the top; the day's
-     older entries then follow without a second "Today" */
-  const todayShown = live.length > 0 && filter !== "comms";
+        );
+      })}
+    </div>
+  );
+  const footRef = useRef<HTMLDivElement | null>(null);
+  const toldTo = useRef(0);
+  useEffect(() => {
+    if (askTodo <= toldTo.current || filter !== "todo") return;
+    toldTo.current = askTodo;
+    footRef.current?.querySelector("textarea")?.focus();
+  }, [askTodo, filter]);
+
+  /* the box's own exchange stands under "Today" at the foot, after the day's
+     older entries, with no second "Today" */
+  const liveShown = live.length > 0 && (filter === "all" || filter === "notes" || filter === "tiff");
+  const todayDrawn = days.at(-1)?.label === "Today";
+
+  /* THE FEED HOLDS ITS PLACE (the plan's rules): it opens at the newest; a
+     new entry follows you down only while you're at the foot; a picture
+     keeps its room while it loads, and one that grows above you moves
+     nothing you're reading (the scroller's own anchoring) */
+  const feedRef = useRef<HTMLDivElement | null>(null);
+  const atFoot = useRef(true);
+  const onFeedScroll = () => {
+    const el = feedRef.current;
+    if (el) atFoot.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+  };
+  useLayoutEffect(() => {
+    const el = feedRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+    atFoot.current = true;
+  }, [filter]);
+  const grew = `${days.length}:${days.at(-1)?.items.length ?? 0}:${live.length}:${working}`;
+  useLayoutEffect(() => {
+    const el = feedRef.current;
+    if (el && atFoot.current) el.scrollTop = el.scrollHeight;
+  }, [grew]);
+  /* the card taking its fitted height, or a picture at the foot loading,
+     keeps you at the foot if that's where you were */
+  useEffect(() => {
+    const el = feedRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const keep = () => {
+      if (atFoot.current) el.scrollTop = el.scrollHeight;
+    };
+    const seen = new ResizeObserver(keep);
+    seen.observe(el);
+    for (const child of Array.from(el.children)) seen.observe(child);
+    return () => seen.disconnect();
+  }, [grew, filter]);
 
   return (
     <UndoTalk.Provider value={undoTalk ? { undo: undoTalk, busy: undoing } : null}>
     <FileDoor.Provider value={diary.openFile ?? NO_FILE}>
     <JobSection name="Activity feed" icon="chat" hue="green" className="jc-convo" action={tabs}>
-      <div className="jc-foot">
-        <CvBox
-          value={convo.draft}
-          onChange={convo.setDraft}
-          onSubmit={send}
-          label="Write a note on this job"
-          placeholder="Write a note on this job"
-          sendWord="Tiff"
-          sendLabel="Send to Tiff"
-          onSave={!photo && canSend ? save : undefined}
-          saving={saving}
-          waiting={working || !canSend || photo?.state === "up"}
-          dict={voiceEnabled ? dict : null}
-          voiceError={voiceErr}
-          ranOut={ranOut}
-          before={photo ? <PhotoChip photo={photo} onClear={clearPhoto} /> : null}
-          lead={
-            /* the + (a photo or a file, Isaac, 26 October 2026: "Add photo
-               should be the plus button"); a photo goes to Tiff, so Save
-               steps aside while one is on */
-            <span className="jc-lead">
-              {!photo && (
-                <button type="button" className="cv-rnd" aria-label="Add a photo or a file" disabled={!canSend} onClick={() => picker.current?.click()}>
-                  <Icon name="plus" size={20} sw={2} />
-                </button>
-              )}
-            </span>
-          }
-        />
-        <input
-          ref={picker}
-          type="file"
-          accept={RECEIPT_ACCEPT}
-          hidden
-          aria-label="Add a photo or a file"
-          onChange={(e) => pick(e.target.files?.[0])}
-        />
-        {/* why the tick can't send yet, and its Yes / Not me, under the box */}
-        {sm8Why && <AlsoSm8 part="why" also={false} onTick={() => {}} sender={diary.sender} notesSm8={diary.notesSm8!} onConfirm={diary.onConfirm} />}
-      </div>
+      <div className="jc-feed" ref={feedRef} onScroll={onFeedScroll}>
+        {/* TO DO (Isaac, 14 November 2026, mock D): Open, headed by what's
+            open on the job, then Done */}
+        {filter === "todo" && todos && <TodoTab todos={todos} />}
 
-      <div className="jc-feed">
+        {/* a job with nothing on it yet is an empty card down to its box,
+            with no words in it (mock C; no hint text) */}
         {loading && story.length === 0 ? (
           <p className="jov-none">Reading the job&rsquo;s notes from the mirror</p>
-        ) : empty ? (
-          <p className="jov-none">{emptyStoryLine(moneyVisible)}</p>
-        ) : filter !== "all" && (filter === "comms" ? comms.length === 0 : shown.length === 0) ? (
+        ) : empty || filter === "all" || filter === "todo" ? null : (filter === "comms" ? comms.length === 0 : shown.length === 0 && !(filter === "tiff" && liveShown)) ? (
           <p className="jov-none">Nothing of that kind on the job.</p>
         ) : null}
-
-        {/* WHAT YOU SAID HERE JUST NOW, and what Tiff said back: the newest,
-            at the top, in the order it was said */}
-        {live.length > 0 && filter !== "comms" && (
-          <div className="jc-day">
-            <p className="jc-dayname">Today</p>
-            {live.map((t) =>
-              t.who === "you" ? (
-                <div className="jc-entry" key={t.key}>
-                  <Bubble mine who={you} text={t.text} meta={<span>{timeOf(t)}</span>} />
-                </div>
-              ) : (
-                <div className="jc-entry" key={t.key}>
-                  <LiveTiff
-                    turn={t}
-                    when={timeOf(t)}
-                    asking={convo.questionOpen && t === lastTiff}
-                    onAnswer={(q) => {
-                      stamp();
-                      convo.answer(q);
-                    }}
-                    onUndo={(noteId) => void convo.undo(t.key, noteId)}
-                    onAddOffer={() => void convo.addOffer(t.key)}
-                  />
-                </div>
-              ),
-            )}
-            {working && (
-              <div className="jc-entry">
-                <TiffTurn working when="">
-                  <p className="cv-now">Working through it</p>
-                </TiffTurn>
-              </div>
-            )}
-          </div>
-        )}
 
         {/* COMMS: the messages alone, oldest first, as a phone shows them */}
         {filter === "comms" && comms.length > 0 && <CommsView threads={comms} />}
 
-        {days.map((day, i) => (
+        {days.map((day) => (
           <div className="jc-day" key={day.day}>
-            {!(i === 0 && todayShown && day.label === "Today") && <p className="jc-dayname">{day.label}</p>}
+            <p className="jc-dayname">{day.label}</p>
             {day.items.map((item) =>
               item.customer ? (
                 item.customer.kind === "thread" ? (
@@ -561,14 +628,156 @@ export function JobConversation({
                 <div className="jc-entry" key={item.key}>
                   <TalkMessage talk={item.talk} you={you} />
                 </div>
+              ) : item.todo && todos ? (
+                <div className="jc-entry" key={item.key}>
+                  <TodoRow todo={item.todo} todos={todos} inAll />
+                </div>
               ) : null,
             )}
           </div>
         ))}
+
+        {/* WHAT YOU SAID HERE JUST NOW, and what Tiff said back: the newest,
+            at the foot, in the order it was said */}
+        {liveShown && (
+          <div className="jc-day">
+            {!todayDrawn && <p className="jc-dayname">Today</p>}
+            {live.map((t) =>
+              t.who === "you" ? (
+                <div className="jc-entry" key={t.key}>
+                  <Bubble mine who={you} text={t.text} meta={<span>{timeOf(t)}</span>} />
+                </div>
+              ) : (
+                <div className="jc-entry" key={t.key}>
+                  <LiveTiff
+                    turn={t}
+                    when={timeOf(t)}
+                    asking={convo.questionOpen && t === lastTiff}
+                    onAnswer={(q) => {
+                      stamp();
+                      convo.answer(q);
+                    }}
+                    onUndo={(noteId) => void convo.undo(t.key, noteId)}
+                    onAddOffer={() => void convo.addOffer(t.key)}
+                  />
+                </div>
+              ),
+            )}
+            {working && (
+              <div className="jc-entry">
+                <TiffTurn working when="">
+                  <p className="cv-now">Working through it</p>
+                </TiffTurn>
+              </div>
+            )}
+          </div>
+        )}
       </div>
+      {filter !== "comms" && (
+        <div className="jc-foot" ref={footRef}>
+          <CvBox
+            value={convo.draft}
+            onChange={convo.setDraft}
+            onSubmit={send}
+            label={BOX_WORDS[filter] ?? "Write a note on this job"}
+            placeholder={BOX_WORDS[filter] ?? "Write a note on this job"}
+            sendWord="Tiff"
+            sendLabel="Send to Tiff"
+            onSave={!photo && canSend ? save : undefined}
+            saving={saving}
+            waiting={working || !canSend || photo?.state === "up"}
+            dict={voiceEnabled ? dict : null}
+            voiceError={voiceErr}
+            ranOut={ranOut}
+            before={photo ? <PhotoChip photo={photo} onClear={clearPhoto} /> : null}
+            lead={
+              /* the + (a photo or a file, Isaac, 26 October 2026: "Add photo
+                 should be the plus button"); a photo goes to Tiff, so Save
+                 steps aside while one is on */
+              <span className="jc-lead">
+                {!photo && (
+                  <button type="button" className="cv-rnd" aria-label="Add a photo or a file" disabled={!canSend} onClick={() => picker.current?.click()}>
+                    <Icon name="plus" size={20} sw={2} />
+                  </button>
+                )}
+              </span>
+            }
+          />
+          <input
+            ref={picker}
+            type="file"
+            accept={RECEIPT_ACCEPT}
+            hidden
+            aria-label="Add a photo or a file"
+            onChange={(e) => pick(e.target.files?.[0])}
+          />
+          {/* why the tick can't send yet, and its Yes / Not me, under the box */}
+          {sm8Why && <AlsoSm8 part="why" also={false} onTick={() => {}} sender={diary.sender} notesSm8={diary.notesSm8!} onConfirm={diary.onConfirm} />}
+        </div>
+      )}
     </JobSection>
     </FileDoor.Provider>
     </UndoTalk.Provider>
+  );
+}
+
+/** A To do: its tick, its words the door to its own form, who it's for and
+    when it's due under them, red once it's overdue (call 7). In All it reads
+    like a note: who made it above, the time below (call 6, mock D). */
+function TodoRow({ todo, todos, inAll = false }: { todo: FeedTodo; todos: FeedTodos; inAll?: boolean }) {
+  const task = todos.tasks.find((t) => t.id === todo.id) ?? null;
+  const line = todo.done ? todo.line : (todo.forLine ?? todo.line);
+  return (
+    <article className={`jc-todo${todo.done ? " jc-todo--done" : ""}`}>
+      {inAll && todo.by && <p className="jc-bmname">{todo.by}</p>}
+      <div className="jc-todorow">
+        {todo.done ? (
+          <Tick checked onChange={() => {}} disabled label={<span className="sr-only">Done, {todo.title}</span>} />
+        ) : (
+          <Tick checked={false} onChange={() => task && todos.onTick(task)} label={<span className="sr-only">Done, {todo.title}</span>} />
+        )}
+        <button type="button" className="jc-task jov-taskopen" onClick={() => todos.onOpen?.(todo.id)}>
+          <span className="jc-task-name">{todo.title}</span>
+          <span className={`jc-task-line${todo.tone === "wrong" && !todo.done ? " jc-task-line--late" : ""}`}>{line}</span>
+        </button>
+      </div>
+      {inAll && todo.time && <p className="jc-bmtime">{todo.time}</p>}
+    </article>
+  );
+}
+
+/** The To do tab: Open, headed by what's open on the job (an ask in a note,
+    a flag, with their own doors), then Done, ticked in the last fortnight. */
+function TodoTab({ todos }: { todos: FeedTodos }) {
+  const open = todos.tasks.map((t) => ({ ...t, done: false }));
+  const done = todos.done.map((t) => ({ id: t.id, title: t.title, line: t.line, assigneeId: null, done: true }) as FeedTodo);
+  const asks = todos.open && (todos.openCount ?? 0) > 0;
+  if (!asks && open.length === 0 && done.length === 0)
+    return <p className="jov-none">{todos.read ? "Nothing to do on it." : "Reading the job's to dos"}</p>;
+  return (
+    <>
+      {(asks || open.length > 0) && (
+        <div className="jc-day">
+          <p className="jc-dayname">Open</p>
+          {asks && <div className="jc-entry jov-asks">{todos.open}</div>}
+          {open.map((t) => (
+            <div className="jc-entry" key={t.id}>
+              <TodoRow todo={t} todos={todos} />
+            </div>
+          ))}
+        </div>
+      )}
+      {done.length > 0 && (
+        <div className="jc-day">
+          <p className="jc-dayname">Done</p>
+          {done.map((t) => (
+            <div className="jc-entry" key={t.id}>
+              <TodoRow todo={t} todos={todos} />
+            </div>
+          ))}
+        </div>
+      )}
+    </>
   );
 }
 

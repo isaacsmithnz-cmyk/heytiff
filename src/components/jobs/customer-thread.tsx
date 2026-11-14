@@ -143,6 +143,15 @@ function Linked({ text }: { text: string }) {
   );
 }
 
+/** An email's answer, in the mail program: to who sent it, on its subject. */
+export function replyHref(l: Pick<ThreadBubble, "full">): string | null {
+  const to = (l.full.from ?? "").match(/[^\s<>"]+@[^\s<>"]+/)?.[0];
+  if (!to) return null;
+  const subject = (l.full.subject ?? "").trim();
+  const re = subject && !/^re:/i.test(subject) ? `Re: ${subject}` : subject;
+  return `mailto:${to}${re ? `?subject=${encodeURIComponent(re)}` : ""}`;
+}
+
 export function CustomerThreadView({ thread }: { thread: CustomerThread }) {
   const [open, setOpen] = useState<ThreadBubble | null>(null);
   return (
@@ -220,6 +229,18 @@ function Bubble({ line: l, onOpen, lastRef }: { line: ThreadBubble; onOpen: (b: 
         <p className="jc-bmtime">
           <span>{l.time}</span>
           {l.seen && <span>{l.seen}</span>}
+          {/* an email is trimmed of its signature: the whole of it, and the
+              way to answer it (Isaac, 14 November 2026, call 12, mock D) */}
+          {l.email && (
+            <button type="button" className="jc-bmdoor" aria-haspopup="dialog" onClick={() => onOpen(l)}>
+              Whole email
+            </button>
+          )}
+          {l.email && l.side === "them" && replyHref(l) && (
+            <a className="jc-bmdoor" href={replyHref(l)!}>
+              Reply
+            </a>
+          )}
         </p>
       )}
     </div>

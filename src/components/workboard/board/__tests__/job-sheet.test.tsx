@@ -500,6 +500,13 @@ const bodyLayers = () =>
     .map((el) => (el.getAttribute("class") ?? "").split(" ")[0])
     .filter((c) => c.startsWith("wb2-"));
 
+/* What's open on the job heads the feed's To do tab (Isaac, 14 November 2026, mock D) */
+const openStrip = async () => {
+  const tab = await screen.findByRole("button", { name: /^To do/ });
+  if (tab.getAttribute("aria-pressed") !== "true") await userEvent.click(tab);
+  return screen.findByRole("region", { name: "Open on this job" });
+};
+
 /* ── the anatomy ── */
 
 describe("the page is a stages line over its sections", () => {
@@ -976,7 +983,7 @@ describe("the attention strip", () => {
     await detailLanded();
 
     /* The chip this replaced could only say "1 flagged note" — a number. */
-    const strip = within(await screen.findByRole("region", { name: "Open on this job" }));
+    const strip = within(await openStrip());
     expect(strip.getByText("“Send a 20% deposit invoice”")).toBeInTheDocument();
     expect(strip.getByText(/Flagged in ServiceM8/)).toBeInTheDocument();
 
@@ -1008,7 +1015,7 @@ describe("the attention strip", () => {
     render(<Job row={row()} {...props} />);
     await detailLanded();
 
-    const strip = within(await screen.findByRole("region", { name: "Open on this job" }));
+    const strip = within(await openStrip());
     await userEvent.click(strip.getByRole("button", { name: "Clear" }));
     expect(clearFlag).toHaveBeenCalledWith("f-1");
     await waitFor(() =>
@@ -1029,7 +1036,7 @@ describe("the attention strip", () => {
       render(<Job row={row()} {...props} />);
       await detailLanded();
 
-      const strip = within(await screen.findByRole("region", { name: "Open on this job" }));
+      const strip = within(await openStrip());
       await userEvent.click(strip.getByRole("button", { name: "Make it a task" }));
 
       /* The title is drafted from the note's own words with the handle taken
@@ -1052,7 +1059,7 @@ describe("the attention strip", () => {
       render(<Job row={row()} {...props} />);
       await detailLanded();
 
-      const strip = within(await screen.findByRole("region", { name: "Open on this job" }));
+      const strip = within(await openStrip());
       await userEvent.click(strip.getByRole("button", { name: "Make it a task" }));
       await userEvent.selectOptions(strip.getByLabelText("Who the task is for"), "staff-1");
       await userEvent.click(strip.getByRole("button", { name: "Save the task" }));
@@ -1072,7 +1079,7 @@ describe("the attention strip", () => {
       render(<Job row={row()} {...props} />);
       await detailLanded();
 
-      const strip = within(await screen.findByRole("region", { name: "Open on this job" }));
+      const strip = within(await openStrip());
       await userEvent.click(strip.getByRole("button", { name: "Not work" }));
       expect(dismissJobNote).toHaveBeenCalledWith("j-1", "n-2");
       await waitFor(() =>
@@ -1251,7 +1258,7 @@ it("(F) the strip's Reply opens the conversation at the note, with its box open;
     render(<Job row={row()} {...props} />);
     await detailLanded();
 
-    const strip = within(await screen.findByRole("region", { name: "Open on this job" }));
+    const strip = within(await openStrip());
     await userEvent.click(strip.getByRole("button", { name: "Reply" }));
     expect(jobTab("Overview")).toHaveAttribute("aria-selected", "true");
     const f = convo();
@@ -1422,7 +1429,7 @@ it("(F) the strip's Reply opens the conversation at the note, with its box open;
     );
     render(<Job row={row()} {...props} />);
     await detailLanded();
-    const strip = within(await screen.findByRole("region", { name: "Open on this job" }));
+    const strip = within(await openStrip());
     expect(strip.queryByRole("button", { name: "Reply" })).toBeNull();
     expect(strip.getByRole("button", { name: "Make it a task" })).toBeInTheDocument();
     expect(convo().queryByRole("button", { name: "Reply" })).toBeNull();

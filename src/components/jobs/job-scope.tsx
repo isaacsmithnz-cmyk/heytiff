@@ -3,7 +3,10 @@
 import { useState } from "react";
 import { Button } from "@/components/parts/button";
 import { StateWord } from "@/components/parts/state";
-import { ledeAfterDescription, pastQuote, quotedLine, sinceRows, versionFrom, type JobScopeRead } from "@/lib/jobs/job-scope";
+import { Tray } from "@/components/parts/tabs";
+import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
+import { ledeAfterDescription, pastQuote, quotedLine, sinceRows, versionFrom, type JobScopeRead, type ScopeSystem } from "@/lib/jobs/job-scope";
+import type { SuppliedScope } from "@/lib/jobs/supplied-scope";
 import { JobSection } from "./job-section";
 
 /* THE SCOPE, AT THE TOP OF A JOB'S OVERVIEW (Isaac, 28 October 2026: "a
@@ -37,7 +40,25 @@ import { JobSection } from "./job-section";
    parts: the brief on the left (`part="brief"`), starting from the lede's
    second sentence as the first is under the job's name ("drop the repeat"),
    and Since the quote then Latest updates on the right (`part="rail"`). The
-   Studio's column draws it whole. */
+   Studio's column draws it whole.
+
+   TWO SCOPES (Isaac, 11 November 2026, on the builder's package mock
+   https://claude.ai/artifact/6FP52g4ropVpfAqqzNLk2c: "supplied scope and
+   quoted scope ... a toggle switcher ... side by side for comparisons").
+   Once a job has been supplied with plans, a specification or the
+   builder's emails, the card's head has a tray: Quoted, Supplied, Side by
+   side. Quoted is the brief, each system that departs from what was
+   supplied marked Differs in grey; Supplied is what they asked for, kept as
+   read, with its fine print; Side by side lays the two out a row per area,
+   across the brief's column on the Scope tab. The Studio's column, 400
+   wide, has Quoted and Supplied only. */
+
+export type ScopeView = "quoted" | "supplied" | "side";
+const VIEWS: readonly { value: ScopeView; label: string }[] = [
+  { value: "quoted", label: "Quoted" },
+  { value: "supplied", label: "Supplied" },
+  { value: "side", label: "Side by side" },
+];
 
 export function JobScope({
   scope,
@@ -45,9 +66,17 @@ export function JobScope({
   onUndo,
   updateHref,
   onLeave,
+  view: shown,
+  onView,
+  sideBySide = true,
   part = "all",
 }: {
   scope: JobScopeRead;
+  /** Which scope the card shows, when the job was supplied with something; the card keeps its own when not given. */
+  view?: ScopeView;
+  onView?: (view: ScopeView) => void;
+  /** Side by side is offered (not in the Studio's 400-wide column). */
+  sideBySide?: boolean;
   /** The whole of it (the Studio's column), the brief alone from its second
       sentence, or Since the quote and Latest updates (the Scope tab). */
   part?: "all" | "brief" | "rail";
@@ -60,6 +89,12 @@ export function JobScope({
   onLeave?: (text: string) => Promise<void>;
 }) {
   const [undoing, setUndoing] = useState(false);
+  const [own, setOwn] = useState<ScopeView>("quoted");
+  const supplied = scope.supplied ?? null;
+  const view: ScopeView = supplied ? (shown ?? own) : "quoted";
+  const pick = (v: ScopeView) => (onView ? onView(v) : setOwn(v));
+  const tray = supplied ? <Tray options={sideBySide ? VIEWS : VIEWS.slice(0, 2)} value={view === "side" && !sideBySide ? "quoted" : view} onChange={pick} ariaLabel="Which scope" /> : undefined;
+  const quotedName = supplied ? "Quoted scope" : scope.quoted ? "Scope as quoted" : "Scope";
   const [leaving, setLeaving] = useState<string | null>(null);
   const rows = pastQuote(scope) ? sinceRows(scope) : { open: [], inVersion: [], sent: [] };
   const since = [...rows.open, ...rows.inVersion];
@@ -82,57 +117,71 @@ export function JobScope({
     void onUndo().finally(() => setUndoing(false));
   };
   const lede = part === "brief" ? ledeAfterDescription(scope) : scope.lede;
+  const suppliedLine = scope.suppliedAt ? `Read on ${fmtAuWeekdayDayMonth(scope.suppliedAt)}` : null;
+  const card =
+    supplied && view === "supplied" ? (
+      <JobSection name="Supplied scope" line={suppliedLine} icon="file" hue="pink" className="jov-summary" action={tray}>
+        <SuppliedBody supplied={supplied} differs={differsAreas(scope.systems)} />
+      </JobSection>
+    ) : supplied && view === "side" && sideBySide ? (
+      <JobSection name="Scope" icon="file" hue="pink" className="jov-summary jsc-sidecard" action={tray}>
+        <SideBySide scope={scope} supplied={supplied} quotedLine={scope.quoted ? quotedLine(scope.quoted) : null} suppliedLine={suppliedLine} />
+      </JobSection>
+    ) : (
+      <JobSection name={quotedName} line={scope.quoted ? quotedLine(scope.quoted) : null} icon="file" hue="pink" className="jov-summary" action={tray}>
+        <div className="jsc">
+          {lede && <p className="jsc-lede">{lede}</p>}
+          {scope.systems.map((s, i) => (
+            <div className="jsc-part" key={`${s.area}-${i}`}>
+              <h3 className={supplied && s.differs ? "jsc-h jsc-hrow" : "jsc-h"}>
+                {[s.area, s.kind].filter(Boolean).join(": ")}
+                {supplied && s.differs && <StateWord tone="info">Differs</StateWord>}
+              </h3>
+              <p className="jsc-p">
+                {s.text}
+                {s.from.length > 0 && <span className="jsc-from">{s.from.join(", ")}</span>}
+              </p>
+            </div>
+          ))}
+          {added.length > 0 && (
+            <div className="jsc-part">
+              <h3 className="jsc-h">Added</h3>
+              <ul className="jsc-ul">
+                {added.map((a, i) => (
+                  <li key={i}>
+                    {a.text}
+                    {a.from && <span className="jsc-from">{a.from}</span>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {scope.notOurs.length > 0 && (
+            <div className="jsc-part">
+              <h3 className="jsc-h">Not ours</h3>
+              <p className="jsc-p">{scope.notOurs.join("; ")}</p>
+            </div>
+          )}
+          {scope.clarify.length > 0 && (
+            <div className="jsc-part">
+              <h3 className="jsc-h">To clarify</h3>
+              <ol className="jsc-ol">
+                {scope.clarify.map((c, i) => (
+                  <li key={i}>
+                    <span className="jsc-n">{i + 1}</span>
+                    <span>{c.q}</span>
+                    <span className="jsc-who">{c.who}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+        </div>
+      </JobSection>
+    );
   return (
     <>
-      {part !== "rail" && (
-        <JobSection name={scope.quoted ? "Scope as quoted" : "Scope"} line={scope.quoted ? quotedLine(scope.quoted) : null} icon="file" hue="pink" className="jov-summary">
-          <div className="jsc">
-            {lede && <p className="jsc-lede">{lede}</p>}
-            {scope.systems.map((s, i) => (
-              <div className="jsc-part" key={`${s.area}-${i}`}>
-                <h3 className="jsc-h">{[s.area, s.kind].filter(Boolean).join(": ")}</h3>
-                <p className="jsc-p">
-                  {s.text}
-                  {s.from.length > 0 && <span className="jsc-from">{s.from.join(", ")}</span>}
-                </p>
-              </div>
-            ))}
-            {added.length > 0 && (
-              <div className="jsc-part">
-                <h3 className="jsc-h">Added</h3>
-                <ul className="jsc-ul">
-                  {added.map((a, i) => (
-                    <li key={i}>
-                      {a.text}
-                      {a.from && <span className="jsc-from">{a.from}</span>}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {scope.notOurs.length > 0 && (
-              <div className="jsc-part">
-                <h3 className="jsc-h">Not ours</h3>
-                <p className="jsc-p">{scope.notOurs.join("; ")}</p>
-              </div>
-            )}
-            {scope.clarify.length > 0 && (
-              <div className="jsc-part">
-                <h3 className="jsc-h">To clarify</h3>
-                <ol className="jsc-ol">
-                  {scope.clarify.map((c, i) => (
-                    <li key={i}>
-                      <span className="jsc-n">{i + 1}</span>
-                      <span>{c.q}</span>
-                      <span className="jsc-who">{c.who}</span>
-                    </li>
-                  ))}
-                </ol>
-              </div>
-            )}
-          </div>
-        </JobSection>
-      )}
+      {part !== "rail" && card}
       {part !== "brief" && since.length > 0 && (
         <JobSection
           name="Since the quote"
@@ -199,5 +248,133 @@ export function JobScope({
         </JobSection>
       )}
     </>
+  );
+}
+
+/** The areas whose quoted system departs from what was supplied. */
+const differsAreas = (systems: readonly ScopeSystem[]): Set<string> => new Set(systems.filter((s) => s.differs).map((s) => areaKey(s.area)));
+const areaKey = (a: string) => a.trim().toLowerCase();
+
+/** What the job was supplied with, as read: its systems, its fine print,
+    what it keeps for others and what it leaves open. */
+function SuppliedBody({ supplied, differs }: { supplied: SuppliedScope; differs: ReadonlySet<string> }) {
+  return (
+    <div className="jsc">
+      {supplied.lede && <p className="jsc-lede">{supplied.lede}</p>}
+      {supplied.systems.map((s, i) => {
+        const off = differs.has(areaKey(s.area));
+        return (
+          <div className="jsc-part" key={`${s.area}-${i}`}>
+            <h3 className={off ? "jsc-h jsc-hrow" : "jsc-h"}>
+              {[s.area, s.kind].filter(Boolean).join(": ")}
+              {off && <StateWord tone="info">Differs</StateWord>}
+            </h3>
+            <p className="jsc-p">
+              {s.text}
+              {s.from.length > 0 && <span className="jsc-from">{s.from.join(", ")}</span>}
+            </p>
+          </div>
+        );
+      })}
+      {supplied.fine.length > 0 && (
+        <div className="jsc-part">
+          <h3 className="jsc-h">Fine print</h3>
+          <ul className="jsc-ul">
+            {supplied.fine.map((f, i) => (
+              <li key={i}>
+                {f.text}
+                {f.from && <span className="jsc-from">{f.from}</span>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {supplied.notOurs.length > 0 && (
+        <div className="jsc-part">
+          <h3 className="jsc-h">Not ours</h3>
+          <p className="jsc-p">{supplied.notOurs.join("; ")}</p>
+        </div>
+      )}
+      {supplied.clarify.length > 0 && (
+        <div className="jsc-part">
+          <h3 className="jsc-h">To clarify</h3>
+          <ol className="jsc-ol">
+            {supplied.clarify.map((c, i) => (
+              <li key={i}>
+                <span className="jsc-n">{i + 1}</span>
+                <span>{c.q}</span>
+                <span className="jsc-who">{c.who}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** The two scopes a row per area, the quoted on the left: each area as
+    either names it, in the order they come, and the fine print last. */
+function SideBySide({ scope, supplied, quotedLine, suppliedLine }: { scope: JobScopeRead; supplied: SuppliedScope; quotedLine: string | null; suppliedLine: string | null }) {
+  const areas: string[] = [];
+  for (const a of [...scope.systems.map((s) => s.area), ...supplied.systems.map((s) => s.area)]) if (!areas.some((x) => areaKey(x) === areaKey(a))) areas.push(a);
+  const said = (s: { kind: string; text: string; from: string[] } | undefined) =>
+    s ? (
+      <>
+        <h3 className="jsc-h">{s.kind}</h3>
+        <p className="jsc-p">
+          {s.text}
+          {s.from.length > 0 && <span className="jsc-from">{s.from.join(", ")}</span>}
+        </p>
+      </>
+    ) : (
+      <p className="jsc-p jsc-none">Not in this scope</p>
+    );
+  return (
+    <div className="jsc-side">
+      <div className="jsc-siderow jsc-sidetop">
+        <span />
+        <span className="jsc-sidecell">
+          <b className="jsc-sidename">Quoted scope</b>
+          {quotedLine && <span className="jsc-from">{quotedLine}</span>}
+        </span>
+        <span className="jsc-sidecell">
+          <b className="jsc-sidename">Supplied scope</b>
+          {suppliedLine && <span className="jsc-from">{suppliedLine}</span>}
+        </span>
+      </div>
+      {areas.map((a) => {
+        const q = scope.systems.find((s) => areaKey(s.area) === areaKey(a));
+        const s = supplied.systems.find((x) => areaKey(x.area) === areaKey(a));
+        return (
+          <div className="jsc-siderow" key={a}>
+            <span className="jsc-sidelab">
+              {a}
+              {q?.differs && <StateWord tone="info">Differs</StateWord>}
+            </span>
+            <span className="jsc-sidecell">{said(q)}</span>
+            <span className="jsc-sidecell">{said(s)}</span>
+          </div>
+        );
+      })}
+      {supplied.fine.length > 0 && (
+        <div className="jsc-siderow">
+          <span className="jsc-sidelab">Fine print</span>
+          <span className="jsc-sidecell">
+            <p className="jsc-p jsc-none">Held to the supplied fine print</p>
+          </span>
+          <span className="jsc-sidecell">
+            <ul className="jsc-ul">
+              {supplied.fine.map((f, i) => (
+                <li key={i}>
+                  {f.text}
+                  {f.from && <span className="jsc-from">{f.from}</span>}
+                </li>
+              ))}
+            </ul>
+          </span>
+        </div>
+      )}
+    </div>
   );
 }

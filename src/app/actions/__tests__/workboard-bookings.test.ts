@@ -112,12 +112,12 @@ describe("where the deployment doesn't book (D-14)", () => {
   it.each([
     /* files only: the job's status, and nothing of ServiceM8's sending */
     /* every card open also reads the job's scope, beside its summary (28 October 2026) */
-    ["1", [{ table: "job_scopes", columns: "brief, previous_brief, set_aside, since_priced, quote_stamp, story_stamp, written_at" }, { table: "sm8_jobs", columns: "status, generated_job_id" }], 0],
+    ["1", [{ table: "job_scopes", columns: "brief, previous_brief, set_aside, since_priced, quote_stamp, story_stamp, written_at, supplied, supplied_stamp, supplied_written_at, brief_supplied_stamp" }, { table: "sm8_jobs", columns: "status, generated_job_id" }], 0],
     /* notes: the notes' viewer too — their staff card and the settings, once */
     [
       "attachment,note",
       [
-        { table: "job_scopes", columns: "brief, previous_brief, set_aside, since_priced, quote_stamp, story_stamp, written_at" },
+        { table: "job_scopes", columns: "brief, previous_brief, set_aside, since_priced, quote_stamp, story_stamp, written_at, supplied, supplied_stamp, supplied_written_at, brief_supplied_stamp" },
         { table: "staff_profiles", columns: "id" },
         { table: "sm8_jobs", columns: "status, generated_job_id" },
       ],

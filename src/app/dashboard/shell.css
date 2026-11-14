@@ -5946,6 +5946,17 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jsc-h { margin:0; font-size:14px; line-height:20px; font-weight:700; color:var(--ink); }
 .fg .jsc-p { margin:0; font-size:14px; line-height:22px; color:var(--ink); overflow-wrap:anywhere; }
 .fg .jsc-from { margin-left:8px; font-size:13px; color:var(--q); }
+/* two scopes (job-scope.tsx): Differs beside a system's name, the tray in the card's head, side by side a row per area */
+.fg .jsc-hrow { display:flex; align-items:center; gap:8px; }
+.fg .jsc-none { color:var(--q); }
+.fg .jsc-side { display:flex; flex-direction:column; }
+.fg .jsc-siderow { display:grid; grid-template-columns:160px minmax(0, 1fr) minmax(0, 1fr); column-gap:24px; padding:12px 0; border-top:1px solid var(--line); }
+.fg .jsc-sidetop { border-top:0; padding-top:0; }
+.fg .jsc-sidelab { display:flex; flex-direction:column; align-items:flex-start; gap:4px; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.fg .jsc-sidecell { display:flex; flex-direction:column; gap:4px; min-width:0; }
+.fg .jsc-sidename { font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.fg .jsc-sidecell .jsc-from { margin-left:0; }
+@media (max-width: 900px) { .fg .jsc-siderow { grid-template-columns:minmax(0, 1fr); row-gap:8px; } }
 .fg .jsc-ul { margin:0; padding-left:16px; font-size:14px; line-height:22px; color:var(--ink); }
 .fg .jsc-ol { margin:0; padding:0; list-style:none; border-top:1px solid var(--line); }
 .fg .jsc-ol > li { display:grid; grid-template-columns:24px minmax(0, 1fr) auto; gap:8px; align-items:baseline; padding:8px 0; border-bottom:1px solid var(--line); font-size:14px; line-height:20px; color:var(--ink); }

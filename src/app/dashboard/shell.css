@@ -5763,7 +5763,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jp-top { display:flex; align-items:flex-start; gap:16px; min-width:0; }
 .fg .jp-id { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:4px; }
 /* the job's colour dot beside its name, and no line under it (Isaac's mock, 25 October 2026) */
-.fg .jp-name { display:flex; align-items:center; gap:12px; margin:0; min-width:0; font-size:24px; font-weight:600; line-height:32px; color:var(--ink); }
+.fg .jp-name { margin:0; min-width:0; font-size:24px; font-weight:600; line-height:32px; color:var(--ink); overflow-wrap:anywhere; }
 /* THE JOB'S PLATE (Isaac, 5 November 2026, B on
    https://claude.ai/artifact/SJyEw4dkCb7MLp1bgCzypJ): the number in a
    solid box of the job's card colour, white on it (ink on yellow), as a
@@ -5778,10 +5778,14 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jp-plate--grey { --jp-hue:var(--q); }
 /* ink on the yellow box, as white is 2.1:1 there */
 .fg .jp-plate--yellow .jp-num { color:var(--ink); }
-.fg .jp-num { flex:none; display:inline-flex; align-items:center; justify-content:center; min-width:64px; align-self:stretch; min-height:40px; padding:0 12px; border-radius:var(--r-button); background:var(--jp-hue, var(--q)); color:var(--white); font-size:16px; line-height:24px; font-weight:700; font-variant-numeric:tabular-nums; }
+.fg .jp-num { flex:none; display:inline-flex; align-items:center; justify-content:center; min-width:64px; align-self:flex-start; min-height:40px; padding:0 12px; border-radius:var(--r-button); background:var(--jp-hue, var(--q)); color:var(--white); font-size:16px; line-height:24px; font-weight:700; font-variant-numeric:tabular-nums; }
 .fg .jp-top:has(.jp-num) { align-items:center; }
-.fg .jp-id.jp-plate { flex-direction:row; align-items:center; gap:12px; }
-.fg .jp-named { min-width:0; display:flex; flex-direction:column; }
+/* a long name wraps beside the number, its first line level with the box (call 19, mock C) */
+.fg .jp-id.jp-plate { flex-direction:row; align-items:flex-start; gap:12px; }
+.fg .jp-named { min-width:0; display:flex; flex-direction:column; padding-top:4px; }
+/* THE STAGES LINE BESIDE THE NAME, on the Overview only (call 19, mock D): the
+   line's own look, off its card */
+.fg .jov-line.jp-stage { flex:0 1 512px; min-width:0; margin-right:32px; padding:0; border-radius:0; background:none; box-shadow:none; }
 /* THE WAY BACK (way-back.tsx): a word button in ink above the plate */
 .fg .jp-back { align-self:flex-start; display:inline-flex; align-items:center; gap:4px; margin:0 0 -8px -4px; padding:2px 8px 2px 4px; border:0; border-radius:var(--r-button); background:none;
   font:inherit; font-size:13px; line-height:18px; font-weight:500; color:var(--ink); text-decoration:none; cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
@@ -5908,15 +5912,11 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 /* the number to ring, easy to see and still a tel: link: 14 at 500 in ink, no underline (Isaac, 25 October 2026) */
 .fg .jov-tel { font-size:14px; line-height:20px; font-weight:500; color:var(--ink); text-decoration:none; overflow-wrap:anywhere; }
 /* an address is one token: it fades at its end, never breaks mid-word */
-.fg .jov-mail { display:block; font-size:13px; line-height:18px; color:var(--ink); white-space:nowrap; overflow:hidden; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-.fg a.jov-mail { text-decoration:underline; text-underline-offset:2px; }
-/* a tracked job's board, under the strip */
-.fg .jov-under { display:flex; }
+/* an email in full, wrapping, never faded or underlined (Isaac, 14 November 2026, mock D: "contacts in full") */
+.fg .jov-mail { display:block; font-size:13px; line-height:18px; color:var(--ink); text-decoration:none; overflow-wrap:anywhere; }
 /* the two columns and the hairline between them */
 .fg .jov-cols { display:grid; grid-template-columns:minmax(0,1fr) calc(460px + 32px + 1px); column-gap:32px; align-items:start; }
 .fg .jov-main { display:flex; flex-direction:column; gap:24px; min-width:0; }
-/* it stays in view as the feed scrolls, while it fits in the page's height (job-overview.tsx measures) */
-.fg .jov-main--stick { position:sticky; top:24px; }
 .fg .jov-side { align-self:stretch; min-width:0; padding-left:32px; border-left:1px solid var(--line); }
 /* the section recipe */
 .fg .jov-sec { display:flex; flex-direction:column; min-width:0; }
@@ -6163,7 +6163,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jov-lab--purple { color:var(--purple-w); }
 .fg .jov-cols { grid-template-columns:minmax(0,1fr) 460px; column-gap:16px; }
 .fg .jov-main { gap:16px; }
-.fg .jov-main--stick { top:16px; }
 .fg .jov-side { padding-left:0; border-left:0; }
 .fg .jov .jov-sec { padding:12px 16px 8px; border-radius:var(--r-card); background:var(--paper); box-shadow:var(--shadow-card); }
 .fg .jov .jov-head { gap:8px; }
@@ -6176,6 +6175,30 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jov .jov-head--grey { color:var(--q); }
 .fg .jov .jov-head--orange { color:var(--orange-w); }
 .fg .jov .jov-headact { color:var(--ink); }
+/* THE OVERVIEW FITTED (job-overview.tsx; Isaac, 13 and 14 November 2026,
+   mocks C and D): the facts card 320 wide on the left, the feed on the
+   right, both as tall as the screen allows (`--fit-h`, never under 420),
+   each scrolling inside itself. The left column scrolls as one while To do
+   stands under the facts; its 16 of room above and beside keeps the cards'
+   shadow, and it ends where the cards end. */
+.fg .jov.jov--fit { display:grid; grid-template-columns:320px minmax(0,1fr); gap:16px; align-items:start; }
+.fg .jov--fit > .jov-left { display:flex; flex-direction:column; gap:16px; min-width:0; height:calc(var(--fit-h, 0px) + 16px); margin:-16px -16px 0; padding:16px 16px 0; overflow:auto; }
+.fg .jov--fit > .jov-side { display:flex; flex-direction:column; min-width:0; height:var(--fit-h, auto); padding:0; border:0; }
+.fg .jov--fit > .jov-side > .jov-sec { flex:1 1 auto; min-height:0; overflow:auto; }
+/* on a fitted tab the job's head stays put while a short window scrolls the
+   cards under it (call 11, mock C) */
+.fg .wrap.jp:has(.jp-fit:not([hidden])) { padding-top:0; }
+.fg .wrap.jp:has(.jp-fit:not([hidden])) .jp-head { position:sticky; top:0; z-index:10; padding-top:24px; background:var(--paper); }
+/* THE FACTS CARD (job-facts.tsx): one card, its parts under hairlines */
+.fg .jfc { flex:none; display:flex; flex-direction:column; min-width:0; overflow:hidden; border-radius:var(--r-card); background:var(--paper); box-shadow:var(--shadow-card); }
+.fg .jfc-part { position:relative; display:flex; flex-direction:column; align-items:flex-start; gap:4px; min-width:0; padding:12px 16px; transition:background-color var(--t-fast) var(--ease); }
+.fg .jfc-part + .jfc-part { border-top:1px solid var(--line); }
+.fg .jfc-part--door:hover { background:var(--hov); }
+.fg .jfc-part--door:has(.jov-open:focus-visible) { box-shadow:var(--ring); }
+/* the map over the site (Isaac, 14 November 2026: "Yes, add the map"): its room is kept while it loads */
+.fg .jfc-map { display:block; flex:none; width:100%; height:96px; object-fit:cover; background:var(--soft); }
+.fg .jfc .jov-addr { display:flex; flex-direction:column; margin-top:8px; white-space:normal; color:var(--q); overflow-wrap:anywhere; }
+.fg .jfc .jov-addr b { font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
 /* THE JOB TRACKER (job-tracker.tsx): a line per part of the quote, its
    name and state, then its figure and Show, then a 6 tall bar: used grey,
    overtime orange, past the quote red (design.md, "On a job's page") */
@@ -6213,7 +6236,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jtr-acts { display:flex; gap:8px; }
 @media (max-width:1100px) {
   .fg .jov-cols { grid-template-columns:minmax(0,1fr); row-gap:16px; }
-  .fg .jov-main--stick { position:static; }
 }
 @media (max-width:760px) {
   .fg .jov-facts, .fg .jov-facts--3 { grid-template-columns:minmax(0,1fr); }

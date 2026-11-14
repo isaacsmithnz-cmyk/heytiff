@@ -1,39 +1,32 @@
 "use client";
 
-import { useId, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { Button } from "@/components/parts/button";
 import { Initials } from "@/components/parts/initials";
 import { StateWord } from "@/components/parts/state";
 import { Icon } from "@/components/shell/icon";
 import type { NextVisit } from "@/lib/jobs/job-conversation";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
+import { MAP_SIZE } from "@/lib/jobs/job-map";
 
-/* THE STRIP OF FACTS, UNDER THE STAGES LINE (Isaac, 25 October 2026, "Yes,
-   build the refined Overview A"): one box with the card's corner and the
-   edge's colour, its cells split by hairlines, each under a 12/500 grey
-   label.
+/* THE FACTS CARD, ON THE LEFT OF A JOB'S OVERVIEW (Isaac, 13 and 14 November
+   2026: "Should next visit go above map?", calls 11, 19 and 21; mocks C and D
+   approved on https://claude.ai/artifact/MkfHutEG1PanPDCW7fyV5a). One white
+   card 320 wide, fitted to the screen and scrolling inside itself, its parts
+   under hairlines, each under a 13/500 label with an icon:
 
-     Site        the job's address as written, their PO under it, where
-                 they gave one; its number is the header's (Isaac,
-                 6 November 2026, the client beside the number up top)
-     Contact     who to ring: a disc, the name in bold, the role grey and
-                 the numbers underlined to ring; Edit at the label's right
-                 where saving customers is on
      Next visit  the next booked visit, or Nothing booked and Book a visit,
-                 the one blue button (the Visit form's door, rule 52)
-     Money       the figure at 20 with where collection stands under it in
-                 its word's colour; only for whoever sees money, else the
-                 strip has three cells
+                 the one blue button (the Visit form's door, rule 52); its
+                 name opens Visits from anywhere on it
+     Site        the address, its first line at 16 bold and the rest grey,
+                 with Directions on the label's right (Google Maps, in a
+                 new tab); their PO under it, where they gave one
+     Contacts    who to ring, in full: a disc, the name in bold, the role
+                 grey, the numbers to ring and the email, none underlined
+                 and none faded (important text never fades); Edit at the
+                 label's right where saving customers is on
 
-   A cell with a tab behind it opens it from anywhere on it (Next visit to
-   Visits, Money to Billing): its name is the button and stretches over the
-   cell, and its own buttons still press on their own. The customer column
-   that stood under the tiles came into Site and Contact.
-
-   Each cell is a white card on the Overview's grey ground, its label at 13
-   with an icon (Isaac, 4 November 2026, "2, check laws"): Site a house and
-   Contact a person in grey, Next visit a calendar in pink, Money a dollar
-   in purple, each in its word value. */
+   Money and the Job tracker went to Billing (Isaac, 13 November 2026). */
 
 /** A dialable href, or null when the field isn't one number.
 
@@ -58,12 +51,11 @@ export function phoneWords(raw: string): string {
   return raw.trim();
 }
 
-const LOOK: Record<string, { icon: string; hue: "grey" | "pink" | "purple" }> = {
+const LOOK: Record<string, { icon: string; hue: "grey" | "pink" }> = {
   Site: { icon: "home", hue: "grey" },
   Contact: { icon: "user", hue: "grey" },
   Contacts: { icon: "user", hue: "grey" },
   "Next visit": { icon: "calendar", hue: "pink" },
-  Money: { icon: "dollar", hue: "purple" },
 };
 
 function Fact({
@@ -74,9 +66,9 @@ function Fact({
   children,
 }: {
   label: string;
-  /** Opens the tab behind the cell, from anywhere on it. */
+  /** Opens the tab behind the part, from anywhere on it. */
   onOpen?: () => void;
-  /** At the label's right: Contact's Edit. */
+  /** At the label's right: Directions, Contacts' Edit. */
   aside?: ReactNode;
   className?: string;
   children: ReactNode;
@@ -92,7 +84,7 @@ function Fact({
     label
   );
   return (
-    <section className={["jov-fact", onOpen ? "jov-fact--door" : "", className ?? ""].filter(Boolean).join(" ")} aria-labelledby={id}>
+    <section className={["jfc-part", onOpen ? "jfc-part--door" : "", className ?? ""].filter(Boolean).join(" ")} aria-labelledby={id}>
       <div className={`jov-lab${look ? ` jov-lab--${look.hue}` : ""}`}>
         {onOpen ? (
           <button type="button" className="jov-open" id={id} onClick={onOpen}>
@@ -108,15 +100,42 @@ function Fact({
   );
 }
 
+/** Google Maps' directions to the job, in a new tab: the address as written,
+    one line. */
+export function directionsHref(address: string): string {
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address.replace(/\s*\n\s*/g, ", ").trim())}`;
+}
+
+/** THE MAP over the site (Isaac, 14 November 2026: "Yes, add the map"):
+    Google's picture of the address, 320 by 96, through our own route so the
+    key stays on the server (api/workboard/job-map). A picture that won't
+    load takes its room away. */
+export function JobMap({ jobUuid, hue, address }: { jobUuid: string; hue: string; address: string }) {
+  const [gone, setGone] = useState(false);
+  if (gone) return null;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      className="jfc-map"
+      src={`/api/workboard/job-map?job=${encodeURIComponent(jobUuid)}&hue=${encodeURIComponent(hue)}`}
+      alt={`Map of ${address}`}
+      width={MAP_SIZE.width}
+      height={MAP_SIZE.height}
+      loading="lazy"
+      onError={() => setGone(true)}
+    />
+  );
+}
+
 export function JobFacts({
   detail,
   next,
   nextRead,
   onVisits,
   onBook,
-  money,
-  onMoney,
   onEditContact,
+  map = null,
+  jobUuid: _jobUuid = null,
 }: {
   detail: MirrorJobDetail | null;
   next: NextVisit | null;
@@ -125,23 +144,69 @@ export function JobFacts({
   onVisits: () => void;
   /** Book a visit, where the reader may book. */
   onBook?: () => void;
-  /** The Money cell's insides; absent for whoever doesn't see money. */
-  money?: ReactNode;
-  onMoney?: () => void;
   /** Edit, where saving customers to ServiceM8 is on for this reader. */
   onEditContact?: () => void;
+  /** The map of the site, over its address. */
+  map?: ReactNode;
+  /** The job, for what hangs off its site (Site notes, build 9). */
+  jobUuid?: string | null;
 }) {
   const where = detail ? (detail.address ?? "").trim() || detail.geoLine || detail.suburb || "" : "";
+  const [first, ...rest] = where.split(/\s*\n\s*/).filter(Boolean);
   const contacts = detail?.contacts ?? [];
-  const withMoney = money !== undefined;
   return (
-    <div className={`jov-facts${withMoney ? "" : " jov-facts--3"}`} role="group" aria-label="The job's facts">
-      <Fact label="Site">
+    <div className="jfc" role="group" aria-label="The job's facts">
+      <Fact label="Next visit" onOpen={onVisits}>
+        {next ? (
+          <>
+            <b className="jov-strong">{next.when}</b>
+            {next.who && <p className="jov-cap">{next.who}</p>}
+            {next.state && <StateWord tone={next.state.tone}>{next.state.word}</StateWord>}
+          </>
+        ) : nextRead ? (
+          <>
+            <b className="jov-strong">Nothing booked</b>
+            {onBook && (
+              <span className="jov-press">
+                <Button kind="main" size={32} onClick={onBook}>
+                  Book a visit
+                </Button>
+              </span>
+            )}
+          </>
+        ) : (
+          <>
+            <p className="jov-cap">Reading the visits</p>
+            {/* Book a visit's room, kept while it reads, so nothing jumps when it comes */}
+            {onBook && <span className="jov-press jov-press--held" aria-hidden="true" />}
+          </>
+        )}
+      </Fact>
+
+      {map}
+
+      <Fact
+        label="Site"
+        aside={
+          where ? (
+            <Button kind="quiet" size={32} className="jov-edit" href={directionsHref(where)} target="_blank" rel="noopener noreferrer">
+              Directions
+            </Button>
+          ) : null
+        }
+      >
         {!detail ? (
           <p className="jov-cap">Reading the job</p>
         ) : (
           <>
-            {where ? <p className="jov-addr">{where}</p> : <p className="jov-cap">No address on the job</p>}
+            {first ? (
+              <p className="jov-addr">
+                <b>{first}</b>
+                {rest.length > 0 && <span>{rest.join(", ")}</span>}
+              </p>
+            ) : (
+              <p className="jov-cap">No address on the job</p>
+            )}
             {detail.purchaseOrder && (
               <p className="jov-po">
                 <span>Their PO</span> <b>{detail.purchaseOrder}</b>
@@ -153,7 +218,7 @@ export function JobFacts({
 
       <Fact
         label={contacts.length > 1 ? "Contacts" : "Contact"}
-        className="jov-fact--contact"
+        className="jfc-part--contact"
         aside={
           onEditContact ? (
             <Button kind="quiet" size={32} className="jov-edit" onClick={onEditContact}>
@@ -187,39 +252,6 @@ export function JobFacts({
           </ul>
         )}
       </Fact>
-
-      <Fact label="Next visit" onOpen={onVisits}>
-        {next ? (
-          <>
-            <b className="jov-strong">{next.when}</b>
-            {next.who && <p className="jov-cap">{next.who}</p>}
-            {next.state && <StateWord tone={next.state.tone}>{next.state.word}</StateWord>}
-          </>
-        ) : nextRead ? (
-          <>
-            <b className="jov-strong">Nothing booked</b>
-            {onBook && (
-              <span className="jov-press">
-                <Button kind="main" size={32} onClick={onBook}>
-                  Book a visit
-                </Button>
-              </span>
-            )}
-          </>
-        ) : (
-          <>
-            <p className="jov-cap">Reading the visits</p>
-            {/* Book a visit's room, kept while it reads, so nothing jumps when it comes */}
-            {onBook && <span className="jov-press jov-press--held" aria-hidden="true" />}
-          </>
-        )}
-      </Fact>
-
-      {withMoney && (
-        <Fact label="Money" onOpen={onMoney}>
-          {money}
-        </Fact>
-      )}
     </div>
   );
 }

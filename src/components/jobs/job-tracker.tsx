@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Button } from "@/components/parts/button";
 import { TextInput } from "@/components/parts/field";
 import { StateWord } from "@/components/parts/state";
@@ -379,5 +379,33 @@ export function JobTracker({ read, jobId, onRead }: { read: TrackerRead | null; 
         />
       </ul>
     </JobSection>
+  );
+}
+
+/** THE JOB TRACKER ON BILLING (Isaac, 13 November 2026: "Job tracker ->
+    Billing"), under the payments, with its own read, a route of its own
+    (the card's server actions run one at a time). Billing is money's, so
+    only whoever sees money reaches it. Nothing when the job has none. */
+export function JobTrackerOnBilling({ jobId }: { jobId: string }) {
+  const [tracker, setTracker] = useState<TrackerRead | null | "none">(null);
+  useEffect(() => {
+    let live = true;
+    void fetch(`/api/workboard/job-tracker?job=${encodeURIComponent(jobId)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j: { ok?: boolean; tracker?: TrackerRead } | null) => {
+        if (live) setTracker(j?.ok && j.tracker ? j.tracker : "none");
+      })
+      .catch(() => {
+        if (live) setTracker("none");
+      });
+    return () => {
+      live = false;
+    };
+  }, [jobId]);
+  if (tracker === "none") return null;
+  return (
+    <div className="jbl-tracker">
+      <JobTracker read={tracker} jobId={jobId} onRead={setTracker} />
+    </div>
   );
 }

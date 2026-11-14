@@ -375,35 +375,28 @@ describe("the job's sections are the card's faces", () => {
   /* the refined Overview A (Isaac, 25 October 2026): the stages line, the
      strip of facts, then To do beside the Activity feed; the Summary went to
      the Scope tab (13 November 2026) */
-  it("shows Overview as the stages line over the strip of facts, To do beside the Activity feed", async () => {
+  /* mocks C and D (14 November 2026): the stages line beside the name, the
+     facts card and To do on the left, the Activity feed on the right */
+  it("shows Overview as the facts card and To do beside the Activity feed, the stages line in the head", async () => {
     const { container } = draw("overview", { moneyVisible: true });
     await ready();
     expect(jobTab("Overview")).toHaveAttribute("aria-selected", "true");
+    const head = container.querySelector(".jp-head") as HTMLElement;
+    expect(within(head).getByRole("navigation", { name: "Where the job is up to" })).toBeVisible();
     const over = container.querySelector(".jov") as HTMLElement;
-    expect(within(over).getByRole("navigation", { name: "Where the job is up to" })).toBeVisible();
     const facts = within(screen.getByRole("group", { name: "The job's facts" }));
-    expect(facts.getAllByRole("region").map((r) => r.querySelector(".jov-lab")?.firstChild?.textContent)).toEqual(["Site", "Contact", "Next visit", "Money"]);
-    expect([...over.querySelectorAll(".jov-main .jov-title")].map((h) => h.textContent)).toEqual(["To do"]);
+    expect(facts.getAllByRole("region").map((r) => r.querySelector(".jov-lab")?.firstChild?.textContent)).toEqual(["Next visit", "Site", "Contact"]);
+    expect([...over.querySelectorAll(".jov-left .jov-title")].map((h) => h.textContent)).toEqual(["To do"]);
     expect([...over.querySelectorAll(".jov-side .jov-title")].map((h) => h.textContent)).toEqual(["Activity feed"]);
     expect(screen.getByRole("region", { name: "Activity feed" })).toBeVisible();
     expect(screen.getByRole("textbox", { name: "Write a note on this job" })).toBeVisible();
-    expect(screen.queryByRole("complementary", { name: "About the job" })).toBeNull();
-    /* Next visit opens Visits and Money opens Billing, from anywhere on the cell */
+    /* Money and the Job tracker are Billing's now */
+    expect(screen.queryByRole("region", { name: "Money" })).toBeNull();
+    /* Next visit opens Visits from anywhere on it */
     await userEvent.click(facts.getByRole("button", { name: "Next visit" }));
     expect(onSection).toHaveBeenCalledWith("visits");
-    await userEvent.click(facts.getByRole("button", { name: "Money" }));
-    expect(onSection).toHaveBeenCalledWith("billing");
     /* a manager adds a task from To do */
     expect(within(screen.getByRole("region", { name: "To do" })).getByRole("button", { name: "Add task" })).toBeInTheDocument();
-  });
-
-  it("leaves Money's cell off for whoever doesn't see the money", async () => {
-    draw("overview");
-    await ready();
-    const facts = screen.getByRole("group", { name: "The job's facts" });
-    expect(facts).toHaveClass("jov-facts--3");
-    expect(within(facts).getAllByRole("region")).toHaveLength(3);
-    expect(within(facts).queryByRole("button", { name: "Money" })).toBeNull();
   });
 
   it("draws none of the card's own faces on Overview", async () => {

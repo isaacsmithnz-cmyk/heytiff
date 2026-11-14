@@ -1,8 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/parts/button";
-import { Fade } from "@/components/parts/fade";
 import { Menu, type MenuItem } from "@/components/parts/menu";
 import { Dot, type Hue } from "@/components/parts/state";
 import { SectionTabs, type TabItem } from "@/components/parts/tabs";
@@ -21,7 +20,10 @@ import { WayBack } from "./way-back";
        client name, then underneath it, the site would show the address").
        The address is the Site card's and the scope Overview's. A job with
        no client is named by its address, and one with no number wears
-       its dot;
+       its dot. A long name wraps, to three lines at ServiceM8's 100
+       characters, and never fades (Isaac, 14 November 2026, call 19,
+       mock C: important text never fades);
+     on the Overview only, the stages line beside the name (call 19);
      on the right, one second button, Actions, with a chevron, opening a
        white menu (rules 36, 53 and 54): what Add made first ("Add visit",
        "Add task"), then what's done to the job, then Open in ServiceM8
@@ -53,6 +55,8 @@ export type JobPageHeadProps = {
   description?: string | null;
   /** the job's number, in the plate's coloured box */
   number?: string | null;
+  /** the stages line, beside the name: the Overview's alone */
+  line?: ReactNode;
   hue: Hue;
   /** ServiceM8's own page for the job, when there is one */
   sm8Href: string | null;
@@ -63,7 +67,7 @@ export type JobPageHeadProps = {
   onSection: (key: string) => void;
 };
 
-export function JobPageHead({ name, description = null, number = null, hue, sm8Href, add, actions, sections, section, onSection }: JobPageHeadProps) {
+export function JobPageHead({ name, description = null, number = null, line = null, hue, sm8Href, add, actions, sections, section, onSection }: JobPageHeadProps) {
   const actRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const chevron = (
@@ -78,11 +82,10 @@ export function JobPageHead({ name, description = null, number = null, hue, sm8H
         <div className={`jp-id jp-plate jp-plate--${hue}`}>
           {number ? <span className="jp-num">{number}</span> : <Dot hue={hue} />}
           <div className="jp-named">
-            <h1 className="jp-name">
-              <Fade>{name}</Fade>
-            </h1>
+            <h1 className="jp-name">{name}</h1>
           </div>
         </div>
+        {line ? <div className="jov-line jp-stage">{line}</div> : null}
         <div className="jp-acts">
           <Button
             ref={actRef}

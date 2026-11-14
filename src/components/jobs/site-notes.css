@@ -1,0 +1,105 @@
+/* SITE NOTES (site-notes.tsx): the button under the address and its pop-up.
+   The pop-up is the Dialog part at 880 (rule 36), portalled to <body>, so
+   nothing here leans on `.fg`. Colours from the tokens only. */
+
+/* the orange asterisk before the button's word: the site has notes (call 13) */
+.stn-mark { fill: none; stroke: var(--orange); stroke-width: 2.4; stroke-linecap: round; }
+
+.stn-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* the body scrolls inside the dialog on a long building, under a hairline
+   that runs the dialog's width */
+.pt-dialog .pt-dialog-body:has(> .stn) {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin-top: 16px;
+  padding: 0;
+  border-top: 1px solid var(--line);
+}
+.stn { padding: 16px 24px 24px; }
+/* the dialog's body gives its paragraphs a foot of 8; a row's lines sit on their own gaps */
+.pt-dialog .pt-dialog-body .stn p { margin: 0; }
+.stn-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px; align-items: start; }
+.stn-col { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+
+.stn-label {
+  margin: 0;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+  color: var(--q);
+}
+.stn-unit { margin: 12px 0 0; font-size: 13px; line-height: 18px; font-weight: 600; color: var(--ink); }
+
+.stn-rows { list-style: none; margin: 0; padding: 0; }
+.stn-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.stn-row:last-child { border-bottom: 0; }
+.stn-row.stn-row--form { display: block; }
+.stn-words { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.stn-doors { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+
+/* a code, big enough to read at the gate */
+.stn-code { margin: 0; font-size: 20px; line-height: 28px; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+.stn-name { margin: 0; font-size: 14px; line-height: 20px; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+.stn-more { margin: 0; font-size: 14px; line-height: 20px; font-weight: 400; color: var(--ink); white-space: pre-line; overflow-wrap: anywhere; }
+.stn-meta { margin: 0; font-size: 13px; line-height: 18px; font-weight: 400; color: var(--q); }
+.stn-quiet { margin: 0; font-size: 14px; line-height: 20px; font-weight: 400; color: var(--q); }
+.stn-pad { margin: 0; padding-top: 12px; }
+
+/* Add a note, and a row's change, in place */
+.stn-form { display: flex; flex-direction: column; gap: 12px; padding: 12px 0; }
+.stn-col > .stn-form { padding: 0 0 16px; border-bottom: 1px solid var(--line); }
+.stn-choices { display: flex; flex-wrap: wrap; gap: 12px; }
+.stn-form .stn-area { font-size: 16px; line-height: 24px; }
+.stn-formfoot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.stn-formfoot .stn-remove { margin-right: auto; }
+.stn-ask { margin: 0 auto 0 0; font-size: 14px; line-height: 20px; font-weight: 400; color: var(--ink); }
+
+/* the list of old ServiceM8 notes with codes, to tick (old-code-notes.tsx) */
+.stn-old {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 1080px;
+  box-sizing: border-box;
+  padding: 24px 32px 48px;
+  font-family: var(--font);
+  color: var(--ink);
+}
+.stn-oldhead {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 0 0 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--white);
+}
+.stn-oldhead h1 { margin: 0; font-size: 24px; line-height: 32px; font-weight: 600; }
+.stn-oldrow { justify-content: flex-start; }
+.stn-oldrow .pt-tick { padding-top: 2px; }
+.stn-oldwords { flex: 1 1 auto; }
+.stn-keep { white-space: pre-line; }
+.stn-said { margin: 0; font-size: 14px; line-height: 20px; font-weight: 600; color: var(--green-w); }
+.stn-err { margin: 0; font-size: 14px; line-height: 20px; font-weight: 600; color: var(--red-w); }

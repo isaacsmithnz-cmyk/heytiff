@@ -33,6 +33,7 @@
 }
 .pt-scrim .pt-dialog--560 { width: 560px; }
 .pt-scrim .pt-dialog--720 { width: 720px; }
+.pt-scrim .pt-dialog--880 { width: 880px; }
 .pt-scrim .pt-dialog--960 { width: 960px; }
 /* the lightbox: most of the window, its body scrolling between the title and the foot */
 .pt-scrim .pt-dialog--wide { width: calc(100vw - 96px); max-width: 1440px; height: calc(100vh - 96px); }
@@ -47,6 +48,19 @@
   color: var(--ink);
   text-wrap: balance;
 }
+/* a head with a line under the title and buttons beside it: the title keeps
+   its own padding off, the head holds it */
+.pt-dialog .pt-dialog-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 24px 24px 0;
+}
+.pt-dialog .pt-dialog-head .pt-dialog-title { padding: 0; }
+.pt-dialog .pt-dialog-headwords { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pt-dialog .pt-dialog-under { margin: 0; font-size: 14px; line-height: 20px; font-weight: 400; color: var(--q); }
+.pt-dialog .pt-dialog-aside { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
 /* 16 under the title: at 8 a form's first label read as the title's caption */
 .pt-dialog .pt-dialog-body {
   padding: 16px 24px 0;

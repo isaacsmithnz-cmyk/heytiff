@@ -120,6 +120,9 @@ export type JobConversationRead = {
   customer?: CustomerItem[];
   /** Every text and email with the customer, as Comms shows them (customer-messages). */
   comms?: CommsThread[];
+  /** The quote's chat with Tiff, for the Tiff tab; its money said in words
+      to whoever can't see money. */
+  quoteChat?: QuoteChat | null;
 };
 
 /* ── days ── */
@@ -137,11 +140,15 @@ export function stampClock(stamp: string | null | undefined): string {
   return m ? clock12(Number(m[1]) * 60 + Number(m[2])) : "";
 }
 
+/** The quote's chat with Tiff, as the Tiff tab lists it (Isaac, 14 November
+    2026, call 20, mock E): her last line there and when, opened in Price. */
+export type QuoteChat = { day: string; at: string; time: string; text: string };
+
 /** A To do in All, on the day it was made (call 6), open or ticked. */
 export type FeedTodo = RailTask & { done: boolean };
 
 /** One thing in the conversation: a diary entry, a note's talk, or both. */
-export type ConvItem = { key: string; entry: StoryEntry | null; talk: JobNoteTalk | null; customer?: CustomerItem | null; todo?: FeedTodo | null };
+export type ConvItem = { key: string; entry: StoryEntry | null; talk: JobNoteTalk | null; customer?: CustomerItem | null; todo?: FeedTodo | null; quote?: QuoteChat | null };
 
 export type ConvDay = { day: string; label: string; items: ConvItem[] };
 
@@ -162,6 +169,7 @@ export function conversationDays(
   withTaken = true,
   customer: readonly CustomerItem[] = [],
   todos: readonly FeedTodo[] = [],
+  quote: QuoteChat | null = null,
 ): ConvDay[] {
   const byId = new Map(talks.map((t) => [t.id, t]));
   const items: (ConvItem & { day: string; at: string | null })[] = [];
@@ -195,9 +203,15 @@ export function conversationDays(
     if (at < 0) items.push(item);
     else items.splice(at, 0, item);
   }
+  if (quote) {
+    const at = items.findIndex((i) => i.day > quote.day || (i.day === quote.day && !!i.at && i.at > quote.at));
+    const item = { key: "quote-chat", entry: null, talk: null, quote, day: quote.day, at: quote.at };
+    if (at < 0) items.push(item);
+    else items.splice(at, 0, item);
+  }
   const days: ConvDay[] = [];
-  for (const { key, entry, talk, customer: c, todo, day } of items as (ConvItem & { day: string })[]) {
-    const it: ConvItem = c ? { key, entry, talk, customer: c } : todo ? { key, entry, talk, todo } : { key, entry, talk };
+  for (const { key, entry, talk, customer: c, todo, quote: q, day } of items as (ConvItem & { day: string })[]) {
+    const it: ConvItem = c ? { key, entry, talk, customer: c } : todo ? { key, entry, talk, todo } : q ? { key, entry, talk, quote: q } : { key, entry, talk };
     const cur = days.at(-1);
     if (cur && cur.day === day) cur.items.push(it);
     else days.push({ day, label: dayLabel(day, today), items: [it] });

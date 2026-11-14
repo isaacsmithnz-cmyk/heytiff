@@ -27,8 +27,9 @@ import { removeJobNote, saveJobNote } from "@/app/actions/job-notes";
 import type { OurJobNote } from "@/lib/workboard/job-notes-query";
 import { WindowsContext } from "@/components/records/records-context";
 import { filterStory, fmtStoryMinutes, type StoryEntry, type StoryFilter } from "@/lib/workboard/job-story";
-import { conversationDays, stampClock, todoTone, type FeedTodo, type JobConversationRead, type JobNoteTalk, type MadeCard, type MadeKind, type RailTask } from "@/lib/jobs/job-conversation";
+import { conversationDays, stampClock, todoTone, type FeedTodo, type JobConversationRead, type JobNoteTalk, type QuoteChat, type MadeCard, type MadeKind, type RailTask } from "@/lib/jobs/job-conversation";
 import { Tick } from "@/components/parts/tick";
+import { useTiff } from "@/components/tiff/modal/tiff-context";
 import type { FlagState } from "@/lib/integrations/sm8-note-plan";
 import type { NoteSender } from "@/lib/integrations/links";
 import { JobSection } from "./job-section";
@@ -211,6 +212,7 @@ export function JobConversation({
   comms = NO_COMMS,
   todos = null,
   askTodo = 0,
+  quoteChat = null,
 }: {
   /** The diary's entries, newest first, as job-story builds them. */
   story: StoryEntry[];
@@ -241,6 +243,8 @@ export function JobConversation({
   todos?: FeedTodos | null;
   /** Bumped by Actions' Add › To do: the To do tab, its box ready to type in. */
   askTodo?: number;
+  /** The quote's chat with Tiff, listed on the Tiff tab with Open in Price. */
+  quoteChat?: QuoteChat | null;
 }) {
   const [filter, setFilter] = useState<FeedFilter>("all");
   /* a row the customer's messages already say ("Quote sent") is said once */
@@ -312,8 +316,28 @@ export function JobConversation({
         filter === "all" || filter === "notes" || filter === "tiff",
         theirs,
         filter === "all" ? feedTodos : [],
-      ),
-    [shown, talks, today, liveNotes, filter, theirs, feedTodos, toldTiff],
+        filter === "tiff" ? quoteChat : null,
+      )
+        /* ALL SHOWS WHAT SHE SAVED, NOT THE CHAT (Isaac, 14 November 2026,
+           mock E): a note told to her that only made To dos is those To dos,
+           which stand on their own; any other stands as the note, with no
+           chat under it. The chat is the Tiff tab's. */
+        .map((d) =>
+          filter !== "all"
+            ? d
+            : {
+                ...d,
+                items: d.items.flatMap((i) =>
+                  i.talk && toldTiff.has(i.talk.id) && !i.talk.undone
+                    ? i.talk.made.length > 0 && i.talk.made.every((m) => m.kind === "task")
+                      ? []
+                      : [{ ...i, talk: null }]
+                    : [i],
+                ),
+              },
+        )
+        .filter((d) => d.items.length > 0),
+    [shown, talks, today, liveNotes, filter, theirs, feedTodos, toldTiff, quoteChat],
   );
   const you = viewerName ?? "You";
 
@@ -417,11 +441,23 @@ export function JobConversation({
     setPhoto(null);
   };
 
+  /* THE ARROW OPENS HER WINDOW (Isaac, 14 November 2026, mock E): the job's
+     docked Tiff with only its ×, the words sent as it opens; she saves each
+     decision as she makes it, with Undo, and closing lets her finish. On the
+     To do tab the words go as said in a task list, so she makes it a To do
+     and sets who and when (call 8). A photo still goes with the words here. */
+  const tiff = useTiff();
+  const boxRef = useRef<HTMLDivElement | null>(null);
   const send = () => {
     if (!canSend || !convo.draft.trim() || photo?.state === "up") return;
+    if (!photo) {
+      const from = (document.activeElement as HTMLElement | null) ?? boxRef.current;
+      if (from && tiff.open({ from, words: convo.draft.trim(), room: filter === "todo" ? "tasks" : "diary", onJob: true })) {
+        convo.setDraft("");
+        return;
+      }
+    }
     stamp();
-    /* on the To do tab the arrow has Tiff make it a To do and set who and
-       when (call 8): the words go as said in a task list */
     convo.aimRoom(filter === "todo" ? "tasks" : null);
     if (photo?.state === "ready") {
       convo.sendWithReceipt(photo.id);
@@ -527,6 +563,13 @@ export function JobConversation({
     toldTo.current = askTodo;
     footRef.current?.querySelector("textarea")?.focus();
   }, [askTodo, filter]);
+  /* OPEN CHAT, on the Tiff tab: her window again with what was said, ready
+     to carry on (mock E) */
+  const openChat = (talk: JobNoteTalk) => {
+    const from = (document.activeElement as HTMLElement | null) ?? boxRef.current;
+    if (!from) return;
+    tiff.open({ from, conversation: [{ who: "you", text: talk.said }, ...talk.replies], room: "diary", onJob: true });
+  };
 
   /* the box's own exchange stands under "Today" at the foot, after the day's
      older entries, with no second "Today" */
@@ -569,6 +612,7 @@ export function JobConversation({
   }, [grew, filter]);
 
   return (
+    <OpenChat.Provider value={filter === "tiff" ? openChat : null}>
     <UndoTalk.Provider value={undoTalk ? { undo: undoTalk, busy: undoing } : null}>
     <FileDoor.Provider value={diary.openFile ?? NO_FILE}>
     <JobSection name="Activity feed" icon="chat" hue="green" className="jc-convo" action={tabs}>
@@ -628,6 +672,23 @@ export function JobConversation({
                 <div className="jc-entry" key={item.key}>
                   <TalkMessage talk={item.talk} you={you} />
                 </div>
+              ) : item.quote ? (
+                <div className="jc-entry" key={item.key}>
+                  <TiffTurn
+                    when={item.quote.time}
+                    doors={
+                      diary.onQuote ? (
+                        <button type="button" className="jc-bmdoor" onClick={diary.onQuote}>
+                          Open in Price
+                        </button>
+                      ) : null
+                    }
+                  >
+                    <div className="cv-text">
+                      <p>{item.quote.text}</p>
+                    </div>
+                  </TiffTurn>
+                </div>
               ) : item.todo && todos ? (
                 <div className="jc-entry" key={item.key}>
                   <TodoRow todo={item.todo} todos={todos} inAll />
@@ -673,8 +734,15 @@ export function JobConversation({
           </div>
         )}
       </div>
-      {filter !== "comms" && (
-        <div className="jc-foot" ref={footRef}>
+      {/* the job's box goes while her window is open: one place to type (call 17) */}
+      {filter !== "comms" && !tiff.isOpen && (
+        <div
+          className="jc-foot"
+          ref={(el) => {
+            footRef.current = el;
+            boxRef.current = el;
+          }}
+        >
           <CvBox
             value={convo.draft}
             onChange={convo.setDraft}
@@ -718,6 +786,7 @@ export function JobConversation({
     </JobSection>
     </FileDoor.Provider>
     </UndoTalk.Provider>
+    </OpenChat.Provider>
   );
 }
 
@@ -825,6 +894,9 @@ function PhotoChip({ photo, onClear }: { photo: BoxPhoto; onClear: () => void })
 /** Undo on an earlier note's cards, from the conversation that reads it. */
 const UndoTalk = createContext<{ undo: (noteId: string) => void; busy: ReadonlySet<string> } | null>(null);
 
+/** Open chat, on the Tiff tab: the chat had about a note, in her window again. */
+const OpenChat = createContext<((talk: JobNoteTalk) => void) | null>(null);
+
 /* ── the conversation's sides (Isaac, 26 October 2026) ──
    Your words on the right and everyone else's on the left, both in the
    light grey; Tiff on the left with no bubble, her mark turning slowly
@@ -874,7 +946,7 @@ const Spoken = () => (
 
 /** One of Tiff's turns: her mark and her name, her words with no bubble,
     then whatever she made and the time. */
-function TiffTurn({ when, working = false, children }: { when: string; working?: boolean; children: ReactNode }) {
+function TiffTurn({ when, working = false, doors = null, children }: { when: string; working?: boolean; doors?: ReactNode; children: ReactNode }) {
   return (
     <article className="jc-tiffturn">
       <p className="jc-tiffname">
@@ -882,7 +954,12 @@ function TiffTurn({ when, working = false, children }: { when: string; working?:
         <b>Tiff</b>
       </p>
       {children}
-      {when && <p className="jc-bmtime">{when}</p>}
+      {(when || doors) && (
+        <p className="jc-bmtime jc-bmmeta">
+          {when && <span>{when}</span>}
+          {doors}
+        </p>
+      )}
     </article>
   );
 }
@@ -977,6 +1054,7 @@ function TalkMessage({ talk, you }: { talk: JobNoteTalk; you: string }) {
     she made hangs under her last line, with Undo where it still applies. */
 function Replies({ talk, who, mine }: { talk: JobNoteTalk; who: string; mine: boolean }) {
   const undo = useContext(UndoTalk);
+  const openChat = useContext(OpenChat);
   const when = stampClock(talk.stamp);
   const last = talk.replies.map((r) => r.who).lastIndexOf("tiff");
   return (
@@ -985,7 +1063,17 @@ function Replies({ talk, who, mine }: { talk: JobNoteTalk; who: string; mine: bo
         r.who === "you" ? (
           <Bubble key={i} mine={mine} who={who} text={r.text} meta={<span>{when}</span>} />
         ) : (
-          <TiffTurn key={i} when={when}>
+          <TiffTurn
+            key={i}
+            when={when}
+            doors={
+              i === last && openChat ? (
+                <button type="button" className="jc-bmdoor" onClick={() => openChat(talk)}>
+                  Open chat
+                </button>
+              ) : null
+            }
+          >
             <div className="cv-text">
               <p>{r.text}</p>
             </div>

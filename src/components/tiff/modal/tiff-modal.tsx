@@ -76,6 +76,8 @@ export type TiffSession = {
   at: number;
   /** Carrying on the conversation she moved you from (./use-conversation). */
   carryOn?: boolean;
+  /** From a job's box: only ×, and closing lets her finish (./tiff-context). */
+  onJob?: boolean;
 };
 
 export type TiffClosed = Closed & {
@@ -156,7 +158,8 @@ export function TiffModal({
     left.current = true;
     setLeaving(true);
     const result: TiffClosed = {
-      ...c.close(),
+      /* from a job, closing only closes: what she's still doing she finishes (call 10) */
+      ...c.close({ finish: session.onJob === true }),
       from: session.from,
       back: session.back,
       room: session.room,
@@ -329,7 +332,8 @@ export function TiffModal({
               <IconButton glyph="clear" size={32} label={`Clear the tag — not about ${c.targetLabel}`} onClick={c.dropAim} />
             )}
           </span>
-          <IconButton glyph="minimise" label="Minimise" size={32} onClick={() => setSmall(true)} />
+          {/* on a job the window has only its × (Isaac, 14 November 2026: "Just x") */}
+          {!session.onJob && <IconButton glyph="minimise" label="Minimise" size={32} onClick={() => setSmall(true)} />}
           <IconButton glyph="close" size={32} label="Close" onClick={(e) => close(e.detail === 0)} />
         </header>
 

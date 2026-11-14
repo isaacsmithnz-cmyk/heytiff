@@ -41,6 +41,10 @@ import { addQuickPriceToQuote, type AddQuickResult } from "@/app/actions/quick-p
 import { openName, parseMove } from "@/lib/tiff/moves";
 import type { TiffLanded } from "./tiff-context";
 
+
+/** The event a conversation closed while she worked sends once she has filed. */
+export const TIFF_FILED = "tiff:filed";
+
 /* ONE CONVERSATION WITH TIFF — the modal's state, once.
 
    It replaced the review card's flow (`useNoteFlow`, which went with the
@@ -281,6 +285,8 @@ export function useConversation({
 
   const seq = useRef(0);
   const alive = useRef(true);
+  /** Closed with her still working, to finish (close's `finish`). */
+  const closed = useRef(false);
   /** The turns as they are now, for a close that runs from a timer. */
   const turnsNow = useRef(turns);
   useEffect(() => {
@@ -394,6 +400,10 @@ export function useConversation({
 
   /** The note was left waiting after you went: keep the words, file none. */
   const walkAway = (noteId: string) => void dismissNote(noteId);
+  /** Filed after her window closed: the page under it reads again. */
+  const announceFiled = (noteId: string) => {
+    if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(TIFF_FILED, { detail: { noteId } }));
+  };
 
   const asks = (n: Note, text: string, quick: QuickAnswer[]) => {
     const gone = new Set(leave.current);
@@ -427,6 +437,12 @@ export function useConversation({
       n.waiting = false;
       changed.current = true;
       filed.current = [...filed.current, { noteId: n.id, ids: res.doors.flatMap((d) => d.ids) }];
+      /* her window had closed while she worked: she finished, and the page
+         under it is told so it reads what she filed (job-overview) */
+      if (closed.current) {
+        announceFiled(n.id);
+        return;
+      }
       const gone = new Set(leave.current);
       /* a variation's row says what it became, and opens on the quote */
       const rows = withVariationCards(planView(n.proposal, n.staff, false).filter((row) => !gone.has(row.key)), res.variations);
@@ -447,6 +463,8 @@ export function useConversation({
       });
     }
     if (res.ask) {
+      /* nobody is there to answer her: the note is set aside, as leaving does */
+      if (closed.current) return walkAway(n.id);
       n.waiting = true;
       const ask = res.ask;
       return settle(() => asks(n, tiffSince(res.turns) || ask.question, ask.options));
@@ -460,6 +478,8 @@ export function useConversation({
     note.current = n;
     leave.current = [];
     const c = r.proposal.clarify;
+    /* a question nobody is left to answer sets the note aside */
+    if (c && closed.current) return walkAway(n.id);
     /* "Which job?" is the one question a pick answers, and `fileNote` asks
        it with the jobs attached; every other question is a reply. */
     if (c && c.question !== WHICH_JOB) {
@@ -1154,12 +1174,18 @@ export function useConversation({
     addTurn({ who: "tiff", text: res.error });
   };
 
-  /** Leaving. Nothing that comes back afterwards does anything. */
-  const close = (): Closed => {
-    alive.current = false;
+  /** Leaving. Nothing that comes back afterwards does anything, unless she's
+      to finish (`finish`, the job's window, call 10): then what's out runs
+      to its end and files, and a question she'd need answered sets the note
+      aside, as leaving always has. */
+  const close = (opts: { finish?: boolean } = {}): Closed => {
+    if (opts.finish) closed.current = true;
+    else {
+      alive.current = false;
+      asking.current?.abort();
+    }
     for (const t of timers.current) clearTimeout(t);
     timers.current.clear();
-    asking.current?.abort();
     /* Escape or × while listening routes nothing: the recording is binned. */
     if (dict.recording || dict.arming || dict.transcribing) dict.cancel();
     /* A note Tiff was waiting on is set aside — unless a call on it is still

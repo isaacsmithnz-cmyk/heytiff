@@ -243,7 +243,7 @@ it("keeps the words as said behind As said, when Tiff tidied the note", async ()
   expect(within(bubble).getByRole("button", { name: "Hide" })).toHaveAttribute("aria-expanded", "true");
 });
 
-it("draws a teammate's note on the left with their name, and Tiff with her mark and no bubble", () => {
+it("draws a teammate's note on the left with their name, and Tiff with her mark and no bubble", async () => {
   draw({
     story: [
       note({ key: "note:m1", text: "@lukeingold Can you get this equipment in next week", author: "Michael Diamond" }),
@@ -254,6 +254,8 @@ it("draws a teammate's note on the left with their name, and Tiff with her mark 
   const theirs = screen.getByText(/Can you get this equipment in next week/).closest(".jc-bm") as HTMLElement;
   expect(theirs).toHaveClass("jc-bm--them");
   expect(within(theirs).getByText("Michael Diamond")).toBeInTheDocument();
+  /* her side of a chat is the Tiff tab's (mock E): All shows what she saved */
+  await userEvent.click(screen.getByRole("button", { name: "Tiff" }));
   const tiff = screen.getByText("Done. A task for Lyle.").closest(".jc-tiffturn") as HTMLElement;
   expect(tiff.querySelector(".jc-bubble")).toBeNull();
   expect(tiff.querySelector(".tiffmk.alive")).not.toBeNull();
@@ -267,6 +269,7 @@ it("says what Tiff did under the note, with a card per thing she made and Undo",
     talks: [talk()],
     onUndoTalk,
   });
+  await userEvent.click(screen.getByRole("button", { name: "Tiff" }));
   expect(screen.getByText("Done. A task for Lyle.")).toBeInTheDocument();
   const card = screen.getByText("Order the grilles").closest("li") as HTMLElement;
   expect(within(card).getByText("Lyle, today by 12:30 pm")).toBeInTheDocument();
@@ -274,12 +277,13 @@ it("says what Tiff did under the note, with a card per thing she made and Undo",
   expect(onUndoTalk).toHaveBeenCalledWith("n1");
 });
 
-it("offers no Undo where it would be refused", () => {
+it("offers no Undo where it would be refused", async () => {
   draw({
     story: [note({ key: "ournote:n1", origin: "heytiff", id: "n1" })],
     talks: [talk({ undo: false })],
     onUndoTalk: jest.fn(async () => undefined),
   });
+  await userEvent.click(screen.getByRole("button", { name: "Tiff" }));
   expect(screen.getByText("Order the grilles")).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Undo" })).toBeNull();
 });
@@ -880,4 +884,74 @@ it("saves a to do as written on the To do tab, and the arrow there asks Tiff in 
   await userEvent.click(screen.getByRole("button", { name: "Send to Tiff" }));
   expect(aimRoom).toHaveBeenCalledWith("tasks");
   expect(send).toHaveBeenCalled();
+});
+
+/* ── Tiff's window from the job (Isaac, 14 November 2026, mock E and calls 10, 17, 20) ── */
+
+import { TiffContext } from "@/components/tiff/modal/tiff-context";
+
+const drawWindow = (over: { isOpen?: boolean; open?: jest.Mock; c?: Conversation; talks?: JobNoteTalk[]; story?: StoryEntry[]; d?: ConversationDiary; quoteChat?: { day: string; at: string; time: string; text: string } | null } = {}) => {
+  const open = over.open ?? jest.fn(() => true);
+  render(
+    <TiffContext.Provider value={{ open, openedBy: null, isOpen: over.isOpen ?? false, landed: null }}>
+      <div className="fg">
+        <JobConversation
+          story={over.story ?? []}
+          talks={over.talks ?? []}
+          today="2026-10-13"
+          loading={false}
+          moneyVisible
+          diary={over.d ?? diary()}
+          convo={over.c ?? convo({ draft: "Remind me to order the FilterTrack" })}
+          canSend
+          jobUuid="job-3465"
+          viewerName="Isaac Smith"
+          voiceEnabled={false}
+          quoteChat={over.quoteChat ?? null}
+        />
+      </div>
+    </TiffContext.Provider>,
+  );
+  return open;
+};
+
+it("opens Tiff's window from the arrow, the words going with it, and on the job it has only its ×", async () => {
+  const setDraft = jest.fn();
+  const send = jest.fn();
+  const open = drawWindow({ c: convo({ draft: "Remind me to order the FilterTrack", setDraft, send }) });
+  await userEvent.click(screen.getByRole("button", { name: "Send to Tiff" }));
+  expect(open).toHaveBeenCalledWith(expect.objectContaining({ words: "Remind me to order the FilterTrack", room: "diary", onJob: true }));
+  expect(setDraft).toHaveBeenCalledWith("");
+  expect(send).not.toHaveBeenCalled();
+});
+
+it("hides the job's box while her window is open", () => {
+  drawWindow({ isOpen: true });
+  expect(screen.queryByRole("textbox", { name: "Write a note on this job" })).toBeNull();
+});
+
+it("shows in All what she saved, not the chat: a note that only made To dos is left to its To dos", () => {
+  drawWindow({
+    story: [note({ key: "ournote:n1", id: "n1", origin: "heytiff", text: "Get Lyle to order the grilles before lunch" })],
+    talks: [talk()],
+  });
+  expect(screen.queryByText("Get Lyle to order the grilles before lunch")).toBeNull();
+  expect(screen.queryByText("Done. A task for Lyle.")).toBeNull();
+});
+
+it("lists the chats on the Tiff tab with Open chat, and the quote's with Open in Price", async () => {
+  const onQuote = jest.fn();
+  const open = drawWindow({
+    story: [note({ key: "ournote:n1", id: "n1", origin: "heytiff", text: "Get Lyle to order the grilles before lunch" })],
+    talks: [talk()],
+    d: diary({ onQuote }),
+    quoteChat: { day: "2026-10-12", at: "2026-10-12 16:52", time: "4:52 pm", text: "Priced at $775.00 + GST." },
+  });
+  await userEvent.click(screen.getByRole("button", { name: "Tiff" }));
+  expect(screen.getByText("Done. A task for Lyle.")).toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "Open chat" }));
+  expect(open).toHaveBeenCalledWith(expect.objectContaining({ onJob: true, conversation: [{ who: "you", text: "Get Lyle to order the grilles before lunch" }, { who: "tiff", text: "Done. A task for Lyle." }] }));
+  expect(screen.getByText("Priced at $775.00 + GST.")).toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "Open in Price" }));
+  expect(onQuote).toHaveBeenCalled();
 });

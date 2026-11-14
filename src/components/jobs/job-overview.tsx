@@ -6,7 +6,7 @@ import { readJobConversation } from "@/app/actions/job-conversation";
 import { undoNote } from "@/app/actions/workboard-notes";
 import { useNoteScope } from "@/components/notes/note-context";
 import { useTiff } from "@/components/tiff/modal/tiff-context";
-import { useConversation, type Opening } from "@/components/tiff/modal/use-conversation";
+import { TIFF_FILED, useConversation, type Opening } from "@/components/tiff/modal/use-conversation";
 import { nextVisitOf, type JobConversationRead, type RailTask } from "@/lib/jobs/job-conversation";
 import type { StoryEntry } from "@/lib/workboard/job-story";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
@@ -152,6 +152,12 @@ export function JobOverview({
      own form) is read again here: it never reached this To do until a
      reload (25 October 2026) */
   useTasksChanged(readAgain);
+  /* her window closed while she worked, and she has filed since: what she
+     saved lands here too (call 10) */
+  useEffect(() => {
+    window.addEventListener(TIFF_FILED, readAgain);
+    return () => window.removeEventListener(TIFF_FILED, readAgain);
+  }, [readAgain]);
 
   /* leaving: a note Tiff was still asking about is set aside, as the modal
      does when it closes */
@@ -262,6 +268,7 @@ export function JobOverview({
           customer={read?.customer}
           comms={read?.comms}
           askTodo={askTodo}
+          quoteChat={read?.quoteChat ?? null}
           todos={{
             tasks,
             done: read?.done ?? [],

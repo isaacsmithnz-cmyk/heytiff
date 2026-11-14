@@ -79,6 +79,7 @@ export function TiffModalProvider({ children }: { children: React.ReactNode }) {
         still: prefersStill(),
         keyboard: o.keyboard === true,
         at: Date.now(),
+        ...(o.onJob ? { onJob: true } : {}),
       };
       /* A double press lands twice before either render: the first wins. */
       setSession((s) => s ?? next);

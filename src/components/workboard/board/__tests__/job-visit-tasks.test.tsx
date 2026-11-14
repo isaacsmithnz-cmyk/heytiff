@@ -124,7 +124,7 @@ const mount = (over: Partial<Parameters<typeof JobVisits>[0]> = {}) =>
 
 const visitCard = (day: RegExp) => screen.getAllByRole("button").find((b) => b.classList.contains("jv-card") && day.test(b.textContent ?? ""))!;
 const onTheDay = () => within(screen.getByRole("list", { name: "Tasks, Thu 5 Nov" }));
-const plan = () => within(screen.getByRole("region", { name: "Tasks to plan" }));
+const plan = () => within(screen.getByRole("region", { name: "Not on a day yet" }));
 const settle = () => act(async () => {});
 
 describe("coming up", () => {

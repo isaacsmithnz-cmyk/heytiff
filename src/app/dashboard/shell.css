@@ -5826,6 +5826,23 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    quantity on the right. */
 .fg .jm { display:flex; flex-direction:column; gap:16px; }
 .fg .jm-title { margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+/* ON SITE (job-sheet.tsx; Isaac, 14 November 2026, mock F): Visits, Not on a
+   day yet and Materials side by side, fitted to the screen (`--fit-h`), each a
+   flat card in the hairline Not on a day yet has always worn, scrolling
+   inside itself; no card in a card */
+.fg .jp-onsite { display:grid; grid-template-columns:minmax(0,1fr) 400px; gap:16px; align-items:start; }
+.fg .jp-onsite > .wb2-jcface { min-width:0; }
+.fg .jp-onsite .jv { grid-template-columns:minmax(0,1fr) 320px; gap:16px; }
+.fg .jp-onsite .jv-main, .fg .jp-onsite .jm { padding:16px; border:1px solid var(--edge); border-radius:var(--r-card); background:var(--paper); }
+.fg .jp-onsite .jv-main, .fg .jp-onsite .jv-plan, .fg .jp-onsite .jm { height:var(--fit-h, auto); overflow:auto; }
+.fg .jv-title { margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+/* in On site's 400 column the shelves stand in one column, each a group under its hairline, no card in a card */
+.fg .jp-onsite .jm-shelves { display:flex; flex-direction:column; gap:16px; columns:auto; }
+.fg .jp-onsite .jm-box { margin:0; padding:0; border:0; border-radius:0; background:none; }
+/* Stock's word on a unit's row, whole on one line (mock F) */
+.fg .jm-row > .pt-state { flex:none; white-space:nowrap; }
+/* a visit on On site is a row under its hairline, its tasks under it, not a card */
+.fg .jp-onsite .jv-card, .fg .jp-onsite .jv-card.today { padding:8px 0; border:0; border-radius:0; border-bottom:1px solid var(--line); }
 .fg .jm-add { display:flex; align-items:center; gap:8px; }
 .fg .jm-find { flex:1 1 auto; min-width:0; }
 .fg .jm-add .jm-qtyin { flex:none; width:72px; }
@@ -8312,13 +8329,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .pt-dialog .stk-share li { display:grid; grid-template-columns:64px minmax(0,1fr) auto; gap:12px; align-items:center; padding:8px 0; border-top:1px solid var(--line); font-size:14px; line-height:20px; }
 .pt-dialog .stk-share .stk-t { font-weight:600; }
 .pt-dialog .stk-share .stk-s { color:var(--q); font-size:13px; }
-/* a job's Equipment, on its Overview (13 November 2026) */
-.fg .jeq { margin:0; padding:0; list-style:none; border-top:1px solid var(--line); }
-.fg .jeq-row { display:flex; align-items:center; gap:12px; min-height:48px; padding:8px 0; border-bottom:1px solid var(--line); }
-.fg .jeq-n { flex:none; min-width:20px; text-align:right; font-size:13px; line-height:18px; font-weight:600; color:var(--q); font-variant-numeric:tabular-nums; }
-.fg .jeq-mid { flex:1; min-width:0; display:flex; flex-direction:column; }
-.fg .jeq-t { display:block; max-width:100%; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
-.fg .jeq-s { display:block; max-width:100%; font-size:13px; line-height:18px; color:var(--q); }
 /* Stock's ordering (13 November 2026): a supplier's lot in drops, the factory's and each site's; what a job needs at a later visit; Later's grid */
 .fg .stk-drop { padding:8px 0 4px; border-top:1px solid var(--line); }
 .fg .stk-order > .stk-sup + .stk-drop { border-top:0; }

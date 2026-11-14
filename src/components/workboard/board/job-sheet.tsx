@@ -100,7 +100,8 @@ import { useHydrated } from "@/lib/use-hydrated";
 import { JobPageHead } from "@/components/jobs/job-page-head";
 import { JobOverview } from "@/components/jobs/job-overview";
 import { JobScopeTab } from "@/components/jobs/job-scope-tab";
-import { JobEquipment } from "@/components/jobs/job-equipment";
+import { useFitHeight } from "@/components/jobs/use-fit-height";
+import type { EquipmentRow } from "@/lib/stock/stock";
 import { JobTrackerOnBilling } from "@/components/jobs/job-tracker";
 import { jobHue } from "@/lib/workboard/job-hue";
 import { SECTION_FACES, SECTION_LABEL, sectionOfFace, sectionsFor, type JobSection } from "@/lib/jobs/job-sections";
@@ -1517,6 +1518,24 @@ export function JobSheet({
   if (!seen.has(page.section)) setSeen(new Set([...seen, page.section]));
   const faceSeen = (k: TabKey) => [...seen].some((s) => SECTION_FACES[s].includes(k));
 
+  /* ON SITE FITS THE SCREEN */
+  const [onsiteRef, onsiteH] = useFitHeight<HTMLDivElement>();
+  /* STOCK'S WORD FOR EACH UNIT AND CONTROL, read once On site is opened
+     (/api/stock/job, what the Overview's Equipment block read) */
+  const [stock, setStock] = useState<EquipmentRow[] | null>(null);
+  const stockWanted = seen.has("on-site") && !!cardId && stock === null;
+  useEffect(() => {
+    if (!stockWanted || !cardId) return;
+    let live = true;
+    void fetch(`/api/stock/job?job=${encodeURIComponent(cardId)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j: { ok?: boolean; rows?: EquipmentRow[] } | null) => live && setStock(j?.ok && j.rows ? j.rows : []))
+      .catch(() => live && setStock([]));
+    return () => {
+      live = false;
+    };
+  }, [stockWanted, cardId]);
+
   /* THE SCOPE TAB'S SUMMARY, for a job with no Scope: the quote's groups,
      read with the Overview's conversation on the server; read here only when
      that read failed and the tab is opened */
@@ -1754,10 +1773,6 @@ export function JobSheet({
     <>
           {panel(
             "checklist",
-            <>
-            {/* what's ordered for the job, beside its materials (Isaac, 14
-                November 2026, call 2: Equipment goes with Materials) */}
-            {cardId ? <JobEquipment jobId={cardId} /> : null}
             <JobMaterialsFace
               loading={loading}
               sm8={detail?.checklist ?? []}
@@ -1768,6 +1783,9 @@ export function JobSheet({
               onTick={tickChecklistItem}
               onRemove={removeChecklistItem}
               onAdd={addChecklistItem}
+              /* each unit and control carries its word from Stock, in place
+                 of an Equipment card (Isaac, 14 November 2026, mock F) */
+              stock={stock}
               bought={
                 cardId ? (
                   <Suspense fallback={null}>
@@ -1776,7 +1794,6 @@ export function JobSheet({
                 ) : null
               }
             />
-            </>
           )}
     </>
   );
@@ -2456,8 +2473,18 @@ export function JobSheet({
             )}
           </div>
           {faceMoney}
-          {faceVisits}
-          {faceChecklist}
+          {/* ON SITE (mock F, 14 November 2026): the visits with their
+              tasks, what's not on a day yet, and the materials, fitted to
+              the screen, each card scrolling inside itself */}
+          <div
+            className="jp-onsite jp-fit"
+            hidden={page.section !== "on-site"}
+            ref={onsiteRef}
+            style={onsiteH == null ? undefined : ({ "--fit-h": `${onsiteH}px` } as React.CSSProperties)}
+          >
+            {faceVisits}
+            {faceChecklist}
+          </div>
           {facePhotos}
           {faceQuote}
           {faceDesign}

@@ -351,7 +351,7 @@ describe("the job's Add", () => {
     it("Task opens Visits with Add a task's box ready", async () => {
       await open();
       await pick("Add task");
-      expect(jobTab("Visits")).toHaveAttribute("aria-selected", "true");
+      expect(jobTab("On site")).toHaveAttribute("aria-selected", "true");
       const box = await screen.findByRole("textbox", { name: "Add a task" });
       await waitFor(() => expect(box).toHaveFocus());
     });

@@ -13,18 +13,8 @@ import { jobHref, jobPageHref } from "@/lib/shell/links";
    faces (v2, step 5). */
 
 describe("the sections", () => {
-  it("are the rule's nine, in its order, Scope after Overview", () => {
-    expect(JOB_SECTIONS.map((s) => SECTION_LABEL[s])).toEqual([
-      "Overview",
-      "Scope",
-      "Quote",
-      "Design",
-      "Visits",
-      "Materials",
-      "Photos",
-      "Documents",
-      "Billing",
-    ]);
+  it("are the rule's, in its order: Scope after Overview, On site where Visits and Materials were", () => {
+    expect(JOB_SECTIONS.map((s) => SECTION_LABEL[s])).toEqual(["Overview", "Scope", "Quote", "Design", "On site", "Photos", "Documents", "Billing"]);
   });
 
   it("each show the card's faces: Overview the summary and diary, Documents the files and compliance, Billing the money", () => {
@@ -33,8 +23,7 @@ describe("the sections", () => {
       scope: ["scope"],
       quote: ["quote"],
       design: ["design"],
-      visits: ["visits"],
-      materials: ["checklist"],
+      "on-site": ["visits", "checklist"],
       photos: ["photos"],
       documents: ["documents", "compliance"],
       billing: ["money"],
@@ -65,19 +54,22 @@ describe("the sections", () => {
 
 describe("?tab=", () => {
   it("names a section, whatever its case", () => {
-    expect(parseSection("visits", false)).toBe("visits");
+    expect(parseSection("on-site", false)).toBe("on-site");
     expect(parseSection(" Photos ", false)).toBe("photos");
     expect(parseSection("scope", false)).toBe("scope");
     expect(sectionOfFace("scope")).toBe("scope");
   });
 
-  /* Isaac, 25 October 2026: the Checklist became Materials, and a link
-     made before still opens it */
-  it("lands an old ?tab=checklist on Materials", () => {
-    expect(parseSection("materials", false)).toBe("materials");
-    expect(parseSection("checklist", false)).toBe("materials");
-    expect(parseSection(" Checklist ", true)).toBe("materials");
-    expect(sectionOfFace("checklist")).toBe("materials");
+  /* the Checklist became Materials (25 October 2026), and Visits and
+     Materials became On site (mock F, 14 November 2026): a link made before
+     still opens it */
+  it("lands an old ?tab=checklist, visits or materials on On site", () => {
+    expect(parseSection("materials", false)).toBe("on-site");
+    expect(parseSection("visits", false)).toBe("on-site");
+    expect(parseSection("checklist", false)).toBe("on-site");
+    expect(parseSection(" Checklist ", true)).toBe("on-site");
+    expect(sectionOfFace("checklist")).toBe("on-site");
+    expect(sectionOfFace("visits")).toBe("on-site");
   });
 
   it("lands anything else on Overview", () => {

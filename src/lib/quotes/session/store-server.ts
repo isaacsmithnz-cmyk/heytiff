@@ -315,5 +315,9 @@ export async function takeAnswers(orgId: string, sessionId: string, turnId: stri
   const rows = (data ?? []) as { id: number; body: Record<string, unknown> }[];
   if (rows.length === 0) return [];
   await supabaseAdmin.from("quote_session_events").update({ turn_id: turnId }).in("id", rows.map((r) => r.id));
-  return rows.map((r) => ({ question: String(r.body.question ?? ""), answer: String(r.body.text ?? "") }));
+  /* a typed number put straight on its line says which line and what it had (answers-server answerTyped) */
+  return rows.map((r) => {
+    const put = typeof r.body.landed === "string" ? ` (put on the line as ${r.body.landed}${typeof r.body.had === "string" ? `; when you asked, the quote had ${r.body.had}` : ""})` : "";
+    return { question: String(r.body.question ?? ""), answer: `${String(r.body.text ?? "")}${put}` };
+  });
 }

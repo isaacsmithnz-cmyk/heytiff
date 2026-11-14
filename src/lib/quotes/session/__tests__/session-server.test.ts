@@ -222,12 +222,21 @@ describe("what was sent while she worked", () => {
     expect(said).toContain("Isaac Smith says:");
     expect(said).toContain("trunking down to the outdoor unit? 1");
     expect(said).toContain("5m a head");
+    /* sent before they'd seen what she did with the last */
+    expect(said).toContain("before they saw what you did with it");
   });
 
   it("lets go at once when someone else took them first", async () => {
     claimQueued.mockResolvedValueOnce([]);
     expect(await startTurn("org", "job", "u1", "", { modelName: "m", fromQueue: true })).toMatchObject({ ok: false, status: 409 });
     expect(endTurn).toHaveBeenCalledWith("s1", "t1");
+  });
+
+  it("checks numbers put straight on their lines, once the last is answered", async () => {
+    const model = scripted([{ content: [{ type: "text", text: "Checked." }], stopReason: "end_turn" }]);
+    const started = await startTurn("org", "job", "u1", "", { modelName: "m", model, answered: true, check: true });
+    await (started as Extract<typeof started, { ok: true }>).run();
+    expect(JSON.stringify(model.calls[0]!.messages[0]!.content)).toContain("put straight on their lines as they typed them");
   });
 
   it("takes a tapped answer that leaves her work as one", async () => {

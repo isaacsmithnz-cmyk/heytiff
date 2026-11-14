@@ -534,6 +534,13 @@ function makeToolRun(store: QuoteStore) {
           if (put && off.length) return fail(`The labour lines have ${put}; the question says ${off.map((n) => `${n} h`).join(", ")}. Ask with the lines' figures, or change the lines first.`);
           if (put) q = { ...q, put };
         }
+        /* the line a typed number sets, as it is now: a line changed after she
+           asked is never filled blind */
+        if (q.fills) {
+          const line = (await store.readLines()).find((l) => l.id === q.fills!.lineId);
+          if (!line) return fail(`fills names ${q.fills.lineId}, which isn't a line on the quote.`);
+          q = { ...q, fills: { ...q.fills, was: line.qty } };
+        }
         return { ok: true, label, said: q.question, value: { asked: true }, event: { kind: "question", author: "tiff", body: q } };
       }
       /* a question the person answered in their own words, ticked off once

@@ -21,6 +21,9 @@ const ALLOWED = new Set([
   // the list of old ServiceM8 notes for whoever runs the board to tick
   "src/app/dashboard/jobs/site-notes/page.tsx",
   "src/components/jobs/old-code-notes.tsx",
+  // the phone's Site notes: the same actions, run as the token's person,
+  // behind the same gate (Isaac, 15 November 2026: "Yes")
+  "src/app/api/mobile/site-notes/route.ts",
 ]);
 
 const ROOT = join(__dirname, "../../../..");
@@ -40,7 +43,7 @@ function walk(dir: string, out: string[] = []): string[] {
 
 const REACHES = /["'`]site_notes["'`]|sites\/site-notes-server|actions\/site-notes["']/;
 
-it("lets only the job page and the board's list reach a site's notes", () => {
+it("lets only the job page, the phone's route and the board's list reach a site's notes", () => {
   const reaching = walk(SRC)
     .filter((f) => REACHES.test(readFileSync(f, "utf8")))
     .map((f) => relative(ROOT, f));

@@ -8,6 +8,7 @@ import { Icon } from "@/components/shell/icon";
 import type { NextVisit } from "@/lib/jobs/job-conversation";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import { MAP_SIZE } from "@/lib/jobs/job-map";
+import { SiteNotes } from "./site-notes";
 
 /* THE FACTS CARD, ON THE LEFT OF A JOB'S OVERVIEW (Isaac, 13 and 14 November
    2026: "Should next visit go above map?", calls 11, 19 and 21; mocks C and D
@@ -20,7 +21,9 @@ import { MAP_SIZE } from "@/lib/jobs/job-map";
                  name opens Visits from anywhere on it
      Site        the address, its first line at 16 bold and the rest grey,
                  with Directions on the label's right (Google Maps, in a
-                 new tab); their PO under it, where they gave one
+                 new tab); their PO under it, where they gave one; then
+                 Site notes, the orange asterisk on it when the site has
+                 notes (build 9, components/jobs/site-notes)
      Contacts    who to ring, in full: a disc, the name in bold, the role
                  grey, the numbers to ring and the email, none underlined
                  and none faded (important text never fades); Edit at the
@@ -135,7 +138,7 @@ export function JobFacts({
   onBook,
   onEditContact,
   map = null,
-  jobUuid: _jobUuid = null,
+  jobUuid = null,
 }: {
   detail: MirrorJobDetail | null;
   next: NextVisit | null;
@@ -211,6 +214,11 @@ export function JobFacts({
               <p className="jov-po">
                 <span>Their PO</span> <b>{detail.purchaseOrder}</b>
               </p>
+            )}
+            {jobUuid && first && (
+              <span className="jov-press">
+                <SiteNotes jobUuid={jobUuid} />
+              </span>
             )}
           </>
         )}

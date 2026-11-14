@@ -106,14 +106,10 @@ export function SiteNotesDialog({
   const [editing, setEditing] = useState<Editing>(null);
 
   const load = useCallback(async () => {
-    try {
-      const r = await readSiteNotes(jobUuid);
-      if (!r) return setFailed(true);
-      setRead(r);
-      onCount?.(r.notes.length);
-    } catch {
-      setFailed(true);
-    }
+    const r = await readSiteNotes(jobUuid).catch(() => null);
+    if (!r) return setFailed(true);
+    setRead(r);
+    onCount?.(r.notes.length);
   }, [jobUuid, onCount]);
 
   useEffect(() => {
@@ -332,6 +328,10 @@ function NoteRowView({ note, onChange }: { note: SiteNoteRow; onChange: () => vo
 
 type Draft = { kind: SiteNoteKind; words: string; whole: boolean; video: string | null };
 
+type Written = { ok: true; id: string } | { ok: false; error: string };
+const DIDNT_SAVE: Written = { ok: false, error: "The note didn't save. Try again." };
+const NOT_REMOVED: Written = { ok: false, error: "The note wasn't removed. Try again." };
+
 function NoteForm({
   jobUuid,
   read,
@@ -360,36 +360,26 @@ function NoteForm({
     setBusy(true);
     setError(null);
     const input = { jobUuid, kind: draft.kind, words: draft.words, whole: draft.whole, video: draft.kind === "issue" ? draft.video : null };
-    try {
-      const done = id ? await changeSiteNote({ ...input, id }) : await addSiteNote(input);
-      if (!done.ok) {
-        setError(done.error);
-        setBusy(false);
-        return;
-      }
-      onSaved();
-    } catch {
-      setError("The note didn't save. Try again.");
+    const done = await (id ? changeSiteNote({ ...input, id }) : addSiteNote(input)).catch(() => DIDNT_SAVE);
+    if (!done.ok) {
+      setError(done.error);
       setBusy(false);
+      return;
     }
+    onSaved();
   };
 
   const remove = async () => {
     if (!id) return;
     setBusy(true);
     setError(null);
-    try {
-      const done = await removeSiteNote({ jobUuid, id });
-      if (!done.ok) {
-        setError(done.error);
-        setBusy(false);
-        return;
-      }
-      onSaved();
-    } catch {
-      setError("The note wasn't removed. Try again.");
+    const done = await removeSiteNote({ jobUuid, id }).catch(() => NOT_REMOVED);
+    if (!done.ok) {
+      setError(done.error);
       setBusy(false);
+      return;
     }
+    onSaved();
   };
 
   return (

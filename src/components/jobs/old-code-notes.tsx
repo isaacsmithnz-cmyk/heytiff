@@ -22,6 +22,8 @@ import "./site-notes.css";
 
 type Pick = { words: string; whole: boolean; ticked: boolean; editing: boolean };
 
+const DIDNT_FILE = { filed: 0, error: "Those didn't file. Try again." };
+
 export function OldCodeNotes({ initial }: { initial: OldCodeNote[] }) {
   const [notes, setNotes] = useState(initial);
   const [picks, setPicks] = useState<Record<string, Pick>>(() =>
@@ -39,18 +41,14 @@ export function OldCodeNotes({ initial }: { initial: OldCodeNote[] }) {
     setBusy(true);
     setError(null);
     setSaid(null);
-    try {
-      const done = await fileOldCodeNotes(ticked.map((n) => ({ uuid: n.uuid, words: picks[n.uuid]!.words, whole: picks[n.uuid]!.whole })));
-      const fresh = await readOldCodeNotes();
-      if (fresh) {
-        setNotes(fresh);
-        setPicks((p) => Object.fromEntries(fresh.map((n) => [n.uuid, p[n.uuid] && !p[n.uuid]!.ticked ? p[n.uuid]! : { words: n.words, whole: true, ticked: false, editing: false }])));
-      }
-      setSaid(done.filed === 1 ? "1 note filed as an Access note on its site" : `${done.filed} notes filed as Access notes on their sites`);
-      setError(done.error);
-    } catch {
-      setError("Those didn't file. Try again.");
+    const done = await fileOldCodeNotes(ticked.map((n) => ({ uuid: n.uuid, words: picks[n.uuid]!.words, whole: picks[n.uuid]!.whole }))).catch(() => DIDNT_FILE);
+    const fresh = done.filed > 0 ? await readOldCodeNotes().catch(() => null) : null;
+    if (fresh) {
+      setNotes(fresh);
+      setPicks((p) => Object.fromEntries(fresh.map((n) => [n.uuid, p[n.uuid] && !p[n.uuid]!.ticked ? p[n.uuid]! : { words: n.words, whole: true, ticked: false, editing: false }])));
     }
+    if (done.filed > 0) setSaid(done.filed === 1 ? "1 note filed as an Access note on its site" : `${done.filed} notes filed as Access notes on their sites`);
+    setError(done.error);
     setBusy(false);
   };
 

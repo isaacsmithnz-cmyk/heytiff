@@ -32,10 +32,13 @@ const keepJob = (href: string) => {
 };
 
 export function JobDesignFace({
+  heading = "Design",
   job,
   designs,
   loading,
 }: {
+  /** "Designs" as a group of Files (15 November 2026); "Design" as it was. */
+  heading?: string;
   /** The job's ServiceM8 uuid, which the Studio opens New design on. */
   job: string;
   designs: MirrorJobDetail["designs"];
@@ -46,7 +49,7 @@ export function JobDesignFace({
   return (
     <div className="jdoc">
       <div className="jdoc-head">
-        <h2 className="jdoc-h">Design</h2>
+        <h2 className="jdoc-h">{heading}</h2>
         <Button kind="main" icon="plus" href={fresh} onClick={() => keepJob(fresh)}>
           New design
         </Button>

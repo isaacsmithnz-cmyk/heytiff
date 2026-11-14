@@ -371,7 +371,7 @@ describe("the job's Add", () => {
     it("SWMS opens Documents, where Compliance is, and the SWMS wizard", async () => {
       await open();
       await pick("Add SWMS");
-      expect(jobTab("Documents")).toHaveAttribute("aria-selected", "true");
+      expect(jobTab("Files")).toHaveAttribute("aria-selected", "true");
       expect(screen.getByRole("region", { name: "Documents" })).toBeVisible();
       expect(await screen.findByRole("dialog", { name: "New SWMS" })).toBeInTheDocument();
     });
@@ -379,7 +379,7 @@ describe("the job's Add", () => {
     it("Certificate opens Documents, where Compliance is, and the certificate wizard", async () => {
       await open();
       await pick("Add certificate");
-      expect(jobTab("Documents")).toHaveAttribute("aria-selected", "true");
+      expect(jobTab("Files")).toHaveAttribute("aria-selected", "true");
       expect(screen.getByRole("region", { name: "Documents" })).toBeVisible();
       expect(await screen.findByRole("dialog", { name: "New certificate" })).toBeInTheDocument();
     });
@@ -390,19 +390,19 @@ describe("the job's Add", () => {
 describe("a page that arrives asking for a SWMS or a certificate", () => {
 
   it("opens the SWMS wizard once the job's papers are read, as Add › SWMS does", async () => {
-    render(<Job row={row()} {...props} section="documents" add="swms" />);
+    render(<Job row={row()} {...props} section="files" add="swms" />);
     expect(await screen.findByRole("dialog", { name: "New SWMS" })).toBeInTheDocument();
   });
 
   it("opens the certificate wizard, as Add › Certificate does", async () => {
-    render(<Job row={row()} {...props} section="documents" add="certificate" />);
+    render(<Job row={row()} {...props} section="files" add="certificate" />);
     expect(await screen.findByRole("dialog", { name: "New certificate" })).toBeInTheDocument();
   });
 
   it("opens no SWMS once ServiceM8 has the job closed, as Add offers none", async () => {
     readMirrorJob.mockResolvedValue({ detail: detail({ status: "Completed" }), focusRemoteId: null });
     const { listSwmsForJob } = jest.requireMock("@/app/actions/swms") as { listSwmsForJob: jest.Mock };
-    render(<Job row={row()} {...props} section="documents" add="swms" />);
+    render(<Job row={row()} {...props} section="files" add="swms" />);
     await waitFor(() => expect(readMirrorJob).toHaveBeenCalled());
     await waitFor(() => expect(listSwmsForJob).toHaveBeenCalledWith(JOB));
     /* both reads answered, and the page rendered again with them */

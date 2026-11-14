@@ -461,7 +461,11 @@ const SECTION: Record<string, string> = {
   Summary: "Overview",
   Diary: "Overview",
   Money: "Billing",
-  Compliance: "Documents",
+  Compliance: "Files",
+  /* Photos, Documents and Design are Files (15 November 2026) */
+  Photos: "Files",
+  Documents: "Files",
+  Design: "Files",
   /* Visits and Materials are On site (mock F, 14 November 2026) */
   Visits: "On site",
   Materials: "On site",
@@ -890,7 +894,7 @@ it("puts a day's photos in the conversation and sends the reader to the Photos s
 
     expect(await convo().findByText("6 photos")).toBeInTheDocument();
     await userEvent.click(convo().getByRole("button", { name: "See all" }));
-    expect(jobTab("Photos")).toHaveAttribute("aria-selected", "true");
+    expect(jobTab("Files")).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("region", { name: "Photos" })).toBeVisible();
   });
   /* A money event states what happened and is a DOOR — it opens the claim's

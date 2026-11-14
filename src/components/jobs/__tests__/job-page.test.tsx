@@ -73,7 +73,7 @@ const row = (): AllJobRow => ({
 const remember = jest.fn();
 const host = { windows: [], docked: true, close: jest.fn(), dismiss: jest.fn(), setAside: jest.fn(), restore: jest.fn(), stepOf: () => null, step: jest.fn(), reload: jest.fn(), toast: jest.fn(), recent: [], remember } as unknown as WindowsApi;
 
-const draw = (section: "overview" | "photos" | "billing" = "overview") =>
+const draw = (section: "overview" | "files" | "billing" = "overview") =>
   render(
     <WindowsContext.Provider value={host}>
       <JobPage row={row()} section={section} manage moneyVisible />
@@ -98,9 +98,9 @@ it("opens the card on the section the address named, on that section's first fac
 it("keeps the section in the address as ?tab=, replaced rather than stacked, and Overview as no tab at all", () => {
   draw();
   const before = window.history.length;
-  act(() => handed!.page.onSection("photos"));
-  expect(screen.getByText("On photos")).toBeInTheDocument();
-  expect(window.location.pathname + window.location.search).toBe("/dashboard/jobs/j-3209?tab=photos");
+  act(() => handed!.page.onSection("files"));
+  expect(screen.getByText("On files")).toBeInTheDocument();
+  expect(window.location.pathname + window.location.search).toBe("/dashboard/jobs/j-3209?tab=files");
   act(() => handed!.page.onSection("overview"));
   expect(window.location.search).toBe("");
   expect(window.history.length).toBe(before);

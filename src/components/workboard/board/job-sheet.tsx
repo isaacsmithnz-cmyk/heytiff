@@ -1518,8 +1518,9 @@ export function JobSheet({
   if (!seen.has(page.section)) setSeen(new Set([...seen, page.section]));
   const faceSeen = (k: TabKey) => [...seen].some((s) => SECTION_FACES[s].includes(k));
 
-  /* ON SITE FITS THE SCREEN */
+  /* ON SITE AND FILES FIT THE SCREEN */
   const [onsiteRef, onsiteH] = useFitHeight<HTMLDivElement>();
+  const [filesRef, filesH] = useFitHeight<HTMLDivElement>();
   /* STOCK'S WORD FOR EACH UNIT AND CONTROL, read once On site is opened
      (/api/stock/job, what the Overview's Equipment block read) */
   const [stock, setStock] = useState<EquipmentRow[] | null>(null);
@@ -1843,7 +1844,7 @@ export function JobSheet({
   const faceDesign = (
     <>
           {studio &&
-            panel("design", <JobDesignFace job={row.id} designs={detail?.designs ?? []} loading={detail === null} />)}
+            panel("design", <JobDesignFace heading="Designs" job={row.id} designs={detail?.designs ?? []} loading={detail === null} />)}
     </>
   );
   const faceDocuments = (
@@ -1859,7 +1860,9 @@ export function JobSheet({
               documents={media ? media.documents : null}
               elsewhere={media ? media.elsewhere : null}
               links={media?.links ?? null}
-              designs={detail?.designs ?? []}
+              /* a design is listed once: in Designs for whoever holds the
+                 Studio, under Drawings for anyone else */
+              designs={studio ? [] : (detail?.designs ?? [])}
               swms={swms}
               swmsFailed={swmsFailed}
               canCreateSwms={!!cardId}
@@ -2485,10 +2488,22 @@ export function JobSheet({
             {faceVisits}
             {faceChecklist}
           </div>
-          {facePhotos}
+          {/* FILES (15 November 2026): the photos on the left, and in a 400
+              column the documents, then the job's designs; fitted to the
+              screen, each card scrolling inside itself */}
+          <div
+            className="jp-files jp-fit"
+            hidden={page.section !== "files"}
+            ref={filesRef}
+            style={filesH == null ? undefined : ({ "--fit-h": `${filesH}px` } as React.CSSProperties)}
+          >
+            {facePhotos}
+            <div className="jp-files-side">
+              {faceDocuments}
+              {faceDesign}
+            </div>
+          </div>
           {faceQuote}
-          {faceDesign}
-          {faceDocuments}
         </div>
         {footer}
       </div>

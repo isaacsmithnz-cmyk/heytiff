@@ -94,8 +94,10 @@ describe("the job", () => {
 
 describe("?tab=", () => {
   it("opens the section it names", async () => {
-    expect((await visit("j-3209", { tab: "photos" })).props.section).toBe("photos");
-    expect((await visit("j-3209", { tab: "Documents" })).props.section).toBe("documents");
+    expect((await visit("j-3209", { tab: "files" })).props.section).toBe("files");
+    /* Photos and Documents are Files now (15 November 2026), and their old links land there */
+    expect((await visit("j-3209", { tab: "photos" })).props.section).toBe("files");
+    expect((await visit("j-3209", { tab: "Documents" })).props.section).toBe("files");
   });
 
   it("lands an invented one, a repeated one and Billing without the money on Overview", async () => {
@@ -109,7 +111,7 @@ describe("?tab=", () => {
 
 describe("?add=", () => {
   it("hands Make a document's SWMS or Certificate to the page, and nothing else", async () => {
-    expect((await visit("j-3209", { tab: "documents", add: "swms" })).props).toMatchObject({ section: "documents", add: "swms" });
+    expect((await visit("j-3209", { tab: "documents", add: "swms" })).props).toMatchObject({ section: "files", add: "swms" });
     expect((await visit("j-3209", { tab: "documents", add: "certificate" })).props).toMatchObject({ add: "certificate" });
     expect((await visit("j-3209", { add: "quote" })).props).toMatchObject({ add: null });
     expect((await visit("j-3209")).props).toMatchObject({ add: null });

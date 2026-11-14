@@ -6,7 +6,7 @@ import { namesBySignIn } from "@/lib/quotes/lines-server";
 import { sessionModelFor } from "@/lib/quotes/session/model-server";
 import { startTurn } from "@/lib/quotes/session/session-server";
 import { hasQueued, holding, queueAnswerEvent, queueMessage, readSession, readThread, readThreadFrom, readTurnTimes, STILL_WORKING } from "@/lib/quotes/session/store-server";
-import { answerQuestion, priceQuestions } from "@/lib/quotes/session/answers-server";
+import { answerQuestion, answerTyped, priceQuestions } from "@/lib/quotes/session/answers-server";
 import { researchDetailOf } from "@/lib/quotes/research";
 import { putResearchedOn } from "@/lib/quotes/lines-job-server";
 import { briefOf } from "@/lib/quotes/session/job-sources";
@@ -137,6 +137,20 @@ export async function POST(req: Request) {
     if (!brief) return Response.json({ ok: false, reason: "Tick something for her to read." }, { status: 400 });
   }
   const words = typeof body.message === "string" ? body.message : "";
+  /* a plain number to one of her number questions goes straight onto its
+     line, with no call to her; she checks them all once the last of her
+     questions is answered (Isaac, 14 November 2026: B, "is it free text?") */
+  if (!brief && words.trim()) {
+    const typed = await answerTyped(g.orgId, target.parentRemoteId, g.userId, words, (await readThread(g.orgId, target.parentRemoteId)).events);
+    if (typed && !typed.ok) return Response.json(typed, { status: 409 });
+    if (typed) {
+      after(() => clearDraft({ orgId: g.orgId, userSub: g.userId, box: "quote", ref: target.parentRemoteId }).then(() => undefined));
+      if (typed.left > 0) return Response.json({ ok: true, landed: true });
+      const check = await startTurn(g.orgId, target.parentRemoteId, g.userId, "", { answered: true, check: true, noMoney: !g.money, origin: new URL(req.url).origin });
+      if (check.ok) after(check.run);
+      return Response.json({ ok: true, landed: true, working: check.ok });
+    }
+  }
   const started = await startTurn(g.orgId, target.parentRemoteId, g.userId, words, { brief, noMoney: !g.money, origin: new URL(req.url).origin });
   /* she's at it: your words are in the thread now and wait their turn (Isaac,
      13 November 2026: "Build E, the answering while she works"); Read the job waits for her */

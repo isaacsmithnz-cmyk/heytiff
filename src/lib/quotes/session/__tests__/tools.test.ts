@@ -303,6 +303,21 @@ describe("her tools, run", () => {
     expect(out).toMatchObject({ ok: true, event: { kind: "question", body: { topic: "Pipe run, indoor to outdoor", put: "10 m", answers: [] } } });
   });
 
+  /* Isaac, 14 November 2026: B, a typed number straight onto its line */
+  it("keeps the line a number question fills, with its quantity as she asked", async () => {
+    const was = (readLines as jest.Mock).getMockImplementation();
+    (readLines as jest.Mock).mockImplementation(async () => [{ id: "cab", version: 1, kind: "material", unit: "m", qty: 10, optionIndex: 0, name: "Cable" }]);
+    try {
+      const out = await run("ask", { question: "How many metres of cable?", put: "10 m", answers: [], fills: { line_id: "cab", was: 99 } });
+      expect(out).toMatchObject({ ok: true, event: { body: { fills: { lineId: "cab", times: 1, each: null, was: 10 } } } });
+      expect(await run("ask", { question: "How many metres of cable?", answers: [], fills: { line_id: "gone" } })).toMatchObject({ ok: false });
+      const tap = await run("ask", { question: "Which wall?", answers: [{ label: "North" }], fills: { line_id: "cab" } });
+      expect(tap.ok && (tap.event!.body as { fills?: unknown }).fills).toBeUndefined();
+    } finally {
+      (readLines as jest.Mock).mockImplementation(was);
+    }
+  });
+
   /* the 3465 review, 5 November 2026: the question's figures were hers, not the lines' */
   it("asks about the crew with the labour lines' own figures, and sends back hours no line has", async () => {
     const was = (readLines as jest.Mock).getMockImplementation();

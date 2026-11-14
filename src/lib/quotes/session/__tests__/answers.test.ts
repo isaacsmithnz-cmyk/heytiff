@@ -43,8 +43,8 @@ jest.mock("../tools-server", () => ({
 }));
 
 import type { QuoteLine } from "../../lines";
-import { answerDeltas, answeredOf, latestAsked, openQuestionsOf, withChanges } from "../answers";
-import { answerQuestion } from "../answers-server";
+import { answerDeltas, answeredOf, filledQty, latestAsked, openQuestionsOf, plainNumber, typedFill, withChanges } from "../answers";
+import { answerQuestion, answerTyped } from "../answers-server";
 import { bookPrice, type Question } from "../tools";
 
 const line = (o: Partial<QuoteLine>): QuoteLine => ({
@@ -145,5 +145,64 @@ describe("answered in the person's own words", () => {
     expect(latestAsked(thread)).toEqual([2, 3, 4]);
     expect(latestAsked([...thread, ev(8, "message", "u1", { text: "Add a controller" }), ev(9, "question", "tiff", { question: "Wired or Wi-Fi?" })])).toEqual([9]);
     expect(latestAsked([ev(1, "message", "u1", { text: "hi" })])).toEqual([]);
+  });
+});
+
+/* Isaac, 14 November 2026: B, "is it free text?" */
+describe("a typed number, straight onto its line", () => {
+  const cable = "How many metres of power cable to the new outdoor?";
+  const trunk = "How many metres of trunking down to the outdoor unit?";
+  const asked = [
+    { id: 30, kind: "question" as const, author: "tiff", at: "", turnId: "t1", body: { question: cable, put: "10 m", answers: [], fills: { lineId: "cab", times: 1, each: null, was: 10 } } },
+    { id: 31, kind: "question" as const, author: "tiff", at: "", turnId: "t1", body: { question: trunk, put: "4.8 m (2 lengths)", answers: [], fills: { lineId: "trk", times: 1, each: 2.4, was: 2 } } },
+  ];
+  const cab = line({ id: "cab", version: 3, name: "TPS 2.5 mm cable", unit: "m", qty: 10 });
+  const trk = line({ id: "trk", version: 1, name: "Trunking, Dune", qty: 2 });
+
+  it("reads a number alone, with a unit if they like, and nothing more", () => {
+    expect(["15", "15m", "15 m", "2 lengths", "1.5"].map(plainNumber)).toEqual([15, 15, 15, 2, 1.5]);
+    expect(["5m a head", "about 15", "10-15", "", "fifteen"].map(plainNumber)).toEqual([null, null, null, null, null]);
+  });
+
+  it("makes the line's quantity from it, by the line's own unit", () => {
+    expect(filledQty({ lineId: "c", times: 1, each: null, was: null }, 15)).toBe(15);
+    expect(filledQty({ lineId: "d", times: 2, each: null, was: null }, 5)).toBe(10);
+    expect(filledQty({ lineId: "t", times: 1, each: 2.4, was: null }, 1)).toBe(1);
+    expect(filledQty({ lineId: "t", times: 1, each: 2.4, was: null }, 4.8)).toBe(2);
+    expect(filledQty({ lineId: "t", times: 1, each: 2.4, was: null }, 5)).toBe(3);
+  });
+
+  it("knows the question by its words before the answer, or the one open when there's one", () => {
+    const open = asked.map((e) => ({ id: e.id, question: e.body.question, fills: e.body.fills }));
+    expect(typedFill(`${trunk} 1`, open)).toEqual({ id: 31, n: 1, text: "1" });
+    expect(typedFill(`${trunk} 1 m, but check the route`, open)).toBeNull();
+    expect(typedFill("15", open)).toBeNull();
+    expect(typedFill("15 m", open.slice(0, 1))).toEqual({ id: 30, n: 15, text: "15 m" });
+    expect(typedFill("15", [{ id: 9, question: "Which wall?" }])).toBeNull();
+  });
+
+  it("changes the line as the person, ticks the question, and says how many are left", async () => {
+    readSession.mockResolvedValue({ id: "s1", turnId: null });
+    readLines.mockResolvedValue([cab, trk]);
+    changeLine.mockClear();
+    addEvents.mockClear();
+    expect(await answerTyped("org", "job", "u-isaac", `${cable} 15`, asked)).toEqual({ ok: true, left: 1 });
+    expect(changeLine).toHaveBeenCalledWith("org", "job", "cab", 3, { qty: 15, source: "said" }, "u-isaac", `“15”, to “${cable}”`);
+    expect(addEvents).toHaveBeenCalledWith("org", "s1", null, [
+      { kind: "message", author: "u-isaac", body: { text: "15", answered: 30, index: -1, question: cable, typed: true, landed: "TPS 2.5 mm cable: 15 m", had: "10 m" } },
+    ]);
+    const after = [...asked, { id: 32, kind: "message" as const, author: "u-isaac", at: "", turnId: null, body: { text: "15", answered: 30, index: -1, typed: true } }];
+    expect(answeredOf(after).get(30)).toMatchObject({ label: "15", typed: true });
+  });
+
+  it("leaves it to her when they say more, when she's working, or when the line has moved since she asked", async () => {
+    readLines.mockResolvedValue([cab, trk]);
+    readSession.mockResolvedValue({ id: "s1", turnId: null });
+    expect(await answerTyped("org", "job", "u", `${trunk} about 3`, asked)).toBeNull();
+    readSession.mockResolvedValue({ id: "s1", turnId: "t2" });
+    expect(await answerTyped("org", "job", "u", `${trunk} 3`, asked)).toBeNull();
+    readSession.mockResolvedValue({ id: "s1", turnId: null });
+    readLines.mockResolvedValue([cab, { ...trk, qty: 4 }]);
+    expect(await answerTyped("org", "job", "u", `${trunk} 3`, asked)).toBeNull();
   });
 });

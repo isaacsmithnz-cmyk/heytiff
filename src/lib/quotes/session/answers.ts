@@ -1,7 +1,7 @@
 import type { BuildSettings } from "../buildup";
 import type { LineUnit, QuoteLine } from "../lines";
 import { priceLines } from "../lines-price";
-import type { AnswerChange, NewLine, Question } from "./tools";
+import type { AnswerChange, Fills, NewLine, Question } from "./tools";
 
 /* PRICED QUESTIONS (slice 6.1) — each of Tiff's questions comes with its
    answers, and each answer with the line changes it makes, so a tap changes
@@ -89,7 +89,7 @@ export function answeredOf(events: readonly AnyEvent[]): Map<number, Answered> {
     }
     const to = e.body.answered;
     if (e.kind !== "message" || typeof to !== "number" || out.has(to)) continue;
-    out.set(to, { index: Number(e.body.index) || 0, label: String(e.body.text ?? ""), by: e.author, at: e.at });
+    out.set(to, { index: Number(e.body.index) || 0, label: String(e.body.text ?? ""), by: e.author, at: e.at, ...(e.body.typed === true ? { typed: true as const } : {}) });
   }
   return out;
 }
@@ -122,4 +122,44 @@ export function latestAsked(events: readonly (AnyEvent & { id: number })[]): num
     }
   }
   return events.slice(from, last + 1).filter((e) => e.kind === "question").map((e) => e.id);
+}
+
+/* A TYPED NUMBER, STRAIGHT ONTO ITS LINE (B): an answer to one of her
+   number questions that's only a number, with a unit if they like ("15",
+   "15 m", "2 lengths"), sets the line her question's fills names, at once,
+   as the person, with no call to her; she checks them all once the last of
+   her asking is answered. Anything more ("5 m a head", "about 15, maybe 20")
+   goes to her as words. The phone sends the question's words before the
+   answer; the web's box answers the one open number question, when there's
+   only one open. */
+
+/** Their words as a plain number, or null. */
+export function plainNumber(words: string): number | null {
+  const m = words.trim().match(/^(\d+(?:\.\d+)?)\s*([a-z]{1,10}\.?)?$/i);
+  if (!m) return null;
+  const n = Number(m[1]);
+  return Number.isFinite(n) && n >= 0 && n <= 100000 ? n : null;
+}
+
+/** The line's quantity their number makes. */
+export function filledQty(fills: Fills, n: number): number {
+  const said = n * fills.times;
+  return fills.each ? Math.ceil(said / fills.each - 1e-9) : Math.round(said * 100) / 100;
+}
+
+type OpenAsked = { id: number; question: string; fills?: Fills };
+
+/** The open question their words answer with a plain number, and the
+    number; null when they're more than a number, or it can't be told which. */
+export function typedFill(words: string, open: readonly OpenAsked[]): { id: number; n: number; text: string } | null {
+  const said = words.trim();
+  for (const q of open) {
+    if (!said.startsWith(`${q.question} `)) continue;
+    const text = said.slice(q.question.length).trim();
+    const n = q.fills ? plainNumber(text) : null;
+    return n == null ? null : { id: q.id, n, text };
+  }
+  const only = open.length === 1 ? open[0]! : null;
+  const n = only?.fills ? plainNumber(said) : null;
+  return only && n != null ? { id: only.id, n, text: said } : null;
 }

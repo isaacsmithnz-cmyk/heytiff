@@ -62,7 +62,16 @@ export type AnswerChange =
 /** An answer's `goOn`: picking it leaves her work to do — a price to look
     up, a part to rebuild — so tapping it starts her turn (Isaac's production
     test, 2026-10-12: "Research them on the web" sat until he typed). */
-export type Question = { question: string; why: string; topic?: string; put?: string; answers: { label: string; changes: AnswerChange[]; goOn?: true }[] };
+export type Question = { question: string; why: string; topic?: string; put?: string; fills?: Fills; answers: { label: string; changes: AnswerChange[]; goOn?: true }[] };
+
+/** A number question's line: the number they type sets its quantity, at
+    once with no call to her (answers.ts typedFill). `times`: how many of it
+    the line covers (2 for "each head" on two heads); `each`: what one of the
+    line's unit covers in their number's unit (2.4 for 2.4 m lengths), null
+    when the line is counted as they'll say it; `was`: the line's quantity
+    when she asked, kept by the server, so a line changed since isn't filled
+    blind (Isaac, 14 November 2026: B, "is it free text?"). */
+export type Fills = { lineId: string; times: number; each: number | null; was: number | null };
 
 const SOURCES = ["said", "assumed", "unknown", "fitted"] as const;
 const KINDS = ["unit", "material", "labour"] as const;
@@ -181,7 +190,19 @@ export function questionOf(raw: unknown): Question | Err {
       return o.go_on === true || o.goOn === true ? { label, changes, goOn: true as const } : { label, changes };
     })
     .filter((a): a is Question["answers"][number] => a != null);
-  return { question, why: str(r.why, 300), topic: str(r.topic, 80), put: str(r.put, 80), answers };
+  const fills = fillsOf(r.fills);
+  return { question, why: str(r.why, 300), topic: str(r.topic, 80), put: str(r.put, 80), ...(fills && answers.length === 0 ? { fills } : {}), answers };
+}
+
+function fillsOf(raw: unknown): Fills | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = obj(raw);
+  const lineId = str(r.line_id ?? r.lineId, 60);
+  const times = num(r.times) ?? 1;
+  const each = num(r.each);
+  const was = num(r.was);
+  if (!lineId || !(times > 0) || times > 1000) return null;
+  return { lineId, times, each: each != null && each > 0 ? each : null, was };
 }
 
 /* ── the definitions she's handed ── */
@@ -651,7 +672,7 @@ export const SESSION_TOOLS: ToolDef[] = [
   {
     name: "ask",
     description:
-      "Ask the business one thing you can't know and the quote needs: one question, in plain words. Up to five short answers to tap where the answer is one of a few, each carrying the line changes it makes; none for a number they'll type (a length, a distance). Mark go_on on an answer that leaves you work to do once it's picked (look a price up, rebuild a part): tapping it starts you again. Ask only what changes the price or the work.",
+      "Ask the business one thing you can't know and the quote needs: one question, in plain words. Up to five short answers to tap where the answer is one of a few, each carrying the line changes it makes; none for a number they'll type (a length, a distance): give fills instead, the one line their number sets, and a plain number they type goes straight onto it. Mark go_on on an answer that leaves you work to do once it's picked (look a price up, rebuild a part): tapping it starts you again. Ask only what changes the price or the work.",
     input_schema: {
       type: "object",
       properties: {
@@ -659,6 +680,17 @@ export const SESSION_TOOLS: ToolDef[] = [
         why: { type: "string", description: "What it changes on the quote." },
         topic: { type: "string", description: "A few words for what's asked, as the list shows it once answered: \"Pipe run, indoor to outdoor\"." },
         put: { type: "string", description: "What the quote has for it now, in a few words: \"10 m\". Leave out when nothing's on it yet. On a question about the crew or the hours, it's written from the labour lines for you." },
+        fills: {
+          type: "object",
+          description: "On a question answered with one number, with no answers to tap: the line that number sets. Leave out when the number would change more than one line, or set something other than a quantity.",
+          properties: {
+            line_id: { type: "string" },
+            times: { type: "number", description: "How many of what they're asked the line covers: 2 for \"each pump\" on two pumps. Leave out for 1." },
+            each: { type: "number", description: "What one of the line's unit covers, in the unit of their number: 2.4 when they're asked metres and the line is 2.4 m lengths. Leave out when the line is counted as they'll say it." },
+          },
+          required: ["line_id"],
+          additionalProperties: false,
+        },
         answers: {
           type: "array",
           maxItems: MAX_ANSWERS,

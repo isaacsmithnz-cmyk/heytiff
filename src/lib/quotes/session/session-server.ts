@@ -20,6 +20,14 @@ import { MONEY_WORDS, NO_MONEY_WORDS } from "../money-hidden";
 
 export const SESSION_OFF = "Tiff's session isn't switched on for this business yet.";
 
+/** Before words sent while she worked (startTurn `fromQueue`). */
+export const QUEUED_NOTE =
+  "They sent this while you were working on what came before, so before they saw what you did with it. Where what you did since changed or dropped the question it answers, use it only where it still clearly fits; otherwise ask the question again as it now stands.";
+
+/** Her check once her questions are all answered with numbers put straight on their lines. */
+export const CHECK_NOTE =
+  "Those numbers were put straight on their lines as they typed them, without you. Check each line reads right for what they said (a figure per head, a length in lengths), change any that doesn't, and bring the write-up up to date.";
+
 export type Started = { ok: true; turnId: string; run: () => Promise<TurnEnd> } | { ok: false; reason: string; status: number };
 
 export async function startTurn(
@@ -32,7 +40,9 @@ export async function startTurn(
   /* `origin`: the host the turn was asked on, where a plan she has read is drawn (plans-server.ts) */
   /* `fromQueue`: the words are what was sent while she worked (store-server
      queueMessage), taken now that she's free; `words` and `by` are unused */
-  opts: { brief?: string; model?: ModelCall; modelName?: string; noMoney?: boolean; answered?: boolean; origin?: string; fromQueue?: boolean } = {}
+  /* `check`: started once the last of her questions is answered with typed
+     numbers put straight on their lines (answers-server answerTyped) */
+  opts: { brief?: string; model?: ModelCall; modelName?: string; noMoney?: boolean; answered?: boolean; origin?: string; fromQueue?: boolean; check?: boolean } = {}
 ): Promise<Started> {
   const modelName = opts.modelName ?? sessionModelFor(orgId);
   if (!modelName) return { ok: false, reason: SESSION_OFF, status: 409 };
@@ -54,7 +64,12 @@ export async function startTurn(
       return { ok: false, reason: "Nothing is waiting for her.", status: 409 };
     }
     const typed = claimed.filter((c) => c.body.answered == null && String(c.body.text ?? "").trim());
-    text = typed.map((c) => String(c.body.text).trim()).join("\n\n").slice(0, 8000);
+    /* sent before they'd seen what she did with the last: an answer to a
+       question that's changed or gone since isn't put on blind (Isaac, 13
+       November 2026: "What if one of the questions would affect the answer
+       to the others?") */
+    const joined = typed.map((c) => String(c.body.text).trim()).join("\n\n");
+    text = joined ? `${QUEUED_NOTE}\n\n${joined}`.slice(0, 8000) : "";
     speakerId = typed[0]?.author ?? claimed[0]!.author;
     if (!text) goOnAnswer = true;
   }
@@ -67,7 +82,7 @@ export async function startTurn(
   /* what's still open, by number, so their own words can settle it */
   const open = text ? await readOpenQuestions(orgId, session.id) : [];
   /* a person without money access: she says no prices to them (money-hidden.ts) */
-  const goOn = goOnAnswer ? "Do what that answer leaves you to do." : "";
+  const goOn = opts.check ? CHECK_NOTE : goOnAnswer ? "Do what that answer leaves you to do." : "";
   /* after a turn with someone who doesn't see money, the next who does is
      said to, or her no-prices rule would carry on to them */
   const history = JSON.stringify(session.messages);

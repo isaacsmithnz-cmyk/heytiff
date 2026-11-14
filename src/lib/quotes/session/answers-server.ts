@@ -3,7 +3,7 @@ import { buildSettingsOf } from "../build-settings";
 import { addLine, changeLine, readLines, removeLine } from "../lines-server";
 import { readOrgDay } from "../org-day-server";
 import { readQuoteSettings } from "../settings-query";
-import { answerDeltas, answeredOf, type Answered, type Priced } from "./answers";
+import { answerDeltas, answeredOf, filledQty, typedFill, type Answered, type Priced } from "./answers";
 import { addEvents, holding, readSession, type ThreadEvent } from "./store-server";
 import { bookPrice, isErr, questionOf } from "./tools";
 import { linePricer } from "./tools-server";
@@ -81,4 +81,35 @@ export async function answerQuestion(orgId: string, jobUuid: string, by: string,
   }
   await addEvents(orgId, session.id, null, [{ kind: "message", author: by, body: { text: answer.label, answered: eventId, index, question: q.question } }]);
   return { ok: true, goOn: answer.goOn === true };
+}
+
+/** A typed number put straight onto its line (answers.ts typedFill), as the
+    person, like a tap: null when their words aren't one, so they go to her
+    as words. `left`: how many of her questions are still open after it. */
+export async function answerTyped(orgId: string, jobUuid: string, by: string, words: string, events: readonly ThreadEvent[]): Promise<{ ok: true; left: number } | { ok: false; reason: string } | null> {
+  const session = await readSession(orgId, jobUuid);
+  if (!session || holding(session, Date.now())) return null;
+  const answered = answeredOf(events);
+  const open = events
+    .filter((e) => e.kind === "question" && !answered.has(e.id))
+    .map((e) => {
+      const q = questionOf(e.body);
+      return isErr(q) ? null : { id: e.id, question: q.question, fills: q.fills, put: q.put ?? "" };
+    })
+    .filter((q) => q != null);
+  const hit = typedFill(words, open);
+  const q = hit ? open.find((o) => o.id === hit.id) : undefined;
+  if (!hit || !q?.fills) return null;
+  const line = (await readLines(orgId, jobUuid)).find((l) => l.id === q.fills!.lineId);
+  /* a line she has changed since she asked goes to her, not filled blind */
+  if (!line || (q.fills.was != null && line.qty !== q.fills.was)) return null;
+  const qty = filledQty(q.fills, hit.n);
+  const why = `“${hit.text}”, to “${q.question}”`;
+  if (qty !== line.qty) {
+    const r = await changeLine(orgId, jobUuid, line.id, line.version, { qty, source: "said" }, by, why);
+    if (!r.ok) return r;
+  }
+  const landed = `${line.name}: ${qty}${line.unit ? ` ${line.unit}` : ""}`;
+  await addEvents(orgId, session.id, null, [{ kind: "message", author: by, body: { text: hit.text, answered: q.id, index: -1, question: q.question, typed: true, landed, ...(q.put ? { had: q.put } : {}) } }]);
+  return { ok: true, left: open.length - 1 };
 }

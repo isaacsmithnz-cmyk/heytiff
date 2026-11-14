@@ -107,6 +107,32 @@ export async function queueAnswerEvent(orgId: string, sessionId: string, questio
   if (row) await supabaseAdmin.from("quote_session_events").update({ body: { ...row.body, queued: true } }).eq("id", row.id);
 }
 
+/** An answer tapped while she works: it waits as typed words do, and its
+    changes are made once she's free (session-server startTurn fromQueue),
+    or the quote would move under her (Isaac, 14 November 2026: "Yes get all done"). */
+export async function queueTap(orgId: string, sessionId: string, by: string, tap: { event: number; index: number; label: string; question: string }): Promise<void> {
+  await addEvents(orgId, sessionId, null, [{ kind: "message", author: by, body: { text: tap.label, tap: { event: tap.event, index: tap.index }, question: tap.question, queued: true } }]);
+}
+
+/** Whether a tapped answer to this question is already waiting. */
+export async function tapWaiting(orgId: string, sessionId: string, questionEvent: number): Promise<boolean> {
+  const { data } = await supabaseAdmin
+    .from("quote_session_events")
+    .select("id")
+    .eq("org_id", orgId)
+    .eq("session_id", sessionId)
+    .eq("kind", "message")
+    .eq("body->>queued", "true")
+    .eq("body->tap->>event", String(questionEvent))
+    .limit(1);
+  return (data ?? []).length > 0;
+}
+
+/** An event's body, put as it now is (a waiting tap, once its changes are made). */
+export async function setEventBody(orgId: string, id: number, body: Record<string, unknown>): Promise<void> {
+  await supabaseAdmin.from("quote_session_events").update({ body }).eq("org_id", orgId).eq("id", id);
+}
+
 /** Whether anything sent while she worked is still waiting. */
 export async function hasQueued(orgId: string, sessionId: string): Promise<boolean> {
   const { data } = await supabaseAdmin.from("quote_session_events").select("id").eq("org_id", orgId).eq("session_id", sessionId).eq("kind", "message").eq("body->>queued", "true").limit(1);

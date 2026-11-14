@@ -23,7 +23,10 @@ jest.mock("../store-server", () => ({
   endTurn: (...a: unknown[]) => (endTurn as jest.Mock)(...a),
   takeAnswers: (...a: unknown[]) => (takeAnswers as jest.Mock)(...a),
   claimQueued: (...a: unknown[]) => (claimQueued as jest.Mock)(...a),
+  readThread: async () => ({ session: null, events: [] }),
 }));
+const answerQuestion = jest.fn(async (..._a: unknown[]): Promise<{ ok: true; goOn: boolean } | { ok: false; reason: string }> => ({ ok: true, goOn: false }));
+jest.mock("../answers-server", () => ({ answerQuestion: (...a: unknown[]) => (answerQuestion as jest.Mock)(...a) }));
 jest.mock("../tools-server", () => ({ sessionTools: () => async () => ({ ok: true, value: null, label: "x" }) }));
 const readJobSources = jest.fn(async () => ({ sources: [] as { id: string; kind: string; label: string; text: string; at: string | null }[], left: 0 }));
 jest.mock("../job-sources-server", () => ({ readJobSources: (...a: unknown[]) => (readJobSources as jest.Mock)(...a) }));
@@ -232,11 +235,43 @@ describe("what was sent while she worked", () => {
     expect(endTurn).toHaveBeenCalledWith("s1", "t1");
   });
 
+  it("says it in a line after answers alone", async () => {
+    takeAnswers.mockResolvedValueOnce([{ question: "How many metres of cable?", answer: "15 (put on the line as Cable: 15 m)" }]);
+    const model = scripted([{ content: [{ type: "text", text: "Now $6,995." }], stopReason: "end_turn" }]);
+    const started = await startTurn("org", "job", "u1", "", { modelName: "m", model, answered: true, check: true });
+    await (started as Extract<typeof started, { ok: true }>).run();
+    expect(JSON.stringify(model.calls[0]!.messages[0]!.content)).toContain("Reply in one short line");
+  });
+
   it("checks numbers put straight on their lines, once the last is answered", async () => {
     const model = scripted([{ content: [{ type: "text", text: "Checked." }], stopReason: "end_turn" }]);
     const started = await startTurn("org", "job", "u1", "", { modelName: "m", model, answered: true, check: true });
     await (started as Extract<typeof started, { ok: true }>).run();
     expect(JSON.stringify(model.calls[0]!.messages[0]!.content)).toContain("put straight on their lines as they typed them");
+    expect(JSON.stringify(model.calls[0]!.messages[0]!.content)).not.toContain("Reply in one short line");
+  });
+
+  /* Isaac, 14 November 2026: "Yes get all done", the tap that failed while she worked */
+  it("makes a tap given while she worked once she's free, and lets go when it leaves her nothing to do", async () => {
+    answerQuestion.mockClear();
+    claimQueued.mockResolvedValueOnce([{ id: 14, author: "u2", body: { text: "Three phase", tap: { event: 7, index: 1 }, question: "Which phase?", queued: true } }]);
+    expect(await startTurn("org", "job", "u1", "", { modelName: "m", fromQueue: true })).toMatchObject({ ok: false, status: 409 });
+    expect(answerQuestion).toHaveBeenCalledWith("org", "job", "u2", 7, 1, [], { inTurn: true, asEvent: 14 });
+    expect(endTurn).toHaveBeenCalledWith("s1", "t1");
+  });
+
+  it("starts her on a tap that leaves her work, and gives her as words one that can't be made now", async () => {
+    answerQuestion.mockResolvedValueOnce({ ok: true, goOn: true }).mockResolvedValueOnce({ ok: false, reason: "A line this answer changes has gone since." });
+    claimQueued.mockResolvedValueOnce([
+      { id: 15, author: "u2", body: { text: "Research it", tap: { event: 7, index: 0 }, question: "Which isolator?", queued: true } },
+      { id: 16, author: "u2", body: { text: "Back wall", tap: { event: 8, index: 2 }, question: "Which wall?", queued: true } },
+    ]);
+    const model = scripted([{ content: [{ type: "text", text: "On it." }], stopReason: "end_turn" }]);
+    const started = await startTurn("org", "job", "u1", "", { modelName: "m", model, fromQueue: true });
+    await (started as Extract<typeof started, { ok: true }>).run();
+    const said = JSON.stringify(model.calls[0]!.messages[0]!.content);
+    expect(said).toContain("Which wall? Back wall");
+    expect(said).toContain("Do what that answer leaves you to do.");
   });
 
   it("takes a tapped answer that leaves her work as one", async () => {

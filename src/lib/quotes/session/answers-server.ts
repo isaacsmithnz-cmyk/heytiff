@@ -4,7 +4,7 @@ import { addLine, changeLine, readLines, removeLine } from "../lines-server";
 import { readOrgDay } from "../org-day-server";
 import { readQuoteSettings } from "../settings-query";
 import { answerDeltas, answeredOf, filledQty, typedFill, type Answered, type Priced } from "./answers";
-import { addEvents, holding, readSession, type ThreadEvent } from "./store-server";
+import { addEvents, holding, readSession, setEventBody, type ThreadEvent } from "./store-server";
 import { bookPrice, isErr, questionOf } from "./tools";
 import { linePricer } from "./tools-server";
 
@@ -40,10 +40,15 @@ export async function priceQuestions(orgId: string, jobUuid: string, events: rea
   return out;
 }
 
-export async function answerQuestion(orgId: string, jobUuid: string, by: string, eventId: number, index: number, events: readonly ThreadEvent[]): Promise<{ ok: true; goOn: boolean } | { ok: false; reason: string }> {
+/** Tiff is working: the tap waits (store-server queueTap). */
+export const TAP_WAITS = "Tiff is working on the quote: answer once she's done.";
+
+/* `opts.inTurn`: made by the turn starting now, which holds the session
+   itself; `opts.asEvent`: the waiting tap's own event becomes the answer */
+export async function answerQuestion(orgId: string, jobUuid: string, by: string, eventId: number, index: number, events: readonly ThreadEvent[], opts: { inTurn?: boolean; asEvent?: number } = {}): Promise<{ ok: true; goOn: boolean } | { ok: false; reason: string }> {
   const session = await readSession(orgId, jobUuid);
   if (!session) return { ok: false, reason: "There's no question to answer." };
-  if (holding(session, Date.now())) return { ok: false, reason: "Tiff is working on the quote: answer once she's done." };
+  if (!opts.inTurn && holding(session, Date.now())) return { ok: false, reason: TAP_WAITS };
   const ev = events.find((e) => e.id === eventId && e.kind === "question");
   const q = ev ? questionOf(ev.body) : null;
   if (!q || isErr(q)) return { ok: false, reason: "That question has gone." };
@@ -79,7 +84,9 @@ export async function answerQuestion(orgId: string, jobUuid: string, by: string,
       if (!r.ok) return r;
     }
   }
-  await addEvents(orgId, session.id, null, [{ kind: "message", author: by, body: { text: answer.label, answered: eventId, index, question: q.question } }]);
+  const body = { text: answer.label, answered: eventId, index, question: q.question };
+  if (opts.asEvent != null) await setEventBody(orgId, opts.asEvent, body);
+  else await addEvents(orgId, session.id, null, [{ kind: "message", author: by, body }]);
   return { ok: true, goOn: answer.goOn === true };
 }
 

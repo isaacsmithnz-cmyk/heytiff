@@ -26,6 +26,7 @@ const readMirrorJob = jest.fn(async (): Promise<JobCardRead> => ({ detail: null,
 const readJobRecord = jest.fn(async (): Promise<JobRecordRead | null> => null);
 /* The job's page mode draws its conversation, whose Add photo reaches the
    documents actions ("use server", which jsdom can't load). */
+jest.mock("@/app/actions/site-notes", () => ({ readSiteNoteCount: jest.fn(async () => 0), readSiteNotes: jest.fn(async () => null), addSiteNote: jest.fn(), changeSiteNote: jest.fn(), removeSiteNote: jest.fn() }));
 jest.mock("@/app/actions/documents", () => ({ deleteDocument: jest.fn(async () => ({ ok: true })) }));
 jest.mock("@/app/actions/job-plans", () => ({ readPlansOnJob: jest.fn(async () => []), addPlansToJob: jest.fn(async () => ({ ok: true, planIds: [], already: 0 })) }));
 jest.mock("@/lib/documents/file-on-job", () => ({ fileOnJob: jest.fn(async () => ({ ok: false, error: "no upload in this test" })) }));

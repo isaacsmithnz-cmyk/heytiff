@@ -18,7 +18,7 @@ import { useOverlay } from "@/components/overlay/use-overlay";
    and the ratchets count every one written. */
 
 /** "wide" is a lightbox: most of the window, for looking at pages. */
-export type DialogWidth = 400 | 560 | 720 | 960 | "wide";
+export type DialogWidth = 400 | 560 | 720 | 880 | 960 | "wide";
 
 export type DialogProps = {
   /** Mounted while true. Leave it out to mount the dialog yourself. */
@@ -34,6 +34,10 @@ export type DialogProps = {
   dismissable?: boolean;
   /** An id inside the body that says what the dialog is about. */
   describedBy?: string;
+  /** A line under the title, in the quiet grey: what the dialog is of. */
+  under?: ReactNode;
+  /** Beside the title, on the right: a button and the close cross. */
+  aside?: ReactNode;
 };
 
 const noSubscribe = () => () => {};
@@ -55,6 +59,8 @@ function DialogSurface({
   width = 400,
   dismissable = true,
   describedBy,
+  under,
+  aside,
 }: Omit<DialogProps, "open">) {
   const dialog = useRef<HTMLDivElement>(null);
   /* Where the press began. A drag that starts in the dialog and ends on the
@@ -89,9 +95,21 @@ function DialogSurface({
         aria-describedby={describedBy}
         tabIndex={-1}
       >
-        <h2 id={titleId} className="pt-dialog-title">
-          {heading}
-        </h2>
+        {under != null || aside != null ? (
+          <div className="pt-dialog-head">
+            <div className="pt-dialog-headwords">
+              <h2 id={titleId} className="pt-dialog-title">
+                {heading}
+              </h2>
+              {under != null && <p className="pt-dialog-under">{under}</p>}
+            </div>
+            {aside != null && <div className="pt-dialog-aside">{aside}</div>}
+          </div>
+        ) : (
+          <h2 id={titleId} className="pt-dialog-title">
+            {heading}
+          </h2>
+        )}
         {children != null && <div className="pt-dialog-body">{children}</div>}
         {foot != null && <div className="pt-dialog-foot">{foot}</div>}
       </div>

@@ -190,6 +190,31 @@ export function shareAcrossSet(prev: DesignDocument, next: DesignDocument): Desi
   return out;
 }
 
+/** The scales somebody has just measured in a design made from a job's
+    plan, each as its page of the plan (1-based) and its scale in that
+    page's pixels, to keep on the job's plan: the plan is the one set, so
+    the next design, the heat load and a quote size the rooms by it too. A
+    scale that is the one the page already offers (printed, or Tiff's) is
+    the plan's own and is left out, and so is a floor whose sheet isn't a
+    page of that plan. */
+export function measuredForJob(prev: DesignDocument, next: DesignDocument): { planId: string; page: number; mmPerPx: number }[] {
+  const planId = next.planImport?.jobPlanId;
+  if (!planId || prev.id !== next.id) return [];
+  const out: { planId: string; page: number; mmPerPx: number }[] = [];
+  for (const f of next.floors) {
+    const was = prev.floors.find((p) => p.id === f.id);
+    const mm = f.scaleMmPerUnit;
+    if (!was || mm == null || !(mm > 0) || mm === was.scaleMmPerUnit) continue;
+    const offered = proposedScale(next, f.id);
+    if (offered && Math.abs(offered.mmPerUnit - mm) < 1e-6) continue;
+    const s = firstSheet(f);
+    const at = s ? pageOf(next, s.imageRef) : null;
+    if (at == null) continue;
+    out.push({ planId, page: at + 1, mmPerPx: mm });
+  }
+  return out;
+}
+
 /** What a set still needs before rooms can be measured and faced. */
 export function setupNeeds(doc: DesignDocument): { scale: string[]; north: string[] } {
   return {

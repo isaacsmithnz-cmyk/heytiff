@@ -152,13 +152,31 @@ export function readyFromPlans(doc: DesignDocument): DesignDocument {
       const scale = proposedScale(d, id);
       if (scale) d = { ...d, floors: d.floors.map((f) => (f.id === id ? { ...f, scaleMmPerUnit: scale.mmPerUnit } : f)) };
     }
-    d = keepFound(
-      d,
-      id,
-      foundOn(d, id)
-        .filter((s) => s.kind !== "garage")
-        .map((s) => s.key),
-    );
+    d = keepFound(d, id, insideOn(d, id));
+  }
+  return d;
+}
+
+/** The found rooms inside the house on a floor, by key: all but a garage or a carport. */
+const insideOn = (doc: DesignDocument, floorId: string): string[] =>
+  foundOn(doc, floorId)
+    .filter((s) => s.kind !== "garage")
+    .map((s) => s.key);
+
+/** After a change: a floor of a design made from a job's plans that has
+    just been given its scale gets its rooms marked, as it would have opened
+    had the plan had a scale (the same mock: "The rooms stay grey outlines
+    until the scale is measured, then they're marked and sized"). Only a
+    floor with no room on it, so a scale measured again marks nothing twice
+    and a floor somebody has started on is left to them. */
+export function markOnScale(prev: DesignDocument, next: DesignDocument): DesignDocument {
+  if (!next.planImport?.jobPlanId) return next;
+  let d = next;
+  for (const f of next.floors) {
+    const was = prev.floors.find((p) => p.id === f.id);
+    if (!was || was.scaleMmPerUnit != null || f.scaleMmPerUnit == null) continue;
+    if (d.objects.some((o) => o.type === "room" && o.floorId === f.id)) continue;
+    d = keepFound(d, f.id, insideOn(d, f.id));
   }
   return d;
 }

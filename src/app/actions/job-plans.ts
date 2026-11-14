@@ -3,7 +3,7 @@
 import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
 import { staffProfileIdFor } from "@/lib/fleet/query";
-import { addJobPlans, readJobPlans, type AddPlansResult } from "@/lib/jobs/plans-server";
+import { addJobPlans, planPageForScale, readJobPlans, setPlanScale, type AddPlansResult, type PageForScale } from "@/lib/jobs/plans-server";
 import type { JobPlanRead, PlanPick } from "@/lib/jobs/plans";
 
 /* PLANS ON THE JOB: the job card's actions (lib/jobs/plans-server.ts).
@@ -43,4 +43,54 @@ export async function addPlansToJob(jobUuid: string, picks: readonly PlanPick[])
   }
   if (clean.length === 0) return { ok: false, error: "Nothing was picked." };
   return addJobPlans(ctx.orgId, job, clean, ctx.staffId);
+}
+
+const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
+const point = (v: unknown): { x: number; y: number } | null => {
+  const p = v as { x?: unknown; y?: unknown } | null;
+  const x = num(p?.x);
+  const y = num(p?.y);
+  return x == null || y == null ? null : { x, y };
+};
+
+/** A floor page's picture for Set scale, and the figure its scale rests on. */
+export async function pageForScale(jobUuid: string, planId: string, n: number): Promise<PageForScale | null> {
+  const ctx = await context();
+  const job = trim(jobUuid);
+  const plan = trim(planId);
+  const page = num(n);
+  if (!ctx || !job || !plan || page == null) return null;
+  return planPageForScale(ctx.orgId, job, plan, page);
+}
+
+/** Set scale: the length between two points on a page, kept on the job's
+    plan. Null once it's saved, or the reason not. */
+export async function setScaleOnPlan(jobUuid: string, planId: string, n: number, a: { x: number; y: number }, b: { x: number; y: number }, mm: number): Promise<string | null> {
+  const ctx = await context();
+  const job = trim(jobUuid);
+  const plan = trim(planId);
+  if (!ctx || !job || !plan) return "You can't set a plan's scale.";
+  const page = num(n);
+  const from = point(a);
+  const to = point(b);
+  const length = num(mm);
+  if (page == null || !from || !to) return "Press the two ends of a length first.";
+  /* a wall's thickness to a long boundary: 100 mm to 500 m */
+  if (length == null || length < 100 || length > 500_000) return "Type the length between the two points, in millimetres.";
+  return setPlanScale(ctx.orgId, plan, page, { a: from, b: to, mm: length }, ctx.staffId, job);
+}
+
+/** A scale measured in a design made from one of the job's plans, kept on
+    that plan's page (lib/studio/plan-set.ts measuredForJob). Behind
+    `studio`, where it was measured. Null once it's saved, or the reason. */
+export async function savePlanScaleFromDesign(planId: string, n: number, mmPerPx: number): Promise<string | null> {
+  const session = await auth0.getSession();
+  const orgId = session?.orgId as string | undefined;
+  const userId = session?.user?.sub as string | undefined;
+  if (!orgId || !userId || !(await can("studio"))) return "You can't set a plan's scale.";
+  const plan = trim(planId);
+  const page = num(n);
+  const scale = num(mmPerPx);
+  if (!plan || page == null || scale == null || scale <= 0) return "That scale can't be used.";
+  return setPlanScale(orgId, plan, page, { mmPerPx: scale }, await staffProfileIdFor(orgId, userId));
 }

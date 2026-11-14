@@ -33,7 +33,8 @@ import { ComplianceChooser } from "./compliance-chooser";
 import { designRowLine } from "./job-design-face";
 import { StateLine } from "./state-line";
 import { AddPlansDialog, planCandidates, type UploadForPlans } from "./add-plans-dialog";
-import { floorPagesOf, pageCaption, planLine, planPointsAt, planStateWord, type JobPlanRead, type PlanPick } from "@/lib/jobs/plans";
+import { floorPagesOf, pageCaption, planLine, planPointsAt, planStateWord, scaleAsks, type JobPlanPage, type JobPlanRead, type PlanPick } from "@/lib/jobs/plans";
+import { SetScaleDialog, type ScalePage, type ScalePoint } from "./set-scale-dialog";
 
 /* A JOB'S DOCUMENTS (v2; the mock of 25 October 2026, frame 6). One heading,
    no count under it, and one blue Add, whose white menu holds the ways in:
@@ -244,6 +245,8 @@ export function JobDocumentsFace({
   plans = null,
   onAddPlans,
   onUploadForPlans,
+  onPageForScale,
+  onSetScale,
 }: {
   documents: readonly JobMediaItem[] | null;
   elsewhere: readonly JobMediaItem[] | null;
@@ -305,12 +308,19 @@ export function JobDocumentsFace({
   onAddPlans?: (picks: PlanPick[]) => Promise<string | null>;
   /** A file dropped into Add plans, onto the job first. */
   onUploadForPlans?: UploadForPlans;
+  /** A plan's page for Set scale: its full picture. */
+  onPageForScale?: (planId: string, n: number) => Promise<ScalePage | null>;
+  /** Set scale: the length between two points on a plan's page, saved on
+      the job's plan; null once it is, or the reason. Absent, no plan offers it. */
+  onSetScale?: (planId: string, n: number, a: ScalePoint, b: ScalePoint, mm: number) => Promise<string | null>;
 }) {
   const day = today ?? todayInAu();
   /* Licences and insurance, open over the page */
   const [choosing, setChoosing] = useState(false);
   /* Add plans, open over the page */
   const [addingPlans, setAddingPlans] = useState(false);
+  /* Set scale or Check scale, open over the page on one of a plan's pages */
+  const [scaling, setScaling] = useState<{ planId: string; page: JobPlanPage; ask: "set" | "check" } | null>(null);
   const [adding, setAdding] = useState(false);
   const addRef = useRef<HTMLButtonElement>(null);
   const picker = useRef<HTMLInputElement | null>(null);
@@ -470,6 +480,8 @@ export function JobDocumentsFace({
     const state = planStateWord(p);
     const facts = [file ? docLine(file) : null, planLine(p, day)].filter(Boolean).join(". ");
     const pages = p.state === "reading" ? [] : floorPagesOf(p).filter((pg) => p.thumbs[pg.n]);
+    /* a page with no scale to be had asks for one; one resting on a single figure can be checked */
+    const asks = onSetScale && onPageForScale ? scaleAsks(p) : [];
     const url = file?.url;
     const open = file && url ? (opensInCard(file.fileType) ? () => onOpen(file) : () => void window.open(url, "_blank", "noopener,noreferrer")) : undefined;
     return (
@@ -488,6 +500,13 @@ export function JobDocumentsFace({
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={p.thumbs[pg.n]} alt={pageCaption(pg)} />
                   <span>{pageCaption(pg)}</span>
+                  {asks
+                    .filter((a) => a.n === pg.n)
+                    .map((a) => (
+                      <Button key={a.ask} size={32} onClick={() => setScaling({ planId: p.id, page: pg, ask: a.ask })}>
+                        {a.ask === "set" ? "Set scale" : "Check scale"}
+                      </Button>
+                    ))}
                 </span>
               ))}
             </span>
@@ -702,6 +721,15 @@ export function JobDocumentsFace({
         <ComplianceChooser today={day} onLoad={onLoadChoices} onAdd={onAddPapers} onClose={() => setChoosing(false)} />
       )}
       {addingPlans && onAddPlans && <AddPlansDialog files={docs} onAdd={onAddPlans} onUpload={onUploadForPlans} onClose={() => setAddingPlans(false)} />}
+      {scaling && onSetScale && onPageForScale && (
+        <SetScaleDialog
+          heading={scaling.ask === "set" ? "Set scale" : "Check scale"}
+          caption={pageCaption(scaling.page)}
+          load={() => onPageForScale(scaling.planId, scaling.page.n)}
+          onSave={(a, b, mm) => onSetScale(scaling.planId, scaling.page.n, a, b, mm)}
+          onClose={() => setScaling(null)}
+        />
+      )}
     </div>
   );
 }

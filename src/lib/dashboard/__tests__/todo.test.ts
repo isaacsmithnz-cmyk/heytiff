@@ -274,7 +274,7 @@ describe("the old list's rows", () => {
 
   it("(F) a won job books in with the Visit form over Home where bookings are offered, its row on its Visits", () => {
     const list = listOf({ wins: [{ job: job(), wonOn: "2026-09-24" }], caps: { ...ALL, bookIn: true } });
-    expect(todoRows(input({ list }))[0].act).toEqual({ kind: "bookIn", label: "Book in", jobUuid: "j1", href: "/dashboard/jobs/j1?tab=visits" });
+    expect(todoRows(input({ list }))[0].act).toEqual({ kind: "bookIn", label: "Book in", jobUuid: "j1", href: "/dashboard/jobs/j1?tab=on-site" });
   });
 
   it("(F) a service with no day: Book in on the visit; an issue: Open on its job", () => {

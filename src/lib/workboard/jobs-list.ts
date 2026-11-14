@@ -396,7 +396,7 @@ export function jobsListRows(input: JobsListInput): JobsListRow[] {
       if (ready && r.statusLabel === "Quote" && !sent) {
         put({
           ...sm8Base(r),
-          href: jobPageHref(r.id, "quote"),
+          href: jobPageHref(r.id, "price"),
           state: "Ready to send",
           tone: "look",
           next: markedWords(ready.at, today),

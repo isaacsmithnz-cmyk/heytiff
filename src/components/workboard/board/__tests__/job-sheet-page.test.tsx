@@ -341,14 +341,14 @@ describe("the job's page head", () => {
 });
 
 describe("the job's sections are the card's faces", () => {
-  it("has eight tabs with the money, Scope after Overview, and no Billing without it", async () => {
+  it("has six tabs with the money, Overview, Scope, Price, On site, Files, Billing, and no Billing without it", async () => {
     const { unmount } = draw("overview", { moneyVisible: true });
     await ready();
-    expect(tabWords()).toEqual(["Overview", "Scope", "Quote", "On site", "Files", "Billing"]);
+    expect(tabWords()).toEqual(["Overview", "Scope", "Price", "On site", "Files", "Billing"]);
     unmount();
     draw("overview");
     await ready();
-    expect(tabWords()).toEqual(["Overview", "Scope", "Quote", "On site", "Files"]);
+    expect(tabWords()).toEqual(["Overview", "Scope", "Price", "On site", "Files"]);
   });
 
   /* Isaac, 13 November 2026: "Give scope its own tab"; mock A, 14 November */
@@ -369,7 +369,7 @@ describe("the job's sections are the card's faces", () => {
   it("has the job's Designs in Files for whoever holds the Studio, and no Design tab", async () => {
     draw("files", { studio: true });
     await ready();
-    expect(tabWords()).toEqual(["Overview", "Scope", "Quote", "On site", "Files"]);
+    expect(tabWords()).toEqual(["Overview", "Scope", "Price", "On site", "Files"]);
     expect(screen.getByRole("region", { name: "Design" })).toBeVisible();
     expect(screen.getByRole("heading", { name: "Designs" })).toBeInTheDocument();
     expect(await screen.findByText("No design on this job")).toBeInTheDocument();

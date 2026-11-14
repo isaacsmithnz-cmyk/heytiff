@@ -369,7 +369,7 @@ describe("To do", () => {
       line: "Won today. No day yet",
       lineTone: false,
       tick: null,
-      act: { kind: "bookIn", label: "Book in", jobUuid: "j1", href: "/dashboard/jobs/j1?tab=visits" },
+      act: { kind: "bookIn", label: "Book in", jobUuid: "j1", href: "/dashboard/jobs/j1?tab=on-site" },
     };
     draw(today(), [won]);
     expect(within(rowOf("Job 2380, Kingsford")).queryByRole("link")).toBeNull();

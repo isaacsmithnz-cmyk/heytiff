@@ -316,7 +316,7 @@ describe("retired → the v2 home", () => {
     ["toolbox", ToolboxPage, "/dashboard/tiff/library?view=toolbox"],
     ["workboard", board({}), "/dashboard/jobs"],
     ["workboard?job=", board({ job: "j-1" }), "/dashboard/jobs/j-1"],
-    ["workboard?job=&face=quote", board({ job: "j-1", face: "quote" }), "/dashboard/jobs/j-1?tab=quote"],
+    ["workboard?job=&face=quote", board({ job: "j-1", face: "quote" }), "/dashboard/jobs/j-1?tab=price"],
     ["workboard?q=", board({ q: "Smith & Sons" }), "/dashboard/jobs?q=Smith%20%26%20Sons"],
     ["workboard?visit=", board({ visit: "v-1" }), "/dashboard/jobs?open=visit.v-1"],
     /* Settings is one page (25 October 2026): Tax and EOFY is a view in

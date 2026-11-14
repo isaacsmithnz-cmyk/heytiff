@@ -376,7 +376,7 @@ describe("Ready to send (Isaac, 5 November 2026)", () => {
       tone: "look",
       next: "Marked today, 2:31pm",
       who: ["Lyle Irving"],
-      href: "/dashboard/jobs/q-sent?tab=quote",
+      href: "/dashboard/jobs/q-sent?tab=price",
     });
     // still a quote, and still in All
     expect(ready[0]!.views).toEqual(["all", "quotes", "ready"]);

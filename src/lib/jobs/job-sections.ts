@@ -1,7 +1,7 @@
 import type { JobSheetTab } from "@/components/workboard/board/job-sheet";
 
-/* A JOB'S SECTIONS (docs/design.md rule 31): Overview, Scope, Quote, On
-   site, Files, Billing. The job page (app/dashboard/jobs) draws each from the
+/* A JOB'S SIX SECTIONS (docs/design.md rule 31): Overview, Scope, Price, On
+   site, Files, Billing (Isaac, 13 November 2026: "compact the row"). The job page (app/dashboard/jobs) draws each from the
    job card's own faces, so the card and the page never tell two stories about
    one job:
 
@@ -10,7 +10,9 @@ import type { JobSheetTab } from "@/components/workboard/board/job-sheet";
      Scope     = the job's Scope, Since the quote and Latest updates, or its
                  Summary where it has no Scope (Isaac, 13 November 2026:
                  "Give scope its own tab"; mock A, 14 November)
-     Quote     = the quote
+     Price     = the quote, where what the job is charged is built (Isaac, 13
+                 November 2026, who named it); today's Quote under its new
+                 name, a variation's "Variation" kept inside
      On site   = the visits with their tasks, what's not on a day yet, and
                  the materials, each unit and control with its word from
                  Stock (mock F, 14 November 2026); Visits and Materials (the
@@ -25,13 +27,13 @@ import type { JobSheetTab } from "@/components/workboard/board/job-sheet";
    Every old name still lands (OLD_NAMES). Pure, so the page, the quote
    page's tabs and the tests read one list. */
 
-export const JOB_SECTIONS = ["overview", "scope", "quote", "on-site", "files", "billing"] as const;
+export const JOB_SECTIONS = ["overview", "scope", "price", "on-site", "files", "billing"] as const;
 export type JobSection = (typeof JOB_SECTIONS)[number];
 
 export const SECTION_LABEL: Record<JobSection, string> = {
   overview: "Overview",
   scope: "Scope",
-  quote: "Quote",
+  price: "Price",
   "on-site": "On site",
   files: "Files",
   billing: "Billing",
@@ -41,7 +43,7 @@ export const SECTION_LABEL: Record<JobSection, string> = {
 export const SECTION_FACES: Record<JobSection, readonly JobSheetTab[]> = {
   overview: ["summary", "diary"],
   scope: ["scope"],
-  quote: ["quote"],
+  price: ["quote"],
   "on-site": ["visits", "checklist"],
   files: ["photos", "documents", "compliance", "design"],
   billing: ["money"],
@@ -61,6 +63,7 @@ export const sectionsFor = (moneyVisible: boolean, _studio = false): readonly Jo
 
 /* the names a section went by, so an old link still lands on it */
 const OLD_NAMES: Record<string, JobSection> = {
+  quote: "price",
   checklist: "on-site",
   visits: "on-site",
   materials: "on-site",
@@ -73,7 +76,8 @@ const OLD_NAMES: Record<string, JobSection> = {
 /** The section an address's `?tab=` names, or Overview: an invented one, a
     repeated one and Billing without the money grant all land on Overview.
     A section's old name lands on it (`?tab=checklist`, `visits` and
-    `materials` are On site; `photos`, `documents` and `design` are Files). */
+    `materials` are On site; `photos`, `documents` and `design` are Files;
+    `quote` is Price). */
 export function parseSection(raw: string | string[] | undefined | null, moneyVisible: boolean, studio = false): JobSection {
   if (typeof raw !== "string") return "overview";
   const said = raw.trim().toLowerCase();

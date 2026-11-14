@@ -179,8 +179,8 @@ describe("Make a document", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: "SWMS" }));
     const dialog = screen.getByRole("dialog", { name: "Make a SWMS" });
     expect(within(dialog).getByRole("button", { name: "Make the SWMS" }).hasAttribute("disabled")).toBe(true);
-    expect(makeOnJobHref("j-3209", "swms")).toBe("/dashboard/jobs/j-3209?tab=documents&add=swms");
-    expect(makeOnJobHref("j-3209", "certificate")).toBe("/dashboard/jobs/j-3209?tab=documents&add=certificate");
+    expect(makeOnJobHref("j-3209", "swms")).toBe("/dashboard/jobs/j-3209?tab=files&add=swms");
+    expect(makeOnJobHref("j-3209", "certificate")).toBe("/dashboard/jobs/j-3209?tab=files&add=certificate");
   });
 
   it("opens today's letter editor, and the projects for a handover sheet", () => {

@@ -63,6 +63,8 @@ describe("a plan's rooms and their sizes", () => {
     expect(pageScale(page({ mmPerPx: 17.5, scale: "1:100 @ A3", measured }), [])).toEqual({ mmPerPx: 17.5, from: "the plan's printed scale, 1:100 @ A3", sure: true });
     expect(pageScale(page({ measured: { mmPerPx: 24.4, from: "the 7440 mm printed on it", sure: false } }), [])).toEqual({ mmPerPx: 24.4, from: "the 7440 mm printed on it, one figure alone", sure: false });
     expect(pageScale(page({ measured: null }), [])).toBeNull();
+    /* the scale somebody set comes first, over the printed one */
+    expect(pageScale(page({ mmPerPx: 17.5, scale: "1:100 @ A3", set: { mmPerPx: 20, mm: 5000, by: "Tash", at: "2026-11-14T00:00:00Z" } }), [])).toEqual({ mmPerPx: 20, from: "the 5000 mm Tash measured on it", sure: true });
   });
 
   it("scales a page off the sizes written in its rooms, two that fit their rooms at least", () => {

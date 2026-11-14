@@ -138,11 +138,20 @@ describe("its words are readable", () => {
     expect(ratio(onInk(name, INK_HOVER), INK_HOVER)).toBeGreaterThanOrEqual(4.5);
   });
 
-  it("draws the tick of a row it will file in ink, or paper on ink, never the OK colour", () => {
+  it("draws the tick of a row it will file in ink, never the OK colour", () => {
     expect(body(".fg .tm-ok")).toMatch(/color:var\(--ink\)/);
-    expect(body(".fg .tm .tm-ok")).toMatch(/color:var\(--paper\)/);
     for (const [, b] of tmRules) expect(b).not.toMatch(/var\(--ok(-t)?\)/);
   });
+
+  /* The window is paper (the docked chat), so nothing under `.tm` may dress
+     her decisions for ink again: a white tick and white hairlines on white
+     (Isaac, 14 November 2026, "Fix the tick"). The light rules draw them. */
+  it.each(["tm-plan", "tm-row-plan", "tm-ok", "tm-qm", "tm-needs", "tm-added", "tm-quick", "tm-doors", "tm-err"])(
+    "leaves .%s to the light rules inside the window",
+    (cls) => {
+      expect(rules.filter(([sel]) => sel === `.fg .tm .${cls}`)).toEqual([]);
+    },
+  );
 });
 
 describe("the view and the sheet agree", () => {

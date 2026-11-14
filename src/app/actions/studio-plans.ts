@@ -3,6 +3,7 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { requireOrg } from "@/lib/permissions-server";
 import { newId } from "@/lib/studio/document";
+import { planFileOnAJob } from "@/lib/jobs/plan-files-server";
 
 /* Floor-plan image storage — signed-URL flow so image bytes never pass
    through a server action (no body-size limits): the client asks for a
@@ -45,6 +46,9 @@ export async function planImageUrl(ref: string): Promise<string> {
 export async function deletePlanImage(ref: string): Promise<void> {
   const { orgId } = await requireOrg("studio");
   assertOrgRef(ref, orgId);
+  /* a job's plan is the job's: a floor deleted in a design made from it, or a
+     dialog closed, must not take the page out of the job's Plans */
+  if (await planFileOnAJob(orgId, ref)) return;
   const { error } = await supabaseAdmin.storage.from(BUCKET).remove([ref]);
   if (error) throw new Error(error.message);
 }

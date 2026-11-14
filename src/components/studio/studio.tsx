@@ -15,7 +15,8 @@ import { Icon } from "@/components/shell/icon";
 import { Tooltip } from "@/components/parts/tooltip";
 import type { OrgBrand } from "@/lib/org/brand";
 import type { JobSearch } from "./job-search";
-export type { JobSearch };
+import type { JobLists } from "./job-picker";
+export type { JobSearch, JobLists };
 import {
   createDesign,
   newId,
@@ -82,19 +83,20 @@ import { airRows, airTags } from "@/lib/studio/air-view";
 import { SetupPanel } from "./setup-panel";
 import { pastPrint, sheetUnitOf } from "@/lib/studio/figure-bounds";
 import { RoomPanel, RoomsPanel } from "./rooms-panel";
-import { foundOn, joinRooms, keepFound } from "@/lib/studio/room-edit";
+import { foundOn, joinRooms, keepFound, markOnScale, readyFloor, readyFromPlans } from "@/lib/studio/room-edit";
 import type { Suggestion } from "@/lib/studio/rooms-from-reading";
 import { RISER_PAINT } from "@/lib/studio/duct-size";
 import { StudioFlowContext, useStudioFlow, type StudioFlow } from "./flow";
 import { ClearDesignDialog } from "./clear-design-dialog";
 import { clearKeeping, keptLabelOf } from "@/lib/studio/clear-design";
-import { setupNeeds, shareAcrossSet } from "@/lib/studio/plan-set";
+import { measuredForJob, setupNeeds, shareAcrossSet } from "@/lib/studio/plan-set";
 import { InstallQuestions } from "./install-questions";
 import { isAirCapable, moduleFor } from "@/lib/studio/modules";
 import { SystemBuilder, ZoneStanding } from "./system-builder";
 import { deleteZone, releaseSystem, releaseZones, moveZone, removeZone } from "@/lib/studio/builder";
 import { roomAtPoint, roomCoverage, roomsServedBy, systemPairKw } from "@/lib/studio/coverage";
 import { nextMoveZones, type NextMove } from "@/lib/studio/next-move";
+import { StudioHelp } from "./studio-help";
 import type { RoomObj } from "@/lib/studio/loads-room";
 import { PlansPanel } from "./plans-panel";
 import { StepPrompt } from "./step-prompt";
@@ -123,6 +125,9 @@ import { SimRuntime } from "@/lib/studio/sim-runtime";
 import type { JobPrefill } from "@/lib/studio/job-link";
 import { suggestedRooms, withChecks, type PlanReading } from "@/lib/studio/reading";
 import { designFromPlans, type JobPlanRead } from "@/lib/jobs/plans";
+import { PLAN_POLL_MS } from "@/lib/jobs/plans-client";
+import { plansInDesign, withJobPlans } from "@/lib/studio/job-plan-floors";
+import { PlansDialog, type ChosenFloors } from "@/components/workboard/board/plans-dialog";
 /* the job's Scope column loads as it is opened: it carries Tiff's
    conversation hook, which the Studio has no other need of */
 const ScopeColumn = dynamic(() => import("./scope-column").then((m) => m.ScopeColumn), { ssr: false });
@@ -222,6 +227,7 @@ export function Studio({
   packLoader,
   sm8Jobs,
   jobSearch,
+  jobLists,
   openDesignId,
   forJob,
   jobPlans,
@@ -239,6 +245,8 @@ export function Studio({
       route decides both. Off means the new-design step never mentions it. */
   sm8Jobs?: boolean;
   jobSearch?: JobSearch;
+  /** New design's Recent and All jobs; a host with its own job search brings its own, or none */
+  jobLists?: JobLists;
   /** `?design=<id>` — open this design instead of landing on Home. What a
       link from the Workboard's job sheet arrives with. */
   openDesignId?: string;
@@ -375,6 +383,16 @@ export function Studio({
     },
     []
   );
+
+  /* A scale measured by hand in a design made from a job's plan goes onto
+     the plan: one set of plans, on the job (14 November 2026). */
+  const scaleSeen = useRef<DesignDocument | null>(null);
+  useEffect(() => {
+    const prev = scaleSeen.current;
+    scaleSeen.current = doc;
+    if (!sm8Jobs || !doc || !prev) return;
+    for (const m of measuredForJob(prev, doc)) savePlanScaleOnJob(m.planId, m.page, m.mmPerPx);
+  }, [doc, sm8Jobs]);
 
   /* Every mutation flows through here so updatedAt always bumps and the
      autosave below sees one consistent object. */
@@ -542,6 +560,18 @@ export function Studio({
   const jobSearchFn = useCallback(
     (q: string) => (jobSearch ?? ((t: string) => studioActions().then((a) => a.searchStudioJobs(t))))(q),
     [jobSearch]
+  );
+  /* New design's Recent and All jobs, from the same actions as the search */
+  const jobListsFn = useMemo<JobLists | undefined>(
+    () =>
+      jobLists ??
+      (jobSearch
+        ? undefined
+        : {
+            recent: (ids) => studioActions().then((a) => a.readStudioJobs(ids)),
+            list: (from, limit) => studioActions().then((a) => a.listStudioJobs(from, limit)),
+          }),
+    [jobLists, jobSearch]
   );
 
   const openDesign = useCallback((d: DesignDocument) => {
@@ -966,6 +996,7 @@ export function Studio({
             autoNew={homeAutoNew}
             sm8Jobs={sm8Jobs}
             jobSearch={jobSearchFn}
+            jobLists={jobListsFn}
             openFailed={openFailed}
             library={library}
             planImages={planImagesInst}
@@ -989,7 +1020,8 @@ export function Studio({
                  (lib/jobs/plans.ts): nothing is read again */
               const made = designFromPlans(plans);
               const d: DesignDocument = { ...newDesignFor(name, "plan", job), floors: made.floors, planImport: made.planImport };
-              const withReading = made.reading ? { ...d, reading: withChecks(made.reading, d) } : d;
+              /* and it opens with its scale and its rooms on: the loads are there to look at */
+              const withReading = made.reading ? readyFromPlans({ ...d, reading: withChecks(made.reading, d) }) : d;
               return throughSwap(async () => {
                 await saveDoc(withReading);
                 return withReading;
@@ -1078,9 +1110,18 @@ const readPlansOnServer: PlanReader = async (designId) => {
   }
 };
 
+/* A scale measured in a design made from a job's plan, kept on the plan
+   (plan-set.ts measuredForJob). Nothing waits on it: the design has its
+   scale either way. */
+const savePlanScaleOnJob = (planId: string, page: number, mmPerPx: number) =>
+  void import("@/app/actions/job-plans").then((a) => a.savePlanScaleFromDesign(planId, page, mmPerPx)).catch(() => {});
+
 /* The job's plans (lib/jobs/plans.ts), for New design. Out here, not in
    the component: the React Compiler takes no import() inside one. */
 const loadJobPlans = (jobUuid: string) => import("@/app/actions/job-plans").then((a) => a.readPlansOnJob(jobUuid));
+/** The floors chosen in the Plans dialog, kept on the job's plan. */
+const chooseJobPlanFloors = (jobUuid: string, planId: string, floors: Record<number, string>) =>
+  import("@/app/actions/job-plans").then((a) => a.chooseFloorsOnPlan(jobUuid, planId, floors));
 
 /** A file onto the job's Documents and into its Plans, as New design's Add
     plans takes one: the ids of the plans made, to start their reads. */
@@ -1220,7 +1261,8 @@ function Editor({
       historyRef.current.record(docRef.current);
       /* the next flow: a scale or a north set on one floor reaches the rest
          of its set, so no floor of one drawing set asks twice */
-      onMutate(flow === "next" ? (d) => seatDuctsOnUnits(shareAcrossSet(d, fn(d)), (model) => packRef.current?.indoor_units.find((u) => u.model === model)) : fn);
+      /* and a floor of a job's plan just given its scale gets its rooms marked */
+      onMutate(flow === "next" ? (d) => seatDuctsOnUnits(markOnScale(d, shareAcrossSet(d, fn(d))), (model) => packRef.current?.indoor_units.find((u) => u.model === model)) : fn);
       syncHist();
     },
     [onMutate, syncHist, flow]
@@ -1252,6 +1294,63 @@ function Editor({
   const [claimingId, setClaimingId] = useState<string | null>(null);
   /* reference-sheets viewer — browse the uploaded plan set without placing it */
   const [refOpen, setRefOpen] = useState(false);
+
+  /* EDIT PLANS on a design on a job opens the job's own plans (Isaac, 14
+     November 2026: "you won't have two sets of plans by accident"), each
+     page with its floor, ticked where the design uses them; saving keeps the
+     floors on the job's plans and brings the design into line
+     (job-plan-floors.ts). A design with plans of its own, dropped in before
+     it had a job, keeps the Plans page it had. */
+  const jobUuid = doc.jobLink?.remoteId ?? null;
+  const onJobPlans = !!jobUuid && (!!doc.planImport?.jobPlanId || !doc.floors.some((f) => f.plans.length > 0));
+  const [plansOpen, setPlansOpen] = useState<{ before: JobPlanRead[]; now: JobPlanRead[]; ticked: string[] } | null>(null);
+  const editPlans = () => {
+    if (!onJobPlans || !jobUuid) return onStep(0);
+    void loadJobPlans(jobUuid)
+      .then((plans) => {
+        if (!plans) return onStep(0);
+        const drawings = plans.filter((p) => p.kind !== "spec");
+        setPlansOpen({ before: drawings, now: drawings, ticked: plansInDesign(docRef.current, drawings) });
+      })
+      .catch(() => onStep(0));
+  };
+  /* while one is read, asked again, as the job's Plans does */
+  const plansReading = !!plansOpen?.now.some((p) => p.state === "reading");
+  useEffect(() => {
+    if (!plansReading || !jobUuid) return;
+    const timer = window.setInterval(() => {
+      void loadJobPlans(jobUuid)
+        .then((plans) => {
+          if (plans) setPlansOpen((o) => (o ? { ...o, now: plans.filter((p) => p.kind !== "spec") } : o));
+        })
+        .catch(() => {});
+    }, PLAN_POLL_MS);
+    return () => window.clearInterval(timer);
+  }, [plansReading, jobUuid]);
+  const addPlansHere = async (files: File[]): Promise<string | null> => {
+    if (!jobUuid) return null;
+    const wrong = await plansOntoJob(jobUuid, files);
+    const plans = await loadJobPlans(jobUuid).catch(() => null);
+    if (plans) setPlansOpen((o) => (o ? { ...o, now: plans.filter((p) => p.kind !== "spec") } : o));
+    return wrong;
+  };
+  const savePlansHere = async (chosen: ChosenFloors, ticked: string[]): Promise<string | null> => {
+    if (!jobUuid || !plansOpen) return null;
+    for (const [planId, floors] of Object.entries(chosen)) {
+      const why = await chooseJobPlanFloors(jobUuid, planId, floors).catch(() => "The floors couldn't be saved. Try again.");
+      if (why) return why;
+    }
+    const after = await loadJobPlans(jobUuid).catch(() => null);
+    if (!after) return "The plans couldn't be read again. Try again.";
+    const before = plansOpen.before;
+    mutate((d) => {
+      const { doc: next, made } = withJobPlans(d, before, after.filter((p) => p.kind !== "spec"), ticked);
+      const checked = next.reading ? { ...next, reading: withChecks(next.reading, next) } : next;
+      /* a floor a plan newly brings opens as the design did: scaled, its rooms marked */
+      return made.reduce((x, id) => readyFloor(x, id), checked);
+    });
+    return null;
+  };
   const hasReference = Boolean(doc.planImport?.sources?.length);
   /* canvas view state (transient, not persisted): layer visibility, plan
      grayscale, and the legend panel toggle */
@@ -1915,7 +2014,7 @@ function Editor({
             onNew={onNew}
             onOpen={onHome}
             onSave={onSaveNow}
-            onEditPlans={() => onStep(0)}
+            onEditPlans={editPlans}
             onReference={hasReference ? () => setRefOpen(true) : undefined}
             onStartAgain={onStartAgain}
             onDelete={onDelete}
@@ -2100,7 +2199,7 @@ function Editor({
             onLook3d={setLook3d}
             activeFloorId={activeFloorId}
             onAddFloor={addFloor}
-            onGoPlans={() => onStep(0)}
+            onGoPlans={editPlans}
             tool={tool}
             onTool={changeTool}
             airGate={airGate}
@@ -2391,6 +2490,16 @@ function Editor({
         />
       )}
 
+      {plansOpen && (
+        <PlansDialog
+          plans={plansOpen.now}
+          jobNumber={doc.jobLink?.jobNumber ?? null}
+          ticked={plansOpen.ticked}
+          onAdd={addPlansHere}
+          onSave={savePlansHere}
+          onClose={() => setPlansOpen(null)}
+        />
+      )}
       {refOpen && hasReference && (
         <ReferenceViewer
           doc={doc}
@@ -3854,6 +3963,8 @@ function DesignPanel({
   );
   const [zoomApi, setZoomApi] = useState<ZoomApi | null>(null);
   const [zoomPct, setZoomPct] = useState(100);
+  /* the next flow: How to design, open from Help at the plan's foot */
+  const [helpOpen, setHelpOpen] = useState(false);
   /* the next flow: the sheet's unit, to say when words have stopped
      following the plan in (figure-bounds.ts canvasUnit) */
   const next = useStudioFlow() === "next";
@@ -4113,13 +4224,22 @@ function DesignPanel({
             </>
           )}
         </div>
-        {/* the next flow: history floats at the plan's left corner, in words */}
+        {/* the next flow: Help and history float at the plan's left corner,
+            in words; Help opens How to design above them */}
         {next && (
-          <div className="ds-history" role="group" aria-label="History">
-            <button type="button" onClick={undo} disabled={!hist.undo}>Undo</button>
-            <button type="button" onClick={redo} disabled={!hist.redo}>Redo</button>
+          <div className="ds-plan-foot-left">
+            <div className="ds-help-btn">
+              <button type="button" aria-expanded={helpOpen} onClick={() => setHelpOpen((o) => !o)}>
+                Help
+              </button>
+            </div>
+            <div className="ds-history" role="group" aria-label="History">
+              <button type="button" onClick={undo} disabled={!hist.undo}>Undo</button>
+              <button type="button" onClick={redo} disabled={!hist.redo}>Redo</button>
+            </div>
           </div>
         )}
+        {next && helpOpen && <StudioHelp doc={doc} pack={pack} onClose={() => setHelpOpen(false)} />}
         <div className="ds-canvas-body" ref={setCanvasBody}>
           <StudioCanvas
             key={floor.id}

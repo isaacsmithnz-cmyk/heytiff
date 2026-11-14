@@ -13,6 +13,7 @@ import { releaseZones } from "./builder";
 import type { DesignDocument, DesignObject, Point } from "./document";
 import { distToSegment, isAxisAlignedRect } from "./geometry";
 import type { DataPack } from "./packs/schema";
+import { proposedScale } from "./plan-set";
 import type { ReadOpening } from "./reading";
 import { joinOutlines, roomFrom, suggestionsFor, type Suggestion } from "./rooms-from-reading";
 
@@ -133,6 +134,55 @@ export function keepFound(doc: DesignDocument, floorId: string, keys: string[], 
     });
   }
   return added.length ? { ...doc, objects: [...doc.objects, ...added] } : doc;
+}
+
+/** A design as it opens from a job's plans: each floor that has no scale
+    takes the one its page gives (the printed one, else the one Tiff
+    measured off its dimensions), and the rooms inside the house are marked
+    from her read, so the rooms and their heat loads are there on open. A
+    garage or a carport stays a suggestion, and so does every room of a
+    floor with no scale to mark it by (Isaac, 14 November 2026: "Yes" to
+    building from https://claude.ai/artifact/61nqwanqUAtQx4iG6AxoYs, where
+    3465 opens with its twelve rooms marked and the carport left found). */
+export function readyFromPlans(doc: DesignDocument): DesignDocument {
+  return doc.floors.reduce((d, { id }) => readyFloor(d, id), doc);
+}
+
+/** One floor as a design from a job's plans opens: its scale off the plan
+    where it has none, and its rooms inside the house marked. Also a floor a
+    plan newly brings in through the Plans dialog (job-plan-floors.ts). */
+export function readyFloor(doc: DesignDocument, id: string): DesignDocument {
+  let d = doc;
+  const floor = d.floors.find((f) => f.id === id);
+  if (floor && !floor.scaleMmPerUnit) {
+    const scale = proposedScale(d, id);
+    if (scale) d = { ...d, floors: d.floors.map((f) => (f.id === id ? { ...f, scaleMmPerUnit: scale.mmPerUnit } : f)) };
+  }
+  return keepFound(d, id, insideOn(d, id));
+}
+
+/** The found rooms inside the house on a floor, by key: all but a garage or a carport. */
+const insideOn = (doc: DesignDocument, floorId: string): string[] =>
+  foundOn(doc, floorId)
+    .filter((s) => s.kind !== "garage")
+    .map((s) => s.key);
+
+/** After a change: a floor of a design made from a job's plans that has
+    just been given its scale gets its rooms marked, as it would have opened
+    had the plan had a scale (the same mock: "The rooms stay grey outlines
+    until the scale is measured, then they're marked and sized"). Only a
+    floor with no room on it, so a scale measured again marks nothing twice
+    and a floor somebody has started on is left to them. */
+export function markOnScale(prev: DesignDocument, next: DesignDocument): DesignDocument {
+  if (!next.planImport?.jobPlanId) return next;
+  let d = next;
+  for (const f of next.floors) {
+    const was = prev.floors.find((p) => p.id === f.id);
+    if (!was || was.scaleMmPerUnit != null || f.scaleMmPerUnit == null) continue;
+    if (d.objects.some((o) => o.type === "room" && o.floorId === f.id)) continue;
+    d = keepFound(d, f.id, insideOn(d, f.id));
+  }
+  return d;
 }
 
 /** The ceiling height the set gives a room, in metres, and where it says

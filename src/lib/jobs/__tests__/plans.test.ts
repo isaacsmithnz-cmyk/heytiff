@@ -1,5 +1,5 @@
 import type { PlanReading, SheetReading } from "@/lib/studio/reading";
-import { designFromPlan, designFromPlans, floorNamesOf, guessPageByWords, levelOfTitle, pagesWordOf, planLine, planReadLine, stackLevels, stateOfRead, startablePlans, type JobPlan, type JobPlanPage, type JobPlanRead } from "../plans";
+import { areaM2Of, chooseFloors, choosablePages, designFromPlan, floorOptions, floorValueOf, designFromPlans, floorNamesOf, guessPageByWords, levelOfTitle, pagesWordOf, planLine, planReadLine, planStateWord, scaleAsks, scaleSaid, stackLevels, stateOfRead, startablePlans, type JobPlan, type JobPlanPage, type JobPlanRead } from "../plans";
 
 /* PLANS ON THE JOB, the pure side (lib/jobs/plans.ts): which pages are
    floors by their words, what a read came to, what the row says, and a
@@ -109,8 +109,8 @@ describe("what the read came to", () => {
 describe("what the row says", () => {
   it("names the floors, the roof and the site, when, and who uses it", () => {
     expect(floorNamesOf(plan())).toBe("Ground floor and Level 1");
-    expect(planLine(plan())).toBe("Ground floor and Level 1, the roof and the site, read on Mon 9 Nov. Used by 2 designs");
-    expect(planLine(plan({ usedBy: 1, reading: reading({ roof: null, site: null }) }))).toBe("Ground floor and Level 1, read on Mon 9 Nov. Used by 1 design");
+    expect(planLine(plan())).toBe("Ground floor and Level 1, the roof and the site, read on Mon 9 Nov. Scaled off its printed scale, 1:50 @ A1. Used by 2 designs");
+    expect(planLine(plan({ usedBy: 1, reading: reading({ roof: null, site: null }) }))).toBe("Ground floor and Level 1, read on Mon 9 Nov. Scaled off its printed scale, 1:50 @ A1. Used by 1 design");
   });
   it("says who is adding it while Tiff reads", () => {
     expect(planLine(plan({ state: "reading", reading: null, readAt: null, usedBy: 0 }), "2026-11-09")).toBe("Added to Plans by Isaac Smith today");
@@ -118,7 +118,7 @@ describe("what the row says", () => {
   });
   it("says what was read and what to check", () => {
     expect(planLine(plan({ state: "check", said: "Page 4 has no rooms on it, so it may not be a floor plan", usedBy: 0 }))).toBe(
-      "Pages 3 and 4 read: Ground floor and Level 1, the roof and the site. Page 4 has no rooms on it, so it may not be a floor plan"
+      "Pages 3 and 4 read: Ground floor and Level 1, the roof and the site. Page 4 has no rooms on it, so it may not be a floor plan. Scaled off its printed scale, 1:50 @ A1"
     );
     expect(planLine(plan({ state: "failed", said: "The plans couldn't be read: the file couldn't be fetched", usedBy: 0 }))).toBe("Couldn't be read: the file couldn't be fetched");
     expect(pagesWordOf([4, 3])).toBe("Pages 3 and 4");
@@ -129,8 +129,8 @@ describe("what the row says", () => {
     expect(planLine({ ...spec, state: "check", said: "No page names the air conditioning, ventilation or exhaust" })).toBe("No page names the air conditioning, ventilation or exhaust");
   });
   it("tells New design the rooms she found", () => {
-    expect(planReadLine(plan())).toBe("Read on Mon 9 Nov: Ground floor and Level 1, 5 rooms, the roof and the site");
-    expect(planReadLine(plan({ reading: reading({ floors: { p3: [sheet("p3", ["A", "B"])], p4: [sheet("p4", ["C", "D"])] } }) }))).toBe("Read on Mon 9 Nov: Ground floor and Level 1, 2 rooms each, the roof and the site");
+    expect(planReadLine(plan())).toBe("Read on Mon 9 Nov: Ground floor and Level 1, 5 rooms, the roof and the site. Scaled off its printed scale, 1:50 @ A1");
+    expect(planReadLine(plan({ reading: reading({ floors: { p3: [sheet("p3", ["A", "B"])], p4: [sheet("p4", ["C", "D"])] } }) }))).toBe("Read on Mon 9 Nov: Ground floor and Level 1, 2 rooms each, the roof and the site. Scaled off its printed scale, 1:50 @ A1");
     expect(planReadLine(plan({ state: "reading", reading: null }))).toBe("Tiff is reading the plans");
   });
   it("offers a read plan to start from, not one still being read", () => {
@@ -188,3 +188,117 @@ describe("a design from a plan", () => {
 /* the JobPlan type is the row as stored; a read adds thumbs and use */
 const _typed: JobPlan = plan();
 void _typed;
+
+/* THE SCALE A READ PLAN RESTS ON (Isaac, 14 November 2026: "Like plans
+   uploaded, tiff read but scale is incomplete?", "Yep"): a page with none
+   to be had asks for one, one resting on a single printed figure can be
+   checked, and a scale somebody set is the page's from then on. */
+describe("a read plan's scale", () => {
+  const photo = (over: Partial<JobPlanPage> = {}) => page(3, { mmPerPx: null, scale: null, measured: null, ...over });
+  const one = (pages: JobPlanPage[], over: Partial<JobPlanRead> = {}) => plan({ pages, reading: reading({ floors: { p3: [sheet("p3", ["Living", "Kitchen", "Bed 1"])] }, roof: null, site: null }), usedBy: 0, ...over });
+  const measured = { mmPerPx: 9.5, from: "the 7440, 3300 and 2400 mm printed on it", sure: true };
+
+  it("asks for a scale on a page with none to be had, in orange", () => {
+    const p = one([photo()]);
+    expect(scaleAsks(p)).toEqual([{ n: 3, ask: "set" }]);
+    expect(planStateWord(p)).toEqual({ word: "Scale needed", tone: "look" });
+    expect(planLine(p)).toBe("Ground floor, read on Mon 9 Nov. No scale on the plan, so the rooms have no sizes");
+    expect(planReadLine(p)).toBe("Read on Mon 9 Nov: Ground floor, 3 rooms. No scale on the plan, so the rooms have no sizes");
+  });
+
+  it("names the page when only one of several has no scale", () => {
+    const p = plan({ pages: [page(3), page(4, { mmPerPx: null, scale: null, measured: null })] });
+    expect(scaleAsks(p)).toEqual([{ n: 4, ask: "set" }]);
+    expect(scaleSaid(p)).toBe("No scale on page 4, so its rooms have no sizes");
+  });
+
+  it("stays Read on one printed figure, says so, and can be checked", () => {
+    const p = one([photo({ measured: { mmPerPx: 24.4, from: "the 7440 mm printed on it", sure: false } })]);
+    expect(scaleAsks(p)).toEqual([{ n: 3, ask: "check" }]);
+    expect(planStateWord(p)).toEqual({ word: "Read", tone: "good" });
+    expect(scaleSaid(p)).toBe("Scaled off one printed figure, the 7440 mm");
+  });
+
+  it("says what a sure scale rests on, and asks nothing", () => {
+    const p = one([photo({ measured })]);
+    expect(scaleAsks(p)).toEqual([]);
+    expect(planStateWord(p)).toEqual({ word: "Read", tone: "good" });
+    expect(scaleSaid(p)).toBe("Scaled off the 7440, 3300 and 2400 mm printed on it");
+  });
+
+  it("takes the scale somebody set over every other, and names them", () => {
+    const set = { mmPerPx: 10, mm: 7440, a: { x: 0, y: 0 }, b: { x: 744, y: 0 }, by: "Isaac Smith", at: "2026-11-14T00:00:00Z" };
+    const p = one([photo({ set })]);
+    expect(scaleAsks(p)).toEqual([]);
+    expect(planStateWord(p)).toEqual({ word: "Read", tone: "good" });
+    expect(scaleSaid(p)).toBe("Scaled off the 7440 mm Isaac Smith measured on it");
+    /* over a printed scale too, and a design made from it starts at it */
+    const printed = one([page(3, { set })]);
+    expect(scaleSaid(printed)).toBe("Scaled off the 7440 mm Isaac Smith measured on it");
+    expect(designFromPlan(printed).floors[0].scaleMmPerUnit).toBe(10);
+    /* a scale measured in a design has no length to name */
+    expect(scaleSaid(one([photo({ set: { mmPerPx: 10, mm: null, by: null, at: "2026-11-14T00:00:00Z" } })]))).toBe("Scaled off the scale someone measured in a design");
+  });
+
+  it("gives the floor area she read once every page has a scale", () => {
+    const sq = (name: string, side: number): SheetReading["spaces"][number] => ({ ...room(name), outline: [{ x: 0, y: 0 }, { x: side, y: 0 }, { x: side, y: side }, { x: 0, y: side }] });
+    const floors = { p3: [{ ...sheet("p3", []), spaces: [sq("Living", 500), sq("Bed 1", 300)] }] };
+    /* 10 mm a pixel: 5 m by 5 m and 3 m by 3 m */
+    const p = one([photo({ measured: { ...measured, mmPerPx: 10 } })], { reading: reading({ floors, roof: null, site: null }) });
+    expect(areaM2Of(p)).toBe(34);
+    expect(planReadLine(p)).toBe("Read on Mon 9 Nov: Ground floor, 2 rooms, 34 m². Scaled off the 7440, 3300 and 2400 mm printed on it");
+    expect(areaM2Of(one([photo()], { reading: reading({ floors, roof: null, site: null }) }))).toBeNull();
+  });
+
+  it("asks nothing of a plan still being read, one that failed, or a specification", () => {
+    expect(scaleAsks(one([photo()], { state: "reading", reading: null }))).toEqual([]);
+    expect(scaleAsks(one([photo()], { state: "failed", reading: null }))).toEqual([]);
+    expect(scaleAsks(one([photo()], { kind: "spec" }))).toEqual([]);
+    expect(planStateWord(one([photo()], { state: "check", said: "Page 3 has no rooms on it" }))).toEqual({ word: "Check the read", tone: "look" });
+  });
+
+  it("carries only the scale's figures into a design, not where its line ran", () => {
+    const at = { a: { x: 0, y: 0 }, b: { x: 744, y: 0 }, mm: 7440 };
+    const made = designFromPlan(one([photo({ measured: { ...measured, at } })]));
+    expect(made.planImport.measured).toEqual({ 2: measured });
+  });
+});
+
+describe("choosing a page's floor", () => {
+  it("offers a basement up to one above the top floor, by the set's names, then Not a floor plan", () => {
+    expect(floorOptions(plan())).toEqual([
+      { value: "-1", label: "Basement 1" },
+      { value: "0", label: "Ground floor" },
+      { value: "1", label: "Level 1" },
+      { value: "2", label: "Level 2" },
+      { value: "none", label: "Not a floor plan" },
+    ]);
+  });
+
+  it("lists only the pages she drew, and where each sits in its menu", () => {
+    const p = plan();
+    expect(choosablePages(p).map((pg) => pg.n)).toEqual([3, 4]);
+    expect(p.pages.slice(2).map(floorValueOf)).toEqual(["0", "1"]);
+  });
+
+  it("moves a page to a level by that level's name, takes one out as Not a floor plan, and marks each as looked at", () => {
+    const out = chooseFloors(plan().pages, { 4: "0" }, "Isaac Smith", "2026-11-15T01:00:00Z");
+    expect(out[3]).toMatchObject({ kind: "floor", level: 0, name: "Ground floor", picked: { by: "Isaac Smith", at: "2026-11-15T01:00:00Z" } });
+    expect(out[2]).toMatchObject({ kind: "floor", level: 0, name: "Ground floor", picked: { by: "Isaac Smith" } });
+    expect(out[0]).toEqual(plan().pages[0]);
+    const none = chooseFloors(plan().pages, { 3: "none" }, null, "2026-11-15T01:00:00Z");
+    expect(none[2]).toMatchObject({ kind: "other", level: null, ref: "org/o1/plan_3.png" });
+    /* and back again: a floor plan at its level, called what the level's called */
+    expect(chooseFloors(none, { 3: "2" }, null, "x")[2]).toMatchObject({ kind: "floor", level: 2, name: "Level 2" });
+  });
+
+  it("stops asking about a page somebody chose, and about one they said isn't a floor plan", () => {
+    const thin = reading({ floors: { p3: [sheet("p3", ["Living", "Kitchen"])], p4: [sheet("p4", ["Hall"])] }, failed: [] });
+    expect(stateOfRead(plan().pages, thin).state).toBe("check");
+    const looked = chooseFloors(plan().pages, {}, "Isaac Smith", "x");
+    expect(stateOfRead(looked, thin)).toEqual({ state: "read", said: null });
+    const failed = reading({ failed: [{ floorId: "p4", sheetId: "p4", reason: "blank" }] });
+    expect(stateOfRead(plan().pages, failed).state).toBe("check");
+    expect(stateOfRead(chooseFloors(plan().pages, { 4: "none" }, null, "x"), failed)).toEqual({ state: "read", said: null });
+  });
+});

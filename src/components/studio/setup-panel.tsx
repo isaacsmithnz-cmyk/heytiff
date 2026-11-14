@@ -70,7 +70,9 @@ export function SetupPanel({
                 <b>{mm(proposal.mmPerUnit)}</b> a pixel
               </>
             ) : (
-              "Not set"
+              /* nothing printed, nothing Tiff could measure: it asks, in the
+                 words the job's Plans use (14 November 2026) */
+              <StateWord tone="look">Scale needed</StateWord>
             )}
           </span>
         </div>

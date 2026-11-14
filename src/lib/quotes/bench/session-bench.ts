@@ -19,6 +19,7 @@ import { makeTools, type QuoteStore } from "../session/tools-run";
 import { runTurn, type EventDraft } from "../session/turn";
 import { sendBack } from "../session/send-back";
 import type { BenchCase, CaseLine } from "./score";
+import type { WriteUp } from "../write-up";
 
 /* TIFF ON THE BENCH (slice 4.3) — a case's brief through the same session,
    prompt and tools the app runs, against a quote held in memory and a
@@ -53,6 +54,8 @@ export function memoryStore(opts: {
   seed?: QuoteLine[];
   /** her questions a conversation left open, by number */
   openQuestions?: { id: number; question: string }[];
+  /** the write-up a conversation left, to carry on from */
+  writeUp?: WriteUp | null;
   /** the ducted airflow guide, as the app reads it; none, and her check says so */
   airflowGuide?: AirflowGuide | null;
   /** the job's Studio design, as the app reads it (design-read-server); none, and her read says so */
@@ -133,6 +136,7 @@ export function memoryStore(opts: {
     totals: async () => ({ ok: true, options: priceLines(lines, [], opts.settings, { pct: null, labourCostCents: null }).map((o) => o.build.exGstCents) }),
     taskHours: async () => ({ hours: opts.taskHours ?? { zone: null, grille: null, metre: null, visit: null }, dayHours: opts.settings.dayHours }),
     openQuestions: async () => opts.openQuestions ?? [],
+    lastWriteUp: async () => opts.writeUp ?? null,
     airflowGuide: async () => opts.airflowGuide ?? null,
     design: async (id) => (opts.design ? opts.design(id) : { found: false, reason: NO_DESIGN }),
   };

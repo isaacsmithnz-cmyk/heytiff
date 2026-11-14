@@ -1,3 +1,5 @@
+import type { Hue } from "@/components/parts/state";
+
 /* Starting a design FROM a ServiceM8 job — pure, client-safe.
 
    A design is named after a street ("14 Harbour View Rd"), and the job it
@@ -31,6 +33,13 @@ export type StudioJobHit = {
   address: string | null;
   suburb: string | null;
   description: string | null;
+  /** What a job card draws beside those (lib/studio/job-cards-server): the
+      kind of job (its ServiceM8 category), the colour of its number box
+      (lib/workboard/job-hue), and whether Tiff has read plans on the job.
+      Absent where a job is only named, never drawn as a card. */
+  kind?: string | null;
+  hue?: Hue;
+  plansRead?: boolean;
 };
 
 /** What picking a job writes into a fresh design: the sheet's four visible

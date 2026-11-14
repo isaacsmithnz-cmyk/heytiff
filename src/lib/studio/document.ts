@@ -166,8 +166,10 @@ export interface PlanImport {
   words?: Record<number, { text: string; at: { x: number; y: number } }[]>;
   /** a placed page's scale as Tiff measured it off the lengths printed on it,
       for a page whose title block prints none (lib/studio/reading.ts
-      scaleFromDimensions): Scale and north offers it, and never sets it on
-      its own. Absent on a design made from files dropped in. */
+      scaleFromDimensions): Scale and north offers it, and a design made
+      from a job's plans opens with it on its floor (room-edit.ts
+      readyFromPlans, 14 November 2026). Absent on a design made from files
+      dropped in. */
   measured?: Record<number, { mmPerPx: number; from: string; sure: boolean }>;
   /** the job's plan this design was started from (lib/jobs/plans.ts): the
       floors are its floor pages and the reading came with it, so the job's

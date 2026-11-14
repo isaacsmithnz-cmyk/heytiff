@@ -36,7 +36,7 @@ jest.mock("@/lib/supabase-server", () => ({
   },
 }));
 
-import { readThread, readThreadFrom } from "../store-server";
+import { liveWriter, LIVE_EVERY_MS, readThread, readThreadFrom } from "../store-server";
 
 const ORG = "org-a";
 const JOB = "job-3384";
@@ -87,4 +87,33 @@ it("reads a thread from one event on, all of it, oldest first", async () => {
   expect(await readThreadFrom(ORG, JOB, -1)).toEqual([]);
   expect(await readThreadFrom(ORG, JOB, 0)).toEqual([]);
   expect(await readThreadFrom(ORG, "another-job", 50)).toEqual([]);
+});
+
+/* what she's at, kept as her words come: a new tool at once, words at most
+   every LIVE_EVERY_MS, one write at a time, nothing once the turn is done */
+describe("liveWriter", () => {
+  const ticks = async () => {
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+  };
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+  it("writes a new tool at once and her words at most every so often", async () => {
+    const wrote: { tool: string | null; text: string }[] = [];
+    const w = liveWriter("s1", "turn1", async (_s, _t, l) => void wrote.push({ tool: l.tool, text: l.text }));
+    w.put({ tool: "read_quote", text: "" });
+    await ticks();
+    expect(wrote).toEqual([{ tool: "read_quote", text: "" }]);
+    w.put({ tool: null, text: "T" });
+    w.put({ tool: null, text: "Th" });
+    w.put({ tool: null, text: "The" });
+    await ticks();
+    expect(wrote).toHaveLength(2);
+    w.put({ tool: null, text: "The total" });
+    jest.advanceTimersByTime(LIVE_EVERY_MS);
+    await w.done();
+    expect(wrote.at(-1)).toEqual({ tool: null, text: "The total" });
+    w.put({ tool: "write_up", text: "" });
+    await ticks();
+    expect(wrote.at(-1)).toEqual({ tool: null, text: "The total" });
+  });
 });

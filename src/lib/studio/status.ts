@@ -21,6 +21,23 @@ export interface CardStatus {
   why?: string;
 }
 
+/** a built system that isn't done building: its combination fails or one of
+    its zones is short, the two things its card says in red. The Next chip
+    and How to design keep it at Build system till both are right (Isaac,
+    14 November 2026: "Do both", on Build system ticked with a room short). */
+export function systemNeedsWork(
+  doc: DesignDocument,
+  pack: DataPack,
+  basis: SizingBasis,
+  sys: DesignSystem
+): boolean {
+  if (blockingFindings(systemFindings(doc, pack, sys)).length) return true;
+  return systemZones(doc, sys.id).some((zone) => {
+    const v = roomVerdict(doc, pack, basis, zone);
+    return v.word === "Undersized" && !!v.loadKw;
+  });
+}
+
 export function cardStatus(
   doc: DesignDocument,
   pack: DataPack | null,

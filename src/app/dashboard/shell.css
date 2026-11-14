@@ -5255,20 +5255,16 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .tm .tm-turn.live .tm-tt, .fg .tm .tm-turn.live .tm-words { min-height:36px; font-size:24px; }
 .fg .tm .tm-fix { color:var(--paper); caret-color:var(--paper); }
 .fg .tm .wb2-lwsaid { color:var(--paper); }
-.fg .tm .tm-plan { margin-top:16px; border-top-color:var(--on-ink-line); }
-.fg .tm .tm-row-plan { grid-template-columns:24px minmax(0,1fr) auto; gap:16px; min-height:52px; padding:12px 0;
-  border-bottom-color:var(--on-ink-line); font-size:16px; }
-.fg .tm .tm-ok { color:var(--paper); }
-.fg .tm .tm-qm { width:24px; height:24px; font-size:16px; color:var(--warn); box-shadow:inset 0 0 0 1.5px var(--warn); }
-.fg .tm .tm-needs { font-size:16px; color:var(--warn); }
-.fg .tm .tm-added { font-size:16px; color:var(--on-ink-q); }
-.fg .tm .tm-quick { gap:12px; margin-top:16px; }
-.fg .tm .tm-doors { gap:16px; margin-top:16px; font-size:16px; color:var(--on-ink-q); }
+/* HER DECISIONS ARE DRAWN FOR PAPER. The window has been paper since 20
+   October 2026 (the docked chat, below), but the plan's rows, the words
+   after them and her error line still wore the ink modal's colours here:
+   a white tick and white hairlines on white, quiet-on-ink words. Those
+   rules are gone, so the light rules above draw them: the tick in ink, the
+   lines the hairline, the rows at the chat's own 14 (Isaac, 14 November
+   2026, "Fix the tick", on https://claude.ai/artifact/7aAQf313rPcFbJvAyiqgvp). */
 .fg .tm .tm-dock { padding:16px 24px; border-top-color:var(--on-ink-line); }
 
-.fg .tm .tm-err { margin-top:12px; font-size:16px; color:var(--bad-on-ink); }
 .fg .tm .tiffbtn-box { --tb:48px; }
-.fg .tm .wb2-anscursor { --wb2-cy:var(--paper); }
 
 
 /* The live transcript, and it must read as WORDS, not as a status line —
@@ -7067,17 +7063,20 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    the job's number in a solid box of its colour, the rest white inside a
    hairline of the same colour, three lines at 12. The colour is the card's
    own token (orange, yellow and pink their card values, 6 November 2026); a
-   done card's is grey. */
-.fg .sc-card--red { --sc-hue:var(--red-w); }
-.fg .sc-card--orange { --sc-hue:var(--orange-card); }
-.fg .sc-card--yellow { --sc-hue:var(--yellow-card); }
-.fg .sc-card--green { --sc-hue:var(--green-w); }
-.fg .sc-card--blue { --sc-hue:var(--press); }
-.fg .sc-card--purple { --sc-hue:var(--purple-w); }
-.fg .sc-card--pink { --sc-hue:var(--pink-card); }
-.fg .sc-card--grey { --sc-hue:var(--q); }
+   done card's is grey. New design's job picker draws the same card in a
+   dialog, which is portalled out of .fg, so the card's own rules name
+   .pt-dialog too (Isaac, 14 November 2026: "Job picker should look more
+   like job cards"). */
+.fg .sc-card--red, .pt-dialog .sc-card--red { --sc-hue:var(--red-w); }
+.fg .sc-card--orange, .pt-dialog .sc-card--orange { --sc-hue:var(--orange-card); }
+.fg .sc-card--yellow, .pt-dialog .sc-card--yellow { --sc-hue:var(--yellow-card); }
+.fg .sc-card--green, .pt-dialog .sc-card--green { --sc-hue:var(--green-w); }
+.fg .sc-card--blue, .pt-dialog .sc-card--blue { --sc-hue:var(--press); }
+.fg .sc-card--purple, .pt-dialog .sc-card--purple { --sc-hue:var(--purple-w); }
+.fg .sc-card--pink, .pt-dialog .sc-card--pink { --sc-hue:var(--pink-card); }
+.fg .sc-card--grey, .pt-dialog .sc-card--grey { --sc-hue:var(--q); }
 /* ink on the yellow box, as white is 2.1:1 there */
-.fg .sc-card--yellow .sc-cn { color:var(--ink); }
+.fg .sc-card--yellow .sc-cn, .pt-dialog .sc-card--yellow .sc-cn { color:var(--ink); }
 /* TIME OFF IS A BOOKING'S CARD whose box holds a clock on the soft grey, in
    a grey hairline (Isaac, 6 November 2026, "Build it" on the block out mock):
    ServiceM8's own time off, regular days off and blocks out made here alike */
@@ -7086,18 +7085,18 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .sc-blk.sc-card--off, .fg .sc-wbar.sc-card--off { font:inherit; text-align:left; }
 .fg button.sc-card--off.sc-blk, .fg button.sc-card--off.sc-wbar { cursor:pointer; }
 .fg .sc-holding button.sc-card--off.sc-blk { cursor:copy; }
-.fg .sc-card { flex-direction:row; align-items:stretch; justify-content:flex-start; padding:0; border:1px solid var(--sc-hue, var(--q)); border-radius:var(--r-control); background:var(--white); color:var(--ink); text-decoration:none; overflow:hidden; }
+.fg .sc-card, .pt-dialog .sc-card { flex-direction:row; align-items:stretch; justify-content:flex-start; padding:0; border:1px solid var(--sc-hue, var(--q)); border-radius:var(--r-control); background:var(--white); color:var(--ink); text-decoration:none; overflow:hidden; }
 .fg .sc-blk.sc-card { bottom:auto; height:52px; }
 .fg .sc-wbar.sc-card { flex-direction:row; padding:0; }
 .fg .sc-card.sc-clash { outline:2px solid var(--orange); outline-offset:-1px; }
-.fg .sc-cn { flex:none; display:flex; align-items:center; justify-content:center; min-width:48px; padding:0 8px; background:var(--sc-hue, var(--q)); color:var(--white); font-size:12px; line-height:16px; font-weight:700; font-variant-numeric:tabular-nums; }
-.fg .sc-cb { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; justify-content:center; padding:2px 8px; }
-.fg .sc-c1 { font-size:12px; line-height:16px; font-weight:600; color:var(--ink); }
-.fg .sc-c2 { font-size:12px; line-height:16px; font-weight:400; color:var(--q); }
-.fg .sc-c3 { display:flex; align-items:center; gap:8px; min-width:0; overflow:hidden; white-space:nowrap; font-size:12px; line-height:16px; color:var(--q); }
-.fg .sc-c3 b { font-weight:600; color:var(--ink); }
+.fg .sc-cn, .pt-dialog .sc-cn { flex:none; display:flex; align-items:center; justify-content:center; min-width:48px; padding:0 8px; background:var(--sc-hue, var(--q)); color:var(--white); font-size:12px; line-height:16px; font-weight:700; font-variant-numeric:tabular-nums; }
+.fg .sc-cb, .pt-dialog .sc-cb { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; justify-content:center; padding:2px 8px; }
+.fg .sc-c1, .pt-dialog .sc-c1 { font-size:12px; line-height:16px; font-weight:600; color:var(--ink); }
+.fg .sc-c2, .pt-dialog .sc-c2 { font-size:12px; line-height:16px; font-weight:400; color:var(--q); }
+.fg .sc-c3, .pt-dialog .sc-c3 { display:flex; align-items:center; gap:8px; min-width:0; overflow:hidden; white-space:nowrap; font-size:12px; line-height:16px; color:var(--q); }
+.fg .sc-c3 b, .pt-dialog .sc-c3 b { font-weight:600; color:var(--ink); }
 .fg .sc-crew { display:inline-flex; align-items:center; gap:2px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
-.fg .sc-cs { margin-left:auto; flex:none; font-size:12px; line-height:16px; }
+.fg .sc-cs, .pt-dialog .sc-cs { margin-left:auto; flex:none; font-size:12px; line-height:16px; }
 .fg .sc-fit { font-size:12px; line-height:16px; font-weight:600; pointer-events:none; }
 .fg .sc-fit.sc-ok { background:var(--sel); box-shadow:inset 0 0 0 2px var(--ink); color:var(--ink); }
 .fg .sc-fit.sc-part { background:transparent; color:var(--warn-t); }
@@ -7421,9 +7420,18 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .pt-dialog .ds2-nd-fact b { color:var(--ink); font-weight:600; }
 .pt-dialog .ds2-nd-foot-fact { margin-right:auto; align-self:center; font-size:14px; line-height:20px; color:var(--q); }
 .pt-dialog .ds2-nd-error { display:flex; align-items:center; gap:8px; margin:0; font-size:14px; line-height:20px; color:var(--ink); }
-.pt-dialog .ds2-nd-job { display:flex; align-items:center; gap:8px; min-height:36px; padding:0 4px 0 12px; box-sizing:border-box; border:1px solid var(--edge); border-radius:var(--r-control); font-size:14px; line-height:20px; }
-.pt-dialog .ds2-nd-job b { font-weight:600; }
-.pt-dialog .ds2-nd-job span { flex:1 1 auto; min-width:0; color:var(--q); }
+/* the job, asked first: the search, then Recent and All jobs as the
+   Schedule's job cards, two across; the job chosen stays as its card with
+   a cross (Isaac, 14 November 2026, the mock "Designs from a job") */
+.pt-dialog .ds2-nd-pick { display:flex; flex-direction:column; gap:16px; }
+.pt-dialog .ds2-nd-group { display:flex; flex-direction:column; gap:4px; }
+.pt-dialog .ds2-nd-cards { list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; }
+.pt-dialog .ds2-nd-cards li { min-width:0; }
+.pt-dialog .ds2-nd-card { display:flex; box-sizing:border-box; width:100%; min-height:52px; margin:0; font:inherit; text-align:left; cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
+.pt-dialog .ds2-nd-card:hover { background:var(--hov); }
+.pt-dialog .ds2-nd-card:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
+.pt-dialog .ds2-nd-picked { display:flex; box-sizing:border-box; min-height:52px; }
+.pt-dialog .ds2-nd-picked .pt-btn { flex:none; align-self:center; margin-right:8px; }
 /* the job search, on the dialog's white: studio.css draws it for the old dark
    start screen and only inside .dstudio, which a portalled dialog never is */
 .pt-dialog .ds-sm8-field { position:relative; }
@@ -8144,7 +8152,10 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jpl-pages { display:flex; flex-wrap:wrap; gap:12px; margin-top:8px; position:relative; z-index:var(--z-raised); }
 .fg .jpl-page { display:flex; flex-direction:column; gap:4px; width:160px; }
 .fg .jpl-page img { display:block; width:160px; height:113px; object-fit:cover; border:1px solid var(--edge); border-radius:var(--r-control); background:var(--white); }
-.fg .jpl-page span { font-size:12px; line-height:16px; font-weight:500; color:var(--q); }
+.fg .jpl-page > span { font-size:12px; line-height:16px; font-weight:500; color:var(--q); }
+.fg .jpl-page .pt-btn { align-self:flex-start; margin-top:4px; }
+/* under a set she isn't sure of: its pages, then Choose floors */
+.fg .jpl-below { display:flex; flex-direction:column; align-items:flex-start; gap:12px; position:relative; z-index:var(--z-raised); }
 .pt-dialog .jpl-add { display:flex; flex-direction:column; gap:16px; }
 .pt-dialog .jpl-add .pt-rows { border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
 .pt-dialog .jpl-add .pt-row { padding-left:0; padding-right:0; }
@@ -8156,16 +8167,32 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .cv-job-plans .pt-tick { align-items:flex-start; }
 .fg .cv-job-plans .pt-tick__box { margin-top:2px; }
 /* New design's Plans field: the job's plans as rows with ticks, their floors
-   small under each, and a quiet Add plans; the dialog is outside `.fg` */
-.pt-dialog .ds2-nd-plans { display:flex; flex-direction:column; gap:8px; }
-.pt-dialog .ds2-nd-plans .pt-rows { border:1px solid var(--edge); border-radius:var(--r-control); }
-.pt-dialog .ds2-nd-plans .pt-row { padding-left:12px; padding-right:12px; }
-.pt-dialog .ds2-nd-plans .jdoc-tick { position:relative; z-index:var(--z-raised); display:inline-flex; width:16px; }
-.pt-dialog .ds2-nd-addword { align-self:flex-start; }
+   small under each, and a quiet Add plans; the dialog is outside `.fg`.
+   The Plans dialog (14 November 2026) is the same rows, each page with its
+   floor in a menu under it. */
+.pt-dialog .ds2-nd-plans, .pt-dialog .jpl-plans { display:flex; flex-direction:column; gap:8px; }
+.pt-dialog .ds2-nd-plans .pt-rows, .pt-dialog .jpl-plans .pt-rows { border:1px solid var(--edge); border-radius:var(--r-control); }
+.pt-dialog .ds2-nd-plans .pt-row, .pt-dialog .jpl-plans .pt-row { padding-left:12px; padding-right:12px; }
+.pt-dialog .ds2-nd-plans .jdoc-tick, .pt-dialog .jpl-plans .jdoc-tick { position:relative; z-index:var(--z-raised); display:inline-flex; width:16px; }
+.pt-dialog .ds2-nd-addword, .pt-dialog .jpl-plans-add { align-self:flex-start; }
+.pt-dialog .jpl-pages--floors { position:relative; z-index:var(--z-raised); gap:16px; }
+.pt-dialog .jpl-pages--floors .jpl-page { width:160px; }
+.pt-dialog .jpl-pages--floors .jpl-page img { width:160px; height:113px; }
+/* SET SCALE (14 November 2026): the page, the two ends pressed on it, and
+   the length typed. The dots keep their size whatever the page's; the line
+   and the dots are the press colour, as the button that saves them is. */
+.pt-dialog .jpl-scale { display:flex; flex-direction:column; gap:16px; }
+.pt-dialog .jpl-scale-page { display:flex; align-items:center; justify-content:center; align-self:center; min-height:120px; max-width:100%; border:1px solid var(--edge); border-radius:var(--r-control); background:var(--white); overflow:hidden; }
+.pt-dialog .jpl-scale-page svg { display:block; width:100%; height:100%; cursor:crosshair; touch-action:none; user-select:none; }
+.pt-dialog .jpl-scale-line { stroke:var(--press); stroke-width:2px; vector-effect:non-scaling-stroke; pointer-events:none; }
+.pt-dialog .jpl-scale-dot { fill:var(--white); stroke:var(--press); stroke-width:2px; vector-effect:non-scaling-stroke; pointer-events:none; }
+.pt-dialog .jpl-scale-len { display:flex; align-items:center; gap:8px; }
+.pt-dialog .jpl-scale-len .pt-input { width:200px; }
+.pt-dialog .jpl-scale-len span { font-size:14px; line-height:20px; color:var(--q); }
 .pt-dialog .jpl-pages { display:flex; flex-wrap:wrap; gap:12px; margin-top:8px; }
 .pt-dialog .jpl-page { display:flex; flex-direction:column; gap:4px; width:120px; }
 .pt-dialog .jpl-page img { display:block; width:120px; height:85px; object-fit:cover; border:1px solid var(--edge); border-radius:var(--r-control); background:var(--white); }
-.pt-dialog .jpl-page span { font-size:12px; line-height:16px; font-weight:500; color:var(--q); }
+.pt-dialog .jpl-page > span { font-size:12px; line-height:16px; font-weight:500; color:var(--q); }
 
 /* STOCK (components/stock/stock-page.tsx): the shopping list and By job, in
    the phone's look on the desktop, its groups white cards lifted off the
@@ -8223,4 +8250,42 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .pt-dialog .stk-share li { display:grid; grid-template-columns:64px minmax(0,1fr) auto; gap:12px; align-items:center; padding:8px 0; border-top:1px solid var(--line); font-size:14px; line-height:20px; }
 .pt-dialog .stk-share .stk-t { font-weight:600; }
 .pt-dialog .stk-share .stk-s { color:var(--q); font-size:13px; }
+/* a job's Equipment, on its Overview (13 November 2026) */
+.fg .jeq { margin:0; padding:0; list-style:none; border-top:1px solid var(--line); }
+.fg .jeq-row { display:flex; align-items:center; gap:12px; min-height:48px; padding:8px 0; border-bottom:1px solid var(--line); }
+.fg .jeq-n { flex:none; min-width:20px; text-align:right; font-size:13px; line-height:18px; font-weight:600; color:var(--q); font-variant-numeric:tabular-nums; }
+.fg .jeq-mid { flex:1; min-width:0; display:flex; flex-direction:column; }
+.fg .jeq-t { display:block; max-width:100%; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.fg .jeq-s { display:block; max-width:100%; font-size:13px; line-height:18px; color:var(--q); }
+/* Stock's ordering (13 November 2026): a supplier's lot in drops, the factory's and each site's; what a job needs at a later visit; Later's grid */
+.fg .stk-drop { padding:8px 0 4px; border-top:1px solid var(--line); }
+.fg .stk-order > .stk-sup + .stk-drop { border-top:0; }
+.fg .stk-droph { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:0 16px 4px; }
+.fg .stk-dropa { padding:0 16px 4px; }
+.fg .stk-where { margin:0; padding:8px 16px 0; list-style:none; border-top:1px solid var(--line); }
+.fg .stk-where li { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:4px 0; }
+.fg .stk-later { display:flex; flex-direction:column; gap:4px; padding:8px 16px; border-top:1px solid var(--line); }
+.fg .stk-later p { margin:0; }
+.fg .stk-later b { font-weight:600; color:var(--ink); }
+.fg .stk-lat { padding:12px 0 0; }
+.fg .stk-lath { display:flex; align-items:center; gap:16px; padding:0 16px 8px; flex-wrap:wrap; }
+.fg .stk-lath .stk-sup { padding:0; }
+.fg .stk-lath .stk-s { flex:1; min-width:200px; }
+.fg .stk-lata { display:flex; gap:8px; }
+.fg .stk-grid-wrap { overflow-x:auto; }
+.fg .stk-grid { width:100%; border-collapse:collapse; font-size:13px; line-height:18px; }
+.fg .stk-grid th, .fg .stk-grid td { padding:8px 16px; border-top:1px solid var(--line); text-align:left; vertical-align:top; font-weight:400; }
+.fg .stk-grid thead th { font-weight:600; color:var(--q); white-space:nowrap; }
+.fg .stk-grid thead .stk-s, .fg .stk-grid tbody th .stk-s { display:block; font-weight:400; }
+.fg .stk-grid .stk-num-c { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.fg .stk-grid .stk-num-c--all { font-weight:700; }
+.pt-dialog .stk-share li .stk-need { grid-column:1 / -1; }
+.pt-dialog .stk-share li.stk-share--2 { grid-template-columns:minmax(0,1fr) auto; }
+.pt-dialog .stk-mid { display:flex; flex-direction:column; min-width:0; }
+.pt-dialog .stk-left { display:flex; flex-direction:column; gap:8px; margin-top:16px; padding-top:12px; border-top:1px solid var(--line); }
+.pt-dialog .stk-left .stk-t { font-size:14px; line-height:20px; font-weight:600; }
+.pt-dialog .stk-askrow { display:flex; flex-wrap:wrap; gap:8px; }
+.pt-dialog .stk-fld { display:flex; flex-direction:column; gap:8px; margin:16px 0; }
+.pt-dialog .stk-lbl { font-size:13px; line-height:18px; font-weight:600; color:var(--q); }
+.pt-dialog .stk-n { flex:none; font-size:13px; line-height:18px; font-weight:600; color:var(--q); font-variant-numeric:tabular-nums; }
 @media (max-width:900px) { .fg .stk-cols { grid-template-columns:minmax(0,1fr); } .fg .stk-masonry { columns:1; } }

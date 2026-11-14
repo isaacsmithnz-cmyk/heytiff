@@ -24,6 +24,7 @@ import type { LibraryManifest } from "@/lib/studio/packs/library";
 import type { PlanImages } from "@/lib/studio/plans";
 import type { DesignSummary } from "@/lib/studio/store";
 import type { JobSearch } from "./job-search";
+import type { JobLists } from "./job-picker";
 import { LibraryDoor } from "./library-modal";
 import { NewDesign } from "./new-design";
 import type { JobPlanRead } from "@/lib/jobs/plans";
@@ -95,6 +96,7 @@ export function DesignHome({
   autoNew,
   sm8Jobs,
   jobSearch,
+  jobLists,
   openFailed,
   library,
   planImages,
@@ -119,6 +121,7 @@ export function DesignHome({
   onForJobDone?: () => void;
   sm8Jobs?: boolean;
   jobSearch: JobSearch;
+  jobLists?: JobLists;
   openFailed?: boolean;
   library?: LibraryManifest;
   planImages: PlanImages;
@@ -287,6 +290,7 @@ export function DesignHome({
         <NewDesign
           sm8Jobs={sm8Jobs}
           jobSearch={jobSearch}
+          jobLists={jobLists}
           planImages={planImages}
           forJob={forJob}
           onBlank={onBlank}

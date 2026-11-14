@@ -2,6 +2,7 @@ import { createDesign, type DesignDocument, type Floor } from "../document";
 import {
   applyNorthToSet,
   applyScaleToSet,
+  measuredForJob,
   mmPerPxFor,
   printedScaleOf,
   proposedScale,
@@ -153,5 +154,34 @@ describe("one set, one scale and north", () => {
     const out = shareAcrossSet(prev, turned);
     expect(out.floors.find((f) => f.id === "l1")).toMatchObject({ scaleMmPerUnit: 17.49, northDeg: 12 });
     expect(setupNeeds(out)).toEqual({ scale: ["photo"], north: ["photo"] });
+  });
+});
+
+/* A scale measured by hand in a design made from a job's plan is kept on
+   the plan (14 November 2026: one set of plans, on the job). */
+describe("a scale measured in a design made from a job's plan", () => {
+  const fromJob = (): DesignDocument => {
+    const d = cutler();
+    return { ...d, planImport: { ...d.planImport!, jobPlanId: "jplan_1" } };
+  };
+  const scaled = (d: DesignDocument, id: string, mm: number | null): DesignDocument => ({ ...d, floors: d.floors.map((f) => (f.id === id ? { ...f, scaleMmPerUnit: mm } : f)) });
+
+  test("goes to the plan as its page and the scale in the page's pixels", () => {
+    const d = fromJob();
+    /* l1 is the plan's third page: placed at render index 2 */
+    expect(measuredForJob(d, scaled(d, "l1", 21.3))).toEqual([{ planId: "jplan_1", page: 3, mmPerPx: 21.3 }]);
+  });
+
+  test("the scale the page already offers is the plan's own, and isn't sent back", () => {
+    const d = fromJob();
+    const offered = proposedScale(d, "gf")!;
+    expect(measuredForJob(d, scaled(d, "gf", offered.mmPerUnit))).toEqual([]);
+  });
+
+  test("nothing goes for a floor that isn't a page of the plan, a scale taken off, or a design with no job's plan", () => {
+    const d = fromJob();
+    expect(measuredForJob(d, scaled(d, "photo", 12))).toEqual([]);
+    expect(measuredForJob(scaled(d, "l1", 21.3), scaled(d, "l1", null))).toEqual([]);
+    expect(measuredForJob(cutler(), scaled(cutler(), "l1", 21.3))).toEqual([]);
   });
 });

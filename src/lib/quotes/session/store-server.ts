@@ -4,6 +4,7 @@ import type { Msg } from "./model";
 import type { EventDraft, SessionState } from "./turn";
 import { openQuestionsOf } from "./answers";
 import { tookOf, turnTimes, type Took } from "./time-left";
+import { writeUpOf, type WriteUp } from "../write-up";
 
 /* TIFF'S SESSION, KEPT (docs/migrations/quote_sessions.sql). One per
    quote. A turn holds it from start to end, so two never run at once; a
@@ -20,20 +21,29 @@ export const HOLD_MS = 6 * 60_000;
     seconds, and every poll read the whole conversation: on 16 October two
     held a drawing set each (7 MB and 11 MB) and the database slowed for
     everyone, ServiceM8's webhooks with it. */
-export type SessionHead = { id: string; spentUsd: number; turnId: string | null; turnSince: string | null };
+export type SessionHead = { id: string; spentUsd: number; turnId: string | null; turnSince: string | null; live?: LiveRow | null };
+/** What she's at this second, kept by the turn under way (liveWriter). */
+export type LiveRow = { turn: string; tool: string | null; text: string; at: string };
 /** A session as a turn reads it: the conversation too. */
 export type SessionRow = SessionHead & { messages: Msg[]; summary: string };
 
 /* never the conversation: even one message of it out of the column unpacks the whole of it */
-const HEAD_COLS = "id, spent_usd, turn_id, turn_since";
-const COLS = "id, messages, summary, spent_usd, turn_id, turn_since";
+const HEAD_COLS = "id, spent_usd, turn_id, turn_since, live";
+const COLS = "id, messages, summary, spent_usd, turn_id, turn_since, live";
 
 const headOf = (r: Record<string, unknown>): SessionHead => ({
   id: r.id as string,
   spentUsd: Number(r.spent_usd) || 0,
   turnId: (r.turn_id as string | null) ?? null,
   turnSince: (r.turn_since as string | null) ?? null,
+  live: liveOf(r.live),
 });
+
+const liveOf = (v: unknown): LiveRow | null => {
+  if (!v || typeof v !== "object") return null;
+  const l = v as Record<string, unknown>;
+  return typeof l.turn === "string" ? { turn: l.turn, tool: typeof l.tool === "string" ? l.tool : null, text: typeof l.text === "string" ? l.text : "", at: String(l.at ?? "") } : null;
+};
 
 const rowOf = (r: Record<string, unknown>): SessionRow => ({
   ...headOf(r),
@@ -73,17 +83,107 @@ async function openSession(orgId: string, jobUuid: string): Promise<SessionRow |
 export const holding = (s: Pick<SessionRow, "turnId" | "turnSince">, now: number) => !!s.turnId && !!s.turnSince && now - Date.parse(s.turnSince) < HOLD_MS;
 
 /** Starts a turn: the session held for it, or why not. */
+/** Why a turn can't start: one is under way. A message sent then waits its turn (queueMessage). */
+export const STILL_WORKING = "Tiff is still working on the last one.";
+
+/* ANSWERING WHILE SHE WORKS (Isaac, 13 November 2026: "Build E, the
+   answering while she works"). A message sent while a turn holds the
+   session is kept in the thread at once, marked queued, with no turn; once
+   she's free the next read of the thread starts a turn with every one
+   waiting (session-server startTurn, fromQueue). Claimed, it keeps no
+   turn of its own, so the turn's time and kind count from when she began. */
+
+type QueuedRow = { id: number; author: string; body: Record<string, unknown> };
+
+/** A message sent while she works, in the thread now, taken when she's free. */
+export async function queueMessage(orgId: string, sessionId: string, by: string, text: string): Promise<void> {
+  await addEvents(orgId, sessionId, null, [{ kind: "message", author: by, body: { text, queued: true } }]);
+}
+
+/** A tapped answer that leaves her work, given while she works: its event waits as a typed one does. */
+export async function queueAnswerEvent(orgId: string, sessionId: string, questionEvent: number, by: string): Promise<void> {
+  const { data } = await supabaseAdmin
+    .from("quote_session_events")
+    .select("id, body")
+    .eq("org_id", orgId)
+    .eq("session_id", sessionId)
+    .eq("kind", "message")
+    .eq("author", by)
+    .eq("body->>answered", String(questionEvent))
+    .order("id", { ascending: false })
+    .limit(1);
+  const row = ((data ?? []) as { id: number; body: Record<string, unknown> }[])[0];
+  if (row) await supabaseAdmin.from("quote_session_events").update({ body: { ...row.body, queued: true } }).eq("id", row.id);
+}
+
+/** An answer tapped while she works: it waits as typed words do, and its
+    changes are made once she's free (session-server startTurn fromQueue),
+    or the quote would move under her (Isaac, 14 November 2026: "Yes get all done"). */
+export async function queueTap(orgId: string, sessionId: string, by: string, tap: { event: number; index: number; label: string; question: string }): Promise<void> {
+  await addEvents(orgId, sessionId, null, [{ kind: "message", author: by, body: { text: tap.label, tap: { event: tap.event, index: tap.index }, question: tap.question, queued: true } }]);
+}
+
+/** Whether a tapped answer to this question is already waiting. */
+export async function tapWaiting(orgId: string, sessionId: string, questionEvent: number): Promise<boolean> {
+  const { data } = await supabaseAdmin
+    .from("quote_session_events")
+    .select("id")
+    .eq("org_id", orgId)
+    .eq("session_id", sessionId)
+    .eq("kind", "message")
+    .eq("body->>queued", "true")
+    .eq("body->tap->>event", String(questionEvent))
+    .limit(1);
+  return (data ?? []).length > 0;
+}
+
+/** An event's body, put as it now is (a waiting tap, once its changes are made). */
+export async function setEventBody(orgId: string, id: number, body: Record<string, unknown>): Promise<void> {
+  await supabaseAdmin.from("quote_session_events").update({ body }).eq("org_id", orgId).eq("id", id);
+}
+
+/** Whether anything sent while she worked is still waiting. */
+export async function hasQueued(orgId: string, sessionId: string): Promise<boolean> {
+  const { data } = await supabaseAdmin.from("quote_session_events").select("id").eq("org_id", orgId).eq("session_id", sessionId).eq("kind", "message").eq("body->>queued", "true").limit(1);
+  return (data ?? []).length > 0;
+}
+
+/** Every message waiting, oldest first, taken for the turn given: each one
+    only by the turn whose update reached it first. */
+export async function claimQueued(orgId: string, sessionId: string, turnId: string): Promise<QueuedRow[]> {
+  const { data } = await supabaseAdmin
+    .from("quote_session_events")
+    .select("id, author, body")
+    .eq("org_id", orgId)
+    .eq("session_id", sessionId)
+    .eq("kind", "message")
+    .eq("body->>queued", "true")
+    .order("id", { ascending: true })
+    .limit(20);
+  const out: QueuedRow[] = [];
+  for (const r of (data ?? []) as QueuedRow[]) {
+    const { data: took } = await supabaseAdmin
+      .from("quote_session_events")
+      .update({ body: { ...r.body, queued: false, taken: turnId } })
+      .eq("id", r.id)
+      .eq("body->>queued", "true")
+      .select("id");
+    if ((took ?? []).length > 0) out.push(r);
+  }
+  return out;
+}
+
 export async function beginTurn(orgId: string, jobUuid: string): Promise<{ ok: true; session: SessionRow; turnId: string } | { ok: false; reason: string }> {
   const s = await openSession(orgId, jobUuid);
   if (!s) return { ok: false, reason: "Tiff's session couldn't be opened. Try again." };
-  if (holding(s, Date.now())) return { ok: false, reason: "Tiff is still working on the last one." };
+  if (holding(s, Date.now())) return { ok: false, reason: STILL_WORKING };
   const turnId = crypto.randomUUID();
   const now = new Date().toISOString();
   /* taken only from the hold that was read: a turn begun meanwhile wins */
   let q = supabaseAdmin.from("quote_sessions").update({ turn_id: turnId, turn_since: now, updated_at: now }).eq("id", s.id);
   q = s.turnId ? q.eq("turn_id", s.turnId) : q.is("turn_id", null);
   const { data } = await q.select("id");
-  if (!data || data.length === 0) return { ok: false, reason: "Tiff is still working on the last one." };
+  if (!data || data.length === 0) return { ok: false, reason: STILL_WORKING };
   return { ok: true, session: { ...s, turnId, turnSince: now }, turnId };
 }
 
@@ -102,7 +202,53 @@ export async function saveRound(orgId: string, sessionId: string, turnId: string
 }
 
 export async function endTurn(sessionId: string, turnId: string): Promise<void> {
-  await supabaseAdmin.from("quote_sessions").update({ turn_id: null, turn_since: null }).eq("id", sessionId).eq("turn_id", turnId);
+  await supabaseAdmin.from("quote_sessions").update({ turn_id: null, turn_since: null, live: null }).eq("id", sessionId).eq("turn_id", turnId);
+}
+
+/** How often, at most, what she's at is written while her words come, ms. */
+export const LIVE_EVERY_MS = 400;
+
+/** Keeps what she's at on the session as the turn goes: a new tool at once,
+    her words at most every LIVE_EVERY_MS, one write at a time, and only
+    while this turn holds the session. A write that fails is let go: the
+    next carries on. `done` stops it, once the last write is in. */
+export function liveWriter(sessionId: string, turnId: string, write = writeLive): { put: (l: { tool: string | null; text: string }) => void; done: () => Promise<void> } {
+  let latest: { tool: string | null; text: string } | null = null;
+  let lastTool: string | null | undefined;
+  let lastAt = 0;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let writing: Promise<void> = Promise.resolve();
+  let over = false;
+  const flush = () => {
+    timer = null;
+    const l = latest;
+    if (!l || over) return;
+    latest = null;
+    lastAt = Date.now();
+    writing = writing.then(() => write(sessionId, turnId, { turn: turnId, tool: l.tool, text: l.text.slice(0, 8000), at: new Date().toISOString() })).catch(() => {});
+  };
+  return {
+    put(l) {
+      if (over) return;
+      latest = l;
+      const toolChanged = l.tool !== lastTool;
+      lastTool = l.tool;
+      if (toolChanged) {
+        if (timer) clearTimeout(timer);
+        flush();
+      } else if (!timer) timer = setTimeout(flush, Math.max(0, LIVE_EVERY_MS - (Date.now() - lastAt)));
+    },
+    async done() {
+      over = true;
+      if (timer) clearTimeout(timer);
+      timer = null;
+      await writing;
+    },
+  };
+}
+
+async function writeLive(sessionId: string, turnId: string, live: LiveRow): Promise<void> {
+  await supabaseAdmin.from("quote_sessions").update({ live }).eq("id", sessionId).eq("turn_id", turnId);
 }
 
 type AnyEvent = EventDraft | { kind: "message" | "milestone"; author: string; body: Record<string, unknown> };
@@ -119,12 +265,6 @@ export type ThreadEvent = { id: number; turnId: string | null; kind: AnyEvent["k
 /** The most of a thread one read brings. */
 const THREAD_READ = 500;
 
-/** The thread as a person reads it, after `since` (an event id), oldest
-    first. Opened (since 0), it's the newest THREAD_READ: read from the
-    start, a session past them showed its first 500 events for good and
-    never what she'd just said. A poll reads on from `since`, oldest first,
-    and the panel's next poll carries on from the last of them, so a burst
-    bigger than one read skips nothing. */
 /** How long this business's turns took, first builds apart, from its last
     30 days (time-left.ts tookOf); read at most once an hour per instance, as
     every poll asks. */
@@ -172,6 +312,29 @@ export function readTurnTimes(orgId: string): Promise<Took> {
   return usual;
 }
 
+/** The job's write-up as it stands: the newest her write_up tool kept,
+    whole, on its event (tools-run.ts merges each change onto it). */
+export async function readLatestWriteUp(orgId: string, sessionId: string): Promise<WriteUp | null> {
+  const { data } = await supabaseAdmin
+    .from("quote_session_events")
+    .select("body")
+    .eq("org_id", orgId)
+    .eq("session_id", sessionId)
+    .eq("kind", "tool")
+    .eq("body->>name", "write_up")
+    .eq("body->>ok", "true")
+    .order("id", { ascending: false })
+    .limit(1);
+  const body = ((data ?? [])[0] as { body?: Record<string, unknown> } | undefined)?.body;
+  return writeUpOf((body?.detail as { writeUp?: unknown } | undefined)?.writeUp);
+}
+
+/** The thread as a person reads it, after `since` (an event id), oldest
+    first. Opened (since 0), it's the newest THREAD_READ: read from the
+    start, a session past them showed its first 500 events for good and
+    never what she'd just said. A poll reads on from `since`, oldest first,
+    and the panel's next poll carries on from the last of them, so a burst
+    bigger than one read skips nothing. */
 export async function readThread(orgId: string, jobUuid: string, since = 0): Promise<{ session: SessionHead | null; events: ThreadEvent[] }> {
   const session = await readSession(orgId, jobUuid);
   if (!session) return { session: null, events: [] };
@@ -233,5 +396,9 @@ export async function takeAnswers(orgId: string, sessionId: string, turnId: stri
   const rows = (data ?? []) as { id: number; body: Record<string, unknown> }[];
   if (rows.length === 0) return [];
   await supabaseAdmin.from("quote_session_events").update({ turn_id: turnId }).in("id", rows.map((r) => r.id));
-  return rows.map((r) => ({ question: String(r.body.question ?? ""), answer: String(r.body.text ?? "") }));
+  /* a typed number put straight on its line says which line and what it had (answers-server answerTyped) */
+  return rows.map((r) => {
+    const put = typeof r.body.landed === "string" ? ` (put on the line as ${r.body.landed}${typeof r.body.had === "string" ? `; when you asked, the quote had ${r.body.had}` : ""})` : "";
+    return { question: String(r.body.question ?? ""), answer: `${String(r.body.text ?? "")}${put}` };
+  });
 }

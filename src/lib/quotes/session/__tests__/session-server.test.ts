@@ -13,6 +13,7 @@ const addEvents = jest.fn(async () => undefined);
 const saveRound = jest.fn(async () => true);
 const endTurn = jest.fn(async () => undefined);
 const takeAnswers = jest.fn(async () => [] as { question: string; answer: string }[]);
+const claimQueued = jest.fn(async (..._a: unknown[]): Promise<{ id: number; author: string; body: Record<string, unknown> }[]> => []);
 const readOpenQuestions = jest.fn(async () => [] as { id: number; question: string; put: string }[]);
 jest.mock("../store-server", () => ({
   readOpenQuestions: (...a: unknown[]) => (readOpenQuestions as jest.Mock)(...a),
@@ -21,7 +22,12 @@ jest.mock("../store-server", () => ({
   saveRound: (...a: unknown[]) => (saveRound as jest.Mock)(...a),
   endTurn: (...a: unknown[]) => (endTurn as jest.Mock)(...a),
   takeAnswers: (...a: unknown[]) => (takeAnswers as jest.Mock)(...a),
+  claimQueued: (...a: unknown[]) => (claimQueued as jest.Mock)(...a),
+  readThread: async () => ({ session: null, events: [] }),
+  liveWriter: () => ({ put: () => {}, done: async () => {} }),
 }));
+const answerQuestion = jest.fn(async (..._a: unknown[]): Promise<{ ok: true; goOn: boolean } | { ok: false; reason: string }> => ({ ok: true, goOn: false }));
+jest.mock("../answers-server", () => ({ answerQuestion: (...a: unknown[]) => (answerQuestion as jest.Mock)(...a) }));
 jest.mock("../tools-server", () => ({ sessionTools: () => async () => ({ ok: true, value: null, label: "x" }) }));
 const readJobSources = jest.fn(async () => ({ sources: [] as { id: string; kind: string; label: string; text: string; at: string | null }[], left: 0 }));
 jest.mock("../job-sources-server", () => ({ readJobSources: (...a: unknown[]) => (readJobSources as jest.Mock)(...a) }));
@@ -201,3 +207,80 @@ it("opens a first turn of typed words with the job, every source of it, and only
   expect(readJobSources).not.toHaveBeenCalled();
   expect(later.calls[0]!.messages.at(-1)!.content.at(-1)).toEqual({ type: "text", text: "Make it 5 zones" });
 });
+
+/* Isaac, 13 November 2026: "Build E, the answering while she works" */
+describe("what was sent while she worked", () => {
+  it("is taken when she's free, words together, as the one who sent them, with no second copy in the thread", async () => {
+    namesBySignIn.mockResolvedValueOnce({ u2: "Isaac Smith" });
+    claimQueued.mockResolvedValueOnce([
+      { id: 9, author: "u2", body: { text: "How many metres of trunking down to the outdoor unit? 1", queued: true } },
+      { id: 11, author: "u2", body: { text: "How far does each pump's line run? 5m a head", queued: true } },
+    ]);
+    const model = scripted([{ content: [{ type: "text", text: "Done." }], stopReason: "end_turn" }]);
+    const started = await startTurn("org", "job", "u1", "", { modelName: "m", model, fromQueue: true });
+    expect(started.ok).toBe(true);
+    await (started as Extract<typeof started, { ok: true }>).run();
+    expect(claimQueued).toHaveBeenCalledWith("org", "s1", "t1");
+    expect(addEvents).not.toHaveBeenCalledWith("org", "s1", "t1", expect.arrayContaining([expect.objectContaining({ kind: "message" })]));
+    const said = JSON.stringify(model.calls[0]!.messages[0]!.content);
+    expect(said).toContain("Isaac Smith says:");
+    expect(said).toContain("trunking down to the outdoor unit? 1");
+    expect(said).toContain("5m a head");
+    /* sent before they'd seen what she did with the last */
+    expect(said).toContain("before they saw what you did with it");
+  });
+
+  it("lets go at once when someone else took them first", async () => {
+    claimQueued.mockResolvedValueOnce([]);
+    expect(await startTurn("org", "job", "u1", "", { modelName: "m", fromQueue: true })).toMatchObject({ ok: false, status: 409 });
+    expect(endTurn).toHaveBeenCalledWith("s1", "t1");
+  });
+
+  it("says it in a line after answers alone", async () => {
+    takeAnswers.mockResolvedValueOnce([{ question: "How many metres of cable?", answer: "15 (put on the line as Cable: 15 m)" }]);
+    const model = scripted([{ content: [{ type: "text", text: "Now $6,995." }], stopReason: "end_turn" }]);
+    const started = await startTurn("org", "job", "u1", "", { modelName: "m", model, answered: true, check: true });
+    await (started as Extract<typeof started, { ok: true }>).run();
+    expect(JSON.stringify(model.calls[0]!.messages[0]!.content)).toContain("Reply in one short line");
+  });
+
+  it("checks numbers put straight on their lines, once the last is answered", async () => {
+    const model = scripted([{ content: [{ type: "text", text: "Checked." }], stopReason: "end_turn" }]);
+    const started = await startTurn("org", "job", "u1", "", { modelName: "m", model, answered: true, check: true });
+    await (started as Extract<typeof started, { ok: true }>).run();
+    expect(JSON.stringify(model.calls[0]!.messages[0]!.content)).toContain("put straight on their lines as they typed them");
+    expect(JSON.stringify(model.calls[0]!.messages[0]!.content)).not.toContain("Reply in one short line");
+  });
+
+  /* Isaac, 14 November 2026: "Yes get all done", the tap that failed while she worked */
+  it("makes a tap given while she worked once she's free, and lets go when it leaves her nothing to do", async () => {
+    answerQuestion.mockClear();
+    claimQueued.mockResolvedValueOnce([{ id: 14, author: "u2", body: { text: "Three phase", tap: { event: 7, index: 1 }, question: "Which phase?", queued: true } }]);
+    expect(await startTurn("org", "job", "u1", "", { modelName: "m", fromQueue: true })).toMatchObject({ ok: false, status: 409 });
+    expect(answerQuestion).toHaveBeenCalledWith("org", "job", "u2", 7, 1, [], { inTurn: true, asEvent: 14 });
+    expect(endTurn).toHaveBeenCalledWith("s1", "t1");
+  });
+
+  it("starts her on a tap that leaves her work, and gives her as words one that can't be made now", async () => {
+    answerQuestion.mockResolvedValueOnce({ ok: true, goOn: true }).mockResolvedValueOnce({ ok: false, reason: "A line this answer changes has gone since." });
+    claimQueued.mockResolvedValueOnce([
+      { id: 15, author: "u2", body: { text: "Research it", tap: { event: 7, index: 0 }, question: "Which isolator?", queued: true } },
+      { id: 16, author: "u2", body: { text: "Back wall", tap: { event: 8, index: 2 }, question: "Which wall?", queued: true } },
+    ]);
+    const model = scripted([{ content: [{ type: "text", text: "On it." }], stopReason: "end_turn" }]);
+    const started = await startTurn("org", "job", "u1", "", { modelName: "m", model, fromQueue: true });
+    await (started as Extract<typeof started, { ok: true }>).run();
+    const said = JSON.stringify(model.calls[0]!.messages[0]!.content);
+    expect(said).toContain("Which wall? Back wall");
+    expect(said).toContain("Do what that answer leaves you to do.");
+  });
+
+  it("takes a tapped answer that leaves her work as one", async () => {
+    claimQueued.mockResolvedValueOnce([{ id: 12, author: "u1", body: { text: "Research it", answered: 7, queued: true } }]);
+    const model = scripted([{ content: [{ type: "text", text: "Looking." }], stopReason: "end_turn" }]);
+    const started = await startTurn("org", "job", "u1", "", { modelName: "m", model, fromQueue: true });
+    await (started as Extract<typeof started, { ok: true }>).run();
+    expect(JSON.stringify(model.calls[0]!.messages[0]!.content)).toContain("Do what that answer leaves you to do.");
+  });
+});
+

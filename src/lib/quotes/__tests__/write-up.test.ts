@@ -1,4 +1,4 @@
-import { notPricedOf, pricedOnOf, writeUpOf } from "../write-up";
+import { mergedWriteUp, notPricedOf, pricedOnOf, writeUpOf } from "../write-up";
 
 /* The job, written out first (Isaac, 2026-10-10), on 3377's real first answer */
 
@@ -33,3 +33,20 @@ it("keeps an older write-up's visits and assumptions as what it's priced on, and
   expect(notPricedOf(writeUpOf({ unpriced: ["Nothing unpriced."] })!)).toEqual([]);
   expect(notPricedOf(old)).toEqual(first.unpriced);
 });
+
+/* Isaac, 13 November 2026, "Tiff is quite slow between turns": an answer
+   changes the sections it touches, and the rest stand */
+it("changes only the sections given, each whole; an empty one is cleared; with none before, it is what she gave", () => {
+  const was = writeUpOf(first)!;
+  const m = mergedWriteUp(was, { unpriced: [], assuming: ["Pipe run 14 m"] })!;
+  expect(m.changed).toEqual(["unpriced", "assuming"]);
+  expect(m.writeUp).toEqual({ ...was, unpriced: [], assuming: ["Pipe run 14 m"] });
+  expect(mergedWriteUp(was, { to_check: [{ what: "Brackets", said: "May be reused" }] })!.writeUp.toCheck).toEqual([{ what: "Brackets", said: "May be reused" }]);
+  // a section not given stays; nothing given changes nothing
+  expect(mergedWriteUp(was, {})!.writeUp).toEqual(was);
+  expect(mergedWriteUp(null, { read: ["Luke: two systems"] })!.writeUp).toMatchObject({ read: ["Luke: two systems"], sizing: [], pricedOn: [] });
+  expect(mergedWriteUp(null, {})).toBeNull();
+  // what isn't a section is no change
+  expect(mergedWriteUp(was, { sizing: "10 kW" })!.changed).toEqual([]);
+});
+

@@ -20,10 +20,12 @@ jest.mock("../../lines-server", () => ({
 const saveProposal = jest.fn(async (..._a: unknown[]) => ({ ok: true }));
 const addKit = jest.fn();
 jest.mock("../../kits-server", () => ({ addKit: (...a: unknown[]) => (addKit as jest.Mock)(...a) }));
+const latestWriteUp = jest.fn(async (..._a: unknown[]): Promise<unknown> => null);
 const openQuestions = jest.fn(async () => [{ id: 41, question: "How long is the pipe run?", put: "10 m" }]);
 jest.mock("../store-server", () => ({
   readSession: jest.fn(async () => ({ id: "s1" })),
   readOpenQuestions: (...a: unknown[]) => (openQuestions as jest.Mock)(...a),
+  readLatestWriteUp: (...a: unknown[]) => (latestWriteUp as jest.Mock)(...a),
 }));
 jest.mock("../job-files-server", () => ({ jobFiles: jest.fn(async () => []), lookAt: jest.fn(), planPickOf: jest.fn(async (_o: string, _j: string, id: string) => (id === "doc:abc" ? { documentId: "abc" } : null)) }));
 const jobPlanRooms = jest.fn();
@@ -162,6 +164,22 @@ describe("her tools, run", () => {
     expect(await run("write_up", {})).toMatchObject({ ok: false });
   });
 
+  /* Isaac, 13 November 2026: "Tiff is quite slow between turns" — an answer
+     had her write all ~2,600 characters of it again for one figure */
+  it("after an answer, changes only the sections she gives, onto the write-up as it stands", async () => {
+    const kept = { read: ["Luke: two ducted systems"], sizing: ["Downstairs 10 kW"], work: ["Downstairs: PEAD-M100"], visits: [], unpriced: [], assuming: ["Pipe run 10 m"], pricedOn: [{ what: "Runs", said: "10 m pipe" }], toCheck: [] };
+    latestWriteUp.mockClear();
+    latestWriteUp.mockResolvedValueOnce(kept);
+    const tools = sessionTools("org-1", "job-1");
+    const out = await tools("write_up", { assuming: ["Pipe run 14 m"], priced_on: [{ what: "Runs", said: "14 m pipe" }] });
+    expect(out).toMatchObject({ ok: true, said: "the write-up's Assuming, Priced on", value: { changed: "Assuming, Priced on" } });
+    expect((out as unknown as { detail: { writeUp: unknown } }).detail.writeUp).toEqual({ ...kept, assuming: ["Pipe run 14 m"], pricedOn: [{ what: "Runs", said: "14 m pipe" }] });
+    // a second change in the same step builds on the first, not on the kept one
+    const again = await tools("write_up", { unpriced: ["The core hole"] });
+    expect((again as unknown as { detail: { writeUp: { assuming: string[]; unpriced: string[] } } }).detail.writeUp).toMatchObject({ assuming: ["Pipe run 14 m"], unpriced: ["The core hole"], sizing: ["Downstairs 10 kW"] });
+    expect(latestWriteUp).toHaveBeenCalledTimes(1);
+  });
+
   it("researches a price for a line by its own call, and leaves the line for the person to use it on", async () => {
     runResearch.mockResolvedValueOnce({ ok: true, research: { priceCents: 130000, per: "a hole", summary: "s", source: { url: "https://q.au", title: "Q" } }, usd: 0.06, model: "claude-opus-5-5", searches: 2 });
     const out = await run("research_price", { line_id: "l1", what: "core hole" });
@@ -283,6 +301,21 @@ describe("her tools, run", () => {
   it("asks for a figure with nothing to tap, saying what the quote has now", async () => {
     const out = await run("ask", { question: "How long is the pipe run, indoor to outdoor?", topic: "Pipe run, indoor to outdoor", put: "10 m", answers: [] });
     expect(out).toMatchObject({ ok: true, event: { kind: "question", body: { topic: "Pipe run, indoor to outdoor", put: "10 m", answers: [] } } });
+  });
+
+  /* Isaac, 14 November 2026: B, a typed number straight onto its line */
+  it("keeps the line a number question fills, with its quantity as she asked", async () => {
+    const was = (readLines as jest.Mock).getMockImplementation();
+    (readLines as jest.Mock).mockImplementation(async () => [{ id: "cab", version: 1, kind: "material", unit: "m", qty: 10, optionIndex: 0, name: "Cable" }]);
+    try {
+      const out = await run("ask", { question: "How many metres of cable?", put: "10 m", answers: [], fills: { line_id: "cab", was: 99 } });
+      expect(out).toMatchObject({ ok: true, event: { body: { fills: { lineId: "cab", times: 1, each: null, was: 10 } } } });
+      expect(await run("ask", { question: "How many metres of cable?", answers: [], fills: { line_id: "gone" } })).toMatchObject({ ok: false });
+      const tap = await run("ask", { question: "Which wall?", answers: [{ label: "North" }], fills: { line_id: "cab" } });
+      expect(tap.ok && (tap.event!.body as { fills?: unknown }).fills).toBeUndefined();
+    } finally {
+      (readLines as jest.Mock).mockImplementation(was);
+    }
   });
 
   /* the 3465 review, 5 November 2026: the question's figures were hers, not the lines' */

@@ -26,7 +26,7 @@ import { buildJobStory, storyStamp } from "@/lib/workboard/job-story";
 import { JobClaimModal } from "./job-claim-modal";
 import { JobMoneyBlock, JobMoneyGlance } from "./job-money-block";
 import { cacheJobFiles } from "@/app/actions/workboard-media";
-import { addPlansToJob, readPlansOnJob } from "@/app/actions/job-plans";
+import { addPlansToJob, chooseFloorsOnPlan, pageForScale, readPlansOnJob, setScaleOnPlan } from "@/app/actions/job-plans";
 import { kickPlanReads, PLAN_POLL_MS } from "@/lib/jobs/plans-client";
 import type { JobPlanRead, PlanPick } from "@/lib/jobs/plans";
 import { fileOnJob } from "@/lib/documents/file-on-job";
@@ -516,6 +516,30 @@ export function JobSheet({
     const [fresh, media] = await Promise.all([readPlansOnJob(cardId).catch(() => null), readJobFiles(cardId).catch(() => null)]);
     if (fresh) setPlans(fresh);
     if (media) setMedia(media);
+    return null;
+  };
+
+  /* Set scale on a plan's page: saved on the job's plan, and the plans read
+     again so the row says what its sizes now rest on. */
+  const setPlanScale = async (planId: string, n: number, a: { x: number; y: number }, b: { x: number; y: number }, mm: number): Promise<string | null> => {
+    if (!cardId) return "The job isn't known yet.";
+    const why = await setScaleOnPlan(cardId, planId, n, a, b, mm).catch(() => "The scale couldn't be saved. Try again.");
+    if (why) return why;
+    const fresh = await readPlansOnJob(cardId).catch(() => null);
+    if (fresh) setPlans(fresh);
+    return null;
+  };
+
+  /* Choose floors on a set: each plan's floors saved, and the plans read
+     again so the row says what it is now. */
+  const choosePlanFloors = async (chosen: Record<string, Record<number, string>>): Promise<string | null> => {
+    if (!cardId) return "The job isn't known yet.";
+    for (const [planId, floors] of Object.entries(chosen)) {
+      const why = await chooseFloorsOnPlan(cardId, planId, floors).catch(() => "The floors couldn't be saved. Try again.");
+      if (why) return why;
+    }
+    const fresh = await readPlansOnJob(cardId).catch(() => null);
+    if (fresh) setPlans(fresh);
     return null;
   };
 
@@ -1805,6 +1829,9 @@ export function JobSheet({
                  Plans table isn't there yet shows Documents as it was */
               onAddPlans={cardId && plans !== null ? addPlans : undefined}
               onUploadForPlans={cardId ? (file) => fileOnJob(file, cardId) : undefined}
+              onPageForScale={cardId ? (planId, n) => pageForScale(cardId, planId, n) : undefined}
+              onSetScale={cardId ? setPlanScale : undefined}
+              onChooseFloors={cardId ? choosePlanFloors : undefined}
             />
           )}
     </>

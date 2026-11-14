@@ -62,3 +62,25 @@ export const pricedOnOf = (w: WriteUp): WriteUpRow[] => (w.pricedOn.length ? w.p
 
 /** What's still to price; she has written "Nothing unpriced." as an item. */
 export const notPricedOf = (w: WriteUp): string[] => w.unpriced.filter((t) => !/^nothing\b/i.test(t));
+
+/** Her write-up's own sections, by the names her tool and the kept event use. */
+const GIVEN_AS: Record<string, keyof WriteUp> = { ...Object.fromEntries(WRITE_UP_KEYS.map((k) => [k, k])), priced_on: "pricedOn", pricedOn: "pricedOn", to_check: "toCheck", toCheck: "toCheck" };
+
+/** The write-up once she's changed it: each section she gave replaces that
+    section whole, and every one she left out stays as it was (Isaac, 13
+    November 2026, "Tiff is quite slow between turns": on an answer she wrote
+    the whole of it again, about 2,600 characters, nine seconds of an
+    eleven-second turn, for one changed figure). With nothing before it, it is
+    what she gave. Null when the result says nothing. */
+export function mergedWriteUp(was: WriteUp | null, raw: unknown): { writeUp: WriteUp; changed: (keyof WriteUp)[] } | null {
+  const o = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const given = [...new Set(Object.keys(o).flatMap((k) => (GIVEN_AS[k] && Array.isArray(o[k]) ? [GIVEN_AS[k]!] : [])))];
+  const now = writeUpOf(raw);
+  const empty: WriteUp = { read: [], sizing: [], work: [], visits: [], unpriced: [], assuming: [], pricedOn: [], toCheck: [] };
+  const base = was ?? empty;
+  const out = { ...base } as WriteUp;
+  for (const k of given) (out as Record<string, unknown>)[k] = now ? now[k] : [];
+  const says = WRITE_UP_KEYS.some((k) => out[k].length) || out.pricedOn.length > 0 || out.toCheck.length > 0;
+  return says ? { writeUp: out, changed: given } : null;
+}
+

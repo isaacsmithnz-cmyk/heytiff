@@ -5,8 +5,10 @@ import { resolveJobCard } from "@/lib/workboard/all-jobs-query";
 import { namesBySignIn } from "@/lib/quotes/lines-server";
 import { sessionModelFor } from "@/lib/quotes/session/model-server";
 import { startTurn } from "@/lib/quotes/session/session-server";
-import { holding, readThread, readThreadFrom, readTurnTimes } from "@/lib/quotes/session/store-server";
-import { answerQuestion, priceQuestions } from "@/lib/quotes/session/answers-server";
+import { hasQueued, holding, queueAnswerEvent, queueMessage, queueTap, readSession, readThread, readThreadFrom, readTurnTimes, STILL_WORKING, tapWaiting } from "@/lib/quotes/session/store-server";
+import { answerQuestion, answerTyped, priceQuestions, TAP_WAITS } from "@/lib/quotes/session/answers-server";
+import { answeredOf } from "@/lib/quotes/session/answers";
+import { isErr, questionOf } from "@/lib/quotes/session/tools";
 import { researchDetailOf } from "@/lib/quotes/research";
 import { putResearchedOn } from "@/lib/quotes/lines-job-server";
 import { briefOf } from "@/lib/quotes/session/job-sources";
@@ -56,6 +58,14 @@ export async function GET(req: Request) {
     return Response.json({ ok: true, ...read, sources: g.money ? read.sources : read.sources.map((s) => ({ ...s, text: maskMoney(s.text) })) });
   }
   const { session, events } = await readThread(g.orgId, target.parentRemoteId, since);
+  /* what was sent while she worked waits for her: once she's free, this read
+     starts it, and until it's taken she's still at it */
+  const busy = session ? holding(session, Date.now()) : false;
+  const waiting = session ? await hasQueued(g.orgId, session.id) : false;
+  if (waiting && !busy) {
+    const next = await startTurn(g.orgId, target.parentRemoteId, g.userId, "", { fromQueue: true, noMoney: !g.money, origin: url.origin });
+    if (next.ok) after(next.run);
+  }
   /* her questions' answers priced, asked for once she's done rather than
      every poll: it reads the book */
   const priced = url.searchParams.get("questions") === "1" ? await priceQuestions(g.orgId, target.parentRemoteId, since ? (await readThread(g.orgId, target.parentRemoteId)).events : events) : undefined;
@@ -68,7 +78,9 @@ export async function GET(req: Request) {
   return Response.json({
     ok: true,
     on: sessionModelFor(g.orgId) != null,
-    working: session ? holding(session, Date.now()) : false,
+    working: busy || waiting,
+    /* what she's at this second, as her words come: the turn under way's own */
+    ...(busy && session?.live && session.live.turn === session.turnId ? { live: { tool: session.live.tool, text: g.money ? session.live.text : maskMoney(session.live.text) } } : {}),
     /* how long her turns took here, first builds apart, for the bar */
     took: await readTurnTimes(g.orgId),
     /* what she's cost is money too */
@@ -95,11 +107,28 @@ export async function POST(req: Request) {
     /* the question on, whatever its age, with every answer since */
     const events = await readThreadFrom(g.orgId, target.parentRemoteId, event);
     const r = await answerQuestion(g.orgId, target.parentRemoteId, g.userId, event, index, events);
+    /* she's at it: the tap waits its turn, its changes made once she's free */
+    if (!r.ok && r.reason === TAP_WAITS) {
+      const s = await readSession(g.orgId, target.parentRemoteId);
+      const ev = events.find((e) => e.id === event && e.kind === "question");
+      const q = ev ? questionOf(ev.body) : null;
+      const a = q && !isErr(q) ? q.answers[index] : undefined;
+      if (!s || !q || isErr(q) || !a) return Response.json({ ok: false, reason: "That isn't one of its answers." }, { status: 409 });
+      if (answeredOf(events).has(event) || (await tapWaiting(g.orgId, s.id, event))) return Response.json({ ok: false, reason: "That question has been answered." }, { status: 409 });
+      await queueTap(g.orgId, s.id, g.userId, { event, index, label: a.label, question: q.question });
+      return Response.json({ ok: true, working: true, queued: true });
+    }
     if (!r.ok) return Response.json(r, { status: 409 });
     /* an answer that leaves her work starts her, with it */
     if (!r.goOn) return Response.json({ ok: true });
     const started = await startTurn(g.orgId, target.parentRemoteId, g.userId, "", { answered: true, noMoney: !g.money, origin: new URL(req.url).origin });
     if (started.ok) after(started.run);
+    /* she's at it: the answer waits its turn, and she takes it up when she's free */
+    if (!started.ok && started.reason === STILL_WORKING) {
+      const s = await readSession(g.orgId, target.parentRemoteId);
+      if (s) await queueAnswerEvent(g.orgId, s.id, event, g.userId);
+      return Response.json({ ok: true, working: true, queued: true });
+    }
     return Response.json({ ok: true, working: started.ok });
   }
   /* a researched price used: read back from her saved thread, never from
@@ -122,7 +151,32 @@ export async function POST(req: Request) {
     brief = briefOf((await readJobSources(g.orgId, target.parentRemoteId)).sources, ticked);
     if (!brief) return Response.json({ ok: false, reason: "Tick something for her to read." }, { status: 400 });
   }
-  const started = await startTurn(g.orgId, target.parentRemoteId, g.userId, typeof body.message === "string" ? body.message : "", { brief, noMoney: !g.money, origin: new URL(req.url).origin });
+  const words = typeof body.message === "string" ? body.message : "";
+  /* a plain number to one of her number questions goes straight onto its
+     line, with no call to her; she checks them all once the last of her
+     questions is answered (Isaac, 14 November 2026: B, "is it free text?") */
+  if (!brief && words.trim()) {
+    const typed = await answerTyped(g.orgId, target.parentRemoteId, g.userId, words, (await readThread(g.orgId, target.parentRemoteId)).events);
+    if (typed && !typed.ok) return Response.json(typed, { status: 409 });
+    if (typed) {
+      after(() => clearDraft({ orgId: g.orgId, userSub: g.userId, box: "quote", ref: target.parentRemoteId }).then(() => undefined));
+      if (typed.left > 0) return Response.json({ ok: true, landed: true });
+      const check = await startTurn(g.orgId, target.parentRemoteId, g.userId, "", { answered: true, check: true, noMoney: !g.money, origin: new URL(req.url).origin });
+      if (check.ok) after(check.run);
+      return Response.json({ ok: true, landed: true, working: check.ok });
+    }
+  }
+  const started = await startTurn(g.orgId, target.parentRemoteId, g.userId, words, { brief, noMoney: !g.money, origin: new URL(req.url).origin });
+  /* she's at it: your words are in the thread now and wait their turn (Isaac,
+     13 November 2026: "Build E, the answering while she works"); Read the job waits for her */
+  if (!started.ok && started.reason === STILL_WORKING && !brief && words.trim()) {
+    const s = await readSession(g.orgId, target.parentRemoteId);
+    if (s) {
+      await queueMessage(g.orgId, s.id, g.userId, words.trim().slice(0, 8000));
+      after(() => clearDraft({ orgId: g.orgId, userSub: g.userId, box: "quote", ref: target.parentRemoteId }).then(() => undefined));
+      return Response.json({ ok: true, queued: true });
+    }
+  }
   if (!started.ok) return Response.json({ ok: false, reason: started.reason }, { status: started.status });
   after(started.run);
   /* the words are sent: no draft of them is left in this person's box, on

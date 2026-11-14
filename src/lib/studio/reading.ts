@@ -275,7 +275,9 @@ export function writtenAgrees(written: string, outline: ReadPoint[], mmPerPx: nu
    length over its span, and the scale is the middle of them. Two that
    agree make it sure; one alone is said to be one alone. */
 export type ReadDimension = { mm: number; a: ReadPoint; b: ReadPoint; what: string };
-export type MeasuredScale = { mmPerPx: number; from: string; sure: boolean };
+/** `at`: the longest printed length it rests on and where its line runs,
+    so a person checking the scale sees the figure she used. */
+export type MeasuredScale = { mmPerPx: number; from: string; sure: boolean; at?: { a: ReadPoint; b: ReadPoint; mm: number } };
 
 /** how far two dimensions' scales may sit apart and still agree */
 const SCALE_AGREES = 0.08;
@@ -295,7 +297,8 @@ export function scaleFromDimensions(dims: readonly ReadDimension[], sheet: { wid
   const mmPerPx = agree.reduce((sum, e) => sum + e.mmPerPx * e.span, 0) / agree.reduce((sum, e) => sum + e.span, 0);
   const figures = [...agree].sort((p, q) => q.span - p.span).slice(0, 3).map((e) => String(Math.round(e.d.mm)));
   const list = figures.length === 1 ? figures[0] : `${figures.slice(0, -1).join(", ")} and ${figures[figures.length - 1]}`;
-  return { mmPerPx, from: `the ${list} mm printed on it`, sure: agree.length >= 2 };
+  const longest = [...agree].sort((p, q) => q.span - p.span)[0].d;
+  return { mmPerPx, from: `the ${list} mm printed on it`, sure: agree.length >= 2, at: { a: { ...longest.a }, b: { ...longest.b }, mm: longest.mm } };
 }
 
 /** The rooms she suggests: what an air conditioner might serve, not cupboards, stairs, voids or outside. */

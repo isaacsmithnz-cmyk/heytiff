@@ -13,6 +13,7 @@ import { jobTabLabel, SECTION_FACES, type JobSection } from "@/lib/jobs/job-sect
 import { jobPageHref, projectHref } from "@/lib/shell/links";
 import { recordKey, type RecordRef } from "@/lib/records/ref";
 import { jobHue } from "@/lib/workboard/job-hue";
+import { noteJobOpened } from "@/lib/jobs/opened-jobs";
 import type { AllJobRow } from "@/lib/workboard/all-jobs";
 
 /* ONE JOB AS A PAGE (v2, step 5, "Jobs and a job"), inside the dashboard
@@ -67,6 +68,11 @@ export function JobPage({
   useEffect(() => {
     remember?.({ key: recordKey({ kind: "job", id: row.id }), ref: { kind: "job", id: row.id }, title, sub });
   }, [remember, row.id, title, sub]);
+  /* and the jobs last opened here, which New design offers first (lib/jobs/opened-jobs) */
+  const sm8Id = row.kind === "sm8" ? row.id : null;
+  useEffect(() => {
+    noteJobOpened(sm8Id);
+  }, [sm8Id]);
 
   /* `?add=` is asked once: the address drops it, so a reload or a copied
      link opens the job, not the wizard again */

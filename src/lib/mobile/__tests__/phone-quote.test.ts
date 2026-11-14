@@ -1,7 +1,7 @@
 /**
  * @jest-environment node
  */
-import { openQuestions, phoneQuoteOf, phoneTurns, scopeOf, wordOf, type LinesView, type Thread } from "../phone-quote";
+import { doingOf, openQuestions, phoneQuoteOf, phoneTurns, scopeOf, wordOf, type LinesView, type Thread } from "../phone-quote";
 import type { QuoteLine } from "@/lib/quotes/lines";
 import type { QuotePrice } from "@/lib/quotes/quote-price-server";
 
@@ -156,4 +156,38 @@ test("each line carries what the phone needs to change it, its twins on the othe
   expect(v.options[0]!.groups[0]!.lines[0]!.twins).toEqual([]);
   /* a tech swaps nothing: the book carries prices */
   expect(phoneQuoteOf(view({ money: false }), null, [], 0, false, {}).options[0]!.groups[0]!.lines[0]!.swap).toBe(false);
+});
+
+/* Isaac, 13 November 2026: "Build E, the answering while she works" */
+describe("answering while she works", () => {
+  const at = "2026-11-12T02:44:00Z";
+  const q = (id: number, question: string): Thread => ({ id, turnId: "t1", kind: "question", author: "tiff", body: { question, why: "", answers: [] }, at });
+  const thread: Thread[] = [
+    q(1, "How many metres of power cable to the new outdoor?"),
+    q(2, "How many metres of trunking down to the outdoor unit?"),
+    { id: 3, turnId: "t1", kind: "usage", author: "tiff", body: {}, at },
+    { id: 4, turnId: null, kind: "message", author: "u1", body: { text: "How many metres of power cable to the new outdoor? 15" }, at },
+    { id: 5, turnId: "t2", kind: "tool", author: "tiff", body: { name: "change_line" }, at },
+    { id: 6, turnId: null, kind: "message", author: "u1", body: { text: "How many metres of trunking down to the outdoor unit? 1", queued: true }, at },
+  ];
+
+  it("marks what waits for her Next, and asks on past what it answers", () => {
+    const turns = phoneTurns(thread, {}, "u1");
+    expect(turns.find((t) => t.id === 6)).toMatchObject({ text: "1", waiting: true });
+    expect(turns.find((t) => t.id === 4)?.waiting).toBeUndefined();
+    // one she's on and one waiting for her: neither is asked again
+    expect(openQuestions(thread, undefined)).toEqual([]);
+    expect(openQuestions(thread.slice(0, 5), undefined).map((x) => x.id)).toEqual([2]);
+  });
+});
+
+/* streamed (Isaac, 14 November 2026: "Just get it all built") */
+describe("what she's at, on the phone", () => {
+  const t = (id: number, kind: string, body: Record<string, unknown> = {}): Thread => ({ id, turnId: "t1", kind, author: "tiff", body, at: "2026-11-14T00:00:00.000Z" }) as Thread;
+  it("names the tool she's begun and carries her words as she writes them, plain", () => {
+    const events = [t(1, "message", { text: "15" }), t(2, "tool", { name: "read_quote" })];
+    expect(doingOf(events, null, { tool: "write_up", text: "" })).toMatchObject({ step: "Writing the proposal" });
+    expect(doingOf(events, null, { tool: null, text: "The total is **$6,995**" })).toMatchObject({ step: "Reading the job", typing: "The total is $6,995" });
+    expect(doingOf(events, null, null).typing).toBeUndefined();
+  });
 });

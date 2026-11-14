@@ -83,7 +83,7 @@ import { airRows, airTags } from "@/lib/studio/air-view";
 import { SetupPanel } from "./setup-panel";
 import { pastPrint, sheetUnitOf } from "@/lib/studio/figure-bounds";
 import { RoomPanel, RoomsPanel } from "./rooms-panel";
-import { foundOn, joinRooms, keepFound, markOnScale, readyFromPlans } from "@/lib/studio/room-edit";
+import { foundOn, joinRooms, keepFound, markOnScale, readyFloor, readyFromPlans } from "@/lib/studio/room-edit";
 import type { Suggestion } from "@/lib/studio/rooms-from-reading";
 import { RISER_PAINT } from "@/lib/studio/duct-size";
 import { StudioFlowContext, useStudioFlow, type StudioFlow } from "./flow";
@@ -125,6 +125,9 @@ import { SimRuntime } from "@/lib/studio/sim-runtime";
 import type { JobPrefill } from "@/lib/studio/job-link";
 import { suggestedRooms, withChecks, type PlanReading } from "@/lib/studio/reading";
 import { designFromPlans, type JobPlanRead } from "@/lib/jobs/plans";
+import { PLAN_POLL_MS } from "@/lib/jobs/plans-client";
+import { plansInDesign, withJobPlans } from "@/lib/studio/job-plan-floors";
+import { PlansDialog, type ChosenFloors } from "@/components/workboard/board/plans-dialog";
 /* the job's Scope column loads as it is opened: it carries Tiff's
    conversation hook, which the Studio has no other need of */
 const ScopeColumn = dynamic(() => import("./scope-column").then((m) => m.ScopeColumn), { ssr: false });
@@ -1116,6 +1119,9 @@ const savePlanScaleOnJob = (planId: string, page: number, mmPerPx: number) =>
 /* The job's plans (lib/jobs/plans.ts), for New design. Out here, not in
    the component: the React Compiler takes no import() inside one. */
 const loadJobPlans = (jobUuid: string) => import("@/app/actions/job-plans").then((a) => a.readPlansOnJob(jobUuid));
+/** The floors chosen in the Plans dialog, kept on the job's plan. */
+const chooseJobPlanFloors = (jobUuid: string, planId: string, floors: Record<number, string>) =>
+  import("@/app/actions/job-plans").then((a) => a.chooseFloorsOnPlan(jobUuid, planId, floors));
 
 /** A file onto the job's Documents and into its Plans, as New design's Add
     plans takes one: the ids of the plans made, to start their reads. */
@@ -1288,6 +1294,63 @@ function Editor({
   const [claimingId, setClaimingId] = useState<string | null>(null);
   /* reference-sheets viewer — browse the uploaded plan set without placing it */
   const [refOpen, setRefOpen] = useState(false);
+
+  /* EDIT PLANS on a design on a job opens the job's own plans (Isaac, 14
+     November 2026: "you won't have two sets of plans by accident"), each
+     page with its floor, ticked where the design uses them; saving keeps the
+     floors on the job's plans and brings the design into line
+     (job-plan-floors.ts). A design with plans of its own, dropped in before
+     it had a job, keeps the Plans page it had. */
+  const jobUuid = doc.jobLink?.remoteId ?? null;
+  const onJobPlans = !!jobUuid && (!!doc.planImport?.jobPlanId || !doc.floors.some((f) => f.plans.length > 0));
+  const [plansOpen, setPlansOpen] = useState<{ before: JobPlanRead[]; now: JobPlanRead[]; ticked: string[] } | null>(null);
+  const editPlans = () => {
+    if (!onJobPlans || !jobUuid) return onStep(0);
+    void loadJobPlans(jobUuid)
+      .then((plans) => {
+        if (!plans) return onStep(0);
+        const drawings = plans.filter((p) => p.kind !== "spec");
+        setPlansOpen({ before: drawings, now: drawings, ticked: plansInDesign(docRef.current, drawings) });
+      })
+      .catch(() => onStep(0));
+  };
+  /* while one is read, asked again, as the job's Plans does */
+  const plansReading = !!plansOpen?.now.some((p) => p.state === "reading");
+  useEffect(() => {
+    if (!plansReading || !jobUuid) return;
+    const timer = window.setInterval(() => {
+      void loadJobPlans(jobUuid)
+        .then((plans) => {
+          if (plans) setPlansOpen((o) => (o ? { ...o, now: plans.filter((p) => p.kind !== "spec") } : o));
+        })
+        .catch(() => {});
+    }, PLAN_POLL_MS);
+    return () => window.clearInterval(timer);
+  }, [plansReading, jobUuid]);
+  const addPlansHere = async (files: File[]): Promise<string | null> => {
+    if (!jobUuid) return null;
+    const wrong = await plansOntoJob(jobUuid, files);
+    const plans = await loadJobPlans(jobUuid).catch(() => null);
+    if (plans) setPlansOpen((o) => (o ? { ...o, now: plans.filter((p) => p.kind !== "spec") } : o));
+    return wrong;
+  };
+  const savePlansHere = async (chosen: ChosenFloors, ticked: string[]): Promise<string | null> => {
+    if (!jobUuid || !plansOpen) return null;
+    for (const [planId, floors] of Object.entries(chosen)) {
+      const why = await chooseJobPlanFloors(jobUuid, planId, floors).catch(() => "The floors couldn't be saved. Try again.");
+      if (why) return why;
+    }
+    const after = await loadJobPlans(jobUuid).catch(() => null);
+    if (!after) return "The plans couldn't be read again. Try again.";
+    const before = plansOpen.before;
+    mutate((d) => {
+      const { doc: next, made } = withJobPlans(d, before, after.filter((p) => p.kind !== "spec"), ticked);
+      const checked = next.reading ? { ...next, reading: withChecks(next.reading, next) } : next;
+      /* a floor a plan newly brings opens as the design did: scaled, its rooms marked */
+      return made.reduce((x, id) => readyFloor(x, id), checked);
+    });
+    return null;
+  };
   const hasReference = Boolean(doc.planImport?.sources?.length);
   /* canvas view state (transient, not persisted): layer visibility, plan
      grayscale, and the legend panel toggle */
@@ -1951,7 +2014,7 @@ function Editor({
             onNew={onNew}
             onOpen={onHome}
             onSave={onSaveNow}
-            onEditPlans={() => onStep(0)}
+            onEditPlans={editPlans}
             onReference={hasReference ? () => setRefOpen(true) : undefined}
             onStartAgain={onStartAgain}
             onDelete={onDelete}
@@ -2136,7 +2199,7 @@ function Editor({
             onLook3d={setLook3d}
             activeFloorId={activeFloorId}
             onAddFloor={addFloor}
-            onGoPlans={() => onStep(0)}
+            onGoPlans={editPlans}
             tool={tool}
             onTool={changeTool}
             airGate={airGate}
@@ -2427,6 +2490,16 @@ function Editor({
         />
       )}
 
+      {plansOpen && (
+        <PlansDialog
+          plans={plansOpen.now}
+          jobNumber={doc.jobLink?.jobNumber ?? null}
+          ticked={plansOpen.ticked}
+          onAdd={addPlansHere}
+          onSave={savePlansHere}
+          onClose={() => setPlansOpen(null)}
+        />
+      )}
       {refOpen && hasReference && (
         <ReferenceViewer
           doc={doc}

@@ -61,7 +61,7 @@ export interface UploadedSheet {
   crop?: TrimRect;
 }
 
-const SHEET_GAP = 60; // world units between auto-placed sheets
+export const SHEET_GAP = 60; // world units between auto-placed sheets
 
 /** Place new sheets to the right of whatever the floor already holds; the
     user drags them into true alignment with the arrange tool afterwards. */

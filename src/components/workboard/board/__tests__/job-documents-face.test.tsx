@@ -771,3 +771,30 @@ it("asks nothing of a plan whose scale is sure, and offers no button where it ca
   expect(screen.getByText("Scale needed")).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Set scale" })).toBeNull();
 });
+
+it("offers Choose floors on a set she isn't sure of, opening Plans on it, and saves the floor picked", async () => {
+  const onChooseFloors = jest.fn(async () => null);
+  const unsure = readPlan({ state: "check", said: "Page 4 has no rooms on it, so it may not be a floor plan", thumbs: { 3: "https://example.invalid/t3.jpg", 4: "https://example.invalid/t4.jpg" } });
+  face({ documents: [suttor], plans: [unsure], onChooseFloors });
+  const row = within(group("Plans")).getByText(suttor.name).closest(".pt-row") as HTMLElement;
+  expect(within(row).getByText("Check the read")).toBeInTheDocument();
+  await userEvent.click(within(row).getByRole("button", { name: "Choose floors" }));
+  const dialog = await screen.findByRole("dialog", { name: "Plans" });
+  /* from the job, the set alone and no ticks */
+  expect(within(dialog).queryByRole("checkbox")).toBeNull();
+  expect(within(dialog).getByRole("combobox", { name: "Floor of page 3" })).toHaveTextContent("Ground floor");
+  await userEvent.click(within(dialog).getByRole("combobox", { name: "Floor of page 4" }));
+  await userEvent.click(await screen.findByRole("option", { name: "Not a floor plan" }));
+  expect(within(dialog).getByRole("combobox", { name: "Floor of page 4" })).toHaveTextContent("Not a floor plan");
+  await userEvent.click(within(dialog).getByRole("button", { name: "Save plans" }));
+  expect(onChooseFloors).toHaveBeenCalledWith({ jplan_1: { 4: "none" } });
+  await waitFor(() => expect(screen.queryByRole("dialog", { name: "Plans" })).toBeNull());
+});
+
+it("offers no Choose floors on a plan she read sure, or where it can't be saved", () => {
+  face({ documents: [suttor], plans: [readPlan()], onChooseFloors: async () => null });
+  expect(screen.queryByRole("button", { name: "Choose floors" })).toBeNull();
+  cleanup();
+  face({ documents: [suttor], plans: [readPlan({ state: "check", said: "x" })] });
+  expect(screen.queryByRole("button", { name: "Choose floors" })).toBeNull();
+});

@@ -130,6 +130,8 @@ import { suggestedRooms, withChecks, type PlanReading } from "@/lib/studio/readi
 import { designFromPlans, type JobPlanRead } from "@/lib/jobs/plans";
 import { PLAN_POLL_MS } from "@/lib/jobs/plans-client";
 import { plansInDesign, withJobPlans } from "@/lib/studio/job-plan-floors";
+import { newerPlan, planUpdate, sheetsChanged, updatePlans, type PlanUpdate } from "@/lib/studio/update-plans";
+import { NewerPlansRow, UpdatePlansDialog } from "./update-plans-dialog";
 import { PlansDialog, type ChosenFloors } from "@/components/workboard/board/plans-dialog";
 /* the job's Scope column loads as it is opened: it carries Tiff's
    conversation hook, which the Studio has no other need of */
@@ -1322,6 +1324,44 @@ function Editor({
   const jobUuid = doc.jobLink?.remoteId ?? null;
   const onJobPlans = !!jobUuid && (!!doc.planImport?.jobPlanId || !doc.floors.some((f) => f.plans.length > 0));
   const [plansOpen, setPlansOpen] = useState<{ before: JobPlanRead[]; now: JobPlanRead[]; ticked: string[] } | null>(null);
+  /* UPDATE PLANS (update-plans.ts): the job's plans, read as the design
+     opens and whenever its tab is come back to, so a newer set on the job
+     is said; the row's Update plans opens what it changed */
+  const [jobPlans, setJobPlans] = useState<JobPlanRead[] | null>(null);
+  useEffect(() => {
+    if (!jobUuid || !onJobPlans) return;
+    let live = true;
+    const look = () =>
+      void loadJobPlans(jobUuid)
+        .then((plans) => {
+          if (live && plans) setJobPlans(plans);
+        })
+        .catch(() => {});
+    look();
+    const back = () => {
+      if (document.visibilityState === "visible") look();
+    };
+    document.addEventListener("visibilitychange", back);
+    return () => {
+      live = false;
+      document.removeEventListener("visibilitychange", back);
+    };
+  }, [jobUuid, onJobPlans]);
+  const newer = jobPlans ? newerPlan(doc, jobPlans) : null;
+  const changedSheets = newer ? sheetsChanged(newer) : 0;
+  const [updating, setUpdating] = useState<PlanUpdate | null>(null);
+  const openUpdate = () => {
+    if (jobPlans && newer) setUpdating(planUpdate(docRef.current, jobPlans, newer));
+  };
+  const takeUpdate = (ticked: Set<string>) => {
+    if (!jobPlans || !updating) return;
+    const up = { plan: updating.plan, was: updating.was };
+    mutate((d) => {
+      const next = updatePlans(d, jobPlans, up, ticked);
+      return next.reading ? { ...next, reading: withChecks(next.reading, next) } : next;
+    });
+    setUpdating(null);
+  };
   const editPlans = () => {
     if (!onJobPlans || !jobUuid) return onStep(0);
     void loadJobPlans(jobUuid)
@@ -1361,8 +1401,12 @@ function Editor({
     const after = await loadJobPlans(jobUuid).catch(() => null);
     if (!after) return "The plans couldn't be read again. Try again.";
     const before = plansOpen.before;
+    setJobPlans(after);
+    /* a set left unticked here isn't offered again by Update plans */
+    const passed = after.filter((p) => p.kind !== "spec" && !ticked.includes(p.id)).map((p) => p.id);
     mutate((d) => {
-      const { doc: next, made } = withJobPlans(d, before, after.filter((p) => p.kind !== "spec"), ticked);
+      const { doc: swapped, made } = withJobPlans(d, before, after.filter((p) => p.kind !== "spec"), ticked);
+      const next = swapped.planImport ? { ...swapped, planImport: { ...swapped.planImport, passed } } : swapped;
       const checked = next.reading ? { ...next, reading: withChecks(next.reading, next) } : next;
       /* a floor a plan newly brings opens as the design did: scaled, its rooms marked */
       return made.reduce((x, id) => readyFloor(x, id), checked);
@@ -2097,6 +2141,13 @@ function Editor({
                 Rooms Tiff found
               </button>
             ) : null}
+            {/* a newer set on the job: said here while the Scope is shut, over the Scope while it's open */}
+            {newer && !scopeOpen && (
+              <button type="button" className="ds-save ds-reading-open ds-newer" onClick={openUpdate}>
+                <span className="dot" />
+                {`${newer.plan.name} is in the job's Plans`}
+              </button>
+            )}
             {reading && (
               <span className={`ds-save ds-reading ${reading.state}`} role="status">
                 <span className="dot" />
@@ -2216,7 +2267,14 @@ function Editor({
 
       {/* Design (step 1) fills the viewport with a fixed canvas; the document-
          like steps (Plans/Summary) scroll inside the locked page */}
-      {scopeOpen && doc.jobLink && <ScopeColumn jobUuid={doc.jobLink.remoteId} jobNumber={doc.jobLink.jobNumber} onClose={() => setScopeOpen(false)} />}
+      {scopeOpen && doc.jobLink && (
+        <ScopeColumn
+          jobUuid={doc.jobLink.remoteId}
+          jobNumber={doc.jobLink.jobNumber}
+          top={newer ? <NewerPlansRow plan={newer.plan} was={newer.was} changed={changedSheets} onOpen={openUpdate} /> : undefined}
+          onClose={() => setScopeOpen(false)}
+        />
+      )}
       <div className={`ds-panel${step === 1 ? "" : " scroll"}`}>
         {step === 0 && (
           <PlansPanel
@@ -2547,6 +2605,7 @@ function Editor({
           onClose={() => setPlansOpen(null)}
         />
       )}
+      {updating && <UpdatePlansDialog update={updating} onUpdate={takeUpdate} onClose={() => setUpdating(null)} />}
       {refOpen && hasReference && (
         <ReferenceViewer
           doc={doc}

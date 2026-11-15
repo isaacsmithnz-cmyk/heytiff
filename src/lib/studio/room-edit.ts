@@ -9,6 +9,7 @@
 
    Pure. Points are world units on the floor, as everywhere in the Studio. */
 
+import { subfloorFromReading } from "./floor-spaces";
 import { releaseZones } from "./builder";
 import type { DesignDocument, DesignObject, Point } from "./document";
 import { distToSegment, isAxisAlignedRect } from "./geometry";
@@ -145,7 +146,8 @@ export function keepFound(doc: DesignDocument, floorId: string, keys: string[], 
     building from https://claude.ai/artifact/61nqwanqUAtQx4iG6AxoYs, where
     3465 opens with its twelve rooms marked and the carport left found). */
 export function readyFromPlans(doc: DesignDocument): DesignDocument {
-  return doc.floors.reduce((d, { id }) => readyFloor(d, id), doc);
+  /* and the subfloor she read, under its lowest floor (floor-spaces.ts) */
+  return subfloorFromReading(doc.floors.reduce((d, { id }) => readyFloor(d, id), doc));
 }
 
 /** One floor as a design from a job's plans opens: its scale off the plan

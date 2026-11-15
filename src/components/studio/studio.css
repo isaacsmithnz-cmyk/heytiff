@@ -10826,3 +10826,38 @@ html:not([data-ds-display]) .fg:has(#fg-topbar) .dstudio.editing:has(> .ds-edito
 .dstudio .ds-scope-said { margin: 0; font: 400 14px/20px var(--font); color: var(--ink); }
 .dstudio .ds-scope-said b { font-weight: 600; }
 .dstudio .ds-scope-none { margin: 0; font: 400 14px/20px var(--font); color: var(--q); }
+
+/* THE SUBFLOOR OR ROOF SPACE ON ITS FLOOR'S PLAN (floor-space-overlay.tsx):
+   dashed in ink over the rooms, its name at a corner, its corners the room
+   corners' handles once picked */
+.dstudio .ds-space-line {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.6;
+  stroke-dasharray: 7 5;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+.dstudio .ds-space.picked .ds-space-line {
+  stroke-width: 2.4;
+  stroke-dasharray: none;
+}
+.dstudio .ds-space-name {
+  font-family: var(--font);
+  font-weight: 600;
+  fill: var(--ink);
+  stroke: var(--paper);
+  stroke-width: 3;
+  paint-order: stroke;
+  vector-effect: non-scaling-stroke;
+  text-anchor: end;
+  cursor: pointer;
+}
+/* the plans name a subfloor nobody has added: said in orange over Add subfloor */
+.dstudio .ds-floor-said {
+  margin: 4px 8px 0;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+  color: var(--ds-amber-d);
+}

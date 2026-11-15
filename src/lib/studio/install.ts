@@ -742,6 +742,7 @@ function outdoorWhereabouts(context: Context): string | undefined {
   const placed = id ? context.doc.objects.find((o) => o.id === id) : undefined;
   if (!placed) return undefined;
   if (placed.plane === "external-roof") return "The plan has it on the roof";
+  if (placed.plane === "floor-cavity") return "The plan has it in the subfloor";
   const floor = context.doc.floors.find((f) => f.id === placed.floorId);
   return floor ? `The plan has it on the ${lowerFirst(floor.name)}, outside` : undefined;
 }

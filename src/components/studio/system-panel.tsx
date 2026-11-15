@@ -210,6 +210,7 @@ function outdoorWhere(draft: DesignDocument, view: SystemView): string {
   const placed = view.odu ? draft.objects.find((o) => o.id === view.odu?.id) : undefined;
   if (!placed) return "Not on the plan yet";
   if (placed.plane === "external-roof") return "On the roof";
+  if (placed.plane === "floor-cavity") return "In the subfloor";
   const floor = draft.floors.find((f) => f.id === placed.floorId);
   return !floor || floor.level === 0 ? "On the ground" : `Outside, ${floor.name}`;
 }

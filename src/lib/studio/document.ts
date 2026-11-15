@@ -80,6 +80,27 @@ export interface Floor {
       `northDeg` holds its rotation. */
   northPos: { x: number; y: number } | null;
   plans: PlanSheet[];
+  /** the subfloor under the lowest floor (floor-spaces.ts) */
+  under?: FloorSpace;
+  /** a roof space added by hand over the top floor (floor-spaces.ts) */
+  over?: FloorSpace;
+}
+
+/* A SPACE THE PLANS RARELY DRAW (Isaac, 15 November 2026: "subfloor should
+   follow outline of lowest floor plan, height probably manually set"): the
+   subfloor under the lowest floor, or the roof space over the top one. Its
+   outline is the floor's own until it is drawn by hand. */
+export interface FloorSpace {
+  /** subfloor: the ground to the underside of the floor; roof space: the ceiling to the roof; mm. null = not known yet */
+  heightMm: number | null;
+  /** drawn by hand, world units on its floor; null = it follows the floor's outline, or the plans' */
+  outline: Point[] | null;
+  /** where it came from: added by hand, or read off the plans */
+  from: "hand" | "plans";
+  /** what the plans drew, world units, kept so Drawn by hand can go back to it */
+  planOutline?: Point[];
+  /** where on the plans it was read, said after its height ("off section 1 on A401") */
+  said?: string;
 }
 
 /* ── Systems container (Layer 2). Owns objects via systemId. ── */

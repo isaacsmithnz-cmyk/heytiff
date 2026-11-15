@@ -3,7 +3,7 @@
 import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
 import { staffProfileIdFor } from "@/lib/fleet/query";
-import { addJobPlans, choosePlanFloors, planPageForScale, readJobPlans, setPlanScale, type AddPlansResult, type PageForScale } from "@/lib/jobs/plans-server";
+import { addJobPlans, choosePlanFloors, keepSubfloorHeight, planPageForScale, readJobPlans, setPlanScale, type AddPlansResult, type PageForScale } from "@/lib/jobs/plans-server";
 import type { JobPlanRead, PlanPick } from "@/lib/jobs/plans";
 
 /* PLANS ON THE JOB: the job card's actions (lib/jobs/plans-server.ts).
@@ -98,6 +98,16 @@ export async function savePlanScaleFromDesign(planId: string, n: number, mmPerPx
 /** The floors chosen for a set's pages in the Plans dialog, from the job's
     Plans or a design's Edit plans: page number to a level, or "none" for
     Not a floor plan. Null once saved, or the reason. */
+/** A subfloor's height typed in a design, kept on the job's plan it came off. */
+export async function keepSubfloorOnPlan(jobUuid: string, planId: string, heightMm: number, design: string): Promise<string | null> {
+  const ctx = await context();
+  const job = trim(jobUuid);
+  const plan = trim(planId);
+  const mm = Math.round(Number(heightMm));
+  if (!ctx || !job || !plan || !(mm > 0 && mm <= 20000)) return "You can't change the plan's subfloor.";
+  return keepSubfloorHeight(ctx.orgId, plan, mm, ctx.staffId, String(design ?? "").trim(), job);
+}
+
 export async function chooseFloorsOnPlan(jobUuid: string, planId: string, chosen: Record<number, string>): Promise<string | null> {
   const ctx = await context();
   const job = trim(jobUuid);

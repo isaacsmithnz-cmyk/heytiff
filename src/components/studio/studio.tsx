@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Fragment,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -71,8 +72,10 @@ import { SchematicView } from "./vrf-schematic";
 import { useArmedInk, setArmedInk } from "./note-ink";
 import { pairPipeSizes } from "@/lib/studio/components";
 import { ductsFollowGrille } from "@/lib/studio/duct-draw";
-import { AirScreen, ComponentPalette, DEFAULT_AIR, GrilleHud, PlenumHud, UnitWhereBar, type AirState } from "./air-tools";
-import { planeOfWhere, underFloorFit, unitWhere } from "@/lib/studio/unit-where";
+import { AirScreen, ComponentPalette, DEFAULT_AIR, GrilleHud, OutdoorWhereBar, PlenumHud, SpaceBar, UnitWhereBar, type AirState } from "./air-tools";
+import { inSubfloor, planeOfOutdoor, planeOfWhere, underFloorFit, unitWhere, HANGERS_MM } from "@/lib/studio/unit-where";
+import { addSpace, canAdd, fitWords, floorFor, mentionWords, outlineOf, patchSpace, removeSpace, spaceOf, subfloorFromReading, SPACE_LEVEL, SPACE_NAME, type SpaceKind } from "@/lib/studio/floor-spaces";
+import { FloorSpaceOverlay } from "./floor-space-overlay";
 import { GRILLE_SIZES, clampSupply, grilleMount, grilleSize, grilleSplit, grilleStream, grilleStyle, halfOf, isGrille, respotSplitRuns, supplyAtWidth, type Grille } from "@/lib/studio/grilles";
 import { claimZone, newSystem, toggleZone, zoneIdsOf } from "@/lib/studio/zones";
 import { doneBlockers, systemFindings } from "@/lib/studio/verdict";
@@ -548,10 +551,10 @@ export function Studio({
       /* kept on the design: the open one through the same pipeline as every
          edit, or straight into the store when another design is open by now */
       if (latestDoc.current?.id === id) {
-        mutate((d) => (d.id === id ? { ...d, reading: withChecks(reading, d) } : d));
+        mutate((d) => (d.id === id ? subfloorFromReading({ ...d, reading: withChecks(reading, d) }) : d));
       } else {
         const stored = await getStore().load(id).catch(() => null);
-        if (stored) await saveDoc({ ...stored, reading: withChecks(reading, stored) }).catch(() => {});
+        if (stored) await saveDoc(subfloorFromReading({ ...stored, reading: withChecks(reading, stored) })).catch(() => {});
       }
     },
     [planReader, mutate, getStore, saveDoc]
@@ -1120,6 +1123,19 @@ const savePlanScaleOnJob = (planId: string, page: number, mmPerPx: number) =>
    the component: the React Compiler takes no import() inside one. */
 const loadJobPlans = (jobUuid: string) => import("@/app/actions/job-plans").then((a) => a.readPlansOnJob(jobUuid));
 /** The floors chosen in the Plans dialog, kept on the job's plan. */
+/** a height box in metres, as mm; blank or nothing = not known */
+const metresToMm = (v: string): number | null => (v === "" || !(Number(v) > 0) ? null : Math.round(Number(v) * 1000));
+
+/** A subfloor's height typed in a design that came off the job's plan: kept
+    on that plan too, and the bar says so (floor-spaces.ts). The patch to make. */
+function typedSpaceHeight(doc: DesignDocument, kind: SpaceKind, mm: number | null): { heightMm: number | null; said?: string } {
+  const at = spaceOf(doc, kind);
+  const planId = doc.planImport?.jobPlanId;
+  if (kind !== "under" || !at || at.space.from !== "plans" || !doc.jobLink || !planId || mm == null) return { heightMm: mm };
+  void import("@/app/actions/job-plans").then((a) => a.keepSubfloorOnPlan(doc.jobLink!.remoteId, planId, mm, doc.meta.name)).catch(() => {});
+  return { heightMm: mm, said: `kept on ${doc.jobLink.jobNumber ? `job ${doc.jobLink.jobNumber}'s` : "the job's"} plans` };
+}
+
 const chooseJobPlanFloors = (jobUuid: string, planId: string, floors: Record<number, string>) =>
   import("@/app/actions/job-plans").then((a) => a.chooseFloorsOnPlan(jobUuid, planId, floors));
 
@@ -1288,6 +1304,8 @@ function Editor({
       : (doc.floors[0]?.id ?? null);
   const [tool, setTool] = useState<CanvasTool>("select");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  /* the subfloor or roof space picked on the plan (floor-spaces.ts): its bar shows, its corners drag */
+  const [pickedSpace, setPickedSpace] = useState<SpaceKind | null>(null);
   /* claim mode (the zones flow): the system whose zones are being clicked.
      It means something only while the claim tool is up — Esc lets go of the
      tool through the canvas, and that ends the claim with it. */
@@ -2116,6 +2134,29 @@ function Editor({
             onAddFloor={addFloor}
             onDeleteFloor={deleteFloor}
             onFloorHeight={(id, m) => mutate((d) => setFloorHeight(d, id, m))}
+            spaces={doc}
+            onAddSpace={(kind) => {
+              mutate((d) => addSpace(d, kind));
+              const f = floorFor(doc, kind);
+              if (f) setPickedFloorId(f.id);
+              setSelectedId(null);
+              setPickedSpace(kind);
+            }}
+            onRemoveSpace={(kind) => {
+              mutate((d) => removeSpace(d, kind));
+              setPickedSpace(null);
+            }}
+            onSpaceHeight={(kind, mm, typed) => {
+              /* kept on the job once it's typed, not at every key */
+              const patch = typed ? typedSpaceHeight(doc, kind, mm) : { heightMm: mm };
+              mutate((d) => patchSpace(d, kind, patch));
+            }}
+            onPickSpace={(kind) => {
+              const f = floorFor(doc, kind);
+              if (f) setPickedFloorId(f.id);
+              setSelectedId(null);
+              setPickedSpace(kind);
+            }}
             tool={tool}
             onTool={changeTool}
             next={flow === "next" ? null : next}
@@ -2211,7 +2252,13 @@ function Editor({
             onAirPatch={(patch) => setAirComp((c) => (c ? { ...c, ...patch } : c))}
             onComponentPlaced={onComponentPlaced}
             selectedId={selectedId}
+            pickedSpace={pickedSpace}
+            onPickSpace={(kind) => {
+              setSelectedId(null);
+              setPickedSpace(kind);
+            }}
             onSelect={(id) => {
+              setPickedSpace(null);
               setSelectedId(id);
               if (id) {
                 const o = doc.objects.find((x) => x.id === id);
@@ -3294,6 +3341,11 @@ function CanvasControls({
   onAddFloor,
   onDeleteFloor,
   onFloorHeight,
+  spaces,
+  onAddSpace,
+  onRemoveSpace,
+  onSpaceHeight,
+  onPickSpace,
   tool,
   onTool,
   next,
@@ -3325,6 +3377,13 @@ function CanvasControls({
   onDeleteFloor: (id: string) => void;
   /** a floor's storey height, metres (null = the default) */
   onFloorHeight: (id: string, m: number | null) => void;
+  /** the design, for its subfloor and roof space (floor-spaces.ts); absent = none offered */
+  spaces?: Pick<DesignDocument, "floors" | "reading">;
+  onAddSpace?: (kind: SpaceKind) => void;
+  onRemoveSpace?: (kind: SpaceKind) => void;
+  /** its height in mm, null = not known; `typed` once the box is left */
+  onSpaceHeight?: (kind: SpaceKind, mm: number | null, typed: boolean) => void;
+  onPickSpace?: (kind: SpaceKind) => void;
   tool: CanvasTool;
   onTool: (t: CanvasTool) => void;
   /** the flow's first unmet requirement — the chip rides this row now, in
@@ -3359,6 +3418,61 @@ function CanvasControls({
   const floorMenuRef = useClampedMenu(floorMenuOpen);
   const calibMenuRef = useClampedMenu(calibOpen);
   const viewMenuRef = useClampedMenu(layersOpen);
+  /* a subfloor or roof space in the floor menu: picked from its name, its
+     height typed in metres as a floor's is, taken off with its x */
+  const spaceRow = (kind: SpaceKind) => {
+    const at = spaces ? spaceOf(spaces, kind) : null;
+    if (!at) return null;
+    const armKey = `space:${kind}`;
+    const name = SPACE_NAME[kind];
+    return (
+      <div className="ds-floor-row space">
+        <button
+          className="ds-floor-pick"
+          onClick={() => {
+            onPickSpace?.(kind);
+            setFloorMenuOpen(false);
+          }}
+        >
+          <span className="lvl">{SPACE_LEVEL[kind]}</span>
+          <span className="nm">{name}</span>
+        </button>
+        <label className="ds-floor-hgt">
+          <input
+            type="number"
+            min={0.1}
+            max={20}
+            step={0.1}
+            value={at.space.heightMm == null ? "" : at.space.heightMm / 1000}
+            aria-label={`${name} height, metres`}
+            onChange={(e) => onSpaceHeight?.(kind, metresToMm(e.target.value), false)}
+            onBlur={(e) => onSpaceHeight?.(kind, metresToMm(e.target.value), true)}
+          />
+          <span>m</span>
+        </label>
+        {armedDelFloor === armKey ? (
+          <span className="ds-floor-confirm">
+            <button
+              className="yes"
+              onClick={() => {
+                onRemoveSpace?.(kind);
+                setArmedDelFloor(null);
+              }}
+            >
+              Delete?
+            </button>
+            <button className="no" onClick={() => setArmedDelFloor(null)} aria-label="Cancel delete">
+              <Icon name="x" size={12} />
+            </button>
+          </span>
+        ) : (
+          <button className="ds-floor-x" onClick={() => setArmedDelFloor(armKey)} aria-label={`Delete ${name.toLowerCase()}`}>
+            <Icon name="x" size={12} />
+          </button>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="ds-canvas-toggles">
@@ -3380,8 +3494,11 @@ function CanvasControls({
         </button>
         {floorMenuOpen && (
           <div className="ds-layers-menu ds-floor-menu" role="menu" ref={floorMenuRef}>
-            {sorted.map((f) => (
-              <div key={f.id} className={`ds-floor-row${f.id === floor.id ? " on" : ""}`}>
+            {sorted.map((f, fi) => (
+              <Fragment key={f.id}>
+              {/* the subfloor rides under the lowest floor, the roof space over the top one */}
+              {fi === 0 && spaces && spaceRow("under")}
+              <div className={`ds-floor-row${f.id === floor.id ? " on" : ""}`}>
                 <button
                   className="ds-floor-pick"
                   onClick={() => {
@@ -3441,6 +3558,8 @@ function CanvasControls({
                   )
                 )}
               </div>
+              {fi === sorted.length - 1 && spaces && spaceRow("over")}
+              </Fragment>
             ))}
             <button
               className="ds-floor-add"
@@ -3452,6 +3571,25 @@ function CanvasControls({
               <Icon name="plus" size={13} />
               Add floor
             </button>
+            {spaces &&
+              (["under", "over"] as const).map(
+                (kind) =>
+                  canAdd(spaces, kind) && (
+                    <Fragment key={kind}>
+                    {kind === "under" && mentionWords(spaces) && <p className="ds-floor-said">{mentionWords(spaces)}</p>}
+                    <button
+                      className="ds-floor-add"
+                      onClick={() => {
+                        onAddSpace?.(kind);
+                        setFloorMenuOpen(false);
+                      }}
+                    >
+                      <Icon name="plus" size={13} />
+                      {kind === "under" ? "Add subfloor" : "Add roof space"}
+                    </button>
+                    </Fragment>
+                  )
+              )}
           </div>
         )}
       </div>
@@ -3841,6 +3979,8 @@ function DesignPanel({
   onAirPatch,
   onComponentPlaced,
   selectedId,
+  pickedSpace = null,
+  onPickSpace,
   onSelect,
   onMutate,
   planImages,
@@ -3902,6 +4042,9 @@ function DesignPanel({
   onAirPatch: (patch: Partial<ArmedComponent>) => void;
   onComponentPlaced: () => void;
   selectedId: string | null;
+  /** the subfloor or roof space picked on the plan (floor-spaces.ts) */
+  pickedSpace?: SpaceKind | null;
+  onPickSpace?: (kind: SpaceKind) => void;
   onSelect: (id: string | null) => void;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
   planImages: PlanImages;
@@ -3940,6 +4083,18 @@ function DesignPanel({
 }) {
   const flow = useStudioFlow();
   const floor = doc.floors.find((f) => f.id === activeFloorId) ?? null;
+  /* the subfloor or roof space hung off this floor, outlined on its plan */
+  const spacesHere = useMemo(() => {
+    if (!floor) return [];
+    return (["under", "over"] as const).flatMap((kind) => {
+      const space = floor[kind];
+      if (!space || spaceOf(doc, kind)?.floor.id !== floor.id) return [];
+      const pts = outlineOf(doc, floor, space);
+      if (!pts) return [];
+      const label = space.heightMm ? `${SPACE_NAME[kind]}, ${space.heightMm} mm` : SPACE_NAME[kind];
+      return [{ kind, pts, label, picked: pickedSpace === kind }];
+    });
+  }, [doc, floor, pickedSpace]);
   /* a room or unit tapped in the 3D: its load and what covers it, or what the unit is */
   const about3d = useCallback(
     (p: Pick3D): About3D => {
@@ -4247,6 +4402,19 @@ function DesignPanel({
             floor={floor}
             tool={tool}
             selectedId={selectedId}
+            worldOverlay={
+              onPickSpace && spacesHere.length
+                ? (zoom) => (
+                    <FloorSpaceOverlay
+                      spaces={spacesHere}
+                      zoom={zoom}
+                      active={tool === "select"}
+                      onPick={onPickSpace}
+                      onReshape={(kind, pts) => onMutate((d) => patchSpace(d, kind, { outline: pts }))}
+                    />
+                  )
+                : undefined
+            }
             onSelect={onSelect}
             onMutate={onMutate}
             onToolDone={() => onTool("select")}
@@ -4337,6 +4505,43 @@ function DesignPanel({
             onSize={(size) => onAirPatch({ size })}
           />
         )}
+        {/* the subfloor or roof space picked: where its outline comes from, and its height */}
+        {tool === "select" &&
+          pickedSpace &&
+          (() => {
+            const at = spaceOf(doc, pickedSpace);
+            if (!at || at.floor.id !== floor.id) return null;
+            const fromPlans = !!at.space.planOutline;
+            return (
+              <SpaceBar
+                kind={pickedSpace}
+                follows={fromPlans ? "From the plans" : `Follows the ${floorDisplayName(at.floor).toLowerCase()}`}
+                byHand={at.space.outline != null}
+                onFollow={() => onMutate((d) => patchSpace(d, pickedSpace, { outline: null }))}
+                heightMm={at.space.heightMm}
+                onHeight={(mm) => {
+                  const patch = typedSpaceHeight(doc, pickedSpace, mm);
+                  onMutate((d) => patchSpace(d, pickedSpace, patch));
+                }}
+                said={at.space.said}
+              />
+            );
+          })()}
+        {/* an outdoor unit on a design with a subfloor: outside, or in it */}
+        {tool === "select" &&
+          (() => {
+            const u = doc.objects.find((o) => o.id === selectedId && o.type === "unit" && o.props.role === "odu" && o.floorId === floor.id);
+            const sub = spaceOf(doc, "under");
+            if (!u || !sub || sub.floor.id !== floor.id) return null;
+            const row = pack?.outdoor_units.find((r) => r.model === u.props.model);
+            return (
+              <OutdoorWhereBar
+                where={inSubfloor(u) ? "subfloor" : "outside"}
+                onWhere={(w) => onMutate((d) => ({ ...d, objects: d.objects.map((o) => (o.id === u.id ? { ...o, plane: planeOfOutdoor(w) } : o)) }))}
+                fit={fitWords("under", row?.height_mm ?? null, sub.space.heightMm)}
+              />
+            );
+          })()}
         {/* the next flow: where a picked indoor unit sits */}
         {next && tool === "select" &&
           (() => {
@@ -4344,6 +4549,13 @@ function DesignPanel({
             if (!u) return null;
             const row = pack?.indoor_units.find((r) => r.model === u.props.model);
             const spaceMm = typeof u.props.spaceMm === "number" ? u.props.spaceMm : null;
+            /* under the lowest floor with a subfloor, or in the ceiling of the top one with a roof space, it sits in that */
+            const where = unitWhere(u, row?.form_factor);
+            const holder = where === "under-floor" ? spaceOf(doc, "under") : where === "ceiling" ? spaceOf(doc, "over") : null;
+            const inSpace =
+              holder && holder.floor.id === floor.id
+                ? fitWords(where === "under-floor" ? "under" : "over", row?.height_mm ?? null, holder.space.heightMm, HANGERS_MM)
+                : null;
             const set = (patch: Partial<DesignObject>) =>
               onMutate((d) => ({ ...d, objects: d.objects.map((o) => (o.id === u.id ? { ...o, ...patch } : o)) }));
             return (
@@ -4353,6 +4565,7 @@ function DesignPanel({
                 needMm={row?.height_mm ? underFloorFit(row.height_mm, 0).needMm : null}
                 spaceMm={spaceMm}
                 onSpace={(mm) => set({ props: { ...u.props, spaceMm: mm } })}
+                inSpace={inSpace}
               />
             );
           })()}

@@ -1,6 +1,7 @@
 "use client";
 
-import { UNIT_WHERE, type UnitWhere } from "@/lib/studio/unit-where";
+import { OUTDOOR_WHERE, UNIT_WHERE, type OutdoorWhere, type UnitWhere } from "@/lib/studio/unit-where";
+import { SPACE_NAME, type SpaceKind } from "@/lib/studio/floor-spaces";
 
 /* Design Studio — the air-side tool chrome (Stage 7, Step 2): the component
    palette flyout (the built entries of the eight) and the options HUD framework with its first variant (plenum
@@ -443,6 +444,7 @@ export function UnitWhereBar({
   needMm,
   spaceMm,
   onSpace,
+  inSpace,
 }: {
   where: UnitWhere;
   onWhere: (w: UnitWhere) => void;
@@ -450,6 +452,9 @@ export function UnitWhereBar({
   needMm: number | null;
   spaceMm: number | null;
   onSpace: (mm: number) => void;
+  /** where it is, in the design's subfloor or roof space: the fit said in
+      words, and no space to type (floor-spaces.ts fitWords) */
+  inSpace?: { text: string; good: boolean | null } | null;
 }) {
   return (
     <OptionsHud label="Where">
@@ -460,7 +465,11 @@ export function UnitWhereBar({
           </button>
         ))}
       </div>
-      {where === "under-floor" && (
+      {inSpace ? (
+        <span className="ds-hud-size">
+          <FitWords {...inSpace} />
+        </span>
+      ) : where === "under-floor" && (
         <span className="ds-hud-size" key={spaceMm ?? "none"}>
           <MmField label="Space there, mm" value={spaceMm ?? 0} onCommit={onSpace} />
           <span className="ds-hud-unit">mm</span>
@@ -470,5 +479,109 @@ export function UnitWhereBar({
         </span>
       )}
     </OptionsHud>
+  );
+}
+
+function FitWords({ text, good }: { text: string; good: boolean | null }) {
+  return <span className={good === true ? "ds-hud-good" : good === false ? "ds-hud-short" : "ds-hud-unit"}>{text}</span>;
+}
+
+/** Where a picked outdoor unit stands, on a design with a subfloor: outside
+    on the ground, or in the subfloor, with its height against the subfloor's. */
+export function OutdoorWhereBar({
+  where,
+  onWhere,
+  fit,
+}: {
+  where: OutdoorWhere;
+  onWhere: (w: OutdoorWhere) => void;
+  fit: { text: string; good: boolean | null } | null;
+}) {
+  return (
+    <OptionsHud label="Where">
+      <div className="ds-hud-seg">
+        {OUTDOOR_WHERE.map(([w, word]) => (
+          <button key={w} type="button" className={`ds-hud-chip${where === w ? " on" : ""}`} aria-pressed={where === w} onClick={() => onWhere(w)}>
+            {word}
+          </button>
+        ))}
+      </div>
+      {where === "subfloor" && fit && (
+        <span className="ds-hud-size">
+          <FitWords {...fit} />
+        </span>
+      )}
+    </OptionsHud>
+  );
+}
+
+/** The picked subfloor or roof space: where its outline comes from, and its
+    height, typed (the mock "Under the house"). */
+export function SpaceBar({
+  kind,
+  follows,
+  byHand,
+  onFollow,
+  heightMm,
+  onHeight,
+  said,
+}: {
+  kind: SpaceKind;
+  /** the first choice's words: "Follows the ground floor", or "From the plans" */
+  follows: string;
+  byHand: boolean;
+  onFollow: () => void;
+  heightMm: number | null;
+  onHeight: (mm: number | null) => void;
+  /** where on the plans its height was read, said after it */
+  said?: string;
+}) {
+  return (
+    <OptionsHud label={SPACE_NAME[kind]}>
+      <div className="ds-hud-seg">
+        <button type="button" className={`ds-hud-chip${byHand ? "" : " on"}`} aria-pressed={!byHand} onClick={onFollow}>
+          {follows}
+        </button>
+        {/* a dragged corner makes it Drawn by hand: the chip says so, it isn't a way there */}
+        <button type="button" className={`ds-hud-chip${byHand ? " on" : ""}`} aria-pressed={byHand} disabled={!byHand}>
+          Drawn by hand
+        </button>
+      </div>
+      <span className="ds-hud-size" key={heightMm ?? "none"}>
+        <span className="ds-hud-label">Height</span>
+        <HeightField label={`${SPACE_NAME[kind]} height, mm`} value={heightMm} onCommit={onHeight} />
+        <span className="ds-hud-unit">{said ? `mm, ${said}` : "mm"}</span>
+      </span>
+    </OptionsHud>
+  );
+}
+
+/* a height in mm, or blank for not known */
+function HeightField({ label, value, onCommit }: { label: string; value: number | null; onCommit: (mm: number | null) => void }) {
+  const [draft, setDraft] = useState(value == null ? "" : String(value));
+  const land = () => {
+    const t = draft.trim().replace(/[\s,]/g, "");
+    if (t === "") {
+      if (value != null) onCommit(null);
+      return;
+    }
+    const mm = /^\d+$/.test(t) ? Number(t) : NaN;
+    if (!(mm > 0 && mm <= 20000)) setDraft(value == null ? "" : String(value));
+    else if (mm !== value) onCommit(mm);
+  };
+  return (
+    <input
+      className="ds-hud-mm"
+      inputMode="numeric"
+      aria-label={label}
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onFocus={(e) => e.target.select()}
+      onBlur={land}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") land();
+        if (e.key === "Escape") setDraft(value == null ? "" : String(value));
+      }}
+    />
   );
 }

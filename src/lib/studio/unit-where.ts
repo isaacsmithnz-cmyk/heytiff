@@ -18,7 +18,17 @@ const PLANES = { ceiling: "ceiling-cavity", room: "room", "under-floor": "floor-
 
 export const planeOfWhere = (w: UnitWhere): Plane => PLANES[w];
 
-export const isUnderFloor = (o: DesignObject): boolean => o.type === "unit" && o.plane === "floor-cavity";
+export const isUnderFloor = (o: DesignObject): boolean => o.type === "unit" && o.plane === "floor-cavity" && o.props.role !== "odu";
+
+/* WHERE AN OUTDOOR UNIT STANDS on a design with a subfloor (floor-spaces.ts):
+   outside on the ground, or in the subfloor, under the floor it is drawn on */
+export type OutdoorWhere = "outside" | "subfloor";
+export const OUTDOOR_WHERE: readonly [OutdoorWhere, string][] = [
+  ["outside", "Outside"],
+  ["subfloor", "Subfloor"],
+];
+export const inSubfloor = (o: DesignObject): boolean => o.type === "unit" && o.props.role === "odu" && o.plane === "floor-cavity";
+export const planeOfOutdoor = (w: OutdoorWhere): Plane => (w === "subfloor" ? "floor-cavity" : "external-ground");
 
 /** said by the plane, or by the kind of unit where nobody has said */
 export function unitWhere(o: DesignObject, form: string | null | undefined): UnitWhere {

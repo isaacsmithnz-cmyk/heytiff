@@ -445,6 +445,29 @@ export function planLine(plan: JobPlanRead, today?: string): string {
   return parts.join(". ");
 }
 
+/** The plan's line on its subfloor, under its read (the mock
+    https://claude.ai/artifact/B2Cr5YiUkZG7eSrsLd8Uum): where it runs and
+    how high, the height typed in a design once there is one; or where the
+    set only names one. Nothing when the set has none. */
+export function subfloorLine(plan: Pick<JobPlan, "reading">): string | null {
+  const sub = plan.reading?.roof?.subfloor;
+  if (!sub) return null;
+  if (sub.shown === "mentioned") {
+    /* its own note, the first that names it */
+    const words = sub.words.split(/;|\s\(/)[0].trim().replace(/[.\s]+$/, "");
+    return `${sub.sheet || "The plans"} ${words ? `says “${words}”` : "names a subfloor"}, but no plan draws a subfloor`;
+  }
+  /* a short list of rooms, however she put it */
+  const rooms = sub.rooms.replace(/^under\s+/i, "").split(/[.(;:]/)[0].trim();
+  const where = rooms ? `Subfloor under ${rooms.replace(/^the\s+/i, "the ")}` : `Subfloor drawn${sub.sheet ? ` on ${sub.sheet}` : ""}`;
+  if (sub.set) {
+    const day = dayOf(sub.set.at);
+    return `${where}, ${sub.set.heightMm} mm, set${sub.set.by ? ` by ${sub.set.by}` : ""}${sub.set.design ? ` in ${sub.set.design}` : ""}${day ? ` on ${day}` : ""}`;
+  }
+  if (sub.heightMm > 0) return `${where}, ${/^measured/i.test(sub.heightFrom) ? "about " : ""}${sub.heightMm} mm${sub.heightFrom ? `, ${sub.heightFrom}` : ""}`;
+  return `${where}. Its height isn't on the plans`;
+}
+
 /** The state word on the row's right. A read plan with a page that has no
     scale says so in orange, Scale needed: what's missing, beside Read and
     Check the read. */
@@ -563,6 +586,8 @@ export function designFromPlan(plan: JobPlan): DesignFromPlan {
           levels: r.roof.levels.flatMap((l) => (at(l.floorId) ? [{ ...l, floorId: at(l.floorId)!.floorId }] : [])),
           parts: r.roof.parts.flatMap((p) => (at(p.floorId) ? [{ ...p, floorId: at(p.floorId)!.floorId, sheetId: at(p.floorId)!.sheetId }] : [])),
           raked: r.roof.raked.flatMap((k) => (at(k.floorId) ? [{ ...k, floorId: at(k.floorId)!.floorId }] : [])),
+          /* the subfloor onto the floor it is under; one only named stays, said in the floor menu */
+          subfloor: r.roof.subfloor && at(r.roof.subfloor.floorId) ? { ...r.roof.subfloor, floorId: at(r.roof.subfloor.floorId)!.floorId, sheetId: at(r.roof.subfloor.floorId)!.sheetId } : r.roof.subfloor?.shown === "mentioned" ? r.roof.subfloor : undefined,
         }
       : r.roof;
     const site = r.site && at(r.site.floorId) ? { ...r.site, floorId: at(r.site.floorId)!.floorId, sheetId: at(r.site.floorId)!.sheetId } : r.site === null ? null : undefined;

@@ -117,6 +117,34 @@ export type RoofReading = {
   material: string;
   /** what the set says about the roof space, for the installer */
   roofSpace: string;
+  /** the subfloor, where the set draws or names one; absent when it doesn't (or was read before 15 November 2026) */
+  subfloor?: ReadSubfloor;
+};
+
+/* THE SUBFLOOR OFF THE SET (Isaac, 15 November 2026: "Should plans build a
+   subfloor area if mentioned on plan with help from user?"; the mock
+   https://claude.ai/artifact/B2Cr5YiUkZG7eSrsLd8Uum). Drawn: a plan or a
+   section shows it as a space, and she sets it out on the plan of the floor
+   it is under. Mentioned: only a note names it, so no shape is guessed. */
+export type ReadSubfloor = {
+  shown: "drawn" | "mentioned";
+  /** the floor it is under, and that floor's sheet its outline is in */
+  floorId: string;
+  sheetId: string;
+  /** under the rooms it runs under, in that sheet's pixels; empty when only mentioned */
+  outline: ReadPoint[];
+  /** the rooms it runs under, in words ("the kitchen, laundry and sitting rooms") */
+  rooms: string;
+  /** the ground to the floor's underside, mm; 0 = not known */
+  heightMm: number;
+  /** where the height came from ("measured off section 1 on A401") */
+  heightFrom: string;
+  /** the drawing it is shown or named on ("A401") */
+  sheet: string;
+  /** what the set says of it, as written */
+  words: string;
+  /** a height typed in a design, kept on the job's plan */
+  set?: { heightMm: number; by: string | null; design: string; at: string };
 };
 
 /* THE SITE ROUND THE HOUSE (Isaac, 8 November 2026: "Paths, walkways,

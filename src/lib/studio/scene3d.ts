@@ -7,6 +7,7 @@ import { finishInside, roofFinishFor, stairFinishOf, type RoofFinish, type Surfa
 import { framingOf, roofHeightAt, roofMesh, type Member, type Mesh, type RoofRect } from "./roof3d";
 import { frameOf, furnish, within, type Piece3D, type ReadPiece } from "./furnish3d";
 import { snapOpenings, waysIn } from "./tidy3d";
+import { outlineOf } from "./floor-spaces";
 
 /* THE DESIGN IN 3D (Isaac, 20 October 2026: "a button on Design"; the board
    https://claude.ai/artifact/VWq6nGGGaCPxCuRnReyCyX, option B). What the 3D
@@ -454,6 +455,10 @@ export function sceneOf(doc: DesignDocument, unitRow?: (model: string) => UnitRo
   const moves = new Map<string, XZ>();
   for (const [id, r] of raws) moves.set(id, groundRaw && r !== groundRaw ? lineUp(groundRaw, r) : [0, 0]);
 
+  /* A SUBFLOOR (floor-spaces.ts): the house stands on it, so every floor goes
+     up by its height and it stands on the ground under the lowest one */
+  const lowest = ordered[0];
+  const lift = lowest?.under?.heightMm && lowest.under.heightMm > 0 ? lowest.under.heightMm / 1000 : 0;
   const floors: Floor3D[] = [];
   for (const f of ordered) {
     const r = raws.get(f.id);
@@ -469,7 +474,7 @@ export function sceneOf(doc: DesignDocument, unitRow?: (model: string) => UnitRo
       mm: f.scaleMmPerUnit ?? undefined,
       north: f.northDeg ?? 0,
       level: f.level,
-      y0: mm((bases.get(f.id) ?? 0) - ground0),
+      y0: mm((bases.get(f.id) ?? 0) - ground0 + lift),
       ceiling: ceilingOf(f),
       spaces,
       openings,
@@ -489,6 +494,8 @@ export function sceneOf(doc: DesignDocument, unitRow?: (model: string) => UnitRo
     const arches = (f.open ?? []).map(([a, b]): Opening3D => ({ kind: "door", a, b, external: false, sill: 0, head: 2.1 }));
     f.pieces = furnish(f.spaces, [...f.openings, ...arches], { furniture: (r.furniture ?? []).map(moved), joinery: (r.joinery ?? []).map(moved) });
   }
+
+  const subfloor = subfloorOf(doc, floors, lowest, lift, moves);
 
   const floorById = new Map(floors.map((f) => [f.id, f]));
   const systemType = new Map(doc.systems.map((s) => [s.id, s.type]));
@@ -528,7 +535,8 @@ export function sceneOf(doc: DesignDocument, unitRow?: (model: string) => UnitRo
             : f.y0 + f.ceiling - 0.15 - h;
       units.push({
         id: o.id,
-        floorId: f.id,
+        /* in the subfloor: an outdoor unit put there, or a head hung under the lowest floor */
+        floorId: subfloor && f.id === lowest?.id && underFloor ? subfloor.id : f.id,
         outdoor,
         label: typeof o.props.model === "string" ? o.props.model : outdoor ? "Outdoor unit" : "Indoor unit",
         at: m(o.geometry.at),
@@ -719,7 +727,7 @@ export function sceneOf(doc: DesignDocument, unitRow?: (model: string) => UnitRo
   const all = floors.flatMap((f) => f.spaces.flatMap((s) => s.pts));
   const b = boxOf(all) ?? { x0: 0, z0: 0, x1: 10, z1: 10 };
   return {
-    floors,
+    floors: subfloor ? [subfloor, ...floors] : floors,
     units,
     pipes,
     ducts,
@@ -733,6 +741,34 @@ export function sceneOf(doc: DesignDocument, unitRow?: (model: string) => UnitRo
     roofRects: rects,
     center: [(b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2],
     span: Math.max(6, b.x1 - b.x0, b.z1 - b.z0),
+  };
+}
+
+/** The subfloor as a storey of its own under the lowest floor: its outline,
+    walled to its height, standing on the ground. Nothing is read or furnished
+    in it; what goes in it is the design's. */
+function subfloorOf(doc: DesignDocument, floors: Floor3D[], lowest: Floor | undefined, lift: number, moves: Map<string, XZ>): Floor3D | null {
+  const over = lowest && floors.find((f) => f.id === lowest.id);
+  const k = lowest?.scaleMmPerUnit;
+  if (!lowest?.under || !over || !lift || !k) return null;
+  const pts = outlineOf(doc, lowest, lowest.under);
+  if (!pts) return null;
+  const mv = shift(moves.get(lowest.id) ?? [0, 0]);
+  return {
+    id: `${lowest.id}:under`,
+    name: "Subfloor",
+    level: lowest.level - 1,
+    y0: mm(over.y0 - lift),
+    ceiling: mm(lift),
+    spaces: [{ name: "Subfloor", kind: "other", pts: pts.map((p) => mv([(p.x * k) / 1000, (p.y * k) / 1000])), existing: false }],
+    openings: [],
+    read: false,
+    tiles: [],
+    pieces: [],
+    stairs: [],
+    shift: over.shift,
+    mm: k,
+    north: over.north,
   };
 }
 

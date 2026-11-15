@@ -434,6 +434,24 @@ export async function choosePlanFloors(orgId: string, planId: string, chosen: Re
   }
 }
 
+/** A subfloor's height typed in a design, kept on the job's plan it was read
+    off, so the job says it and the next design and quote start with it (the
+    mock https://claude.ai/artifact/B2Cr5YiUkZG7eSrsLd8Uum). */
+export async function keepSubfloorHeight(orgId: string, planId: string, heightMm: number, staffId: string | null, design: string, jobUuid?: string): Promise<string | null> {
+  const plan = await readJobPlan(orgId, planId);
+  if (!plan || (jobUuid && plan.jobUuid !== jobUuid)) return "That isn't one of this job's plans.";
+  const sub = plan.reading?.roof?.subfloor;
+  if (!plan.reading?.roof || !sub || sub.shown !== "drawn") return "The plan has no subfloor to keep a height on.";
+  const by = staffId ? ((await staffDisplayNames(orgId, [staffId])).get(staffId) ?? null) : null;
+  const reading = { ...plan.reading, roof: { ...plan.reading.roof, subfloor: { ...sub, set: { heightMm, by: by?.split(" ")[0] ?? null, design: design.slice(0, 120), at: new Date().toISOString() } } } };
+  try {
+    await write(orgId, planId, { reading });
+    return null;
+  } catch {
+    return "The height couldn't be kept on the job. Try again.";
+  }
+}
+
 /* ── the rooms off the job's plans, for a quote and the heat load ── */
 
 /** how long an ask waits on a read it started before saying it's still going */

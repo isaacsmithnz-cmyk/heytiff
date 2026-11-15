@@ -52,7 +52,8 @@ jest.mock("../board/project-trip-sheet", () => ({
     </div>
   ),
 }));
-jest.mock("@/app/actions/site-notes", () => ({ readSiteNoteCount: jest.fn(async () => 0), readSiteNotes: jest.fn(async () => null), addSiteNote: jest.fn(), changeSiteNote: jest.fn(), removeSiteNote: jest.fn() }));
+jest.mock("@/app/actions/site-notes", () => ({ addSiteNote: jest.fn(), changeSiteNote: jest.fn(), removeSiteNote: jest.fn() }));
+jest.mock("@/components/jobs/site-notes-read", () => ({ fetchSiteNoteCount: jest.fn(async () => 0), fetchSiteNotes: jest.fn(async () => null) }));
 jest.mock("@/app/actions/workboard-ai", () => ({
   readEquipmentPhoto: jest.fn(async () => ({ ok: false, reason: "no-key" })),
 }));

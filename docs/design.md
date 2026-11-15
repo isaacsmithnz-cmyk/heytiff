@@ -64,7 +64,7 @@ When two sources disagree: Isaac's own words win, then this file, then the canva
 
 - **29. Views of a list.** Soft tabs under the title: words alone, the one you're on in a light fill. No outlines. No tab anywhere carries a number, and a screen's title carries no count beside it ("Team", not "Team 3 people"): a view with something waiting has its word in amber, red when something is wrong (Isaac, 20 October: "We need to rule it out everywhere").
 - **30. One of a few.** Day, Week, Month in a thin tray; the chosen one filled light.
-- **31. Section tabs.** Underlined, the one you're on standing on 2px of ink. No numbers on them, as rule 29: a tab with something to look at has its word in amber, red when something is wrong (Isaac, 20 October). A job has six: Overview, Scope, Price, On site, Files, Billing (Isaac, 13 November 2026: "compact the row"; built 15 November). Overview is the facts and the Activity feed, with the stages line beside the name. Scope is the job's Scope, Since the quote and Latest updates, or its Summary where it has no Scope (mock A). Price is where what the job is charged is built: every price on the job as a card across the top, the quote and, for whoever holds `workboard_money`, each invoice, and the one open in Chat, Line items and Preview with its rail (build 10, below); the quote's own page is Price now, and its old address lands there; a variation keeps its "Variation" inside. On site is the visits with their tasks, what's not on a day yet and the materials, each unit and control with its word from Stock (mock F). Files is the photos, then the documents and, for whoever holds the Studio, the job's designs, a design listed once. Billing is the money, only with `workboard_money`. Overview, Scope, On site and Files fit the screen, each card scrolling inside itself and never under 420 high. Every old name still lands: `?tab=quote` and the quote's old page on Price, a claim's own number on its invoice there; `visits`, `materials` and `checklist` on On site; `photos`, `documents` and `design` on Files. Under the job's name on every tab, its description: the Scope's first sentence, plain text at 16 with no mark, wrapping when it's long; a job with no Scope has no line (14 November 2026, calls 19 and 22). A project has six: Overview, Trips, Scope, Money, Site, Documents (27 October 2026). A person has five: Overview, Hours & leave, Papers, Pay, Access.
+- **31. Section tabs.** Underlined, the one you're on standing on 2px of ink. No numbers on them, as rule 29: a tab with something to look at has its word in amber, red when something is wrong (Isaac, 20 October). A job has six: Overview, Scope, Price, On site, Files, Billing (Isaac, 13 November 2026: "compact the row"; built 15 November). Overview is the facts and the Activity feed, with the stages line beside the name. Scope is the job's Scope, Since the quote and Latest updates, or its Summary where it has no Scope (mock A). Price is where what the job is charged is built: every price on the job as a card across the top, the quote and, for whoever holds `workboard_money`, each invoice, and the one open in Chat, Line items and Preview with its rail (build 10, below); the quote's own page is Price now, and its old address lands there; a variation keeps its "Variation" inside. On site is the visits with their tasks, what's not on a day yet and the materials, each unit and control with its word from Stock (mock F). Files is the photos, then the documents and, for whoever holds the Studio, the job's designs, a design listed once. Billing is the money, only with `workboard_money`. Overview, Scope, Price, On site and Files fit the screen, each card scrolling inside itself and never under 420 high (Price's floor was 520 until the walk of 15 November 2026 found its rail's buttons under a 790 screen). Every old name still lands: `?tab=quote` and the quote's old page on Price, a claim's own number on its invoice there; `visits`, `materials` and `checklist` on On site; `photos`, `documents` and `design` on Files. Under the job's name on every tab, its description: the Scope's first sentence, plain text at 16 with no mark, wrapping when it's long; a job with no Scope has no line (14 November 2026, calls 19 and 22). A project has six: Overview, Trips, Scope, Money, Site, Documents (27 October 2026). A person has five: Overview, Hours & leave, Papers, Pay, Access.
 - **32. Ticks and switches.** Blue when on. A switch saves itself.
 - **33. Fields.** 36 tall, a 6 corner, the label above. A wrong field gets a red edge and says why underneath.
 - **34. Menus to choose from.** A field with a chevron; opens a menu. A time opens a wheel: the hour, minutes in fives, am or pm. Nothing types a clock time.
@@ -437,8 +437,12 @@ the fourth on the customer's messages, below).
   30): Chat, where a quote is built and changed (only while Tiff is on for the
   business), Line items, and Preview, the paper as the customer gets it (the
   quote's paper is the money's, so a tech has no Preview), with its rail down
-  the right, 400 wide, its buttons pinned at the foot. An invoice opens on its
-  PDF, its lines a tab away, and its rail says its figure and word, what's
+  the right, 400 wide, its buttons pinned at the foot. A quote's Scope and To
+  confirm join that one tray, and its rail opens on its price, then where it's
+  up to as a list with each step's words, Approved and a client's yes said as
+  green words (rule 17), the yes with Undo, and Update quote orange (the walk
+  of 15 November 2026). An invoice opens on its
+  PDF alone, with no viewer's toolbar, its lines a tab away, and its rail says its figure and word, what's
   been paid inc GST, and what's written on it. **An invoice has one home**:
   Billing's row opens it on Price, as does the feed's money event and a
   claim's own number, and there is no claim dialog; a claim still to come
@@ -503,9 +507,11 @@ the fourth on the customer's messages, below).
   headed by what's open on the job, then Done, and its word is amber when one
   is due today and red when one is overdue (rule 29). On the To do tab the
   box reads "Add a to do": Save adds it as written for you, the arrow has
-  Tiff set who and when. Comms has no box. An email shows its words without
-  its sign-off or its signature's pictures, with Whole email and Reply under
-  it. "Task" only ever means site work: Actions' Add says "Add to do".
+  Tiff set who and when. Comms has no box. An empty tab is empty down to its
+  box, with no words in it (the walk of 15 November 2026). An email shows its
+  words without its sign-off or its signature's pictures, with Whole email
+  and Reply under it; with no sign-off over it, the signature starts at a
+  line naming the sender, a line of contact details or a disclaimer. "Task" only ever means site work: Actions' Add says "Add to do".
   The box's arrow opens Tiff's docked window with the job as its context,
   with only its × (no Minimise on a job's; other screens keep it), and the
   job's box goes while it is open (Isaac, 14 November 2026, mock E and calls

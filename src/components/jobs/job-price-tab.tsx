@@ -505,7 +505,10 @@ function PriceInvoice({
               </ul>
             </section>
           )}
-          {read && (
+          {/* what's written on a claim of its own; a job's one invoice is
+              the job itself, whose notes are the job's, not the invoice's
+              (the walk of 15 November 2026, 3408) */}
+          {read && id.toLowerCase() !== job.toLowerCase() && (
             <section className="jpr-grp" aria-label="Written on it">
               <h3>Written on it</h3>
               {read.notes.length > 0 ? (

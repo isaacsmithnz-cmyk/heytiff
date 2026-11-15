@@ -1538,7 +1538,10 @@ export function JobSheet({
   /* ON SITE AND FILES FIT THE SCREEN */
   const [onsiteRef, onsiteH] = useFitHeight<HTMLDivElement>();
   const [filesRef, filesH] = useFitHeight<HTMLDivElement>();
-  const [priceRef, priceH] = useFitHeight<HTMLDivElement>(520);
+  /* Price at the same floor as the rest (call 11): at 520 its rail's
+     buttons fell under a 790 screen on a job with a description (the walk
+     of 15 November 2026, 3408) */
+  const [priceRef, priceH] = useFitHeight<HTMLDivElement>();
   /* STOCK'S WORD FOR EACH UNIT AND CONTROL, read once On site is opened
      (/api/stock/job, what the Overview's Equipment block read) */
   const [stock, setStock] = useState<EquipmentRow[] | null>(null);

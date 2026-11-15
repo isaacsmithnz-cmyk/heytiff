@@ -122,12 +122,9 @@ export function JobPhotosFace({
             <div key={day.day ?? "undated"} className="wb2-jcsec">
               <div className="wb2-mday">
                 <b>{day.day ? fmtAuWeekdayDayMonth(day.day) : "Undated"}</b>
-                <em>
-                  {[crew && crew.length > 0 ? `${crew.join(", ")} on site` : null,
-                    `${day.entries.length}`]
-                    .filter(Boolean)
-                    .join(", ")}
-                </em>
+                {/* who was there; the day's count went, the card's own
+                    line already counts them (the walk of 15 November 2026, T6) */}
+                {crew && crew.length > 0 && <em>{`${crew.join(", ")} on site`}</em>}
               </div>
               <div className="wb2-mosaic">
                 {day.entries.map(({ item }) => {

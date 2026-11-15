@@ -11,7 +11,7 @@ import { QuoteDesign, type QuoteDesignRow } from "./quote-design";
 import { toConfirmOf } from "@/lib/quotes/quote-card";
 import { cents2 } from "@/lib/quotes/quote-sum";
 import { QuoteStepsLine, leftOn, priceState } from "./quote-parts";
-import { TiffPanel } from "./tiff-panel";
+import { TiffPanel, type QuoteFace } from "./tiff-panel";
 import { LinesProposalPaper } from "./lines-proposal-paper";
 import type { LinesProposal } from "@/lib/quotes/lines-proposal";
 import type { PaymentPreset, PaymentStage } from "@/lib/quotes/payment";
@@ -217,6 +217,8 @@ export function QuoteLinesFace({
   /* what fills the left while Tiff is on for the business: the
      conversation, or the line items, switched from the rail */
   const [tab, setTab] = useState<"chat" | "lines">("chat");
+  /* on the Price tab the conversation's own faces join the one tray */
+  const [face, setFace] = useState<QuoteFace>("talk");
   /* whether she's on, once her thread is read (what she's cost left the
      rail with layout B, 21 October 2026) */
   const [tiff, setTiff] = useState<{ on: boolean; spentUsd: number | null } | null>(null);
@@ -347,8 +349,17 @@ export function QuoteLinesFace({
   const linesUp = tiff !== null && (!chat || tab === "lines");
   /* the Price tab's views: Chat while Tiff is on, the line items, and the
      paper, which is the money's as Preview quote was; one alone is no tray */
-  const viewsOffered = [
-    ...(chat ? [{ value: "chat" as const, label: "Chat" }] : []),
+  /* the Price tab's one tray (the walk of 15 November 2026, T2): Chat,
+     Scope and To confirm are the conversation's own faces, then Line items
+     and Preview, where there were two trays stacked */
+  const viewsOffered: { value: "chat" | "scope" | "confirm" | "lines" | "preview"; label: string; tone?: "look" }[] = [
+    ...(chat
+      ? [
+          { value: "chat" as const, label: "Chat" },
+          { value: "scope" as const, label: "Scope" },
+          { value: "confirm" as const, label: "To confirm", ...(asked > 0 ? { tone: "look" as const } : {}) },
+        ]
+      : []),
     { value: "lines" as const, label: "Line items" },
     ...(money && all.length > 0 ? [{ value: "preview" as const, label: "Preview" }] : []),
   ];
@@ -731,13 +742,15 @@ export function QuoteLinesFace({
             <div className="qc-views">
               <Tray
                 ariaLabel="What the quote shows"
-                value={paper ? "preview" : linesUp ? "lines" : "chat"}
+                value={paper ? "preview" : linesUp ? "lines" : face === "talk" ? "chat" : face}
                 options={viewsOffered}
                 onChange={(v) => {
                   if (v === "preview") return setPaper(true);
                   setPaper(false);
                   setViewing(null);
-                  setTab(v);
+                  if (v === "lines") return setTab("lines");
+                  setTab("chat");
+                  setFace(v === "chat" ? "talk" : v);
                 }}
               />
             </div>
@@ -748,6 +761,8 @@ export function QuoteLinesFace({
           <TiffPanel
             job={job}
             hidden={paper || tab !== "chat"}
+            face={views ? face : undefined}
+            onFace={views ? setFace : undefined}
             start={start}
             onStatus={setTiff}
             onOpen={setAsked}
@@ -866,7 +881,8 @@ export function QuoteLinesFace({
           </div>
         </Dialog>
         <QuoteRail
-          progress={<QuoteStepsLine steps={steps} />}
+          progress={<QuoteStepsLine steps={steps} list={views} />}
+          priceFirst={views}
           options={
             <OptionRows
               onPick={setAt}

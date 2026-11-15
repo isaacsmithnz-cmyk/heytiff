@@ -304,9 +304,13 @@ export function QuoteRail({
   send,
   sm8,
   actions,
+  priceFirst = false,
 }: {
   /** where the quote is, in colour, at the rail's top */
   progress: ReactNode;
+  /** the price at the rail's top, over where it's up to (the job's Price
+      tab, as its mock drew it; the walk of 15 November 2026, T3) */
+  priceFirst?: boolean;
   /** every option and its total, to pick from */
   options?: ReactNode;
   /** what's landed on the job since it was priced, under the options */
@@ -334,6 +338,11 @@ export function QuoteRail({
   return (
     <aside className="qc-rail" aria-label="On this quote">
       <div className="qc-scroll">
+        {priceFirst && card && (
+          <section className="qc-rs" aria-label="The quote">
+            {card}
+          </section>
+        )}
         <div>{progress}</div>
         {options}
         {added}
@@ -345,9 +354,11 @@ export function QuoteRail({
           </section>
         )}
         {card ? (
-          <section className="qc-rs" aria-label="The quote">
-            {card}
-          </section>
+          priceFirst ? null : (
+            <section className="qc-rs" aria-label="The quote">
+              {card}
+            </section>
+          )
         ) : (
           building
         )}

@@ -452,7 +452,9 @@ it("marks the option accepted from the rail once it's approved, says its parts w
   });
   expect(posted).toContainEqual({ job: "job-3377", op: "accept", option: 0 });
   expect(onToast).toHaveBeenCalledWith("The accepted option's parts are on the job's materials list");
-  expect(screen.getByRole("button", { name: "Accepted" })).toHaveAttribute("aria-pressed", "true");
+  /* the client's yes is a green word with Undo beside it (the walk of 15 November 2026, T3) */
+  expect(screen.getByText("Accepted", { selector: ".pt-state__word" }).closest(".pt-state")).toHaveClass("pt-state--good");
+  expect(screen.getByRole("button", { name: "Undo accepted" })).toBeInTheDocument();
   expect(screen.getByText("To ServiceM8")).toBeInTheDocument();
 });
 
@@ -646,11 +648,11 @@ describe("the proposal (7.1)", () => {
     expect(screen.queryByRole("button", { name: "Preview quote" })).toBeNull();
   });
 
-  it("turns Approve quote into a solid green Approved that can't be pressed, once it is", async () => {
+  it("turns Approve quote into Approved, a green word that can't be pressed, once it is (T3)", async () => {
     (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => ({ json: async () => ({ ...view([indoor]), approved: true, proposal: null }) }));
     render(<QuoteLinesFace job="job-3377" price={pricedWhole} onPriced={jest.fn()} />);
-    const given = (await screen.findByText("Approved", { selector: ".pt-btn__word" })).closest(".qc-given")!;
-    expect(given).toHaveClass("pt-btn--36");
+    const given = (await screen.findByText("Approved", { selector: ".pt-state__word" })).closest(".qc-given")!;
+    expect(given.querySelector(".pt-state")).toHaveClass("pt-state--good");
     expect(given.tagName).toBe("SPAN");
     expect(screen.queryByRole("button", { name: /Approve/ })).toBeNull();
     /* the client can say yes now, and the quote can change */

@@ -259,8 +259,24 @@ function compareWithinDay(a: StoryEntry, b: StoryEntry): number {
   if (a.at === null && b.at !== null) return 1;
   const rank = DATE_ONLY_RANK[a.kind] - DATE_ONLY_RANK[b.kind];
   if (rank !== 0) return rank;
+  /* two of the job's own dates on one day read in the job's order (the
+     walk of 15 November 2026, 1577: "Became a work order" stood over "Job
+     raised"); newest first, so the later step comes first */
+  if (a.kind === "milestone" && b.kind === "milestone") {
+    const step = MILESTONE_ORDER[b.label] - MILESTONE_ORDER[a.label];
+    if (step !== 0) return step;
+  }
   return a.key < b.key ? -1 : a.key > b.key ? 1 : 0;
 }
+
+/** Where each of the job's own dates falls in its life. */
+const MILESTONE_ORDER: Record<MilestoneLabel, number> = {
+  "Job raised": 0,
+  "Quote sent": 1,
+  "Became a work order": 2,
+  "Job completed": 3,
+  "Invoice raised": 4,
+};
 
 /** The merge. Tolerant of missing pieces on purpose — the sheet's reads land
     on their own clocks, and the diary grows as they do. */

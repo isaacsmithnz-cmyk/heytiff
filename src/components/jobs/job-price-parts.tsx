@@ -14,7 +14,10 @@ export function Paper({ item, none }: { item: JobMediaItem | null; none: string 
   if (!item.url) return <p className="jpr-none">{`${item.name} hasn't been brought across from ServiceM8 yet.`}</p>;
   const pdf = (item.fileType ?? "").toLowerCase().endsWith("pdf") || /\.pdf$/i.test(item.name);
   return pdf ? (
-    <iframe className="jpr-paper" src={item.url} aria-label={item.name} />
+    /* the paper alone, fitted to the width: no viewer's toolbar or page
+       thumbnails (the walk of 15 November 2026, T1); Open the PDF on the
+       rail still opens it whole */
+    <iframe className="jpr-paper" src={item.url.includes("#") ? item.url : `${item.url}#toolbar=0&navpanes=0&view=FitH`} aria-label={item.name} />
   ) : (
     /* eslint-disable-next-line @next/next/no-img-element */
     <img className="jpr-paper jpr-paper--img" src={item.url} alt={item.name} />

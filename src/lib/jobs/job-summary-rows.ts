@@ -110,16 +110,30 @@ export function rowOf(text: string): { thing: string; detail: string } {
 /** The description's own lines, under its own headings. A description with
     no heading is one group with no title: its lines as plain rows. */
 export function summaryFromText(text: string | null | undefined): SummaryGroup[] {
-  const lines = (text ?? "")
+  const typed = (text ?? "")
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter(Boolean);
-  const bulleted = lines.some((l) => BULLET.test(l));
+  const bulleted = typed.some((l) => BULLET.test(l));
+  /* A SENTENCE THE OFFICE BROKE OVER TWO LINES is one line (the walk of 15
+     November 2026, 3346: "…then return after works are completed to" over
+     "reconnect outdoor unit"): in a bulleted description, a line without a
+     bullet that starts in lower case carries on the line without a bullet
+     above it. */
+  const lines: string[] = [];
+  for (const l of typed) {
+    const prev = lines.at(-1);
+    if (bulleted && prev !== undefined && !BULLET.test(prev) && !BULLET.test(l) && /^[a-z]/.test(l)) lines[lines.length - 1] = `${prev} ${l}`;
+    else lines.push(l);
+  }
   const groups: SummaryGroup[] = [];
   let cur: SummaryGroup | null = null;
   lines.forEach((raw, i) => {
+    /* a sentence is never a heading: a line past 60 characters, or one that
+       ends as a sentence does, is a row */
+    const sentence = raw.length > 60 || /[.?!]$/.test(raw);
     const heading = bulleted
-      ? BULLET.test(raw)
+      ? BULLET.test(raw) || sentence
         ? null
         : [raw, raw.replace(/:$/, "")]
       : (/^(.{1,80}):$/.exec(raw) ?? /^#{1,3}\s+(.{1,80})$/.exec(raw));
@@ -139,14 +153,17 @@ export function summaryFromText(text: string | null | undefined): SummaryGroup[]
   /* A LINE WITH NOTHING UNDER IT is the description's own words, not a
      heading, and stays as a plain row in the group it sits in: dropping
      real text with no way to see it is worse (25 October 2026). Only the
-     description's first line, a title over the rest ("Pick List"), goes. */
+     description's first line, when it is a title over the rest ("Pick
+     List", three words at most), goes: an older job has no line under its
+     name since 14 November 2026, so what the office typed first is kept
+     here whole. */
   const out: SummaryGroup[] = [];
   groups.forEach((g, i) => {
     if (g.rows.length > 0 || g.title === null) {
       if (g.rows.length > 0) out.push(g);
       return;
     }
-    if (i === 0 && g.key === "d:0") return;
+    if (i === 0 && g.key === "d:0" && g.title.split(/\s+/).length <= 3) return;
     const row = { key: g.key, ...rowOf(g.title) };
     const last = out.at(-1);
     if (last) last.rows.push(row);

@@ -5,11 +5,14 @@ import { JobFacts, directionsHref, phoneWords } from "../job-facts";
 
 const counts: Record<string, number> = { "job-3416": 3, "job-bare": 0 };
 jest.mock("@/app/actions/site-notes", () => ({
-  readSiteNoteCount: jest.fn(async (job: string) => counts[job] ?? null),
-  readSiteNotes: jest.fn(async () => null),
   addSiteNote: jest.fn(),
   changeSiteNote: jest.fn(),
   removeSiteNote: jest.fn(),
+}));
+/* the reads come by their own route (site-notes-read.ts) */
+jest.mock("../site-notes-read", () => ({
+  fetchSiteNoteCount: jest.fn(async (job: string) => counts[job] ?? null),
+  fetchSiteNotes: jest.fn(async () => null),
 }));
 
 /* THE FACTS CARD (Isaac, 13 and 14 November 2026, mocks C and D): Next visit,

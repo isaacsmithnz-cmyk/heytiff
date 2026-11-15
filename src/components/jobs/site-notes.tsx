@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useId, useState, type ReactNode } from "react";
-import { addSiteNote, changeSiteNote, readSiteNoteCount, readSiteNotes, removeSiteNote } from "@/app/actions/site-notes";
+import { addSiteNote, changeSiteNote, removeSiteNote } from "@/app/actions/site-notes";
+import { fetchSiteNoteCount, fetchSiteNotes } from "./site-notes-read";
 import { Button, IconButton } from "@/components/parts/button";
 import { Chooser } from "@/components/parts/chooser";
 import { Dialog } from "@/components/parts/dialog";
@@ -49,7 +50,7 @@ export function useSiteNoteCount(jobUuid: string | null): [number | null, (n: nu
   useEffect(() => {
     if (!jobUuid) return;
     let live = true;
-    readSiteNoteCount(jobUuid).then(
+    fetchSiteNoteCount(jobUuid).then(
       (n) => live && n !== null && setCount({ job: jobUuid, n }),
       () => {},
     );
@@ -106,7 +107,7 @@ export function SiteNotesDialog({
   const [editing, setEditing] = useState<Editing>(null);
 
   const load = useCallback(async () => {
-    const r = await readSiteNotes(jobUuid).catch(() => null);
+    const r = await fetchSiteNotes(jobUuid).catch(() => null);
     if (!r) return setFailed(true);
     setRead(r);
     onCount?.(r.notes.length);
@@ -115,7 +116,7 @@ export function SiteNotesDialog({
   useEffect(() => {
     if (first) return;
     let live = true;
-    readSiteNotes(jobUuid).then(
+    fetchSiteNotes(jobUuid).then(
       (r) => {
         if (!live) return;
         if (!r) return setFailed(true);

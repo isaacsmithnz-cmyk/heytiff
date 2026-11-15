@@ -154,6 +154,10 @@ const herWords = (text: string) =>
     )
   );
 
+/** What the conversation's column shows: the talk, her reading of the job,
+    or what's to confirm. */
+export type QuoteFace = "talk" | "scope" | "confirm";
+
 export function TiffPanel({
   job,
   onChanged,
@@ -167,6 +171,8 @@ export function TiffPanel({
   words,
   say = null,
   onSaid,
+  face: faceAsked,
+  onFace,
 }: {
   job: string;
   onChanged: () => void;
@@ -192,6 +198,11 @@ export function TiffPanel({
   say?: { id: number; text: string } | null;
   /** she has them */
   onSaid?: () => void;
+  /** the face, where the page holds the one tray (the job's Price tab: Chat,
+      Scope, To confirm, Line items, Preview; the walk of 15 November 2026,
+      T2); the panel then draws no tray of its own */
+  face?: QuoteFace;
+  onFace?: (face: QuoteFace) => void;
 }) {
   /* null until her thread is first read: the page lays out nothing of hers
      or the lines' until it knows which */
@@ -224,7 +235,9 @@ export function TiffPanel({
      questions have their own tab so the conversation's foot stays its
      newest words (Isaac, 27 October 2026: "move all of the questions away
      from the bottom of the screen so they don't clog it up") */
-  const [face, setFace] = useState<"talk" | "scope" | "confirm">("talk");
+  const [ownFace, setOwnFace] = useState<QuoteFace>("talk");
+  const face = faceAsked ?? ownFace;
+  const setFace = onFace ?? setOwnFace;
   /* the newest event when the page opened: what's there then is simply there
      (a page appears, law 8), and only what lands after it eases in (Isaac, 30
      October 2026: "Things should transition in smoothly... rather than just
@@ -634,7 +647,7 @@ export function TiffPanel({
 
   return (
     <div className="qt" hidden={hidden}>
-      <div className="qc-face">
+      <div className="qc-face" hidden={faceAsked !== undefined}>
         <div className="qc-col">
           <Tray
             ariaLabel="Conversation, scope or what's to confirm"

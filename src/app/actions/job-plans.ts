@@ -5,6 +5,7 @@ import { can } from "@/lib/permissions-server";
 import { staffProfileIdFor } from "@/lib/fleet/query";
 import { addJobPlans, choosePlanFloors, keepSubfloorHeight, planPageForScale, readJobPlans, setPlanScale, type AddPlansResult, type PageForScale } from "@/lib/jobs/plans-server";
 import type { JobPlanRead, PlanPick } from "@/lib/jobs/plans";
+import type { LinkPlansResult } from "@/lib/jobs/plans-link-server";
 
 /* PLANS ON THE JOB: the job card's actions (lib/jobs/plans-server.ts).
    Behind `workboard`, the card's own tier, as the Documents face's upload
@@ -120,4 +121,18 @@ export async function chooseFloorsOnPlan(jobUuid: string, planId: string, chosen
     if (Number.isInteger(n) && n > 0 && (value === "none" || /^-?\d{1,2}$/.test(value))) clean[n] = value;
   }
   return choosePlanFloors(ctx.orgId, plan, clean, ctx.staffId, job);
+}
+
+/** Link job on a design with no job: its plans onto the job's Plans, read as
+    the design has them (lib/jobs/plans-link-server.ts). The caller links the
+    design and starts the reads of `toRead`. */
+export async function linkPlansToJob(jobUuid: string, designId: string): Promise<LinkPlansResult> {
+  const ctx = await context();
+  const job = trim(jobUuid);
+  const design = trim(designId);
+  if (!ctx || !(await can("studio"))) return { ok: false, error: "You can't link designs to jobs." };
+  if (!job || !design) return { ok: false, error: "Pick a job first." };
+  /* loaded when asked: it brings sharp and the storage, which the rest of these doors don't need */
+  const { linkDesignPlans } = await import("@/lib/jobs/plans-link-server");
+  return linkDesignPlans(ctx.orgId, job, design, ctx.staffId);
 }

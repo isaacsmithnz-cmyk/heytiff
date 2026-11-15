@@ -134,12 +134,12 @@ async function storePlans(
       Promise.all(sources.map((s) => tick(early.source(s) ?? planImages.uploadSource(s.file)))),
       Promise.all(used.map((i) => tick(early.page(i) ?? planImages.upload(pages[i])))),
     ]);
-    sources.forEach((s, k) => stored.push({ ref: srcRefs[k], kind: s.kind }));
+    sources.forEach((s, k) => stored.push({ ref: srcRefs[k], kind: s.kind, name: s.file.name }));
     used.forEach((i, k) => (refs[i] = pageRefs[k]));
   } else {
     for (const s of sources) {
       onProgress(done, total);
-      stored.push({ ref: await planImages.uploadSource(s.file), kind: s.kind });
+      stored.push({ ref: await planImages.uploadSource(s.file), kind: s.kind, name: s.file.name });
       done = done + 1;
     }
     for (const i of used) {

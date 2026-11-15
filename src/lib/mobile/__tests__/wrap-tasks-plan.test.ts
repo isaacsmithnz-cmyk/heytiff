@@ -1,4 +1,4 @@
-import { fromQuote, tasksToTick, visitOn, type WrapTask } from "../wrap-tasks-plan";
+import { everyTask, fromQuote, tasksToTick, visitDays, visitOn, type WrapTask } from "../wrap-tasks-plan";
 
 /* 2845, 7 Cutler Rd: the quote's tasks by visit, and how far it is by quoted hours. */
 const t = (id: string, stage: WrapTask["stage"], visit: number | null, hours: number | null, progress = 0): WrapTask => ({ id, name: id, stage, visit, hours, progress });
@@ -28,4 +28,15 @@ it("says how far by quoted hours, the stage and the job", () => {
   const some = TASKS.map((x) => (x.id === "pen" ? { ...x, progress: 100 } : x.id === "pipe" ? { ...x, progress: 50 } : x));
   expect(fromQuote(some, 2, tasksToTick(some, 2))).toEqual({ stage: "Rough-in", stageDone: 20, stageQuoted: 60, jobDone: 20, jobQuoted: 100, visit: 2, visits: 3 });
   expect(fromQuote([t("x", "Install", 1, null)], 1, [])).toBeNull();
+});
+
+describe("every task, by day (the job card's All)", () => {
+  it("lists day 1's, then day 2's, a task on no day last, each day as the job lists it", () => {
+    const tasks = [t("b", "Install", 2, null), t("x", "Install", null, null), t("a", "Install", 1, null), t("c", "Fit-off", 2, null)];
+    expect(everyTask(tasks).map((x) => x.id)).toEqual(["a", "b", "c", "x"]);
+  });
+
+  it("names each visit's day once, visit 1 first", () => {
+    expect(visitDays(["2026-11-17", "2026-11-16", "2026-11-16", "2026-11-18T07:00"])).toEqual(["2026-11-16", "2026-11-17", "2026-11-18"]);
+  });
 });

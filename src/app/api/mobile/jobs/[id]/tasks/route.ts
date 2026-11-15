@@ -4,7 +4,7 @@ import { applyTaskEdit, pastBookedDays, readJobTasks } from "@/lib/workboard/vis
 import { dayFor } from "@/lib/mobile/used";
 import { staffProfileIdFor } from "@/lib/fleet/query";
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { fromQuote, tasksToTick, visitOn, type WrapTask } from "@/lib/mobile/wrap-tasks-plan";
+import { everyTask, fromQuote, tasksToTick, visitDays, visitOn, type WrapTask } from "@/lib/mobile/wrap-tasks-plan";
 
 /* A JOB'S TASKS IN THE WRAP-UP (lib/mobile/wrap-tasks-plan): GET is what to
    tick for the day's visit and how far the quote is; POST ticks one, or
@@ -25,14 +25,20 @@ async function dayOf(orgId: string, raw: unknown): Promise<string | null> {
   const ahead = (Date.parse(`${raw}T12:00:00Z`) - Date.parse(`${today}T12:00:00Z`)) / 86_400_000;
   return ahead > 0 && ahead <= AHEAD_DAYS ? raw : null;
 }
-const nextDay = (day: string) => new Date(Date.parse(`${day}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+/* every booked day, those after the day too: the job card's tabs name each
+   visit by its day; visitOn counts only those up to the day */
+const EVER = "9999-12-31";
 
+/** `tasks` to tick on the day; `all` of them, day by day, and the `days`
+    each visit is booked, visit 1 first, for the job card's All and its days
+    (Isaac, 16 November 2026: "Just have all tasks, and then by day. So
+    people can easily switch between them") */
 async function read(orgId: string, card: string, day: string) {
-  const [{ tasks }, booked] = await Promise.all([readJobTasks(orgId, card), pastBookedDays(orgId, card, nextDay(day)).catch(() => [])]);
+  const [{ tasks }, booked] = await Promise.all([readJobTasks(orgId, card), pastBookedDays(orgId, card, EVER).catch(() => [])]);
   const all: WrapTask[] = tasks.map((t) => ({ id: t.id, name: t.name, stage: t.stage, visit: t.visit, progress: t.progress, hours: t.hours ?? null }));
   const visit = visitOn(booked.map((b) => b.day), day);
   const shown = tasksToTick(all, visit);
-  return { tasks: shown, fromQuote: fromQuote(all, visit, shown) };
+  return { tasks: shown, fromQuote: fromQuote(all, visit, shown), all: everyTask(all), visit, days: visitDays(booked.map((b) => b.day)) };
 }
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {

@@ -34,6 +34,17 @@ export function visitOn(bookedDays: readonly string[], day: string): number | nu
   return days.length ? days.length : null;
 }
 
+/** Every one of a job's tasks, day by day as the quote planned them, a task on no day last; as the job lists them within a day. */
+export function everyTask(tasks: readonly WrapTask[]): WrapTask[] {
+  const at = (t: WrapTask) => t.visit ?? Number.MAX_SAFE_INTEGER;
+  return tasks.map((t, i) => ({ t, i })).sort((a, b) => at(a.t) - at(b.t) || a.i - b.i).map((x) => x.t);
+}
+
+/** The day each visit is booked, visit 1 first: the days booked on the job, once each. */
+export function visitDays(bookedDays: readonly string[]): string[] {
+  return [...new Set(bookedDays.map((d) => d.slice(0, 10)))].sort();
+}
+
 /** The tasks the wrap-up shows to tick. */
 export function tasksToTick(tasks: readonly WrapTask[], visit: number | null): WrapTask[] {
   if (visit !== null) {

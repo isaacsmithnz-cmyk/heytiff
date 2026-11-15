@@ -371,12 +371,14 @@ export function linesUnits(lines: readonly QuoteLine[], specs: ReadonlyMap<strin
 }
 
 /** A labour line's stage and crew, as its name gives them ("Rough-in: 2
-    people", as a quote brought across names them, or "Rough-in: 2 people,
-    3.5 days" as Tiff does); else one person installing. */
+    people", as a quote brought across names them, "Rough-in: 2 people,
+    3.5 days" as Tiff does, or "Day 1: 3 people, 1 day" for a crew and time
+    given, an Install); else one person installing. */
 function stageOf(name: string): { stage: VisitStage; people: number } {
-  const m = /^\s*([A-Za-z -]+?)\s*(?::\s*(\d+)\s*(?:people|person)\b.*)?\s*$/.exec(name);
-  const stage = VISIT_STAGES.find((s) => s.toLowerCase() === (m?.[1] ?? "").toLowerCase());
-  return { stage: stage ?? "Install", people: stage && m?.[2] ? Math.max(1, Number(m[2])) : 1 };
+  const [head, ...rest] = name.split(":");
+  const stage = VISIT_STAGES.find((s) => s.toLowerCase() === head.trim().toLowerCase());
+  const crew = /^\s*(\d+)\s*(?:people|person)\b/i.exec(rest.join(":"));
+  return { stage: stage ?? "Install", people: crew ? Math.max(1, Number(crew[1])) : 1 };
 }
 
 const squash = (s: string) => s.toLowerCase().replace(/[-\s]+/g, " ").trim();

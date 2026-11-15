@@ -13,6 +13,18 @@ import { fromQuote, tasksToTick, visitOn, type WrapTask } from "@/lib/mobile/wra
    `workboard`: ticking is the work, the list is the office's. */
 
 const no = (status: number, error: string) => Response.json({ error }, { status, headers: { "cache-control": "no-store" } });
+/* THE JOB CARD'S TASKS read the visit coming, however far off (Isaac, 15
+   November 2026: "a list of tasks that you can see on the phone instead of
+   just in the wrap-up"); the wrap-up's own days are dayFor's */
+const AHEAD_DAYS = 120;
+async function dayOf(orgId: string, raw: unknown): Promise<string | null> {
+  const day = await dayFor(orgId, raw);
+  if (day) return day;
+  const today = await dayFor(orgId, null);
+  if (!today || typeof raw !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
+  const ahead = (Date.parse(`${raw}T12:00:00Z`) - Date.parse(`${today}T12:00:00Z`)) / 86_400_000;
+  return ahead > 0 && ahead <= AHEAD_DAYS ? raw : null;
+}
 const nextDay = (day: string) => new Date(Date.parse(`${day}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
 
 async function read(orgId: string, card: string, day: string) {
@@ -28,7 +40,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   if (ctx instanceof Response) return ctx;
   const id = (await params).id.trim().slice(0, 80);
   if (!id) return no(400, "Which job?");
-  const day = await dayFor(ctx.orgId, new URL(request.url).searchParams.get("day"));
+  const day = await dayOf(ctx.orgId, new URL(request.url).searchParams.get("day"));
   if (!day) return no(400, "Which day?");
   const { parentRemoteId } = await resolveJobCard(ctx.orgId, id);
   return ok(await read(ctx.orgId, parentRemoteId, day));
@@ -41,7 +53,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const body = (await request.json().catch(() => null)) as { task?: unknown; done?: unknown; day?: unknown } | null;
   const task = typeof body?.task === "string" ? body.task : "";
   if (!id || !/^[0-9a-f-]{36}$/i.test(task) || typeof body?.done !== "boolean") return no(400, "Which task?");
-  const day = await dayFor(ctx.orgId, body.day);
+  const day = await dayOf(ctx.orgId, body.day);
   if (!day) return no(400, "Which day?");
   const { parentRemoteId } = await resolveJobCard(ctx.orgId, id);
   const staff = await staffProfileIdFor(ctx.orgId, ctx.userId).catch(() => null);

@@ -10826,6 +10826,12 @@ html:not([data-ds-display]) .fg:has(#fg-topbar) .dstudio.editing:has(> .ds-edito
 .dstudio .ds-scope-said { margin: 0; font: 400 14px/20px var(--font); color: var(--ink); }
 .dstudio .ds-scope-said b { font-weight: 600; }
 .dstudio .ds-scope-none { margin: 0; font: 400 14px/20px var(--font); color: var(--q); }
+/* Update plans (update-plans-dialog.tsx): a newer set on the job, a row over the Scope, and in the save line while the Scope is shut */
+.dstudio .upl-row { display: flex; align-items: center; gap: 12px; padding-right: 48px; padding-bottom: 16px; margin-bottom: 16px; border-bottom: 1px solid var(--line); }
+.dstudio .upl-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.dstudio .upl-row-name { font: 600 14px/20px var(--font); color: var(--ink); }
+.dstudio .upl-row-line { font: 400 12px/16px var(--font); color: var(--q); }
+.dstudio .ds-editor .ds-save.ds-reading-open.ds-newer .dot { background: var(--orange); }
 
 /* THE SUBFLOOR OR ROOF SPACE ON ITS FLOOR'S PLAN (floor-space-overlay.tsx):
    dashed in ink over the rooms, its name at a corner, its corners the room

@@ -200,6 +200,10 @@ export interface PlanImport {
       Documents can say which designs use the plan. Absent on a design made
       from files dropped in. */
   jobPlanId?: string;
+  /** newer plans on the job this design was given the chance to take and
+      left unticked in the Plans dialog: Update plans doesn't offer them again
+      (update-plans.ts) */
+  passed?: string[];
 }
 
 /* ── The job this design is FOR (schema v8).

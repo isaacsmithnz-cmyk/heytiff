@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { IconButton } from "@/components/parts/button";
 import { Loading, Wrong } from "@/components/parts/states";
 import { CvBox } from "@/components/conversations/box";
@@ -41,7 +41,7 @@ async function askScope(body: Record<string, unknown>): Promise<ScopeAnswer> {
   }
 }
 
-export function ScopeColumn({ jobUuid, jobNumber, onClose }: { jobUuid: string; jobNumber: string | null; onClose: () => void }) {
+export function ScopeColumn({ jobUuid, jobNumber, top, onClose }: { jobUuid: string; jobNumber: string | null; /** over the Scope: a newer set on the job (update-plans-dialog.tsx) */ top?: ReactNode; onClose: () => void }) {
   /* undefined until the first answer, null for a job with no brief yet */
   const [scope, setScope] = useState<JobScopeRead | null | undefined>(undefined);
   const [wrong, setWrong] = useState<string | null>(null);
@@ -108,6 +108,7 @@ export function ScopeColumn({ jobUuid, jobNumber, onClose }: { jobUuid: string; 
   return (
     <aside className="ds-scopecol" aria-label="Scope">
       <div className="ds-scope-b">
+        {top}
         <div className="jov">
           {scope ? (
             <JobScope scope={scope} reading={reading || working} onUndo={undo} updateHref={quoteHref(jobUuid, { update: true })} sideBySide={false} />

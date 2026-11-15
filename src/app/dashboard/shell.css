@@ -7506,6 +7506,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .pt-dialog .ds2-nd-fact { margin:0; font-size:14px; line-height:20px; color:var(--q); }
 .pt-dialog .ds2-nd-fact b { color:var(--ink); font-weight:600; }
 .pt-dialog .ds2-nd-foot-fact { margin-right:auto; align-self:center; font-size:14px; line-height:20px; color:var(--q); }
+.pt-dialog .upl-lede { margin:0; font-size:14px; line-height:20px; color:var(--ink); }
 .pt-dialog .ds2-nd-error { display:flex; align-items:center; gap:8px; margin:0; font-size:14px; line-height:20px; color:var(--ink); }
 /* the job, asked first: the search, then Recent and All jobs as the
    Schedule's job cards, two across; the job chosen stays as its card with

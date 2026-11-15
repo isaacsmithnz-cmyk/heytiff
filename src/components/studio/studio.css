@@ -10158,8 +10158,6 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
   white-space: nowrap;
   pointer-events: none;
 }
-/* a room's name lies on its floor: quieter than a unit's */
-.dstudio .ds3-lab.room { padding: 0 4px; border-color: transparent; color: var(--gray700); }
 /* a unit's name stands on a line up from its top, its system's dot beside it (rule 18a) */
 .dstudio .ds3-lab.unit { transform: translate(-50%, -100%); display: flex; align-items: center; gap: 4px; }
 .dstudio .ds3-lab i { display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 999px; }

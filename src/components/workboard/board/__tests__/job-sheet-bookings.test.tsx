@@ -286,7 +286,8 @@ afterEach(() => jest.useRealTimers());
 describe("where the deployment books nothing (D-14)", () => {
   it("(F) the next booking is the one visit coming up, with no Book a visit, no line, no poll", async () => {
     await open();
-    expect(card(/^Wed7Oct8am to 10am/)).toBeDefined();
+    /* waited for, as openVisit does: the facts card's Site notes count is one more render first */
+    await waitFor(() => expect(card(/^Wed7Oct8am to 10am/)).toBeDefined());
     expect(visits().getByRole("img", { name: "Sam Tester" })).toBeInTheDocument();
     expect(visits().queryByRole("button", { name: BOOK })).toBeNull();
     expect(visits().queryByText(BOOKING_WORDS.line.sent)).toBeNull();

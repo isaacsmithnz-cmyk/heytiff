@@ -1934,9 +1934,32 @@ export function JobSheet({
               onPageForScale={cardId ? (planId, n) => pageForScale(cardId, planId, n) : undefined}
               onSetScale={cardId ? setPlanScale : undefined}
               onChooseFloors={cardId ? choosePlanFloors : undefined}
+              part="papers"
             />
           )}
     </>
+  );
+  /* THE JOB'S PLANS, on Scope beside what's drawn from them (Isaac, 15
+     November 2026: "Plans move too"); everyone who sees the job sees them */
+  const facePlans = (
+    <section className="wb2-jcface" role="region" aria-label="Plans">
+      {faceSeen("design") && (
+        <JobDocumentsFace
+          part="plans"
+          documents={media ? media.documents : null}
+          elsewhere={media ? media.elsewhere : null}
+          designs={[]}
+          loading={media === null}
+          onOpen={(item) => setViewer({ kind: "paper", id: item.remoteId })}
+          plans={plans}
+          onAddPlans={cardId && plans !== null ? addPlans : undefined}
+          onUploadForPlans={cardId ? (file) => fileOnJob(file, cardId) : undefined}
+          onPageForScale={cardId ? (planId, n) => pageForScale(cardId, planId, n) : undefined}
+          onSetScale={cardId ? setPlanScale : undefined}
+          onChooseFloors={cardId ? choosePlanFloors : undefined}
+        />
+      )}
+    </section>
   );
 
   /* What sits under the faces: the send row, and the naming row while a
@@ -2502,6 +2525,12 @@ export function JobSheet({
                   description: (detail?.description ?? row.title ?? "").trim(),
                   read: quoteGroups !== undefined && (record !== undefined || recordFailed),
                 }}
+                side={
+                  <>
+                    {facePlans}
+                    {faceDesign}
+                  </>
+                }
               />
             )}
           </div>
@@ -2530,7 +2559,6 @@ export function JobSheet({
             {facePhotos}
             <div className="jp-files-side">
               {faceDocuments}
-              {faceDesign}
             </div>
           </div>
           {facePrice}

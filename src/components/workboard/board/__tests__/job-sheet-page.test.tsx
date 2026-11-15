@@ -5,7 +5,7 @@
    Overview the summary and the diary under the stages line, Documents the
    files and compliance, Billing the money. */
 
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import type { JobBookings, JobCardRead, JobRecordRead } from "@/app/actions/workboard";
@@ -366,18 +366,24 @@ describe("the job's sections are the card's faces", () => {
     expect(screen.queryByRole("region", { name: "Scope" })).toBeNull();
   });
 
-  /* the job's designs are a group of Files, for whoever holds the Studio (15 November 2026) */
-  it("has the job's Designs in Files for whoever holds the Studio, and no Design tab", async () => {
-    draw("files", { studio: true });
+  /* the job's designs and plans are on Scope (Isaac, 15 November 2026: "Plans move too") */
+  it("has the job's Plans and, for whoever holds the Studio, its Designs on Scope, and no Design tab", async () => {
+    draw("scope", { studio: true });
     await ready();
     expect(tabWords()).toEqual(["Overview", "Scope", "Price", "On site", "Files"]);
     expect(screen.getByRole("region", { name: "Design" })).toBeVisible();
     expect(screen.getByRole("heading", { name: "Designs" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Plans" })).toBeInTheDocument();
     expect(await screen.findByText("No design on this job")).toBeInTheDocument();
   });
 
-  it("has no Designs in Files without the Studio", async () => {
-    draw("files");
+  it("has Plans but no Designs on Scope without the Studio, and neither in Files", async () => {
+    draw("scope");
+    await ready();
+    expect(screen.queryByRole("region", { name: "Design" })).toBeNull();
+    expect(screen.getByRole("region", { name: "Plans" })).toBeInTheDocument();
+    cleanup();
+    draw("files", { studio: true });
     await ready();
     expect(screen.queryByRole("region", { name: "Design" })).toBeNull();
     expect(screen.getByRole("region", { name: "Photos" })).toBeVisible();

@@ -18,13 +18,13 @@ describe("the sections", () => {
     expect(JOB_SECTIONS.map((s) => SECTION_LABEL[s])).toEqual(["Overview", "Scope", "Price", "On site", "Files", "Billing"]);
   });
 
-  it("each show the card's faces: Overview the summary and diary, Files the photos, documents, compliance and designs, Billing the money", () => {
+  it("each show the card's faces: Overview the summary and diary, Scope the scope and designs, Files the photos, documents and compliance, Billing the money", () => {
     expect(SECTION_FACES).toEqual({
       overview: ["summary", "diary"],
-      scope: ["scope"],
+      scope: ["scope", "design"],
       price: ["quote"],
       "on-site": ["visits", "checklist"],
-      files: ["photos", "documents", "compliance", "design"],
+      files: ["photos", "documents", "compliance"],
       billing: ["money"],
     });
   });
@@ -42,10 +42,10 @@ describe("the sections", () => {
     expect(sectionsFor(true)).toContain("billing");
   });
 
-  /* the job's designs are a group of Files, for whoever holds the Studio (15 November 2026) */
-  it("puts the designs in Files, the same tabs for everyone", () => {
+  /* the job's designs and plans are on Scope, the designs for whoever holds the Studio (Isaac, 15 November 2026: "Plans move too") */
+  it("puts the designs on Scope, the same tabs for everyone", () => {
     expect(sectionsFor(true, true)).toEqual(sectionsFor(true, false));
-    expect(sectionOfFace("design")).toBe("files");
+    expect(sectionOfFace("design")).toBe("scope");
   });
 });
 
@@ -80,9 +80,10 @@ describe("?tab=", () => {
     expect(parseSection("timeline", true)).toBe("overview");
     expect(parseSection(["quote", "visits"], true)).toBe("overview");
     expect(parseSection("billing", false)).toBe("overview");
-    /* the Design tab went into Files, for everyone: its Designs group is the Studio's */
-    expect(parseSection("design", true)).toBe("files");
-    expect(parseSection("design", true, true)).toBe("files");
+    /* the Design tab went into Files, then with the plans onto Scope (15 November 2026) */
+    expect(parseSection("design", true)).toBe("scope");
+    expect(parseSection("design", true, true)).toBe("scope");
+    expect(parseSection("plans", true)).toBe("scope");
     expect(parseSection("billing", true)).toBe("billing");
   });
 });

@@ -5843,6 +5843,15 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jm-row > .pt-state { flex:none; white-space:nowrap; }
 /* a visit on On site is a row under its hairline, its tasks under it, not a card */
 .fg .jp-onsite .jv-card, .fg .jp-onsite .jv-card.today { padding:8px 0; border:0; border-radius:0; border-bottom:1px solid var(--line); }
+/* FILES (job-sheet.tsx, 15 November 2026): the photos wide on the left, the
+   documents and then the designs in a 400 column, fitted to the screen, each
+   a flat card in the hairline, scrolling inside itself */
+.fg .jp-files { display:grid; grid-template-columns:minmax(0,1fr) 400px; gap:16px; align-items:start; }
+.fg .jp-files > .wb2-jcface, .fg .jp-files-side > .wb2-jcface { min-width:0; padding:16px; border:1px solid var(--edge); border-radius:var(--r-card); background:var(--paper); overflow:auto; }
+.fg .jp-files > .wb2-jcface { height:var(--fit-h, auto); }
+.fg .jp-files-side { display:flex; flex-direction:column; gap:16px; min-width:0; max-height:var(--fit-h, none); }
+.fg .jp-files-side > .wb2-jcface { flex:0 1 auto; min-height:0; }
+.fg .jp-files-side > .wb2-jcface[hidden] { display:none; }
 .fg .jm-add { display:flex; align-items:center; gap:8px; }
 .fg .jm-find { flex:1 1 auto; min-width:0; }
 .fg .jm-add .jm-qtyin { flex:none; width:72px; }

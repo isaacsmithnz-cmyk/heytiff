@@ -344,11 +344,11 @@ describe("the job's sections are the card's faces", () => {
   it("has eight tabs with the money, Scope after Overview, and no Billing without it", async () => {
     const { unmount } = draw("overview", { moneyVisible: true });
     await ready();
-    expect(tabWords()).toEqual(["Overview", "Scope", "Quote", "On site", "Photos", "Documents", "Billing"]);
+    expect(tabWords()).toEqual(["Overview", "Scope", "Quote", "On site", "Files", "Billing"]);
     unmount();
     draw("overview");
     await ready();
-    expect(tabWords()).toEqual(["Overview", "Scope", "Quote", "On site", "Photos", "Documents"]);
+    expect(tabWords()).toEqual(["Overview", "Scope", "Quote", "On site", "Files"]);
   });
 
   /* Isaac, 13 November 2026: "Give scope its own tab"; mock A, 14 November */
@@ -365,13 +365,22 @@ describe("the job's sections are the card's faces", () => {
     expect(screen.queryByRole("region", { name: "Scope" })).toBeNull();
   });
 
-  /* Isaac, 28 October 2026: "a separate tab outside of the quoting" */
-  it("has Design after Quote for whoever holds the Studio", async () => {
-    draw("design", { studio: true });
+  /* the job's designs are a group of Files, for whoever holds the Studio (15 November 2026) */
+  it("has the job's Designs in Files for whoever holds the Studio, and no Design tab", async () => {
+    draw("files", { studio: true });
     await ready();
-    expect(tabWords()).toEqual(["Overview", "Scope", "Quote", "Design", "On site", "Photos", "Documents"]);
+    expect(tabWords()).toEqual(["Overview", "Scope", "Quote", "On site", "Files"]);
     expect(screen.getByRole("region", { name: "Design" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Designs" })).toBeInTheDocument();
     expect(await screen.findByText("No design on this job")).toBeInTheDocument();
+  });
+
+  it("has no Designs in Files without the Studio", async () => {
+    draw("files");
+    await ready();
+    expect(screen.queryByRole("region", { name: "Design" })).toBeNull();
+    expect(screen.getByRole("region", { name: "Photos" })).toBeVisible();
+    expect(screen.getByRole("region", { name: "Documents" })).toBeVisible();
   });
 
   /* the refined Overview A (Isaac, 25 October 2026): the stages line, the
@@ -412,7 +421,7 @@ describe("the job's sections are the card's faces", () => {
   });
 
   it("keeps the stages line on Overview only", async () => {
-    draw("photos");
+    draw("files");
     await ready();
     expect(screen.queryByRole("navigation", { name: "Where the job is up to" })).toBeNull();
     expect(screen.getByRole("region", { name: "Photos" })).toBeVisible();
@@ -420,7 +429,7 @@ describe("the job's sections are the card's faces", () => {
   });
 
   it("shows Documents as one section, the files and compliance together", async () => {
-    draw("documents");
+    draw("files");
     await ready();
     expect(screen.getByRole("region", { name: "Documents" })).toBeVisible();
     expect(document.querySelector("#jcsec-compliance")).toBeNull();
@@ -472,8 +481,7 @@ describe("the job's sections are the card's faces", () => {
     draw("overview");
     await ready();
     await waitFor(() => expect(readJobFiles).toHaveBeenCalled());
-    expect(jobTab(/^Photos/)).toHaveTextContent(/^Photos$/);
-    expect(jobTab(/^Documents/)).toHaveTextContent(/^Documents$/);
+    expect(jobTab(/^Files/)).toHaveTextContent(/^Files$/);
     expect(jobTab(/^On site/)).toHaveTextContent(/^On site$/);
   });
 });

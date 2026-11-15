@@ -1,45 +1,39 @@
 import type { JobSheetTab } from "@/components/workboard/board/job-sheet";
 
-/* A JOB'S NINE SECTIONS (docs/design.md rule 31): Overview, Scope, Quote,
-   Design, Visits, Materials, Photos, Documents, Billing. The job page
-   (app/dashboard/jobs) draws each from the job card's own faces, so the card
-   and the page never tell two stories about one job:
+/* A JOB'S SECTIONS (docs/design.md rule 31): Overview, Scope, Quote, On
+   site, Files, Billing. The job page (app/dashboard/jobs) draws each from the
+   job card's own faces, so the card and the page never tell two stories about
+   one job:
 
-     Overview  = the summary and the diary, under the stages line (the line
-                 lives on Overview only, 6-revisions, 17 October)
+     Overview  = the facts and the Activity feed (mocks C and D, 14 November
+                 2026); the stages line beside the name lives on it alone
      Scope     = the job's Scope, Since the quote and Latest updates, or its
                  Summary where it has no Scope (Isaac, 13 November 2026:
-                 "Give scope its own tab"; mock A, 14 November). The six-tab
-                 regroup (Overview, Scope, Price, On site, Files, Billing)
-                 comes later, with old names landing
+                 "Give scope its own tab"; mock A, 14 November)
      Quote     = the quote
-     Design    = the job's designs in the Studio, only for whoever holds
-                 `studio` (Isaac, 28 October 2026: "a separate tab outside
-                 of the quoting. And the quoting can just go back to that
-                 when it needs to"): without it the section is absent
      On site   = the visits with their tasks, what's not on a day yet, and
                  the materials, each unit and control with its word from
-                 Stock (Isaac, 14 November 2026, mock F); Visits and
-                 Materials (the card's checklist) as were, and their old
-                 names land here
-     Photos    = the photos
-     Documents = the files and compliance
+                 Stock (mock F, 14 November 2026); Visits and Materials (the
+                 card's checklist) were their own until then
+     Files     = the photos on the left, and in a 400 column the documents
+                 and compliance, then the job's designs for whoever holds
+                 `studio` (Photos, Documents and Design until 15 November
+                 2026)
      Billing   = the money, only for whoever holds `workboard_money`: without
                  it the section is absent, as the card's Billing face is.
 
-   Pure, so the page, the quote page's tabs and the tests read one list. */
+   Every old name still lands (OLD_NAMES). Pure, so the page, the quote
+   page's tabs and the tests read one list. */
 
-export const JOB_SECTIONS = ["overview", "scope", "quote", "design", "on-site", "photos", "documents", "billing"] as const;
+export const JOB_SECTIONS = ["overview", "scope", "quote", "on-site", "files", "billing"] as const;
 export type JobSection = (typeof JOB_SECTIONS)[number];
 
 export const SECTION_LABEL: Record<JobSection, string> = {
   overview: "Overview",
   scope: "Scope",
   quote: "Quote",
-  design: "Design",
   "on-site": "On site",
-  photos: "Photos",
-  documents: "Documents",
+  files: "Files",
   billing: "Billing",
 };
 
@@ -48,10 +42,8 @@ export const SECTION_FACES: Record<JobSection, readonly JobSheetTab[]> = {
   overview: ["summary", "diary"],
   scope: ["scope"],
   quote: ["quote"],
-  design: ["design"],
   "on-site": ["visits", "checklist"],
-  photos: ["photos"],
-  documents: ["documents", "compliance"],
+  files: ["photos", "documents", "compliance", "design"],
   billing: ["money"],
 };
 
@@ -61,19 +53,27 @@ export function sectionOfFace(face: JobSheetTab): JobSection {
   return "overview";
 }
 
-/** The sections this reader has: Billing only with the money grant, Design
-    only with the Studio. */
-export const sectionsFor = (moneyVisible: boolean, studio = false): readonly JobSection[] =>
-  JOB_SECTIONS.filter((s) => (s !== "billing" || moneyVisible) && (s !== "design" || studio));
+/** The sections this reader has: Billing only with the money grant. Files
+    has a Designs group only for whoever holds the Studio; the tab itself is
+    everyone's. */
+export const sectionsFor = (moneyVisible: boolean, _studio = false): readonly JobSection[] =>
+  JOB_SECTIONS.filter((s) => s !== "billing" || moneyVisible);
 
 /* the names a section went by, so an old link still lands on it */
-const OLD_NAMES: Record<string, JobSection> = { checklist: "on-site", visits: "on-site", materials: "on-site", onsite: "on-site" };
+const OLD_NAMES: Record<string, JobSection> = {
+  checklist: "on-site",
+  visits: "on-site",
+  materials: "on-site",
+  onsite: "on-site",
+  photos: "files",
+  documents: "files",
+  design: "files",
+};
 
 /** The section an address's `?tab=` names, or Overview: an invented one, a
-    repeated one, Billing without the money grant and Design without the
-    Studio all land on Overview.
+    repeated one and Billing without the money grant all land on Overview.
     A section's old name lands on it (`?tab=checklist`, `visits` and
-    `materials` are On site). */
+    `materials` are On site; `photos`, `documents` and `design` are Files). */
 export function parseSection(raw: string | string[] | undefined | null, moneyVisible: boolean, studio = false): JobSection {
   if (typeof raw !== "string") return "overview";
   const said = raw.trim().toLowerCase();

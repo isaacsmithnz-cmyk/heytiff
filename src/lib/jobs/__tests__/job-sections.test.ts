@@ -14,18 +14,16 @@ import { jobHref, jobPageHref } from "@/lib/shell/links";
 
 describe("the sections", () => {
   it("are the rule's, in its order: Scope after Overview, On site where Visits and Materials were", () => {
-    expect(JOB_SECTIONS.map((s) => SECTION_LABEL[s])).toEqual(["Overview", "Scope", "Quote", "Design", "On site", "Photos", "Documents", "Billing"]);
+    expect(JOB_SECTIONS.map((s) => SECTION_LABEL[s])).toEqual(["Overview", "Scope", "Quote", "On site", "Files", "Billing"]);
   });
 
-  it("each show the card's faces: Overview the summary and diary, Documents the files and compliance, Billing the money", () => {
+  it("each show the card's faces: Overview the summary and diary, Files the photos, documents, compliance and designs, Billing the money", () => {
     expect(SECTION_FACES).toEqual({
       overview: ["summary", "diary"],
       scope: ["scope"],
       quote: ["quote"],
-      design: ["design"],
       "on-site": ["visits", "checklist"],
-      photos: ["photos"],
-      documents: ["documents", "compliance"],
+      files: ["photos", "documents", "compliance", "design"],
       billing: ["money"],
     });
   });
@@ -34,7 +32,7 @@ describe("the sections", () => {
     const faces = Object.values(SECTION_FACES).flat();
     expect(new Set(faces).size).toBe(faces.length);
     expect(sectionOfFace("diary")).toBe("overview");
-    expect(sectionOfFace("compliance")).toBe("documents");
+    expect(sectionOfFace("compliance")).toBe("files");
     expect(sectionOfFace("money")).toBe("billing");
   });
 
@@ -43,19 +41,19 @@ describe("the sections", () => {
     expect(sectionsFor(true)).toContain("billing");
   });
 
-  /* Isaac, 28 October 2026: "a separate tab outside of the quoting" */
-  it("put Design after Quote for whoever has the Studio, and leave it out for anyone else", () => {
-    expect(sectionsFor(true, true).slice(0, 4)).toEqual(["overview", "scope", "quote", "design"]);
-    expect(sectionsFor(true, false)).not.toContain("design");
-    expect(sectionsFor(false)).not.toContain("design");
-    expect(sectionOfFace("design")).toBe("design");
+  /* the job's designs are a group of Files, for whoever holds the Studio (15 November 2026) */
+  it("puts the designs in Files, the same tabs for everyone", () => {
+    expect(sectionsFor(true, true)).toEqual(sectionsFor(true, false));
+    expect(sectionOfFace("design")).toBe("files");
   });
 });
 
 describe("?tab=", () => {
   it("names a section, whatever its case", () => {
     expect(parseSection("on-site", false)).toBe("on-site");
-    expect(parseSection(" Photos ", false)).toBe("photos");
+    expect(parseSection(" Files ", false)).toBe("files");
+    expect(parseSection(" Photos ", false)).toBe("files");
+    expect(parseSection("documents", false)).toBe("files");
     expect(parseSection("scope", false)).toBe("scope");
     expect(sectionOfFace("scope")).toBe("scope");
   });
@@ -77,8 +75,9 @@ describe("?tab=", () => {
     expect(parseSection("timeline", true)).toBe("overview");
     expect(parseSection(["quote", "visits"], true)).toBe("overview");
     expect(parseSection("billing", false)).toBe("overview");
-    expect(parseSection("design", true)).toBe("overview");
-    expect(parseSection("design", true, true)).toBe("design");
+    /* the Design tab went into Files, for everyone: its Designs group is the Studio's */
+    expect(parseSection("design", true)).toBe("files");
+    expect(parseSection("design", true, true)).toBe("files");
     expect(parseSection("billing", true)).toBe("billing");
   });
 });

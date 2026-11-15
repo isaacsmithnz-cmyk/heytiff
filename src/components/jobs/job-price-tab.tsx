@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Suspense, lazy, useEffect, useMemo, useState, type ReactNode } from "react";
 import { readClaim } from "@/app/actions/workboard";
 import { Button } from "@/components/parts/button";
 import { Fade } from "@/components/parts/fade";
 import { StateWord } from "@/components/parts/state";
 import { Empty, Loading, Wrong } from "@/components/parts/states";
-import { Tray } from "@/components/parts/tabs";
 import { Waiting } from "@/components/ui/orb";
 import { JobQuoteSend, sendVariation } from "@/components/workboard/board/job-quote-send";
 import { useQuotePrice } from "@/components/workboard/quote/quote-parts";
@@ -21,7 +20,8 @@ import type { LandingWhen, QuoteLanding } from "@/lib/quotes/quote-landing";
 import type { MirrorJobDetail, ClaimDetailRead } from "@/lib/workboard/all-jobs-query";
 import { claimLine, type BillingView, type PaymentRow } from "@/lib/workboard/job-billing";
 import type { FamilyClaim } from "@/lib/workboard/job-family";
-import { fmtQuantity, materialsExTotalCents, type JobMaterialLine } from "@/lib/workboard/job-ledger";
+import type { JobMaterialLine } from "@/lib/workboard/job-ledger";
+import { Paper, Sm8Lines, Views, type View } from "./job-price-parts";
 import type { JobMediaItem } from "@/lib/workboard/job-media";
 import { fmtAud } from "@/lib/workboard/project-money";
 
@@ -55,6 +55,9 @@ import { fmtAud } from "@/lib/workboard/project-money";
    ServiceM8 or Xero from here except by a person's press. */
 
 const ROUTE = "/api/workboard/quote-status";
+/* New invoice, loaded when it is first asked for: its send is a server
+   action of its own */
+const PriceNewInvoice = lazy(() => import("./job-price-invoice").then((m) => ({ default: m.PriceNewInvoice })));
 const WHEN: LandingWhen = { day: fmtAuWeekdayDayMonth, time: (at) => fmtAuTime(new Date(at)) };
 
 export function JobPriceTab({
@@ -124,6 +127,14 @@ export function JobPriceTab({
     [quote, sm8, moneyVisible, billing, claims, starting]
   );
 
+  /* NEW INVOICE, money only: its card stands while it's being built */
+  const [invoicing, setInvoicing] = useState(false);
+  const offerInvoice = ready && moneyVisible && financials;
+  const shownCards: PriceCard[] =
+    invoicing && offerInvoice
+      ? [...cards, { key: "new-invoice", kind: "invoice", label: "Invoice", name: "New invoice", figure: null, state: { word: "Not on the job yet", tone: "info" } }]
+      : cards;
+
   /* the card open: what a door asked for, else the tab's first */
   const [picked, setPicked] = useState<string | null>(null);
   const [askSeen, setAskSeen] = useState<number | null>(null);
@@ -135,7 +146,7 @@ export function JobPriceTab({
   /* an invoice asked for by its claim matches in any case; one not read yet
      leaves the first card up until Billing's rows land */
   const want = picked?.startsWith("invoice:") ? firstCard(cards, picked.slice("invoice:".length)) : picked;
-  const shown = cards.find((c) => c.key === want) ?? cards.find((c) => c.key === firstCard(cards, null)) ?? null;
+  const shown = shownCards.find((c) => c.key === want) ?? cards.find((c) => c.key === firstCard(cards, null)) ?? null;
 
   const newQuote = () => {
     setStarting(true);
@@ -187,6 +198,12 @@ export function JobPriceTab({
         onChanged={() => setReads((n) => n + 1)}
       />
     );
+  else if (shown.key === "new-invoice")
+    body = (
+      <Suspense fallback={<Loading what="Working out the invoice" />}>
+        <PriceNewInvoice job={job} jobNumber={detail?.jobNumber ?? null} client={detail?.clientName ?? null} onJob={materials} />
+      </Suspense>
+    );
   else if (shown.kind === "sm8-quote")
     body = <PriceSm8Quote job={job} sm8={sm8} money={moneyVisible} materials={materials} onUpdate={newQuote} />;
   else
@@ -204,16 +221,28 @@ export function JobPriceTab({
 
   return (
     <div className="jpr">
-      {(cards.length > 0 || offerNew) && (
+      {(shownCards.length > 0 || offerNew || offerInvoice) && (
         <div className="jpr-cards" role="group" aria-label="The job's prices">
-          {cards.map((c) => (
+          {shownCards.map((c) => (
             <CardButton key={c.key} card={c} on={shown?.key === c.key} onPick={() => setPicked(c.key)} />
           ))}
-          {offerNew && cards.length > 0 && (
+          {((offerNew && shownCards.length > 0) || (offerInvoice && !invoicing)) && (
             <div className="jpr-new">
-              <Button kind="quote" onClick={newQuote}>
-                New quote
-              </Button>
+              {offerNew && shownCards.length > 0 && (
+                <Button kind="quote" onClick={newQuote}>
+                  New quote
+                </Button>
+              )}
+              {offerInvoice && !invoicing && (
+                <Button
+                  onClick={() => {
+                    setInvoicing(true);
+                    setPicked("new-invoice");
+                  }}
+                >
+                  New invoice
+                </Button>
+              )}
             </div>
           )}
         </div>
@@ -337,65 +366,6 @@ function PriceQuote({
         sendVariation={(o) => sendVariation(job, o)}
         jobStatus={detail?.status ?? null}
         update={update}
-      />
-    </div>
-  );
-}
-
-/** A paper laid in the left, as the quote's Preview lays its own. */
-function Paper({ item, none }: { item: JobMediaItem | null; none: string }) {
-  if (!item) return <p className="jpr-none">{none}</p>;
-  if (!item.url) return <p className="jpr-none">{`${item.name} hasn't been brought across from ServiceM8 yet.`}</p>;
-  const pdf = (item.fileType ?? "").toLowerCase().endsWith("pdf") || /\.pdf$/i.test(item.name);
-  return pdf ? (
-    <iframe className="jpr-paper" src={item.url} aria-label={item.name} />
-  ) : (
-    /* eslint-disable-next-line @next/next/no-img-element */
-    <img className="jpr-paper jpr-paper--img" src={item.url} alt={item.name} />
-  );
-}
-
-/** Lines as ServiceM8 holds them: the name, how many, and the ex-GST figure
-    to whoever sees money. */
-function Sm8Lines({ lines, money, none }: { lines: readonly JobMaterialLine[]; money: boolean; none: string }) {
-  if (lines.length === 0) return <p className="jpr-none">{none}</p>;
-  const total = money ? materialsExTotalCents(lines) : null;
-  return (
-    <ul className="jpr-lines">
-      {lines.map((m) => (
-        <li key={m.remoteId}>
-          <span className="jpr-line">
-            <b>{m.name}</b>
-            {m.quantity !== null && <em>{`× ${fmtQuantity(m.quantity)}`}</em>}
-          </span>
-          {money && <span className="jpr-amt">{m.exLineCents != null ? fmtAud(m.exLineCents) : "—"}</span>}
-        </li>
-      ))}
-      {/* no total when a line has no ex-GST price */}
-      {total !== null && (
-        <li className="jpr-total">
-          <span className="jpr-line">
-            <b>Total ex GST</b>
-          </span>
-          <span className="jpr-amt">{fmtAud(total)}</span>
-        </li>
-      )}
-    </ul>
-  );
-}
-
-type View = "lines" | "preview";
-function Views({ value, onChange }: { value: View; onChange: (v: View) => void }) {
-  return (
-    <div className="qc-views">
-      <Tray
-        ariaLabel="What it shows"
-        value={value}
-        options={[
-          { value: "lines", label: "Line items" },
-          { value: "preview", label: "Preview" },
-        ]}
-        onChange={onChange}
       />
     </div>
   );

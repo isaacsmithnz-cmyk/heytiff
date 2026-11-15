@@ -9,6 +9,8 @@ import type { ComponentProps } from "react";
 
 const readClaim = jest.fn();
 jest.mock("@/app/actions/workboard", () => ({ readClaim: (...a: unknown[]) => readClaim(...a) }));
+const sendInvoiceToSm8 = jest.fn();
+jest.mock("@/app/actions/invoice-sm8", () => ({ sendInvoiceToSm8: (...a: unknown[]) => sendInvoiceToSm8(...a) }));
 /* the lines have a suite of their own: here, what the tab hands them */
 jest.mock("@/components/workboard/quote/quote-lines-face", () => ({
   QuoteLinesFace: ({ price, sm8, start, views, openAt, update }: { price: unknown; sm8: { value: string | null }; start?: boolean; views?: boolean; openAt?: number | null; update?: boolean }) => (
@@ -32,16 +34,34 @@ const facts = (over: Record<string, unknown> = {}) => ({ lines: 3, options: 1, t
 const landing = { name: "Return visit", startedAt: null, who: null, approvedBy: null, acceptedAt: null, totalCents: 77_500, money: true, versions: [], variations: [] };
 
 let status: Record<string, unknown>;
+let draft: Record<string, unknown>;
 let engine = "lines";
 let switches = true;
 let fetchMock: jest.Mock;
 beforeEach(() => {
   status = { ok: true, facts: facts(), landing };
+  draft = {
+    ok: true,
+    draft: {
+      ok: true,
+      quoted: false,
+      invoiced: false,
+      jobNumber: "3221",
+      from: { days: ["2026-11-11"], used: 2 },
+      lines: [
+        { key: "labour:2026-11-11", kind: "labour", name: "Labour, Wed 11 Nov", detail: "Isaac 3.5 h", qty: 3.5, unit: "h", unitSellCents: 14_000, unitCostCents: null, sent: false },
+        { key: "used:rexel|uf24|", kind: "material", name: "Ultrafil 24x24x4", detail: "1 used, Wed 11 Nov", qty: 1, unit: null, unitSellCents: 8_894, unitCostCents: 6_353, sent: false },
+        { key: "used:|hydrex|", kind: "material", name: "Hydrex tablets", detail: "6 used, Wed 11 Nov", qty: 6, unit: null, unitSellCents: null, unitCostCents: null, sent: false },
+      ],
+    },
+  };
+  sendInvoiceToSm8.mockReset().mockResolvedValue({ ok: true, trial: false, sent: 2, lines: 2, waiting: 0, failed: [], said: "2 of 2 lines on job 3221 in ServiceM8." });
   engine = "lines";
   switches = true;
   fetchMock = jest.fn(async (url: string, init?: { body?: string }) => ({
     json: async () => {
       if (String(url).startsWith("/api/workboard/quote-status")) return status;
+      if (String(url).startsWith("/api/workboard/invoice-draft")) return draft;
       if (String(url).startsWith("/api/workboard/quote-lines")) {
         if (init?.body) {
           if (!switches) return { ok: false };
@@ -191,4 +211,56 @@ it("says when where the quote stands wasn't read, and reads it again", async () 
   status = { ok: true, facts: facts(), landing };
   await userEvent.click(screen.getByRole("button", { name: "Read the quote again" }));
   await waitFor(() => expect(prices().getByRole("button", { name: /^Quote/ })).toBeInTheDocument());
+});
+
+describe("New invoice", () => {
+  it("is offered to whoever sees money and the business's figures, and to nobody else", async () => {
+    draw({ moneyVisible: false, financials: false, billing: null });
+    await screen.findByText("No price");
+    expect(screen.queryByRole("button", { name: "New invoice" })).toBeNull();
+  });
+
+  it("offers the hours and what was used, each ticked, and puts only the ticked on the job, by a press", async () => {
+    draw({ billing: null, claims: [] });
+    await userEvent.click(await screen.findByRole("button", { name: "New invoice" }));
+    expect(prices().getByRole("button", { name: /New invoice/, pressed: true })).toBeInTheDocument();
+    const rail = within(await screen.findByRole("complementary", { name: "New invoice" }));
+    expect(await screen.findByText("Labour, Wed 11 Nov")).toBeInTheDocument();
+    /* 3.5 h at $140, and the filter at the book's cost and markup */
+    expect(rail.getByText("$578.94")).toBeInTheDocument();
+    expect(rail.getByText("Wed 11 Nov on site, and 2 things used")).toBeInTheDocument();
+    /* the tablets have no price: no tick, and they can't go */
+    expect(screen.getByText("No price in the book")).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: /Hydrex/ })).toBeNull();
+
+    await userEvent.click(screen.getByRole("checkbox", { name: "Put Ultrafil 24x24x4 on the job" }));
+    expect(rail.getByText("$490")).toBeInTheDocument();
+    expect(sendInvoiceToSm8).not.toHaveBeenCalled();
+
+    const send = rail.getByRole("button", { name: "Send to ServiceM8" });
+    expect(send).toHaveClass("pt-btn--sm8");
+    await userEvent.click(send);
+    expect(sendInvoiceToSm8).toHaveBeenCalledWith(JOB, ["labour:2026-11-11"]);
+    expect(await rail.findByText("2 of 2 lines on job 3221 in ServiceM8.")).toBeInTheDocument();
+  });
+
+  it("previews the invoice ServiceM8 will make: the job's lines, then the ticked ones", async () => {
+    const onJob = [{ remoteId: "m-1", name: "Annual Maintenance Service 3hrs", quantity: 1, unitCents: 56_000, taxInclusive: false, lineCents: 56_000, exLineCents: 56_000 }];
+    draw({ billing: null, claims: [], materials: onJob });
+    await userEvent.click(await screen.findByRole("button", { name: "New invoice" }));
+    await userEvent.click(await screen.findByRole("radio", { name: "Preview" }));
+    const paper = within(screen.getByRole("article", { name: "The invoice" }));
+    expect(paper.getByText("Invoice 3408")).toBeInTheDocument();
+    expect(paper.getByText("Annual Maintenance Service 3hrs")).toBeInTheDocument();
+    expect(paper.getByText("Labour, Wed 11 Nov")).toBeInTheDocument();
+    expect(paper.getByText("$1,138.94")).toBeInTheDocument();
+  });
+
+  it("says what to set where the business hasn't priced its hours", async () => {
+    draft = { ok: true, draft: { ok: false, why: "Set a charge-out rate in Quoting to price an invoice." } };
+    draw({ billing: null, claims: [] });
+    await userEvent.click(await screen.findByRole("button", { name: "New invoice" }));
+    expect(await screen.findByText("Set a charge-out rate in Quoting to price an invoice.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Send to ServiceM8" })).toBeDisabled();
+  });
 });

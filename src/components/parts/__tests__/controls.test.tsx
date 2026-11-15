@@ -284,10 +284,13 @@ describe("controls.css", () => {
   it("takes its colours, corners, motion and font only from the tokens", () => {
     const used = [...CSS.matchAll(/var\(--([\w-]+)\)/g)].map((m) => m[1]);
     expect(used.filter((t) => !TOKENS.has(t))).toEqual([]);
-    // Xero's blue is the one hex, on its own button, named in docs/design.md
+    // Xero's blue and ServiceM8's green are the two hexes, each on its own
+    // button, named in docs/design.md (25a, 25b)
     const xero = /\.pt-btn\.pt-btn--xero\s*\{[^}]*\}/;
+    const sm8 = /\.pt-btn\.pt-btn--sm8\s*\{[^}]*\}/;
     expect(CSS).toMatch(xero);
-    expect(CSS.replace(xero, "")).not.toMatch(/#[0-9a-f]{3,8}\b/i);
+    expect(CSS).toMatch(sm8);
+    expect(CSS.replace(xero, "").replace(sm8, "")).not.toMatch(/#[0-9a-f]{3,8}\b/i);
     expect(CSS).not.toMatch(/\b(?:rgba?|hsla?)\(/);
     // blue only means press, spelled as the press (rule 17)
     expect(CSS).not.toMatch(/var\(--blue\)/);

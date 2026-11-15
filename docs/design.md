@@ -444,6 +444,15 @@ the fourth on the customer's messages, below).
   claim's own number, and there is no claim dialog; a claim still to come
   isn't an invoice yet, so its row on Billing is read and not pressed. The
   part claims stay under Billing's Payments, and the Job tracker under them.
+  **New invoice**, a second button at the row's end for whoever sees money
+  and the business's figures, builds what goes on the job in ServiceM8 from
+  what the job knows (the invoice mock of 3 November 2026): the hours on
+  site a line a day at the charge-out rate, and what was said used at the
+  book's cost and the markup on materials, each with its tick; on a job
+  priced already, only what was used beyond its price. Its Preview is the
+  invoice ServiceM8 will make, the job's lines and the ticked ones, and its
+  rail ends in Send to ServiceM8 in ServiceM8's green (25b), the one press
+  that puts the lines there. ServiceM8 makes and sends the invoice.
 - **The Job tracker's bar turns red past the quote** (`.jtr-over`),
   despite rule 16, no chart is red (Isaac, 3 November 2026: over the
   allowance is "a red line and how much over"). Used is grey, overtime's
@@ -635,6 +644,7 @@ day he said them.
 | `.hd-page` | Tailwind palette hexes | 1 | "design exempt for now, but keep a note": `--hd-done`, the tick on finished work, is Tailwind's green 600 | 2026-09-24 |
 | `.wb2-jcattpill` | pills | 1 | "Our mention can just show our name inside a pill. in place of where it was in the note": a task made from a ServiceM8 note carries the note as ServiceM8 shows it, each person it names a pill where their handle stood, where law 26 says a plain word | 2026-09-29 |
 | `.pt-btn--xero` | colours outside the 19 | 1 | "give zero button its proper colors. This will be an exemption to the color rules. With a pale blue and white writing.": Xero's brand blue `#13b5ea` on a button that goes to Xero; white on it measures 2.4:1 | 2026-10-27 |
+| `.pt-btn--sm8` | colours outside the 19 | 1 | "That could be an exception for anything service mate": ServiceM8's own green `#7DC836` on a button that goes to ServiceM8 (rule 25b), ink words on it; first worn by Send to ServiceM8 on Price's New invoice | 2026-11-02 |
 
 What the guard cannot count is noted here on the same word:
 

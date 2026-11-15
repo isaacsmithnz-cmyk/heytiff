@@ -138,6 +138,19 @@ describe("the labour", () => {
     expect(linesHours(lines)).toBe(20);
   });
 
+  it("a day named for its crew and time is that crew's day, not one person's days (3054)", () => {
+    const lines = [
+      line({ kind: "labour", name: "Day 1: 3 people, 1 day", qty: 24, unit: "h" }),
+      line({ kind: "labour", name: "Day 2: 2 people, 1 day", qty: 16, unit: "h" }),
+      line({ kind: "labour", name: "Day 3: 1 person, half day", qty: 4, unit: "h" }),
+    ];
+    expect(labourVisits(lines, 8)).toEqual([
+      { stage: "Install", people: 3, days: 1 },
+      { stage: "Install", people: 2, days: 1 },
+      { stage: "Install", people: 1, days: 0.5 },
+    ]);
+  });
+
   it("a line Tiff named for its crew and days, or worked out task by task, keeps its stage and crew (8.2)", () => {
     expect(labourVisits([line({ kind: "labour", name: "Rough-in: 2 people, 3.5 days", qty: 56, unit: "h" })], 8)).toEqual([{ stage: "Rough-in", people: 2, days: 3.5 }]);
     const visit = { stage: "Install and commissioning", people: 2, dayHours: 8, tasks: [{ task: "Set two outdoors", hours: 3, was: null, byHand: false }, { task: "Commission", hours: 5, was: 3, byHand: true }] };

@@ -249,6 +249,7 @@ export function JobDocumentsFace({
   onPageForScale,
   onSetScale,
   onChooseFloors,
+  part,
 }: {
   documents: readonly JobMediaItem[] | null;
   elsewhere: readonly JobMediaItem[] | null;
@@ -319,6 +320,10 @@ export function JobDocumentsFace({
       plan: what went wrong, or null. Offered under a set she isn't sure of
       as Choose floors. */
   onChooseFloors?: (chosen: ChosenFloors) => Promise<string | null>;
+  /** Which part this card draws: the job's plans alone, on the Scope tab,
+      or the papers without them, on Files (Isaac, 15 November 2026: "Plans
+      move too"); both when not given. */
+  part?: "plans" | "papers";
 }) {
   const day = today ?? todayInAu();
   /* Licences and insurance, open over the page */
@@ -411,7 +416,7 @@ export function JobDocumentsFace({
   const shares = links ?? [];
   const files = byGroup.get("files") ?? [];
   const compliance = statements.length + certs.length + ours.length + attachedPapers.length;
-  const total = planList.length + designs.length + shares.length + client.length + files.length + compliance;
+  const total = part === "plans" ? planList.length : (part === "papers" ? 0 : planList.length) + designs.length + shares.length + client.length + files.length + compliance;
 
   const offerSwms = !!onCreateSwms && !swmsClosed && swms !== null && statements.length === 0;
   /* one per job: a later one is a reissue of the first */
@@ -420,7 +425,7 @@ export function JobDocumentsFace({
 
   const offerPlans = !!onAddPlans && (planCandidates(docs).length > 0 || !!onUploadForPlans);
   const addItems: MenuItem[] = [
-    ...(offerPlans ? [{ key: "plans", label: "Add plans" }] : []),
+    ...(offerPlans && part !== "papers" ? [{ key: "plans", label: "Add plans" }] : []),
     ...(onUpload ? [{ key: "upload", label: "Upload a file", disabled: !!sending }] : []),
     ...(offerPapers ? [{ key: "papers", label: "Licences and insurance" }] : []),
     ...(offerSwms ? [{ key: "swms", label: "SWMS", disabled: !canCreateSwms }] : []),
@@ -632,6 +637,49 @@ export function JobDocumentsFace({
   ].filter((f): f is string => f !== null);
   const reading = loading && documents === null;
 
+  const plansDialogs = (
+    <>
+      {addingPlans && onAddPlans && <AddPlansDialog files={docs} onAdd={onAddPlans} onUpload={onUploadForPlans} onClose={() => setAddingPlans(false)} />}
+      {choosingFloors && onChooseFloors && plans?.some((p) => p.id === choosingFloors) && (
+        <PlansDialog plans={plans.filter((p) => p.id === choosingFloors)} onSave={(chosen) => onChooseFloors(chosen)} onClose={() => setChoosingFloors(null)} />
+      )}
+      {scaling && onSetScale && onPageForScale && (
+        <SetScaleDialog
+          heading={scaling.ask === "set" ? "Set scale" : "Check scale"}
+          caption={pageCaption(scaling.page)}
+          load={() => onPageForScale(scaling.planId, scaling.page.n)}
+          onSave={(a, b, mm) => onSetScale(scaling.planId, scaling.page.n, a, b, mm)}
+          onClose={() => setScaling(null)}
+        />
+      )}
+    </>
+  );
+
+  /* THE PLANS ALONE, on the Scope tab beside what's drawn from them (Isaac,
+     15 November 2026: "Plans move too"): their heading, Add plans, and each
+     plan's row with its floors */
+  if (part === "plans")
+    return (
+      <div className="jdoc">
+        <div className="jdoc-head">
+          <h2 className="jdoc-h">Plans</h2>
+          {offerPlans && (
+            <Button kind="main" icon="plus" onClick={() => setAddingPlans(true)}>
+              Add plans
+            </Button>
+          )}
+        </div>
+        {planList.length > 0 ? (
+          <RowList label="Plans">{planList.map(planRowOf)}</RowList>
+        ) : reading || plans === null ? (
+          <Loading what="Reading the plans" />
+        ) : (
+          <Empty what="No plans on this job" action={null} />
+        )}
+        {plansDialogs}
+      </div>
+    );
+
   return (
     <div className="jdoc" data-over={over ? "" : undefined} {...dropProps}>
       <div className="jdoc-head">
@@ -699,7 +747,7 @@ export function JobDocumentsFace({
         <Wrong word={`Couldn't read this job's ${andList(failed)}`} means="Open the job again to see them." />
       )}
 
-      {planList.length > 0 && <Group heading="Plans">{planList.map(planRowOf)}</Group>}
+      {part !== "papers" && planList.length > 0 && <Group heading="Plans">{planList.map(planRowOf)}</Group>}
 
       {designs.length > 0 && (
         <Group heading="Drawings">
@@ -743,19 +791,7 @@ export function JobDocumentsFace({
       {choosing && offerPapers && onLoadChoices && onAddPapers && (
         <ComplianceChooser today={day} onLoad={onLoadChoices} onAdd={onAddPapers} onClose={() => setChoosing(false)} />
       )}
-      {addingPlans && onAddPlans && <AddPlansDialog files={docs} onAdd={onAddPlans} onUpload={onUploadForPlans} onClose={() => setAddingPlans(false)} />}
-      {choosingFloors && onChooseFloors && plans?.some((p) => p.id === choosingFloors) && (
-        <PlansDialog plans={plans.filter((p) => p.id === choosingFloors)} onSave={(chosen) => onChooseFloors(chosen)} onClose={() => setChoosingFloors(null)} />
-      )}
-      {scaling && onSetScale && onPageForScale && (
-        <SetScaleDialog
-          heading={scaling.ask === "set" ? "Set scale" : "Check scale"}
-          caption={pageCaption(scaling.page)}
-          load={() => onPageForScale(scaling.planId, scaling.page.n)}
-          onSave={(a, b, mm) => onSetScale(scaling.planId, scaling.page.n, a, b, mm)}
-          onClose={() => setScaling(null)}
-        />
-      )}
+      {part !== "papers" && plansDialogs}
     </div>
   );
 }

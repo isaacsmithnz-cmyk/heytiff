@@ -811,3 +811,18 @@ it("offers no Choose floors on a plan she read sure, or where it can't be saved"
   face({ documents: [suttor], plans: [readPlan({ state: "check", said: "x" })] });
   expect(screen.queryByRole("button", { name: "Choose floors" })).toBeNull();
 });
+
+/* the plans on Scope, the papers on Files (Isaac, 15 November 2026: "Plans move too") */
+it("draws the plans alone on Scope, with Add plans, and Files without them", async () => {
+  const onAddPlans = jest.fn(async () => null);
+  const first = face({ documents: [suttor, photoDoc], plans: [readPlan()], onAddPlans, onUpload: async () => null, part: "plans" });
+  expect(screen.getByRole("heading", { name: "Plans" })).toBeInTheDocument();
+  expect(screen.getByText(suttor.name)).toBeInTheDocument();
+  expect(screen.queryByText("image.png")).toBeNull();
+  expect(screen.getByRole("button", { name: "Add plans" })).toBeInTheDocument();
+  first.unmount();
+  face({ documents: [suttor, photoDoc], plans: [readPlan()], onAddPlans, onUpload: async () => null, part: "papers" });
+  expect(screen.queryByRole("region", { name: "Plans" })).toBeNull();
+  const items = within(await addMenu()).getAllByRole("menuitem").map((i) => i.textContent);
+  expect(items).not.toContain("Add plans");
+});

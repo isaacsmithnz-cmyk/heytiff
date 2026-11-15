@@ -9,7 +9,9 @@ import type { JobSheetTab } from "@/components/workboard/board/job-sheet";
                  2026); the stages line beside the name lives on it alone
      Scope     = the job's Scope, Since the quote and Latest updates, or its
                  Summary where it has no Scope (Isaac, 13 November 2026:
-                 "Give scope its own tab"; mock A, 14 November)
+                 "Give scope its own tab"; mock A, 14 November), and under
+                 them the job's plans and, for whoever holds `studio`, its
+                 designs (Isaac, 15 November 2026: "Plans move too")
      Price     = where what the job is charged is built (Isaac, 13 November
                  2026, who named it): every price on the job as a card, the
                  quote and, to money, each invoice, the one open in Chat,
@@ -21,9 +23,8 @@ import type { JobSheetTab } from "@/components/workboard/board/job-sheet";
                  Stock (mock F, 14 November 2026); Visits and Materials (the
                  card's checklist) were their own until then
      Files     = the photos on the left, and in a 400 column the documents
-                 and compliance, then the job's designs for whoever holds
-                 `studio` (Photos, Documents and Design until 15 November
-                 2026)
+                 and compliance (Photos and Documents until 15 November
+                 2026; the designs and plans went to Scope that day)
      Billing   = the money, only for whoever holds `workboard_money`: without
                  it the section is absent, as the card's Billing face is.
 
@@ -45,10 +46,10 @@ export const SECTION_LABEL: Record<JobSection, string> = {
 /** The card's faces each section shows, in the order it shows them. */
 export const SECTION_FACES: Record<JobSection, readonly JobSheetTab[]> = {
   overview: ["summary", "diary"],
-  scope: ["scope"],
+  scope: ["scope", "design"],
   price: ["quote"],
   "on-site": ["visits", "checklist"],
-  files: ["photos", "documents", "compliance", "design"],
+  files: ["photos", "documents", "compliance"],
   billing: ["money"],
 };
 
@@ -58,8 +59,8 @@ export function sectionOfFace(face: JobSheetTab): JobSection {
   return "overview";
 }
 
-/** The sections this reader has: Billing only with the money grant. Files
-    has a Designs group only for whoever holds the Studio; the tab itself is
+/** The sections this reader has: Billing only with the money grant. Scope
+    has a Designs card only for whoever holds the Studio; the tab itself is
     everyone's. */
 export const sectionsFor = (moneyVisible: boolean, _studio = false): readonly JobSection[] =>
   JOB_SECTIONS.filter((s) => s !== "billing" || moneyVisible);
@@ -73,7 +74,9 @@ const OLD_NAMES: Record<string, JobSection> = {
   onsite: "on-site",
   photos: "files",
   documents: "files",
-  design: "files",
+  design: "scope",
+  designs: "scope",
+  plans: "scope",
 };
 
 /** The section an address's `?tab=` names, or Overview: an invented one, a

@@ -3548,7 +3548,7 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
    profit as a figure and a state word with no box (Q4), then every group */
 .fg .qp-card { display:flex; flex-direction:column; gap:12px; }
 .fg .qp-tot { display:flex; flex-direction:column; gap:2px; }
-.fg .qp-tot span { font-size:13px; font-weight:500; color:var(--q); }
+.fg .qp-tot > span { font-size:13px; font-weight:500; color:var(--q); }
 .fg .qp-tot b { font-size:32px; font-weight:700; line-height:40px; color:var(--ink); font-variant-numeric:tabular-nums; }
 .fg .qp-tot b.qc-wait { font-size:16px; font-weight:600; color:var(--q); }
 .fg .qp-tot em { font-style:normal; font-size:13px; color:var(--q); font-variant-numeric:tabular-nums; }

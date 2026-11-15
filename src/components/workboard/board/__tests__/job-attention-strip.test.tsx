@@ -148,3 +148,15 @@ describe("where the deployment sends no notes", () => {
     expect(onDismissNote).not.toHaveBeenCalled();
   });
 });
+
+describe("its cap", () => {
+  it("draws three of what it's given and counts the rest", () => {
+    const flags = [1, 2, 3, 4, 5].map(
+      (n): AttentionItem => ({ kind: "flag", key: `flag:f-${n}`, id: `f-${n}`, message: `Flag ${n}`, severity: "warn", raised: null })
+    );
+    strip(flags);
+    expect(screen.getByText("Flag 3")).toBeTruthy();
+    expect(screen.queryByText("Flag 4")).toBeNull();
+    expect(screen.getByText("and 2 more — the diary has them all")).toBeTruthy();
+  });
+});

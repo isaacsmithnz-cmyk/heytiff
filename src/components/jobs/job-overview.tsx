@@ -100,9 +100,9 @@ export function JobOverview({
     onBook?: () => void;
     /** Contact's Edit, where saving customers is on. */
     onEditContact?: () => void;
-    /** What's open on the job (the attention rows), at the head of To do. */
-    open?: ReactNode;
-    openCount?: number;
+    /** What's open on the job (the attention rows), at the head of To do,
+        leaving out the tasks To do lists as its own rows. */
+    open?: (taskIds: ReadonlySet<string>) => { rows: ReactNode; count: number };
   };
 }) {
   const router = useRouter();
@@ -227,6 +227,8 @@ export function JobOverview({
   const [openTask, setOpenTask] = useState<string | null>(null);
   const today = read?.today ?? null;
   const tasks = (read?.tasks ?? []).filter((t) => !ticked.has(t.id));
+  /* a task To do lists is its row, never an attention row too (N1) */
+  const asks = doors.open?.(new Set((read?.tasks ?? []).map((t) => t.id)));
 
   return (
     <div className="jov jov--fit" ref={fitRef} style={fitH == null ? undefined : ({ "--fit-h": `${fitH}px` } as CSSProperties)}>
@@ -275,8 +277,8 @@ export function JobOverview({
             read: !!read,
             onTick: tick,
             onOpen: setOpenTask,
-            open: doors.open,
-            openCount: doors.openCount ?? 0,
+            open: asks?.rows,
+            openCount: asks?.count ?? 0,
             onAdd: cardId ? addTodo : undefined,
           }}
         />

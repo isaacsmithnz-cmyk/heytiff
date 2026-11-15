@@ -11,7 +11,7 @@ import { Fade } from "@/components/parts/fade";
 import { StateWord, type Tone } from "@/components/parts/state";
 import { Tray, ViewTabs } from "@/components/parts/tabs";
 import { Tick } from "@/components/parts/tick";
-import { useToast } from "@/components/parts/toast";
+import { ToastProvider, useToast } from "@/components/parts/toast";
 import { jobPageHref } from "@/lib/shell/links";
 import {
   allocate,
@@ -122,7 +122,18 @@ function JobNumber({ job }: { job: Pick<StockJob, "hue" | "number"> }) {
 
 type Sheet = { kind: "item"; key: string } | { kind: "order"; key: string } | { kind: "had"; key: string } | { kind: "mark"; supplier: string | null } | { kind: "bulk"; supplier: string | null } | { kind: "site"; supplier: string; name: string };
 
+/* the page holds its own toasts, as Notes and Conversations do: no provider
+   stands above a page, and without one Stock threw on opening ("This page
+   didn't load", Isaac, 15 November 2026) */
 export function StockPage({ initial }: { initial: StockView }) {
+  return (
+    <ToastProvider>
+      <Stock initial={initial} />
+    </ToastProvider>
+  );
+}
+
+function Stock({ initial }: { initial: StockView }) {
   const router = useRouter();
   const params = useSearchParams();
   const toast = useToast();

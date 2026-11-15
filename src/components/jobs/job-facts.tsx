@@ -103,6 +103,19 @@ function Fact({
   );
 }
 
+/** The address as two lines, the street over the rest: ServiceM8's own
+    lines where it has them, else split at its last comma ("2 Krui Street,
+    Fairlight", 3533: the walk of 15 November 2026). */
+export function addressLines(where: string): string[] {
+  const lines = where.split(/\s*\n\s*/).filter(Boolean);
+  if (lines.length !== 1) return lines;
+  const at = lines[0]!.lastIndexOf(",");
+  if (at <= 0) return lines;
+  const street = lines[0]!.slice(0, at).trim();
+  const place = lines[0]!.slice(at + 1).trim();
+  return street && place ? [street, place] : lines;
+}
+
 /** Google Maps' directions to the job, in a new tab: the address as written,
     one line. */
 export function directionsHref(address: string): string {
@@ -155,7 +168,7 @@ export function JobFacts({
   jobUuid?: string | null;
 }) {
   const where = detail ? (detail.address ?? "").trim() || detail.geoLine || detail.suburb || "" : "";
-  const [first, ...rest] = where.split(/\s*\n\s*/).filter(Boolean);
+  const [first, ...rest] = addressLines(where);
   const contacts = detail?.contacts ?? [];
   return (
     <div className="jfc" role="group" aria-label="The job's facts">

@@ -243,3 +243,14 @@ describe("after it's sent", () => {
     });
   });
 });
+
+describe("a lede cut off by a cap (3533, 15 November 2026)", () => {
+  it("ends at its last full sentence, never mid-word", () => {
+    const { wholeSentences } = jest.requireActual("../supplied-scope") as typeof import("../supplied-scope");
+    expect(wholeSentences("Whole-house ducted air at 2 Krui Street, Fairlight. The scope comes from JT Construct's request, so there is no room list or outdoor unit locati", 700)).toBe(
+      "Whole-house ducted air at 2 Krui Street, Fairlight.",
+    );
+    expect(wholeSentences("One sentence. Two sentences.", 700)).toBe("One sentence. Two sentences.");
+    expect(wholeSentences("No stop at all here", 700)).toBe("No stop at all here");
+  });
+});

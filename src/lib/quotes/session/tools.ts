@@ -567,7 +567,7 @@ export const SESSION_TOOLS: ToolDef[] = [
   {
     name: "build_labour",
     description:
-      "Work out an option's labour task by task: the visits the job takes (rough-in, install, fit-off, commissioning, a return trip), the people on each, and every task in each visit with the person-hours an experienced crew takes for it in this job's conditions. Each visit becomes one labour line, named for its crew and days, with its tasks on it for the person to see and change. It replaces the labour worked out before on that option: a task whose hours a person changed keeps their hours, and a task they added stays; a person's own labour line stays.",
+      "Work out an option's labour task by task: the visits the job takes (rough-in, install, fit-off, commissioning, a return trip), the people on each, and every task in each visit with the person-hours an experienced crew takes for it in this job's conditions. Each visit becomes one labour line, named for its crew and days, with its tasks on it for the person to see and change. Where the person gave a visit's crew and time, give its hours as they gave them: the line keeps their figure and the tasks are shared out over it. It replaces the labour worked out before on that option: a task whose hours a person changed keeps their hours, and a task they added stays; a person's own labour line stays.",
     input_schema: {
       type: "object",
       properties: {
@@ -580,6 +580,7 @@ export const SESSION_TOOLS: ToolDef[] = [
             properties: {
               stage: { type: "string", description: "\"Install\", \"Rough-in\", \"Fit-off and commissioning\", \"Return: grilles\"." },
               people: { type: "integer" },
+              hours: { type: "number", description: "Only where the person gave this visit's crew and time: every person's hours as they gave them (3 people for an 8-hour day is 24). They stand, and the tasks share them." },
               tasks: {
                 type: "array",
                 items: {

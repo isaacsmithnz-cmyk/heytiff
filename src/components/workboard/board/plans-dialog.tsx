@@ -6,7 +6,7 @@ import { Chooser } from "@/components/parts/chooser";
 import { Dialog } from "@/components/parts/dialog";
 import { StateWord } from "@/components/parts/state";
 import { Tick } from "@/components/parts/tick";
-import { choosablePages, floorOptions, floorValueOf, planReadLine, planStateWord, type JobPlanRead } from "@/lib/jobs/plans";
+import { choosablePages, floorOptions, floorValueOf, planReadLine, planStateWord, replacedBy, type JobPlanRead } from "@/lib/jobs/plans";
 
 /* PLANS (Isaac, 14 November 2026, "Is floor stacker step still needed?" →
    "Yes" to removing it, on https://claude.ai/artifact/61nqwanqUAtQx4iG6AxoYs).
@@ -109,10 +109,12 @@ export function PlansDialog({
         {plans.length > 0 && (
           <ul className="pt-rows" aria-label="The job's plans">
             {plans.map((p) => {
-              const state = planStateWord(p);
+              /* a set a later one replaced says so, grey; a design may still use it, so its floors stay */
+              const replaced = replacedBy(p, plans);
+              const state = planStateWord(p, replaced);
               const pages = choosable(p) ? choosablePages(p).filter((pg) => p.thumbs[pg.n]) : [];
               const options = floorOptions(p);
-              const line = [jobNumber ? `In job ${jobNumber}'s Plans` : null, planReadLine(p)].filter(Boolean).join(". ");
+              const line = [jobNumber ? `In job ${jobNumber}'s Plans` : null, planReadLine(p, replaced)].filter(Boolean).join(". ");
               return (
                 <li key={p.id} className="pt-row pt-row--wrap">
                   {design && (

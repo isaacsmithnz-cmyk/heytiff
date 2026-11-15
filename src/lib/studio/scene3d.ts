@@ -8,6 +8,7 @@ import { framingOf, roofHeightAt, roofMesh, type Member, type Mesh, type RoofRec
 import { frameOf, furnish, within, type Piece3D, type ReadPiece } from "./furnish3d";
 import { snapOpenings, waysIn } from "./tidy3d";
 import { outlineOf } from "./floor-spaces";
+import { unitWhere } from "./unit-where";
 
 /* THE DESIGN IN 3D (Isaac, 20 October 2026: "a button on Design"; the board
    https://claude.ai/artifact/VWq6nGGGaCPxCuRnReyCyX, option B). What the 3D
@@ -496,6 +497,9 @@ export function sceneOf(doc: DesignDocument, unitRow?: (model: string) => UnitRo
   }
 
   const subfloor = subfloorOf(doc, floors, lowest, lift, moves);
+  /* A ROOF SPACE (floor-spaces.ts): over the top floor's ceiling, where the plans gave no roof */
+  const top = ordered.at(-1);
+  const roofSpace = roofSpaceOf(doc, floors, top, moves);
 
   const floorById = new Map(floors.map((f) => [f.id, f]));
   const systemType = new Map(doc.systems.map((s) => [s.id, s.type]));
@@ -535,8 +539,14 @@ export function sceneOf(doc: DesignDocument, unitRow?: (model: string) => UnitRo
             : f.y0 + f.ceiling - 0.15 - h;
       units.push({
         id: o.id,
-        /* in the subfloor: an outdoor unit put there, or a head hung under the lowest floor */
-        floorId: subfloor && f.id === lowest?.id && underFloor ? subfloor.id : f.id,
+        /* in the subfloor: an outdoor unit put there, or a head hung under the lowest floor;
+           in the roof space: a head in the top floor's ceiling */
+        floorId:
+          subfloor && f.id === lowest?.id && underFloor
+            ? subfloor.id
+            : roofSpace && f.id === top?.id && !outdoor && unitWhere(o, row?.form_factor ?? (ducted ? "ducted" : null)) === "ceiling"
+              ? roofSpace.id
+              : f.id,
         outdoor,
         label: typeof o.props.model === "string" ? o.props.model : outdoor ? "Outdoor unit" : "Indoor unit",
         at: m(o.geometry.at),
@@ -727,7 +737,7 @@ export function sceneOf(doc: DesignDocument, unitRow?: (model: string) => UnitRo
   const all = floors.flatMap((f) => f.spaces.flatMap((s) => s.pts));
   const b = boxOf(all) ?? { x0: 0, z0: 0, x1: 10, z1: 10 };
   return {
-    floors: subfloor ? [subfloor, ...floors] : floors,
+    floors: [...(subfloor ? [subfloor] : []), ...floors, ...(roofSpace ? [roofSpace] : [])],
     units,
     pipes,
     ducts,
@@ -769,6 +779,37 @@ function subfloorOf(doc: DesignDocument, floors: Floor3D[], lowest: Floor | unde
     shift: over.shift,
     mm: k,
     north: over.north,
+  };
+}
+
+/** The roof space as a storey of its own over the top floor: its outline,
+    walled to its height from the top floor's ceiling. Only where the plans
+    gave no roof (the floor menu offers it only then); nothing is read or
+    furnished in it; what goes in it is the design's, a head set in the top
+    floor's ceiling. Not drawn until its height is known. */
+function roofSpaceOf(doc: DesignDocument, floors: Floor3D[], top: Floor | undefined, moves: Map<string, XZ>): Floor3D | null {
+  const under = top && floors.find((f) => f.id === top.id);
+  const k = top?.scaleMmPerUnit;
+  const h = top?.over?.heightMm;
+  if (!top?.over || !under || !k || !h || h <= 0) return null;
+  const pts = outlineOf(doc, top, top.over);
+  if (!pts) return null;
+  const mv = shift(moves.get(top.id) ?? [0, 0]);
+  return {
+    id: `${top.id}:over`,
+    name: "Roof space",
+    level: top.level + 1,
+    y0: mm(under.y0 + under.ceiling),
+    ceiling: mm(h / 1000),
+    spaces: [{ name: "Roof space", kind: "other", pts: pts.map((p) => mv([(p.x * k) / 1000, (p.y * k) / 1000])), existing: false }],
+    openings: [],
+    read: false,
+    tiles: [],
+    pieces: [],
+    stairs: [],
+    shift: under.shift,
+    mm: k,
+    north: under.north,
   };
 }
 

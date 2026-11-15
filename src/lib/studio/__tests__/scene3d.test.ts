@@ -366,3 +366,37 @@ describe("a subfloor (floor-spaces.ts)", () => {
     expect(by.get("head")!.y).toBeLessThan(1.4);
   });
 });
+
+describe("a roof space (floor-spaces.ts)", () => {
+  const unit = (id: string, plane: DesignObject["plane"], model = "PEA", floorId = "l1"): DesignObject =>
+    ({ id, type: "unit", floorId, systemId: "sys", plane, geometry: { kind: "point", at: { x: 100, y: 100 } }, props: { model } }) as DesignObject;
+  const house = (over?: Floor["over"], objects: DesignObject[] = [], form = "ducted") =>
+    sceneOf(
+      design([floor("gf", 0), floor("l1", 1, over ? { over } : {})], { gf: [read("s-gf", [space("Lounge", "room", [0, 0, 400, 300])])], l1: [read("s-l1", [space("Bed", "room", [0, 0, 400, 300])])] }, objects),
+      (model: string) => ({ form_factor: model.startsWith("MSZ") ? "wall" : form, height_mm: 250 })
+    );
+
+  it("sits on the top floor's ceiling as a storey of its own, as high as typed, round the top floor's outline", () => {
+    const s = house({ heightMm: 1800, outline: null, from: "hand" });
+    expect(s.floors.map((f) => f.name)).toEqual(["gf", "l1", "Roof space"]);
+    const [, l1, rs] = s.floors;
+    expect(rs.id).toBe("l1:over");
+    expect(rs.y0).toBeCloseTo(l1.y0 + l1.ceiling, 3);
+    expect(rs.ceiling).toBe(1.8);
+    const xs = rs.spaces[0].pts.map((p) => p[0]);
+    expect(Math.max(...xs) - Math.min(...xs)).toBeCloseTo(4, 0);
+  });
+
+  it("is not drawn until its height is known", () => {
+    expect(house({ heightMm: null, outline: null, from: "hand" }).floors.map((f) => f.name)).toEqual(["gf", "l1"]);
+  });
+
+  it("holds a head set in the top floor's ceiling, not a wall split in the room or a head on a floor below", () => {
+    const s = house({ heightMm: 1800, outline: null, from: "hand" }, [unit("in-ceiling", "ceiling-cavity"), unit("in-room", "room", "MSZ-AP50"), unit("below", "ceiling-cavity", "PEA", "gf")]);
+    const by = new Map(s.units.map((u) => [u.id, u]));
+    expect(by.get("in-ceiling")!.floorId).toBe("l1:over");
+    expect(by.get("in-room")!.floorId).toBe("l1");
+    expect(by.get("below")!.floorId).toBe("gf");
+  });
+});
+

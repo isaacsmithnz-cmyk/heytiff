@@ -20,6 +20,8 @@ export const QUOTE_WORDS = {
     asQuoteOff: "Quote: line {name} taken off",
     /* an accepted variation, added to the job as its own lines (decision 21) */
     variationAdd: "Variation: line {name} added",
+    /* a line put on the job by the invoice builder behind Price (build 10) */
+    invoiceAdd: "Invoice: line {name} added",
   },
   /* A row's reason, stored filled. */
   row: {

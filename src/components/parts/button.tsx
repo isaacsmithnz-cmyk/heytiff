@@ -10,7 +10,9 @@ import { Icon } from "@/components/shell/icon";
    Xero is Xero's own blue with white words, on a button that goes to Xero,
    and is named in docs/design.md as outside the palette on his word. Quote
    is orange with ink words, on the button that starts or updates a quote
-   (25c), as a quote is orange in ServiceM8.
+   (25c), as a quote is orange in ServiceM8. ServiceM8 is ServiceM8's own
+   green with ink words, on a button that goes to ServiceM8 (25b), named in
+   docs/design.md as outside the palette on his word.
 
    A hover is one change, a fill (23): the second, quiet and delete buttons
    take `--hov`, and the two solid ones keep their colour. A press moves 1px
@@ -21,7 +23,7 @@ import { Icon } from "@/components/shell/icon";
    fill, border, cursor) is two classes, (0,2,0), so it beats the reset's
    (0,1,1) inside the frame and in a portal alike. */
 
-export type ButtonKind = "main" | "second" | "quiet" | "delete" | "danger" | "xero" | "quote";
+export type ButtonKind = "main" | "second" | "quiet" | "delete" | "danger" | "xero" | "quote" | "sm8";
 export type ControlSize = 32 | 36 | 44;
 
 type Common = {

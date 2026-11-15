@@ -5843,6 +5843,14 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jpr-note > p { margin:0; white-space:pre-wrap; }
 .fg .jpr-note + .jpr-note { padding-top:8px; border-top:1px solid var(--line); }
 .fg .jpr-dock { flex:none; display:flex; flex-wrap:wrap; gap:8px; padding:16px 0 0; border-top:1px solid var(--line); }
+/* New invoice: the lines to put on the job, each with its tick, then the
+   job's own lines; Preview, the invoice ServiceM8 will make, on a paper */
+.fg .jpr-groups { display:flex; flex-direction:column; gap:24px; }
+.fg .jpr-groups > .jpr-grp { margin-top:0; }
+.fg .jpr-inv { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; }
+.fg .jpr-tickgap { width:16px; }
+.fg .jpr-sheet { align-self:flex-start; width:100%; max-width:720px; display:flex; flex-direction:column; gap:12px; padding:32px; border:1px solid var(--line); border-radius:var(--r-card); background:var(--white); }
+.fg .jpr-sheet > h3 { margin:0; font-size:20px; line-height:28px; font-weight:600; }
 .fg .jm-add { display:flex; align-items:center; gap:8px; }
 .fg .jm-find { flex:1 1 auto; min-width:0; }
 .fg .jm-add .jm-qtyin { flex:none; width:72px; }

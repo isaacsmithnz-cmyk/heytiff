@@ -53,6 +53,10 @@
 /* quote (25c): orange, ink words, on the button that starts or updates a
    quote, as a quote is orange in ServiceM8 (Isaac, 3 November 2026) */
 .pt-btn.pt-btn--quote { background: var(--orange); color: var(--ink); border: 1px solid var(--orange); cursor: pointer; }
+/* sm8 (25b): ServiceM8's own green, ink words, on a button that goes to
+   ServiceM8 (Isaac, 2 November 2026: "That could be an exception for
+   anything service mate"); named in docs/design.md. A fill only. */
+.pt-btn.pt-btn--sm8 { background: #7dc836; color: var(--ink); border: 1px solid transparent; cursor: pointer; }
 
 /* a hover is one change, a fill (23) */
 .pt-btn.pt-btn--second:hover:not(:disabled):not([aria-disabled="true"]),

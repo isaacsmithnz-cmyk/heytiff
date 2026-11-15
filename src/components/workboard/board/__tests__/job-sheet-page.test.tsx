@@ -252,7 +252,7 @@ beforeEach(() => {
 describe("the job's page head", () => {
   /* Isaac's mock of 25 October 2026: the grey line under the name goes */
   it("names the job by its plate: the number in its colour's box, the client beside it, and the way back above (Isaac, 5 and 6 November 2026)", async () => {
-    const { container } = draw("visits");
+    const { container } = draw("on-site");
     await ready();
     const h1 = screen.getByRole("heading", { level: 1 });
     /* the client, as Schedule and Jobs name a job; the address is Site's */
@@ -313,7 +313,7 @@ describe("the job's page head", () => {
     await userEvent.click(within(menu).getByRole("menuitem", { name: "Add visit" }));
     const form = await screen.findByRole("dialog", { name: "Book a visit" });
     expect(within(form).getByText(/^Job 3209\b/)).toHaveClass("jv-dline");
-    expect(onSection).not.toHaveBeenCalledWith("visits");
+    expect(onSection).not.toHaveBeenCalledWith("on-site");
   });
 
   it("puts what's done to the job under Actions: pin, copy the link, then the card's once-per-job acts", async () => {
@@ -344,11 +344,11 @@ describe("the job's sections are the card's faces", () => {
   it("has eight tabs with the money, Scope after Overview, and no Billing without it", async () => {
     const { unmount } = draw("overview", { moneyVisible: true });
     await ready();
-    expect(tabWords()).toEqual(["Overview", "Scope", "Quote", "Visits", "Materials", "Photos", "Documents", "Billing"]);
+    expect(tabWords()).toEqual(["Overview", "Scope", "Quote", "On site", "Photos", "Documents", "Billing"]);
     unmount();
     draw("overview");
     await ready();
-    expect(tabWords()).toEqual(["Overview", "Scope", "Quote", "Visits", "Materials", "Photos", "Documents"]);
+    expect(tabWords()).toEqual(["Overview", "Scope", "Quote", "On site", "Photos", "Documents"]);
   });
 
   /* Isaac, 13 November 2026: "Give scope its own tab"; mock A, 14 November */
@@ -369,7 +369,7 @@ describe("the job's sections are the card's faces", () => {
   it("has Design after Quote for whoever holds the Studio", async () => {
     draw("design", { studio: true });
     await ready();
-    expect(tabWords()).toEqual(["Overview", "Scope", "Quote", "Design", "Visits", "Materials", "Photos", "Documents"]);
+    expect(tabWords()).toEqual(["Overview", "Scope", "Quote", "Design", "On site", "Photos", "Documents"]);
     expect(screen.getByRole("region", { name: "Design" })).toBeVisible();
     expect(await screen.findByText("No design on this job")).toBeInTheDocument();
   });
@@ -396,7 +396,7 @@ describe("the job's sections are the card's faces", () => {
     expect(screen.queryByRole("region", { name: "Money" })).toBeNull();
     /* Next visit opens Visits from anywhere on it */
     await userEvent.click(facts.getByRole("button", { name: "Next visit" }));
-    expect(onSection).toHaveBeenCalledWith("visits");
+    expect(onSection).toHaveBeenCalledWith("on-site");
     /* To do is a tab of the feed, with a box of its own (mock D) */
     await userEvent.click(within(screen.getByRole("group", { name: "Show in the feed" })).getByRole("button", { name: /^To do/ }));
     expect(screen.getByRole("textbox", { name: "Add a to do" })).toBeVisible();
@@ -453,7 +453,7 @@ describe("the job's sections are the card's faces", () => {
         onToast={noop}
       />
     );
-    rerender(at("materials"));
+    rerender(at("on-site"));
     expect(face("checklist")).not.toBeEmptyDOMElement();
     rerender(at("billing"));
     expect(face("checklist")).not.toBeEmptyDOMElement();
@@ -463,8 +463,8 @@ describe("the job's sections are the card's faces", () => {
   it("hands a tab press to the page", async () => {
     draw("overview");
     await ready();
-    await userEvent.click(jobTab(/^Materials/));
-    expect(onSection).toHaveBeenCalledWith("materials");
+    await userEvent.click(jobTab(/^On site/));
+    expect(onSection).toHaveBeenCalledWith("on-site");
   });
 
   it("puts no numbers on the sections (Isaac, 20 October)", async () => {
@@ -474,6 +474,6 @@ describe("the job's sections are the card's faces", () => {
     await waitFor(() => expect(readJobFiles).toHaveBeenCalled());
     expect(jobTab(/^Photos/)).toHaveTextContent(/^Photos$/);
     expect(jobTab(/^Documents/)).toHaveTextContent(/^Documents$/);
-    expect(jobTab(/^Visits/)).toHaveTextContent(/^Visits$/);
+    expect(jobTab(/^On site/)).toHaveTextContent(/^On site$/);
   });
 });

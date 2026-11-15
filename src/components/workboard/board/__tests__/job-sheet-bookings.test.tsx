@@ -119,7 +119,7 @@ import type { JobSection } from "@/lib/jobs/job-sections";
 
 type JobProps = Omit<Parameters<typeof JobSheet>[0], "page"> & { section?: JobSection };
 /** The job's page on one section; a move to another section draws it, as the page does. */
-function Job({ section: first = "visits", ...p }: JobProps) {
+function Job({ section: first = "on-site", ...p }: JobProps) {
   const [section, setSection] = useState<JobSection>(first);
   return <JobSheet {...p} page={{ section, onSection: setSection, actions: [], onAction: () => {} }} />;
 }

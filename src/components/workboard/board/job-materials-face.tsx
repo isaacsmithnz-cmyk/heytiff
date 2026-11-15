@@ -21,6 +21,8 @@ import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { groupChecklist, type JobChecklistItem } from "@/lib/workboard/all-jobs";
 import { naiveInZone } from "@/lib/workboard/job-story";
 import type { JobPicklistItem } from "@/app/actions/job-picklist";
+import { StateWord } from "@/components/parts/state";
+import type { EquipmentRow } from "@/lib/stock/stock";
 
 /* MATERIALS — the job's own list, OURS AND WRITABLE: the van's pick list,
    ticked as it's loaded (Isaac, 25 October 2026; it was the Checklist).
@@ -67,6 +69,17 @@ function provenanceOf(item: JobPicklistItem, timezone: string | null): string {
 
 const bookLine = (h: MaterialHit) => [h.code, h.supplier].filter(Boolean).join(", ");
 
+/** Stock's word for a material: the unit or control whose model it is,
+    where it's up to (To order, Ordered, In stock, To site on the day it
+    lands). Isaac, 14 November 2026, mock F: one list, the word on the row. */
+const bare = (s: string | null | undefined) => (s ?? "").replace(/\s+/g, "").toLowerCase();
+export function stockWordOf(item: Pick<JobPicklistItem, "name" | "sub">, stock: readonly EquipmentRow[] | null | undefined): EquipmentRow["word"] {
+  if (!stock?.length) return null;
+  const model = bare(item.sub);
+  const hit = stock.find((r) => r.group !== "duct" && !!model && (bare(r.detail) === model || bare(r.detail).endsWith(model) || bare(r.title) === model));
+  return hit?.word ?? null;
+}
+
 function MaterialRow({
   item,
   timezone,
@@ -74,7 +87,9 @@ function MaterialRow({
   manage,
   onTick,
   onRemove,
+  word = null,
 }: {
+  word?: EquipmentRow["word"];
   item: JobPicklistItem;
   timezone: string | null;
   today: string | null;
@@ -99,6 +114,7 @@ function MaterialRow({
         }
       />
       {stamp && <span className="jm-stamp">{stamp}</span>}
+      {word && !item.picked && <StateWord tone={word.tone}>{word.word}</StateWord>}
       {manage && (
         <Button kind="quiet" size={32} className="jm-remove" aria-label={`Remove ${item.name}`} onClick={() => onRemove(item.id)}>
           Remove
@@ -135,6 +151,7 @@ export function JobMaterialsFace({
   onRemove,
   onAdd,
   bought,
+  stock = null,
 }: {
   /** True while the detail read is still out. */
   loading: boolean;
@@ -150,6 +167,8 @@ export function JobMaterialsFace({
   onAdd: (input: { kind: "material"; name: string; qty: string; sub?: string }) => void;
   /** What was bought for the job (purchases/job-bought), above the list. */
   bought?: ReactNode;
+  /** Stock's read of the job: each unit and control's word goes on its row. */
+  stock?: readonly EquipmentRow[] | null;
 }) {
   const made = useId();
   /* the job's day, for a stamp's "6:52am" against "Fri 14 Aug" */
@@ -364,7 +383,7 @@ export function JobMaterialsFace({
           {shelves.map((s) => (
             <Shelf key={s.key} id={`${made}-${s.key}`} icon={s.icon} hue={s.hue} label={s.label}>
               {s.items.map((item) => (
-                <MaterialRow key={item.id} item={item} timezone={timezone} today={today} manage={manage} onTick={onTick} onRemove={onRemove} />
+                <MaterialRow key={item.id} item={item} timezone={timezone} today={today} manage={manage} onTick={onTick} onRemove={onRemove} word={stockWordOf(item, stock)} />
               ))}
             </Shelf>
           ))}

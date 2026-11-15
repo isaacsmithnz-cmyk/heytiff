@@ -462,6 +462,9 @@ const SECTION: Record<string, string> = {
   Diary: "Overview",
   Money: "Billing",
   Compliance: "Documents",
+  /* Visits and Materials are On site (mock F, 14 November 2026) */
+  Visits: "On site",
+  Materials: "On site",
 };
 const openTab = async (name: string) => {
   await userEvent.click(jobTab(SECTION[name] ?? name));

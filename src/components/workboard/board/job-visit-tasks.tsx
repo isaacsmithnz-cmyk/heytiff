@@ -31,7 +31,8 @@ import { dateBlock, rangeWords } from "@/lib/workboard/visit-words";
    Previous: the last six days on site, two to a row, and Show all for the
    rest.
 
-   On the right, Tasks to plan: the job's tasks not on a day yet, under
+   On the right, Not on a day yet (Tasks to plan until mock F, 14 November
+   2026): the job's tasks not on a day yet, under
    their stage. A manager ticks a stage, or a few tasks, and adds them to a
    day at once, or drags one onto a visit; the field at the foot adds one.
    A task on a day shows under that visit, so no task carries a date.
@@ -289,6 +290,8 @@ export function JobVisits({
   return (
     <div className="jv">
       <div className="jv-main">
+        {/* the card's name (Isaac, 14 November 2026, mock F) */}
+        <h3 className="jv-title">Visits</h3>
         <div className="jv-head">
           <h3>Coming up</h3>
           {onBook && (
@@ -393,7 +396,7 @@ export function JobVisits({
         <section className={"jv-plan" + (dragging && manage ? " drop" : "")} aria-labelledby={planId} {...landOn(null)}>
           <h3 id={planId}>
             <Icon name="listCheck" size={16} />
-            Tasks to plan
+            Not on a day yet
           </h3>
           {stages.map((st) => {
             const lines = toPlan.filter((l) => l.task.stage === st);

@@ -17,9 +17,11 @@ import type { JobSheetTab } from "@/components/workboard/board/job-sheet";
                  `studio` (Isaac, 28 October 2026: "a separate tab outside
                  of the quoting. And the quoting can just go back to that
                  when it needs to"): without it the section is absent
-     Visits    = the visits
-     Materials = the job's own list, which the card calls its checklist
-                 (Isaac, 25 October 2026: every row on it is a material)
+     On site   = the visits with their tasks, what's not on a day yet, and
+                 the materials, each unit and control with its word from
+                 Stock (Isaac, 14 November 2026, mock F); Visits and
+                 Materials (the card's checklist) as were, and their old
+                 names land here
      Photos    = the photos
      Documents = the files and compliance
      Billing   = the money, only for whoever holds `workboard_money`: without
@@ -27,7 +29,7 @@ import type { JobSheetTab } from "@/components/workboard/board/job-sheet";
 
    Pure, so the page, the quote page's tabs and the tests read one list. */
 
-export const JOB_SECTIONS = ["overview", "scope", "quote", "design", "visits", "materials", "photos", "documents", "billing"] as const;
+export const JOB_SECTIONS = ["overview", "scope", "quote", "design", "on-site", "photos", "documents", "billing"] as const;
 export type JobSection = (typeof JOB_SECTIONS)[number];
 
 export const SECTION_LABEL: Record<JobSection, string> = {
@@ -35,8 +37,7 @@ export const SECTION_LABEL: Record<JobSection, string> = {
   scope: "Scope",
   quote: "Quote",
   design: "Design",
-  visits: "Visits",
-  materials: "Materials",
+  "on-site": "On site",
   photos: "Photos",
   documents: "Documents",
   billing: "Billing",
@@ -48,8 +49,7 @@ export const SECTION_FACES: Record<JobSection, readonly JobSheetTab[]> = {
   scope: ["scope"],
   quote: ["quote"],
   design: ["design"],
-  visits: ["visits"],
-  materials: ["checklist"],
+  "on-site": ["visits", "checklist"],
   photos: ["photos"],
   documents: ["documents", "compliance"],
   billing: ["money"],
@@ -67,12 +67,13 @@ export const sectionsFor = (moneyVisible: boolean, studio = false): readonly Job
   JOB_SECTIONS.filter((s) => (s !== "billing" || moneyVisible) && (s !== "design" || studio));
 
 /* the names a section went by, so an old link still lands on it */
-const OLD_NAMES: Record<string, JobSection> = { checklist: "materials" };
+const OLD_NAMES: Record<string, JobSection> = { checklist: "on-site", visits: "on-site", materials: "on-site", onsite: "on-site" };
 
 /** The section an address's `?tab=` names, or Overview: an invented one, a
     repeated one, Billing without the money grant and Design without the
     Studio all land on Overview.
-    A section's old name lands on it (`?tab=checklist` is Materials). */
+    A section's old name lands on it (`?tab=checklist`, `visits` and
+    `materials` are On site). */
 export function parseSection(raw: string | string[] | undefined | null, moneyVisible: boolean, studio = false): JobSection {
   if (typeof raw !== "string") return "overview";
   const said = raw.trim().toLowerCase();

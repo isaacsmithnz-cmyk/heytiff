@@ -1,5 +1,6 @@
 import {
   ATTENTION_SHOWN,
+  attentionWithout,
   attentionCountLabel,
   buildJobAttention,
   type AttentionInputs,
@@ -84,8 +85,27 @@ describe("buildJobAttention", () => {
         })),
       })
     );
-    expect(built.items).toHaveLength(ATTENTION_SHOWN);
+    /* the strip caps; the list keeps them all, so a row the To do takes
+       leaves the next one to stand in its place */
+    expect(built.items).toHaveLength(5);
     expect(built.total).toBe(5);
+    expect(ATTENTION_SHOWN).toBe(3);
+  });
+
+  it("leaves out a task the To do lists as its own row (N1), and keeps the rest", () => {
+    const built = buildJobAttention(
+      inputs({
+        flags: [{ id: "f-1", message: "Flag 1", severity: "warn" as const, raised: "2026-08-12" }],
+        tasks: [
+          { id: "t-1", title: "Send quote to Lisa Watters", assignee: "Isaac Smith", dueDate: "2026-11-09", noteText: null },
+        ],
+      })
+    );
+    expect(built.total).toBe(2);
+    const left = attentionWithout(built, new Set(["t-1"]));
+    expect(left.items.map((i) => i.key)).toEqual(["flag:f-1"]);
+    expect(left.total).toBe(1);
+    expect(attentionWithout(built, new Set(["t-9"]))).toBe(built);
   });
 
   describe("ServiceM8's own signals", () => {

@@ -193,7 +193,8 @@ export function onlyTags(text: string): boolean {
 }
 
 export type JobAttention = {
-  /** What the strip draws, worst first, capped. */
+  /** Everything open, worst first. The strip draws the first
+      ATTENTION_SHOWN of what's left once the To do beside it has its own. */
   items: AttentionItem[];
   /** How many there are in total — the strip's own count, so "3 open" can be
       honest on a job with five. */
@@ -332,7 +333,16 @@ export function buildJobAttention(inputs: AttentionInputs): JobAttention {
     return a.key < b.key ? -1 : a.key > b.key ? 1 : 0;
   });
 
-  return { items: items.slice(0, ATTENTION_SHOWN), total: items.length };
+  return { items, total: items.length };
+}
+
+/* A TO DO ONCE (the walk of 16 November 2026, N1): a task born from a note
+   is the To do's own row, with its tick and its form, so the attention rows
+   above it leave it out. On 3488 "Send quote to Lisa Watters" stood twice,
+   once as "Task, Isaac Smith, was due Mon 9 Nov" and once with its tick. */
+export function attentionWithout(attention: JobAttention, taskIds: ReadonlySet<string>): JobAttention {
+  const items = attention.items.filter((i) => !(i.kind === "task" && taskIds.has(i.id)));
+  return items.length === attention.items.length ? attention : { items, total: items.length };
 }
 
 /** What the strip's own count says. Never "0 open" — a quiet job has no

@@ -70,7 +70,7 @@ import { StateLine } from "./state-line";
 import { useNoteScopeTarget } from "@/components/notes/note-context";
 import { dismissJobNote, taskFromJobNote } from "@/app/actions/job-notes";
 import { clearFlag } from "@/app/actions/workboard-notes";
-import type { JobAttention } from "@/lib/workboard/job-attention";
+import { attentionWithout, type JobAttention } from "@/lib/workboard/job-attention";
 import { mintPressId } from "@/lib/workboard/press-id";
 import { thrownWords } from "@/lib/stale-deploy";
 import { useNoteStatePoll } from "./use-note-poll";
@@ -2317,11 +2317,11 @@ export function JobSheet({
   /* ABOVE THE FACES, ON EVERY ONE. The strip outranks the row for the same
      reason it outranks the summary: what needs you beats where it's up to.
      It draws nothing at all on a quiet job. */
-  const attentionStripOf = (bare: boolean) =>
-    attention ? (
+  const attentionStripOf = (bare: boolean, shown: JobAttention | null = attention) =>
+    shown && shown.total > 0 ? (
             <JobAttentionStrip
               bare={bare}
-              attention={attention}
+              attention={shown}
               assignable={record?.assignable ?? []}
               busy={busy}
               onClearFlag={clearJobFlag}
@@ -2448,8 +2448,10 @@ export function JobSheet({
                 onVisits: () => go("visits"),
                 onBook: bookings?.canBook ? () => addPick("visit") : undefined,
                 onEditContact: customerEdit && cardId ? () => setEditingCustomer(true) : undefined,
-                open: attentionStripOf(true),
-                openCount: attention?.total ?? 0,
+                open: (taskIds) => {
+                  const shown = attention ? attentionWithout(attention, taskIds) : null;
+                  return { rows: attentionStripOf(true, shown), count: shown?.total ?? 0 };
+                },
               }}
               diary={{
                 onOpenClaim: openInvoice,

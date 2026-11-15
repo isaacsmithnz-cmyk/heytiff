@@ -7,6 +7,7 @@ import { NoteToken } from "@/components/notes/note-token";
 import { auDayOf, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { DateField } from "@/components/ui/date-field";
 import {
+  ATTENTION_SHOWN,
   attentionCountLabel,
   type AttentionItem,
   type JobAttention,
@@ -93,6 +94,7 @@ export function JobAttentionStrip({
   const [drafting, setDrafting] = useState<string | null>(null);
 
   if (attention.items.length === 0) return null;
+  const shown = attention.items.slice(0, ATTENTION_SHOWN);
 
   return (
     <section className={"wb2-jcatt" + (bare ? " bare" : "")} aria-label="Open on this job">
@@ -102,7 +104,7 @@ export function JobAttentionStrip({
           <span className="wb2-chip warn">{attentionCountLabel(attention.total)}</span>
         </div>
       )}
-      {attention.items.map((item) => (
+      {shown.map((item) => (
         <AttentionRow
           key={item.key}
           item={item}
@@ -120,9 +122,9 @@ export function JobAttentionStrip({
       {/* THE COUNT IS THE ONLY OVERFLOW. There is no "show all" — three is
           the cap by design, and a fourth row is a job whose real problem is
           that nobody has dealt with the first three. */}
-      {attention.total > attention.items.length && (
+      {attention.total > shown.length && (
         <p className="wb2-jcattmore">
-          {`and ${attention.total - attention.items.length} more — the diary has them all`}
+          {`and ${attention.total - shown.length} more — the diary has them all`}
         </p>
       )}
     </section>

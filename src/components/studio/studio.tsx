@@ -74,7 +74,7 @@ import { pairPipeSizes } from "@/lib/studio/components";
 import { ductsFollowGrille } from "@/lib/studio/duct-draw";
 import { AirScreen, ComponentPalette, DEFAULT_AIR, GrilleHud, OutdoorWhereBar, PlenumHud, SpaceBar, UnitWhereBar, type AirState } from "./air-tools";
 import { inSubfloor, planeOfOutdoor, planeOfWhere, underFloorFit, unitWhere, HANGERS_MM } from "@/lib/studio/unit-where";
-import { addSpace, canAdd, fitWords, floorFor, mentionWords, outlineOf, patchSpace, removeSpace, spaceOf, subfloorFromReading, SPACE_LEVEL, SPACE_NAME, type SpaceKind } from "@/lib/studio/floor-spaces";
+import { addSpace, askedSubfloor, canAdd, fitWords, floorFor, mentionWords, outlineOf, patchSpace, removeSpace, spaceOf, subfloorFromReading, SPACE_LEVEL, SPACE_NAME, type SpaceKind, type SubfloorAsk } from "@/lib/studio/floor-spaces";
 import { FloorSpaceOverlay } from "./floor-space-overlay";
 import { GRILLE_SIZES, clampSupply, grilleMount, grilleSize, grilleSplit, grilleStream, grilleStyle, halfOf, isGrille, respotSplitRuns, supplyAtWidth, type Grille } from "@/lib/studio/grilles";
 import { claimZone, newSystem, toggleZone, zoneIdsOf } from "@/lib/studio/zones";
@@ -1433,9 +1433,19 @@ function Editor({
   useEffect(() => {
     const take = (e: Event) => {
       const got = (e as CustomEvent<TiffApply>).detail;
-      if (got?.target !== "design-roof" || got.designId !== docRef.current.id) return;
-      const roof = got.roof as RoofReading;
-      mutate((d) => (d.reading ? { ...d, reading: { ...d.reading, roof } } : d));
+      if (!got || got.designId !== docRef.current.id) return;
+      if (got.target === "design-roof") {
+        const roof = got.roof as RoofReading;
+        mutate((d) => (d.reading ? { ...d, reading: { ...d.reading, roof } } : d));
+      } else if (got.target === "design-subfloor") {
+        /* the subfloor asked for in her chat (design_subfloor), made on
+           the design as it stands, through the history */
+        const ask = got.subfloor as SubfloorAsk;
+        mutate((d) => {
+          const made = askedSubfloor(d, ask);
+          return made.ok ? made.doc : d;
+        });
+      }
     };
     window.addEventListener(TIFF_APPLY, take);
     return () => window.removeEventListener(TIFF_APPLY, take);

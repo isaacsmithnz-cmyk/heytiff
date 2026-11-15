@@ -79,7 +79,7 @@ export type AskBrainEvent =
   | { type: "screen"; href: string; label: string }
   /** A tool's result for the page to take (an `apply` outcome): the open
       design takes its corrected roof through its own history. */
-  | { type: "apply"; target: "design-roof"; designId: string; roof: unknown }
+  | { type: "apply"; target: "design-roof" | "design-subfloor"; designId: string; roof?: unknown; subfloor?: unknown }
   /** Something to take from her answer (a quick price's Add to quote). */
   | { type: "offer"; offer: unknown }
   | { type: "done" };
@@ -390,7 +390,8 @@ export async function* streamBrainAnswer(input: AskBrainInput): AsyncGenerator<A
           continue;
         }
         if (res.ok && res.outcome.kind === "apply") {
-          yield { type: "apply", target: res.outcome.target, designId: res.outcome.designId, roof: res.outcome.roof };
+          const o = res.outcome;
+          yield o.target === "design-roof" ? { type: "apply", target: o.target, designId: o.designId, roof: o.roof } : { type: "apply", target: o.target, designId: o.designId, subfloor: o.subfloor };
           results.push({ type: "tool_result", tool_use_id: call.id, content: JSON.stringify({ applied: true, said: res.outcome.said }) });
           continue;
         }

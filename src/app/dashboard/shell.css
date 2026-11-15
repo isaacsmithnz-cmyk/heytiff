@@ -8270,7 +8270,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .pt-dialog .jpl-scale-len span { font-size:14px; line-height:20px; color:var(--q); }
 .pt-dialog .jpl-pages { display:flex; flex-wrap:wrap; gap:12px; margin-top:8px; }
 .pt-dialog .jpl-page { display:flex; flex-direction:column; gap:4px; width:120px; }
-.pt-dialog .jpl-page img { display:block; width:120px; height:85px; object-fit:cover; border:1px solid var(--edge); border-radius:var(--r-control); background:var(--white); }
+.pt-dialog .jpl-page img, .pt-dialog .jpl-page-blank { display:block; box-sizing:border-box; width:120px; height:85px; object-fit:cover; border:1px solid var(--edge); border-radius:var(--r-control); background:var(--white); }
 .pt-dialog .jpl-page > span { font-size:12px; line-height:16px; font-weight:500; color:var(--q); }
 
 /* STOCK (components/stock/stock-page.tsx): the shopping list and By job, in

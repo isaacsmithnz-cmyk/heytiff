@@ -37,7 +37,7 @@ import {
 
 /* a source file in the live import: a fresh drop carries the File (to upload on
    commit); a restored session carries only its stored ref (already uploaded). */
-type PlanSource = { kind: "pdf" | "image"; file?: File; ref?: string };
+type PlanSource = { kind: "pdf" | "image"; file?: File; ref?: string; name?: string };
 
 /* Plans stage — upload PDF/image plans, pick the pages that matter, manage
    floors. Rasterisation happens in the browser; storage refs go in the doc. */
@@ -166,7 +166,7 @@ export function PlansPanel({
         // objects (don't mutate) — two re-rasterised pages could share identity.
         const pagesWithRefs = restoredPages.map((p, i) => withRef(p, imp.placed[i]));
         setPages(pagesWithRefs);
-        setSources(imp.sources.map((s) => ({ kind: s.kind, ref: s.ref })));
+        setSources(imp.sources.map((s) => ({ kind: s.kind, ref: s.ref, ...(s.name ? { name: s.name } : {}) })));
         setChosen(imp.chosen);
         setSelected(new Set(imp.chosen));
         setNames(imp.names);
@@ -325,7 +325,8 @@ export function PlansPanel({
             tick();
             ref = await planImages.uploadSource(s.file!);
           }
-          storedSources.push({ ref, kind: s.kind });
+          const name = s.file?.name ?? s.name;
+          storedSources.push({ ref, kind: s.kind, ...(name ? { name } : {}) });
         }
 
         // render + store each placed page (if not already), and map index → ref

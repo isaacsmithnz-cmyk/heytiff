@@ -173,6 +173,9 @@ export interface DesignVariantRef {
 export interface PlanImportSource {
   ref: string; // storage ref of the original uploaded file
   kind: "pdf" | "image";
+  /** the file's own name, as dropped in: its name on the job when the design
+      is linked to one (plans-from-design.ts). Absent before 15 November 2026. */
+  name?: string;
 }
 
 export interface PlanImport {

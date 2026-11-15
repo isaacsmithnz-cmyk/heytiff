@@ -346,7 +346,7 @@ export function SummaryView({
           brand={brand}
           preparedOn={preparedOn}
           fields={fields}
-          provenance={<JobAttach doc={doc} onMutate={onMutate} />}
+          provenance={<JobAttach doc={doc} onMutate={onMutate} planImages={planImages} />}
           materialsAction={picklistPush}
         >
           {/* who has worked on it: the owner's, under the document, not in it */}
@@ -370,7 +370,7 @@ export function SummaryView({
         }
         preparedOn={preparedOn}
         fields={fields}
-        provenance={<JobAttach doc={doc} onMutate={onMutate} />}
+        provenance={<JobAttach doc={doc} onMutate={onMutate} planImages={planImages} />}
       >
         <PicklistSection rows={model.picklist} action={picklistPush} />
         {empty && (

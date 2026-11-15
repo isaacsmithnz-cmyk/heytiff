@@ -415,9 +415,38 @@ export const floorNamesOf = (plan: { pages: readonly JobPlanPage[] }): string =>
 
 const dayOf = (iso: string | null): string | null => (iso ? fmtAuWeekdayDayMonth(iso.slice(0, 10)) : null);
 
+/* ── a set replaced by a later one ──────────────────────────────────────── */
+
+const isReadSet = (p: JobPlan) => p.kind !== "spec" && (p.state === "read" || p.state === "check") && floorPagesOf(p).length > 0;
+
+/** The later set on the job that replaces a set of drawings: the newest
+    read since it that draws one of its floors. A replaced set is kept, its
+    row grey (the builder's package mock, https://claude.ai/artifact/6FP52g4ropVpfAqqzNLk2c,
+    board 4: "Issue G stays, marked Replaced"; Isaac, 15 November 2026:
+    "Build the Replaced word on the job's Plans"). Null when nothing has. */
+export function replacedBy(plan: JobPlan, plans: readonly JobPlan[]): JobPlan | null {
+  if (!isReadSet(plan)) return null;
+  const at = Date.parse(plan.addedAt) || 0;
+  const levels = new Set(floorPagesOf(plan).map((p) => p.level ?? 0));
+  return (
+    plans
+      .filter((p) => p.id !== plan.id && isReadSet(p) && (Date.parse(p.addedAt) || 0) > at && floorPagesOf(p).some((pg) => levels.has(pg.level ?? 0)))
+      .sort((a, b) => (Date.parse(b.addedAt) || 0) - (Date.parse(a.addedAt) || 0))[0] ?? null
+  );
+}
+
+/** A replaced set's line: by which set and when, and kept while a design uses it. */
+export function replacedLine(plan: Pick<JobPlanRead, "usedBy">, by: Pick<JobPlan, "name" | "addedAt">): string {
+  const day = dayOf(by.addedAt);
+  const kept = plan.usedBy > 0 ? `, and kept: ${plan.usedBy === 1 ? "a design still uses it" : `${plan.usedBy} designs still use it`}` : "";
+  return `Replaced by ${by.name}${day ? ` on ${day}` : ""}${kept}`;
+}
+
 /** The plan's part of its row's grey line, after the file's own facts:
-    what was read and when, what needs a look, or who is adding it. */
-export function planLine(plan: JobPlanRead, today?: string): string {
+    what was read and when, what needs a look, or who is adding it; for a
+    set a later one replaced, that. */
+export function planLine(plan: JobPlanRead, today?: string, replaced?: JobPlan | null): string {
+  if (replaced) return replacedLine(plan, replaced);
   if (plan.state === "reading") {
     const day = plan.addedAt.slice(0, 10);
     const when = today && day === today ? "today" : (dayOf(plan.addedAt) ?? "");
@@ -471,7 +500,9 @@ export function subfloorLine(plan: Pick<JobPlan, "reading">): string | null {
 /** The state word on the row's right. A read plan with a page that has no
     scale says so in orange, Scale needed: what's missing, beside Read and
     Check the read. */
-export function planStateWord(plan: ScaledPlan): { word: string; tone: "info" | "good" | "look" | "wrong" } {
+export function planStateWord(plan: ScaledPlan, replaced?: JobPlan | null): { word: string; tone: "info" | "good" | "look" | "wrong" } {
+  /* a set a later one replaced is for your information: nothing to do to it */
+  if (replaced) return { word: "Replaced", tone: "info" };
   switch (plan.state) {
     case "reading":
       return { word: "Reading the plans", tone: "info" };
@@ -488,7 +519,8 @@ export function planStateWord(plan: ScaledPlan): { word: string; tone: "info" | 
 export const pageCaption = (p: JobPlanPage) => `${p.name || defaultFloorName(p.level ?? 0)}, page ${p.n}`;
 
 /** The line under a plan in the Studio's New design: what she read and when. */
-export function planReadLine(plan: JobPlanRead): string {
+export function planReadLine(plan: JobPlanRead, replaced?: JobPlan | null): string {
+  if (replaced) return replacedLine(plan, replaced);
   if (plan.state === "reading") return "Tiff is reading the plans";
   if (plan.state === "failed") return planLine(plan);
   const floors = floorPagesOf(plan);

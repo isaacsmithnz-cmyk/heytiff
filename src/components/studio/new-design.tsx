@@ -65,7 +65,7 @@ import { defaultFloorName, imageToPage, labelPagesSequentially, pdfPagesAt, pdfT
 import type { TrimRect } from "@/lib/studio/plan-trim";
 import { StateWord } from "@/components/parts/state";
 import { Tick } from "@/components/parts/tick";
-import { floorPagesOf, pageCaption, planReadLine, planStateWord, startablePlans, type JobPlanRead } from "@/lib/jobs/plans";
+import { floorPagesOf, pageCaption, planReadLine, planStateWord, replacedBy, startablePlans, type JobPlanRead } from "@/lib/jobs/plans";
 import { kickPlanReads, PLAN_POLL_MS } from "@/lib/jobs/plans-client";
 import type { JobSearch } from "./job-search";
 import { cardOfHit, cardOfPrefill, JobCardFace, JobPicker, type JobLists } from "./job-picker";
@@ -348,11 +348,12 @@ export function NewDesign({
     };
   }, [jobId, loadJobPlans, plansOf, plansReading]);
   const startable = plans ? startablePlans(plans) : [];
-  /* read plans come ticked; a tick taken off stays off */
-  const tickedPlans = startable.filter((p) => (planTicks ? planTicks.has(p.id) : true));
+  /* read plans come ticked, but a set a later one replaced; a tick changed by hand stays as it was left */
+  const current = startable.filter((p) => !replacedBy(p, plans ?? []));
+  const tickedPlans = startable.filter((p) => (planTicks ? planTicks.has(p.id) : current.includes(p)));
   const togglePlan = (id: string, on: boolean) =>
     setPlanTicks((cur) => {
-      const next = new Set(cur ?? startable.map((p) => p.id));
+      const next = new Set(cur ?? current.map((p) => p.id));
       if (on) next.add(id);
       else next.delete(id);
       return next;
@@ -662,8 +663,9 @@ export function NewDesign({
                   {plans.map((p) => {
                     const can = startable.some((s) => s.id === p.id);
                     const on = can && tickedPlans.some((t) => t.id === p.id);
-                    const state = planStateWord(p);
-                    const pages = floorPagesOf(p).filter((pg) => p.thumbs[pg.n]);
+                    const replaced = replacedBy(p, plans);
+                    const state = planStateWord(p, replaced);
+                    const pages = replaced ? [] : floorPagesOf(p).filter((pg) => p.thumbs[pg.n]);
                     return (
                       <li key={p.id} className="pt-row pt-row--wrap">
                         <span className="pt-row-lead">
@@ -671,7 +673,7 @@ export function NewDesign({
                         </span>
                         <span className="pt-row-text">
                           <span className="pt-row-name">{p.name}</span>
-                          <span className="pt-row-line">{planReadLine(p)}</span>
+                          <span className="pt-row-line">{planReadLine(p, replaced)}</span>
                           {pages.length > 0 && (
                             <span className="jpl-pages jpl-pages--sm">
                               {pages.map((pg) => (

@@ -8,7 +8,7 @@ import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { SONNET_FALLBACK } from "@/lib/tiff/sonnet-fallback";
 import type { EmailProposal } from "@/lib/email/proposal";
 import { fileFor, type PlanPick } from "./plans-server";
-import type { SpecWords } from "./plans";
+import { replacedBy, type JobPlan, type JobPlanPage, type SpecWords } from "./plans";
 import { SUPPLIED_SCHEMA, SUPPLIED_SYSTEM_PROMPT, drawingWords, emailSupplies, sheetNumbersOf, suppliedOf, suppliedPrompt, type SheetWord, type SuppliedScope, type SuppliedSource } from "./supplied-scope";
 
 /* THE SUPPLIED SCOPE, kept (supplied-scope.ts says what it is). Written from
@@ -33,17 +33,22 @@ export function suppliedStamp(refs: readonly { id: string; at: string }[]): stri
   return createHash("sha256").update(key).digest("hex").slice(0, 24);
 }
 
-type PlanRow = { id: string; kind: string | null; name: string; document_id: string | null; attachment_id: string | null; reading: { spec?: SpecWords } | null; read_at: string | null };
+type PlanRow = { id: string; kind: string | null; name: string; document_id: string | null; attachment_id: string | null; reading: { spec?: SpecWords } | null; read_at: string | null; pages: JobPlanPage[] | null; added_at: string; state: JobPlan["state"] };
 type EmailRow = { id: string; subject: string | null; body: string | null; from_name: string | null; received_at: string; proposal: EmailProposal | null };
 
 async function refsOf(orgId: string, jobUuid: string): Promise<Ref[]> {
   const [plans, emails] = await Promise.all([
-    supabaseAdmin.from("job_plans").select("id, kind, name, document_id, attachment_id, reading, read_at").eq("org_id", orgId).eq("job_uuid", jobUuid).in("state", ["read", "check"]),
+    supabaseAdmin.from("job_plans").select("id, kind, name, document_id, attachment_id, reading, read_at, pages, added_at, state").eq("org_id", orgId).eq("job_uuid", jobUuid).in("state", ["read", "check"]),
     supabaseAdmin.from("email_in_messages").select("id, subject, body, from_name, received_at, proposal").eq("org_id", orgId).eq("job_uuid", jobUuid).in("state", ["made", "filed"]),
   ]);
   const refs: Ref[] = [];
-  for (const p of (plans.data ?? []) as PlanRow[]) {
+  const rows = (plans.data ?? []) as PlanRow[];
+  /* a set of drawings a later one replaced no longer says what's supplied:
+     the later one does (Update plans: "The supplied scope takes Issue H") */
+  const sets = rows.map((p) => ({ id: p.id, kind: p.kind === "spec" ? "spec" : "drawings", state: p.state, pages: p.pages ?? [], addedAt: p.added_at }) as unknown as JobPlan);
+  for (const p of rows) {
     if (!p.read_at) continue;
+    if (replacedBy(sets.find((x) => x.id === p.id)!, sets)) continue;
     const pick: PlanPick = p.document_id ? { documentId: p.document_id } : { attachmentId: p.attachment_id ?? "" };
     refs.push({ kind: p.kind === "spec" ? "spec" : "drawings", id: p.id, at: p.read_at, name: p.name, pick, spec: p.reading?.spec ?? null });
   }

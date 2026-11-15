@@ -33,7 +33,7 @@ import { ComplianceChooser } from "./compliance-chooser";
 import { designRowLine } from "./job-design-face";
 import { StateLine } from "./state-line";
 import { AddPlansDialog, planCandidates, type UploadForPlans } from "./add-plans-dialog";
-import { choosablePages, floorPagesOf, pageCaption, planLine, planPointsAt, planStateWord, scaleAsks, subfloorLine, type JobPlanPage, type JobPlanRead, type PlanPick } from "@/lib/jobs/plans";
+import { choosablePages, floorPagesOf, pageCaption, planLine, planPointsAt, planStateWord, replacedBy, scaleAsks, subfloorLine, type JobPlanPage, type JobPlanRead, type PlanPick } from "@/lib/jobs/plans";
 import { SetScaleDialog, type ScalePage, type ScalePoint } from "./set-scale-dialog";
 import { PlansDialog, type ChosenFloors } from "./plans-dialog";
 
@@ -484,15 +484,17 @@ export function JobDocumentsFace({
   const planRowOf = (p: JobPlanRead) => {
     const file = fileOfPlan(p);
     const sendKey = file?.url ? (file.documentId ? ourDocumentSendKey(file.documentId) : theirFileSendKey(file.remoteId)) : null;
-    const state = planStateWord(p);
-    const facts = [file ? docLine(file) : null, planLine(p, day)].filter(Boolean).join(". ");
-    const pages = p.state === "reading" ? [] : floorPagesOf(p).filter((pg) => p.thumbs[pg.n]);
+    /* a set a later one replaced keeps its row, grey, with nothing under it to act on */
+    const replaced = replacedBy(p, planList);
+    const state = planStateWord(p, replaced);
+    const facts = [file ? docLine(file) : null, planLine(p, day, replaced)].filter(Boolean).join(". ");
+    const pages = p.state === "reading" || replaced ? [] : floorPagesOf(p).filter((pg) => p.thumbs[pg.n]);
     /* a page with no scale to be had asks for one; one resting on a single figure can be checked */
-    const asks = onSetScale && onPageForScale ? scaleAsks(p) : [];
+    const asks = onSetScale && onPageForScale && !replaced ? scaleAsks(p) : [];
     /* a set she isn't sure of offers its floors to be chosen */
-    const choose = !!onChooseFloors && p.state === "check" && choosablePages(p).length > 0;
+    const choose = !!onChooseFloors && !replaced && p.state === "check" && choosablePages(p).length > 0;
     /* what she read of a subfloor, on a line of its own that never fades */
-    const subfloor = p.state === "reading" ? null : subfloorLine(p);
+    const subfloor = p.state === "reading" || replaced ? null : subfloorLine(p);
     const url = file?.url;
     const open = file && url ? (opensInCard(file.fileType) ? () => onOpen(file) : () => void window.open(url, "_blank", "noopener,noreferrer")) : undefined;
     return (

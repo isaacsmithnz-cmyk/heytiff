@@ -710,6 +710,19 @@ it("offers no Add plans while nothing on the job can be read as one and nothing 
    read but scale is incomplete?", "Yep") ─────────────────────────────── */
 
 const sketchRoom = (name: string) => ({ name, named: true, kind: "room" as const, outline: [], written: "", existing: false, openTo: "", stair: "" });
+it("keeps a set a later one replaced, grey, saying by which and that a design still uses it, with nothing under it", () => {
+  const issueH: JobMediaItem = { ...suttor, remoteId: "att-h", name: "Tender Issue H.pdf" };
+  const h = readPlan({ id: "jplan_h", attachmentId: "att-h", name: issueH.name, addedAt: "2026-12-02T01:00:00Z", usedBy: 0 });
+  face({ documents: [suttor, issueH], plans: [h, readPlan()] });
+  const old = within(group("Plans")).getByText(suttor.name).closest(".pt-row") as HTMLElement;
+  expect(old).toHaveTextContent("Replaced by Tender Issue H.pdf on Wed 2 Dec, and kept: 2 designs still use it");
+  expect(within(old).getByText("Replaced")).toBeInTheDocument();
+  expect(within(old).queryByRole("img")).toBeNull();
+  const now = within(group("Plans")).getByText(issueH.name).closest(".pt-row") as HTMLElement;
+  expect(within(now).getByText("Read")).toBeInTheDocument();
+  expect(within(now).getAllByRole("img")).toHaveLength(2);
+});
+
 const sketch = (over: Partial<JobPlanRead["pages"][number]> = {}): JobPlanRead =>
   readPlan({
     sourceKind: "image",

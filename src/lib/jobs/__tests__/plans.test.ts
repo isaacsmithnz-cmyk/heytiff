@@ -1,5 +1,5 @@
 import type { PlanReading, SheetReading } from "@/lib/studio/reading";
-import { areaM2Of, chooseFloors, choosablePages, designFromPlan, floorOptions, floorValueOf, designFromPlans, floorNamesOf, guessPageByWords, levelOfTitle, pagesWordOf, planLine, planReadLine, planStateWord, scaleAsks, scaleSaid, stackLevels, stateOfRead, startablePlans, type JobPlan, type JobPlanPage, type JobPlanRead } from "../plans";
+import { areaM2Of, chooseFloors, choosablePages, designFromPlan, floorOptions, floorValueOf, designFromPlans, floorNamesOf, guessPageByWords, levelOfTitle, pagesWordOf, planLine, planReadLine, planStateWord, replacedBy, scaleAsks, scaleSaid, stackLevels, stateOfRead, startablePlans, type JobPlan, type JobPlanPage, type JobPlanRead } from "../plans";
 
 /* PLANS ON THE JOB, the pure side (lib/jobs/plans.ts): which pages are
    floors by their words, what a read came to, what the row says, and a
@@ -302,3 +302,30 @@ describe("choosing a page's floor", () => {
     expect(stateOfRead(chooseFloors(plan().pages, { 4: "none" }, null, "x"), failed)).toEqual({ state: "read", said: null });
   });
 });
+
+describe("a set a later one replaced", () => {
+  const g = plan({ id: "g", name: "Issue G.pdf" });
+  const h = plan({ id: "h", name: "Issue H.pdf", addedAt: "2026-12-02T01:00:00Z", usedBy: 0 });
+
+  it("is replaced by the newest set read since it that draws one of its floors", () => {
+    const j = plan({ id: "j", name: "Issue J.pdf", addedAt: "2026-12-09T01:00:00Z" });
+    expect(replacedBy(g, [g, h])?.id).toBe("h");
+    expect(replacedBy(g, [g, h, j])?.id).toBe("j");
+    expect(replacedBy(h, [g, h])).toBeNull();
+  });
+
+  it("isn't replaced by a set still being read, a specification, or one with other floors", () => {
+    expect(replacedBy(g, [g, { ...h, state: "reading", reading: null }])).toBeNull();
+    expect(replacedBy(g, [g, { ...h, kind: "spec" }])).toBeNull();
+    expect(replacedBy(g, [g, { ...h, pages: [page(1, { level: 2, name: "Level 2" })] }])).toBeNull();
+  });
+
+  it("says Replaced in grey, by which set and when, and that it's kept while a design uses it", () => {
+    expect(planStateWord(g, h)).toEqual({ word: "Replaced", tone: "info" });
+    expect(planLine(g, undefined, h)).toBe("Replaced by Issue H.pdf on Wed 2 Dec, and kept: 2 designs still use it");
+    expect(planLine({ ...g, usedBy: 1 }, undefined, h)).toBe("Replaced by Issue H.pdf on Wed 2 Dec, and kept: a design still uses it");
+    expect(planReadLine({ ...g, usedBy: 0 }, h)).toBe("Replaced by Issue H.pdf on Wed 2 Dec");
+    expect(planStateWord(h, replacedBy(h, [g, h]))).toEqual({ word: "Read", tone: "good" });
+  });
+});
+

@@ -158,7 +158,7 @@ export function QuoteScreen({
   const tabs: TabItem[] = sectionsFor(moneyVisible, studio).map((key) => ({
     key,
     label: SECTION_LABEL[key],
-    ...(key === "quote" ? {} : { href: jobPageHref(job, key) }),
+    ...(key === "price" ? {} : { href: jobPageHref(job, key) }),
   }));
   const sm8 = sm8QuoteOf({
     documents: media?.documents ?? null,
@@ -208,7 +208,7 @@ export function QuoteScreen({
             </p>
             <SectionTabs
               items={tabs}
-              current="quote"
+              current="price"
               ariaLabel="The job"
             />
           </header>

@@ -264,7 +264,7 @@ describe("a door to a job", () => {
       </Frame>,
     );
     await user.click(screen.getByRole("button", { name: "Open" }));
-    expect(mockPush).toHaveBeenCalledWith("/dashboard/jobs/j1?tab=quote");
+    expect(mockPush).toHaveBeenCalledWith("/dashboard/jobs/j1?tab=price");
     expect(mockReplace).not.toHaveBeenCalled();
     expect(openMaintenanceCard).not.toHaveBeenCalled();
     expect(card()).toBeNull();

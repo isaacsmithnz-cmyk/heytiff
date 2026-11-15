@@ -41,7 +41,7 @@ describe("the Workboard sends each saved link to its v2 home", () => {
 
   it("opens a job on its own page, on its Quote section when the old face named it", async () => {
     await expect(workboard({ job: "j-7" })).rejects.toThrow("REDIRECT:/dashboard/jobs/j-7");
-    await expect(workboard({ job: "j-7", face: "quote" })).rejects.toThrow("REDIRECT:/dashboard/jobs/j-7?tab=quote");
+    await expect(workboard({ job: "j-7", face: "quote" })).rejects.toThrow("REDIRECT:/dashboard/jobs/j-7?tab=price");
   });
 
   it("opens a visit's sheet over Jobs, and a job named beside it wins", async () => {

@@ -13,15 +13,16 @@ import { jobHref, jobPageHref } from "@/lib/shell/links";
    faces (v2, step 5). */
 
 describe("the sections", () => {
-  it("are the rule's, in its order: Scope after Overview, On site where Visits and Materials were", () => {
-    expect(JOB_SECTIONS.map((s) => SECTION_LABEL[s])).toEqual(["Overview", "Scope", "Quote", "On site", "Files", "Billing"]);
+  /* Isaac, 13 November 2026: "compact the row" */
+  it("are the six, in their order: Overview, Scope, Price, On site, Files, Billing", () => {
+    expect(JOB_SECTIONS.map((s) => SECTION_LABEL[s])).toEqual(["Overview", "Scope", "Price", "On site", "Files", "Billing"]);
   });
 
   it("each show the card's faces: Overview the summary and diary, Files the photos, documents, compliance and designs, Billing the money", () => {
     expect(SECTION_FACES).toEqual({
       overview: ["summary", "diary"],
       scope: ["scope"],
-      quote: ["quote"],
+      price: ["quote"],
       "on-site": ["visits", "checklist"],
       files: ["photos", "documents", "compliance", "design"],
       billing: ["money"],
@@ -55,6 +56,10 @@ describe("?tab=", () => {
     expect(parseSection(" Photos ", false)).toBe("files");
     expect(parseSection("documents", false)).toBe("files");
     expect(parseSection("scope", false)).toBe("scope");
+    expect(parseSection("price", false)).toBe("price");
+    /* the Quote's old name lands on Price */
+    expect(parseSection("quote", false)).toBe("price");
+    expect(sectionOfFace("quote")).toBe("price");
     expect(sectionOfFace("scope")).toBe("scope");
   });
 

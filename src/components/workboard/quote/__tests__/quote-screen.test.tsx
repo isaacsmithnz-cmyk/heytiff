@@ -108,8 +108,8 @@ it("heads the page with the job's name, one grey line and the job's section tabs
   /* the job's colour, snapped to the eight, beside its line */
   expect(container.querySelector(".qp-line .pt-dot--blue")).not.toBeNull();
   const tabs = screen.getByRole("tablist", { name: "The job" });
-  expect(within(tabs).getAllByRole("tab").map((t) => t.querySelector(".pt-stab-word")!.textContent)).toEqual(["Overview", "Scope", "Quote", "On site", "Files", "Billing"]);
-  expect(within(tabs).getByRole("tab", { name: "Quote" })).toHaveAttribute("aria-selected", "true");
+  expect(within(tabs).getAllByRole("tab").map((t) => t.querySelector(".pt-stab-word")!.textContent)).toEqual(["Overview", "Scope", "Price", "On site", "Files", "Billing"]);
+  expect(within(tabs).getByRole("tab", { name: "Price" })).toHaveAttribute("aria-selected", "true");
   expect(await screen.findByText("Lines, $64,790 inc GST")).toBeInTheDocument();
   /* the price is read for the quote's lines, and handed to them */
   await waitFor(() => expect(screen.getByText("Priced")).toBeInTheDocument());
@@ -127,7 +127,7 @@ it("puts the quote's state word at the end of the grey line, orange while someth
 
 /* a job is a page now (v2, step 5): each other tab goes to the job's own
    page on that section, not to its card over this page */
-it("takes each other tab to the job's page on that section, and stays on Quote", async () => {
+it("takes each other tab to the job's page on that section, and stays on Price", async () => {
   const open = jest.fn();
   render(
     <RecordsContext.Provider value={{ hosted: true, open }}>
@@ -141,8 +141,8 @@ it("takes each other tab to the job's page on that section, and stays on Quote",
   /* no numbers on the sections (Isaac, 20 October) */
   expect(screen.getByRole("tab", { name: /Files/ })).toHaveTextContent(/^Files$/);
   /* the tab you're on goes nowhere */
-  expect(screen.getByRole("tab", { name: "Quote" })).not.toHaveAttribute("href");
-  fireEvent.click(screen.getByRole("tab", { name: "Quote" }));
+  expect(screen.getByRole("tab", { name: "Price" })).not.toHaveAttribute("href");
+  fireEvent.click(screen.getByRole("tab", { name: "Price" }));
   expect(open).not.toHaveBeenCalled();
   expect(push).not.toHaveBeenCalled();
 });
@@ -152,7 +152,7 @@ it("has the same tabs for whoever holds the Studio, the designs in Files", async
   render(<QuoteScreen job={JOB} detail={detail} moneyVisible={false} financials={false} studio />);
   await screen.findByText("Lines, no value");
   const tabs = screen.getByRole("tablist", { name: "The job" });
-  expect(within(tabs).getAllByRole("tab").map((t) => t.querySelector(".pt-stab-word")!.textContent)).toEqual(["Overview", "Scope", "Quote", "On site", "Files"]);
+  expect(within(tabs).getAllByRole("tab").map((t) => t.querySelector(".pt-stab-word")!.textContent)).toEqual(["Overview", "Scope", "Price", "On site", "Files"]);
   expect(within(tabs).getByRole("tab", { name: "Files" })).toHaveAttribute("href", `/dashboard/jobs/${JOB}?tab=files`);
 });
 
@@ -160,7 +160,7 @@ it("leaves Billing out of the job's tabs for someone without the money", async (
   render(<QuoteScreen job={JOB} detail={detail} moneyVisible={false} financials={false} />);
   await screen.findByText("Lines, no value");
   const tabs = screen.getByRole("tablist", { name: "The job" });
-  expect(within(tabs).getAllByRole("tab").map((t) => t.querySelector(".pt-stab-word")!.textContent)).toEqual(["Overview", "Scope", "Quote", "On site", "Files"]);
+  expect(within(tabs).getAllByRole("tab").map((t) => t.querySelector(".pt-stab-word")!.textContent)).toEqual(["Overview", "Scope", "Price", "On site", "Files"]);
 });
 
 it("reads no price and no family value for someone without the money grants", async () => {

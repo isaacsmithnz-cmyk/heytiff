@@ -160,7 +160,7 @@ function eventItem(e: FeedEvent, today: string): FeedItem {
     at: e.at,
     unread: false,
     reply: null,
-    open: { href: jobPageHref(e.jobUuid, e.kind === "photos" ? "photos" : undefined) },
+    open: { href: jobPageHref(e.jobUuid, e.kind === "photos" ? "files" : undefined) },
   };
   switch (e.kind) {
     case "new-job":
@@ -175,7 +175,7 @@ function eventItem(e: FeedEvent, today: string): FeedItem {
         who: { name: e.by ?? "Someone", sm8: false },
         what: `added ${e.count === 1 ? "a photo" : `${e.count} photos`} to ${e.job}`,
         said: null,
-        act: { kind: "link", label: "See them", href: jobPageHref(e.jobUuid, "photos") },
+        act: { kind: "link", label: "See them", href: jobPageHref(e.jobUuid, "files") },
       };
   }
 }

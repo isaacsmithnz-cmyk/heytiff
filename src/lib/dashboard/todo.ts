@@ -191,9 +191,9 @@ function listAlertAct(r: ListAlertRow): TodoAct {
   const v = r.verb;
   if (v && "door" in v && v.door.to === "href") return { kind: "link", label: v.label, href: v.door.href };
   if (v && "placeVisit" in v) return { kind: "link", label: "Book in", href: visitHref(v.placeVisit) };
-  if (v && "bookIn" in v) return { kind: "bookIn", label: "Book in", jobUuid: v.bookIn, href: jobPageHref(v.bookIn, "visits") };
-  if (v && "clear" in v) return { kind: "link", label: "Clear", href: jobPageHref(v.clear.jobUuid, "visits") };
-  if (v && "door" in v && v.door.to === "job") return { kind: "link", label: v.label, href: jobPageHref(v.door.remoteId, "visits") };
+  if (v && "bookIn" in v) return { kind: "bookIn", label: "Book in", jobUuid: v.bookIn, href: jobPageHref(v.bookIn, "on-site") };
+  if (v && "clear" in v) return { kind: "link", label: "Clear", href: jobPageHref(v.clear.jobUuid, "on-site") };
+  if (v && "door" in v && v.door.to === "job") return { kind: "link", label: v.label, href: jobPageHref(v.door.remoteId, "on-site") };
   const d = r.door;
   if (d.to === "task") return { kind: "task", label: "Open", taskId: d.id };
   const href =

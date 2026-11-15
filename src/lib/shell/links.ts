@@ -9,9 +9,8 @@
 export const staffHref = (id: string) => `/dashboard/team/${encodeURIComponent(id)}`;
 
 /** A job opens on its own page (the v2 audit, 20 October 2026: the
-    Workboard is retired), on the Quote section when the old card's Quote
-    face is named. */
-export const jobHref = (uuid: string, face?: string) => jobPageHref(uuid, face === "quote" ? "quote" : undefined);
+    Workboard is retired), on Price when the old card's Quote face is named. */
+export const jobHref = (uuid: string, face?: string) => jobPageHref(uuid, face === "quote" ? "price" : undefined);
 
 /** A job's own page (v2, step 5), on the section named — Overview when none
     is. */

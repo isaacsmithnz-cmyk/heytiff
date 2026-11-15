@@ -28,7 +28,7 @@ const ON_A_JOB: Record<"swms" | "certificate", { heading: string; go: string }> 
 };
 
 /** Where a SWMS or a certificate is made for this job. */
-export const makeOnJobHref = (uuid: string, kind: "swms" | "certificate") => `${jobPageHref(uuid, "documents")}&add=${kind}`;
+export const makeOnJobHref = (uuid: string, kind: "swms" | "certificate") => `${jobPageHref(uuid, "files")}&add=${kind}`;
 
 export function MakeDocument({ canWriteLetters }: { canWriteLetters: boolean }) {
   const router = useRouter();

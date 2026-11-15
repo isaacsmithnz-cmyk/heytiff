@@ -22,7 +22,7 @@ export default async function WorkboardPage({
   const asked = await searchParams;
   const one = (v: string | string[] | undefined) => (typeof v === "string" ? v.trim() : "");
   const job = one(asked.job);
-  if (job) redirect(jobPageHref(job, asked.face === "quote" ? "quote" : undefined));
+  if (job) redirect(jobPageHref(job, asked.face === "quote" ? "price" : undefined));
   const visit = one(asked.visit);
   if (visit) redirect(visitHref(visit));
   const q = one(asked.q).slice(0, 120);

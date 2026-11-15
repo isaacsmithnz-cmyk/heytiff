@@ -307,7 +307,7 @@ describe("the job's Add", () => {
     await open();
     await pick("Add quote");
     expect(push).not.toHaveBeenCalled();
-    expect(jobTab("Quote")).toHaveAttribute("aria-selected", "true");
+    expect(jobTab("Price")).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("region", { name: "Quote" })).toBeVisible();
   });
 

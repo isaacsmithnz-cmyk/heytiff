@@ -462,6 +462,8 @@ const SECTION: Record<string, string> = {
   Diary: "Overview",
   Money: "Billing",
   Compliance: "Files",
+  /* the Quote is Price (15 November 2026) */
+  Quote: "Price",
   /* Photos, Documents and Design are Files (15 November 2026) */
   Photos: "Files",
   Documents: "Files",
@@ -556,7 +558,7 @@ it("lands on Overview, the stages line over the tiles", async () => {
     render(<Job row={row()} {...props} />);
     await detailLanded();
     await userEvent.click(screen.getByRole("button", { name: /^Quoted/ }));
-    expect(jobTab("Quote")).toHaveAttribute("aria-selected", "true");
+    expect(jobTab("Price")).toHaveAttribute("aria-selected", "true");
     expect(document.querySelector("#jcsec-quote")).not.toHaveAttribute("hidden");
     expect(document.querySelector(".jp-over")).toHaveAttribute("hidden");
   });

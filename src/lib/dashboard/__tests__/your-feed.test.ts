@@ -148,7 +148,7 @@ describe("what an item opens", () => {
       nameOf: new Map([["s-luke", "Luke Parker"]]),
       since: "2026-10-19",
     });
-    expect(feed({ events }).map((i) => i.open)).toEqual([{ href: "/dashboard/jobs/j2?tab=photos" }, { href: "/dashboard/jobs/j2" }]);
+    expect(feed({ events }).map((i) => i.open)).toEqual([{ href: "/dashboard/jobs/j2?tab=files" }, { href: "/dashboard/jobs/j2" }]);
   });
 });
 

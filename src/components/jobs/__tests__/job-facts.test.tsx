@@ -3,6 +3,15 @@ import userEvent from "@testing-library/user-event";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import { JobFacts, directionsHref, phoneWords } from "../job-facts";
 
+const counts: Record<string, number> = { "job-3416": 3, "job-bare": 0 };
+jest.mock("@/app/actions/site-notes", () => ({
+  readSiteNoteCount: jest.fn(async (job: string) => counts[job] ?? null),
+  readSiteNotes: jest.fn(async () => null),
+  addSiteNote: jest.fn(),
+  changeSiteNote: jest.fn(),
+  removeSiteNote: jest.fn(),
+}));
+
 /* THE FACTS CARD (Isaac, 13 and 14 November 2026, mocks C and D): Next visit,
    the site with Directions, the contacts in full, one card on the left of the
    Overview. Money went to Billing. */
@@ -118,4 +127,24 @@ it("keeps Book a visit's room while the visits are read, so nothing jumps", () =
   expect(held).toHaveAttribute("aria-hidden", "true");
   rerender(<JobFacts {...base} nextRead={false} />);
   expect(screen.getByRole("region", { name: "Next visit" }).querySelector(".jov-press--held")).toBeNull();
+});
+
+/* Site notes (build 9): under the address and their PO, the orange asterisk
+   on it only when the site has notes; no job, or no address, no button. */
+it("offers Site notes under the site, marked only when the site has notes", async () => {
+  const { rerender } = render(<JobFacts {...base} detail={detail({ purchaseOrder: "PO-77" })} jobUuid="job-3416" />);
+  const site = cell("Site");
+  const button = await site.findByRole("button", { name: /^Site notes\s?, the site has notes$/ });
+  expect(button.querySelector(".stn-mark")).not.toBeNull();
+  /* after their PO */
+  expect(site.getByText("PO-77").compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+  rerender(<JobFacts {...base} jobUuid="job-bare" />);
+  expect(await cell("Site").findByRole("button", { name: "Site notes" })).toBeTruthy();
+  expect(cell("Site").getByRole("button", { name: "Site notes" }).querySelector(".stn-mark")).toBeNull();
+
+  rerender(<JobFacts {...base} />);
+  expect(cell("Site").queryByRole("button", { name: /Site notes/ })).toBeNull();
+  rerender(<JobFacts {...base} detail={detail({ address: "", suburb: "" })} jobUuid="job-3416" />);
+  expect(cell("Site").queryByRole("button", { name: /Site notes/ })).toBeNull();
 });

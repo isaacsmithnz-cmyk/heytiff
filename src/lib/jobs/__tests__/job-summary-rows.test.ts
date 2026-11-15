@@ -139,6 +139,15 @@ describe("a line with nothing under it, in a bulleted description", () => {
     ]);
   });
 
+  it("keeps an older job's first line whole, a sentence broken over two lines as one (3346, the walk of 15 November 2026)", () => {
+    expect(
+      summaryFromText("Temporary disconnect outdoor air con unit so balcony can be renovated, then return after works mare completed to\nreconnect outdoor unit\n\n** Access VIA Scaffold.").map((g) => [
+        g.title,
+        g.rows.map((r) => r.thing),
+      ]),
+    ).toEqual([[null, ["Temporary disconnect outdoor air con unit so balcony can be renovated, then return after works mare completed to reconnect outdoor unit", "Access VIA Scaffold."]]]);
+  });
+
   it("keeps a line before any group, after the first, as a plain row of its own", () => {
     expect(summaryFromText("Pick List\nAccess via the loading dock\nUpstairs\n* Ducted indoor").map((g) => [g.title, g.rows.map((r) => r.thing)])).toEqual([
       [null, ["Access via the loading dock"]],

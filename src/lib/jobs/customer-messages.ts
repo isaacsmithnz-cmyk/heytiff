@@ -579,12 +579,36 @@ export function withoutEchoes(story: readonly StoryEntry[], customer: readonly C
 /* a line that only signs off, or a mail program's own tail */
 const SIGN_OFF = /^(?:(?:kind|best|warm|many|with)\s+)?(?:regards|thanks|thank you|thanks again|cheers|ta)\b[\s,.!]*$|^sent from my\b|^get outlook for\b|^--\s*$/i;
 
+/* a signature with no sign-off over it (the walk of 15 November 2026, 3408:
+   Jacqueline's one-line question came with her title, award, numbers and a
+   confidentiality notice, and no "Regards"): a line of contact details ("M
+   0407 899 944", "E jo@…", "Ph: (02) 9327 1717"), or the opening of a
+   disclaimer */
+const CONTACT = /^(?:m|p|f|t|e|w|ph|mob|mobile|phone|tel|fax|email|e-mail|web)\s*[:.]?\s+(?:\+?\(?\d[\d\s()+-]{6,}|[\w.+-]+@[\w-]+\.[\w.]+|www\.)/i;
+const DISCLAIMER = /^(?:the information (?:contained )?in this (?:e-?mail|message)|this (?:e-?mail|message) (?:and any|is confidential|may contain)|confidential(?:ity)? (?:notice|warning)|disclaimer\b)/i;
+
+/** Whether a line opens a signature by naming the sender: their first name
+    first, on a short line that isn't a sentence ("JACQUELINE BLACKET B.Ec",
+    "Jacqueline"). */
+function namesSender(line: string, name: string | null | undefined): boolean {
+  const first = (name ?? "").trim().split(/\s+/)[0];
+  if (!first || first.length < 2 || line.length > 60 || /[?!]$/.test(line)) return false;
+  const esc = first.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`^${esc}(?:\\s|,|$)`, "i").test(line) && !/^\S+\s+(?:here|is|was|will|can|has|and|said)\b/i.test(line);
+}
+
 /** An email's own words, without its sign-off and what follows it: the name,
-    the title, the numbers and the disclaimer. A message that is only a
-    sign-off ("Thanks!") is kept whole. */
-export function withoutSignature(text: string): string {
+    the title, the numbers and the disclaimer. Where there is no sign-off, the
+    signature starts at a line naming the sender, a line of contact details or
+    a disclaimer, whichever comes first. A message that is only a sign-off
+    ("Thanks!") is kept whole. */
+export function withoutSignature(text: string, sender?: string | null): string {
   const lines = text.split("\n");
-  const at = lines.findIndex((l, i) => i > 0 && SIGN_OFF.test(l.trim()));
+  const at = lines.findIndex((l, i) => {
+    if (i === 0) return false;
+    const t = l.trim();
+    return SIGN_OFF.test(t) || namesSender(t, sender) || CONTACT.test(t) || DISCLAIMER.test(t);
+  });
   return (at < 0 ? text : lines.slice(0, at).join("\n")).trim();
 }
 
@@ -597,7 +621,7 @@ export const withoutLogos = (files: readonly MessageFile[]): MessageFile[] => fi
 /** A bubble's words and files: an email's trimmed, a text's as sent. */
 const bubbleOf = (m: CustomerMessage): Pick<ThreadBubble, "words" | "files" | "email"> =>
   m.kind === "email"
-    ? { words: withoutSignature(m.text.trim()).replace(/\n\s*\n+/g, "\n"), files: withoutLogos(m.files), email: true }
+    ? { words: withoutSignature(m.text.trim(), m.name).replace(/\n\s*\n+/g, "\n"), files: withoutLogos(m.files), email: true }
     : { words: m.text.trim().replace(/\n\s*\n+/g, "\n"), files: m.files };
 
 const ENTITIES: Record<string, string> = {

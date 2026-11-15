@@ -3419,6 +3419,18 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
    on is green, as for a step done, but the dot stays open and the name grey */
 .fg .qp-steps > li.skip > i { border-color:var(--green); }
 .fg .qp-steps > li.skip::after { background:var(--green); }
+/* AS A LIST DOWN THE RAIL (the job's Price tab, as its mock drew it; the
+   walk of 15 November 2026, T3): each step's name, and its words under it,
+   the join running down from dot to dot */
+.fg .qp-steps--list { flex-direction:column; padding:0; }
+.fg .qp-steps--list > li { flex:none; padding:0 0 12px 24px; gap:0; }
+.fg .qp-steps--list > li:last-child { padding-bottom:0; }
+.fg .qp-steps--list > li > i { top:4px; }
+.fg .qp-steps--list > li::after { top:16px; bottom:-4px; left:5px; right:auto; width:2px; height:auto; }
+.fg .qp-steps--list b { font-size:14px; line-height:20px; color:var(--q); }
+.fg .qp-steps--list > li.done b, .fg .qp-steps--list > li.now b { color:var(--ink); }
+.fg .qp-words { font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.fg .qp-steps--list > li.now .qp-words { color:var(--orange-w); }
 /* THE BODY: the conversation, or the line items, fills the left; the rail,
    400 wide, beside it with no rule between: its own scroll, and the quote's
    buttons pinned at its foot under a thin line (layout B, 21 October 2026) */
@@ -3458,9 +3470,10 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .fg .qc-pair > .pt-btn, .fg .qc-dock > .pt-btn { min-width:0; }
 /* Share's word after Copy the link: quiet, under the button */
 .fg .qc-said { margin:0; font-size:12px; color:var(--q); text-align:center; }
-/* Approved, given: a solid green block in the main button's seat, white on
-   green's word value as a schedule block wears it (rule 19); nothing to press */
-.fg .qc-given { background:var(--green-w); border:1px solid var(--green-w); color:var(--white); cursor:default; pointer-events:none; }
+/* Approved, given, and a client's yes: a green state word in the button's
+   seat, as rule 17 has state (the walk of 15 November 2026, T3), the yes
+   with a quiet Undo beside it */
+.fg .qc-given, .fg .qc-taken { min-width:0; min-height:36px; display:flex; align-items:center; justify-content:center; gap:8px; }
 /* the conversation: a column no wider than reading wants, her words under
    her name, yours in a light bubble on the right (his "light" bubble,
    2026-10-13), the reply box at its foot; reading at 16 (rule 13) */
@@ -4203,6 +4216,10 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring);; border-r
 .fg .jb-pay { display:flex; flex-direction:column; gap:8px; }
 .fg .jb-payhead { display:flex; align-items:baseline; justify-content:space-between; gap:16px; }
 .fg .jb-payhead h3 { margin:0; font-size:16px; line-height:24px; font-weight:600; }
+/* the Job tracker under Payments is titled as plainly as Payments, with no
+   block (the walk of 15 November 2026, T5) */
+.fg .jbl-tracker .jov-head .hm-blk { display:none; }
+.fg .jbl-tracker .jov-head .jov-title { font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
 .fg .jb-pay .pt-rows { border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
 .fg .jb-pay .pt-row { padding-block:12px; }
 /* the claim the page was opened for, from a clone's own number */
@@ -5702,7 +5719,10 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jp-sheet > .wb2-jcatt { margin:16px 0 0; }
 .fg .jp-head { display:flex; flex-direction:column; gap:16px; }
 .fg .jp-top { display:flex; align-items:flex-start; gap:16px; min-width:0; }
-.fg .jp-id { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:4px; }
+/* the name grows from nothing, so a long one wraps beside the stages line
+   rather than squeezing it until its words touch (the walk of 15 November
+   2026, 3416; mock C) */
+.fg .jp-id { flex:1 1 0; min-width:0; display:flex; flex-direction:column; gap:4px; }
 /* the job's colour dot beside its name, and no line under it (Isaac's mock, 25 October 2026) */
 .fg .jp-name { margin:0; min-width:0; font-size:24px; font-weight:600; line-height:32px; color:var(--ink); overflow-wrap:anywhere; }
 /* THE JOB'S PLATE (Isaac, 5 November 2026, B on
@@ -5790,8 +5810,11 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jp-files { display:grid; grid-template-columns:minmax(0,1fr) 400px; gap:16px; align-items:start; }
 .fg .jp-files > .wb2-jcface, .fg .jp-files-side > .wb2-jcface { min-width:0; padding:16px; border:1px solid var(--edge); border-radius:var(--r-card); background:var(--paper); overflow:auto; }
 .fg .jp-files > .wb2-jcface { height:var(--fit-h, auto); }
-.fg .jp-files-side { display:flex; flex-direction:column; gap:16px; min-width:0; max-height:var(--fit-h, none); }
+.fg .jp-files-side { display:flex; flex-direction:column; gap:16px; min-width:0; height:var(--fit-h, auto); }
 .fg .jp-files-side > .wb2-jcface { flex:0 1 auto; min-height:0; }
+/* the column's last card reaches its foot and scrolls inside itself, as the
+   photos beside it do (the walk of 15 November 2026, T6) */
+.fg .jp-files-side > .wb2-jcface:last-child, .fg .jp-files-side > .wb2-jcface:has(+ .wb2-jcface[hidden]) { flex:1 1 auto; }
 .fg .jp-files-side > .wb2-jcface[hidden] { display:none; }
 /* PRICE (the job page plan's build 10, 15 November 2026): every price on
    the job as a flat card across the top, the one open filled light (old law
@@ -8156,7 +8179,11 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jv-pgrid { list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); column-gap:24px; border-top:1px solid var(--line); }
 .fg .jv-pgrid li { display:flex; align-items:center; gap:12px; min-width:0; padding:8px 0; border-bottom:1px solid var(--line); font-size:13px; line-height:18px; }
 .fg .jv-pgrid b { flex:none; width:92px; font-weight:600; }
-.fg .jv-pgrid em { margin-left:auto; font-style:normal; color:var(--q); font-variant-numeric:tabular-nums; }
+.fg .jv-pgrid em { margin-left:auto; font-style:normal; color:var(--q); font-variant-numeric:tabular-nums; white-space:nowrap; }
+/* On site's Visits card is 416 wide: a day a row, as mock F drew it, where
+   two to a row wrapped the hours ("25h" over "26m", the walk of 15 November
+   2026, 2845) */
+.fg .jp-onsite .jv-pgrid { grid-template-columns:minmax(0,1fr); }
 /* Tasks to plan: a card, its stages, a field and the foot while anything is ticked */
 .fg .jv-plan { display:flex; flex-direction:column; gap:12px; padding:16px; border:1px solid var(--edge); border-radius:var(--r-card); background:var(--paper); }
 .fg .jv-plan.drop { border-style:dashed; border-color:var(--ink); }

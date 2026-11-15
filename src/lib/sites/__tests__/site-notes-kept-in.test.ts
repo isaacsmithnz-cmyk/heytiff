@@ -18,6 +18,8 @@ const ALLOWED = new Set([
   "src/app/actions/site-notes.ts",
   // the button and the pop-up on the job page
   "src/components/jobs/site-notes.tsx",
+  // their reads by a route of their own, off the page's queue of actions (the walk of 15 November 2026)
+  "src/app/api/workboard/site-notes/route.ts",
   // the list of old ServiceM8 notes for whoever runs the board to tick
   "src/app/dashboard/jobs/site-notes/page.tsx",
   "src/components/jobs/old-code-notes.tsx",

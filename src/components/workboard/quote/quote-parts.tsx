@@ -39,7 +39,7 @@ export function useQuotePrice(job: string, enabled: boolean, version: string | n
    and the join on to the next, in green; the step it's up to in orange with
    a ring; the rest grey. Names only: what each step was waiting on is said
    once, under Approve quote, and the state word under the job's name. */
-export function QuoteStepsLine({ steps, onUndo }: { steps: QuoteStep[]; onUndo?: (key: StepKey) => void }) {
+export function QuoteStepsLine({ steps, onUndo, list = false }: { steps: QuoteStep[]; onUndo?: (key: StepKey) => void; list?: boolean }) {
   /* only the last thing marked by hand can be taken back; once accepted,
      that's the option's own Accepted, on the Proposal */
   const accepted = steps.some((s) => s.key === "accepted" && s.state === "done");
@@ -48,7 +48,9 @@ export function QuoteStepsLine({ steps, onUndo }: { steps: QuoteStep[]; onUndo?:
      No design is), and none once the client said yes */
   const now = accepted ? -1 : steps.findIndex((s) => !stepPassed(s));
   return (
-    <ol className="qp-steps" aria-label="Where the quote is">
+    /* as a list down the rail, each step with its words under it, on the
+       job's Price tab (the Price Tab mock; the walk of 15 November 2026, T3) */
+    <ol className={list ? "qp-steps qp-steps--list" : "qp-steps"} aria-label="Where the quote is">
       {steps.map((s, i) => (
         <li
           key={s.key}
@@ -57,6 +59,7 @@ export function QuoteStepsLine({ steps, onUndo }: { steps: QuoteStep[]; onUndo?:
         >
           <i aria-hidden="true" />
           <b>{s.label}</b>
+          {list && s.words && <span className="qp-words">{s.words}</span>}
           {onUndo && s.key === undoable && (
             <button type="button" className="qp-undo" aria-label={`Undo ${s.label.toLowerCase()}`} onClick={() => onUndo(s.key)}>
               Undo

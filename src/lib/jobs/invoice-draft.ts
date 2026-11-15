@@ -52,7 +52,7 @@ export type InvoiceDraft =
       lines: InvoiceLine[];
       /** what it was built from: the days on site, and how many things used */
       from: { days: string[]; used: number };
-      /** the job has an accepted quote, already on the job in ServiceM8 */
+      /** the job is priced already: an accepted quote, or ServiceM8's own lines */
       quoted: boolean;
       /** ServiceM8 has sent the job's invoice already: it's sent again from there */
       invoiced: boolean;
@@ -173,7 +173,10 @@ export const sendable = (l: Pick<InvoiceLine, "unitSellCents" | "sent">) => l.un
 export function builtFromWords(from: { days: readonly string[]; used: number }, quoted: boolean): string {
   const on = from.days.length === 0 ? "no time on site recorded" : `${andList(from.days.map(dayName))} on site`;
   const used = from.used === 0 ? "nothing recorded as used" : `${from.used} ${from.used === 1 ? "thing" : "things"} used`;
-  return quoted ? `The accepted quote, and ${used} beyond it` : `${on.charAt(0).toUpperCase()}${on.slice(1)}, and ${used}`;
+  /* a job priced already is priced by an accepted quote or by ServiceM8's
+     own lines (3408's service call, the walk of 15 November 2026), so its
+     price is named, never a quote that may not be there */
+  return quoted ? `The job's price, and ${used} beyond it` : `${on.charAt(0).toUpperCase()}${on.slice(1)}, and ${used}`;
 }
 
 function andList(xs: readonly string[]): string {

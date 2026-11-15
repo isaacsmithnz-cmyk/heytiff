@@ -41,6 +41,20 @@ describe("an email in the feed", () => {
     expect(withoutSignature("Thanks!")).toBe("Thanks!");
   });
 
+  it("finds a signature with no sign-off over it (3408, the walk of 15 November 2026)", () => {
+    const jacqueline =
+      "Hi Sharon want me to pay this out of Shackel Rent?\nJACQUELINE BLACKET B.Ec L.R.E.A\n2024 DOUBLE BAY AGENCY OF THE YEAR\nDirector\nSales, Property Management\nM 0407 899 944 P (02) 9327 1717 F (02) 9363 3794\nE jacqueline.blacket@theblacketagency.com.au\nFind me on\nThe information contained in this e-mail and any included attachments are confidential";
+    expect(withoutSignature(jacqueline, "Jacqueline")).toBe("Hi Sharon want me to pay this out of Shackel Rent?");
+    /* no name to go on: the numbers or the disclaimer still end it */
+    expect(withoutSignature("Can you come Tuesday?\nDirector\nM 0407 899 944", null)).toBe("Can you come Tuesday?\nDirector");
+    expect(withoutSignature("Paid today.\nThis email is confidential and intended only for", null)).toBe("Paid today.");
+    /* the sender's name inside a sentence, or on the first line, stays */
+    expect(withoutSignature("Jacqueline here\nJacqueline is away till Monday, so call the office.", "Jacqueline")).toBe(
+      "Jacqueline here\nJacqueline is away till Monday, so call the office.",
+    );
+    expect(withoutSignature("The unit is on level 3.\nMe and Dave can do Thursday.", "Dave")).toBe("The unit is on level 3.\nMe and Dave can do Thursday.");
+  });
+
   it("leaves out its signature's pictures and keeps what was sent", () => {
     const files = [
       { id: "a", name: "image001.png", type: "png" },

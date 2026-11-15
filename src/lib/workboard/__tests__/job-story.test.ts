@@ -206,6 +206,12 @@ describe("buildJobStory — order", () => {
     ]);
   });
 
+  it("two of the job's own dates on one day keep the job's order (1577, the walk of 15 November 2026)", () => {
+    const story = buildJobStory(inputs({ detail: detail({ date: "2025-06-16", workOrderDate: "2025-06-16" }) }));
+    const day = story.filter((e) => e.kind === "milestone" && e.day === "2025-06-16").map((e) => (e.kind === "milestone" ? e.label : ""));
+    expect(day).toEqual(["Became a work order", "Job raised"]);
+  });
+
   it("days arrive newest first, each day's entries together", () => {
     const story = buildJobStory(
       inputs({

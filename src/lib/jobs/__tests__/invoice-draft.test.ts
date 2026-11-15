@@ -64,7 +64,7 @@ it("invoices a job priced already at its price: no hours, only what was used bey
   if (!d.ok) throw new Error(d.why);
   expect(d.lines.map((l) => l.name)).toEqual(["Hydrex tablets"]);
   expect(d.quoted).toBe(true);
-  expect(builtFromWords(d.from, d.quoted)).toBe("The accepted quote, and 2 things used beyond it");
+  expect(builtFromWords(d.from, d.quoted)).toBe("The job's price, and 2 things used beyond it");
 });
 
 it("stands a line an earlier press sent as on the job, and never offers it again", () => {

@@ -128,9 +128,11 @@ it("opens an invoice on its paper, with its figure and word down the right", asy
   draw();
   await userEvent.click(await prices().findByRole("button", { name: /^Invoice #3408/ }));
   expect(prices().getByRole("button", { name: /^Invoice #3408/ })).toHaveAttribute("aria-pressed", "true");
-  expect(await screen.findByLabelText("Invoice #3408", { selector: "iframe" })).toHaveAttribute("src", "https://files.example/3408.pdf");
+  expect(await screen.findByLabelText("Invoice #3408", { selector: "iframe" })).toHaveAttribute("src", "https://files.example/3408.pdf#toolbar=0&navpanes=0&view=FitH");
   const rail = within(screen.getByRole("complementary", { name: "Invoice #3408" }));
   expect(rail.getByText("$350")).toBeInTheDocument();
+  /* the job's one invoice is the job itself: its notes aren't written on the invoice (the walk of 15 November 2026) */
+  expect(rail.queryByText("Written on it")).toBeNull();
   expect(rail.getByText("Awaiting")).toBeInTheDocument();
   await userEvent.click(screen.getByRole("radio", { name: "Line items" }));
   expect(screen.getByText("Initial Service of Systems")).toBeInTheDocument();
@@ -177,7 +179,7 @@ it("stands ServiceM8's own quote in for one never built here, with Update quote 
   const paper = { remoteId: "q", name: "Quote #3408", fileType: ".pdf", kind: "document" as const, origin: "Quote", takenAt: null, url: "https://files.example/q.pdf", width: null, height: null, fromClaim: null };
   draw({ sm8: { papers: [paper], sentOn: "2026-11-11", value: "$775 ex GST" }, billing: null, claims: [] });
   expect(await prices().findByRole("button", { name: /^Quote, in ServiceM8/, pressed: true })).toBeInTheDocument();
-  expect(screen.getByLabelText("Quote #3408")).toHaveAttribute("src", "https://files.example/q.pdf");
+  expect(screen.getByLabelText("Quote #3408")).toHaveAttribute("src", "https://files.example/q.pdf#toolbar=0&navpanes=0&view=FitH");
   expect(screen.getByText("Typed in ServiceM8, so there’s no chat with Tiff behind it.")).toBeInTheDocument();
   const update = screen.getByRole("button", { name: "Update quote" });
   expect(update).toHaveClass("pt-btn--quote");

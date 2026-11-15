@@ -4,7 +4,6 @@ import { useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/parts/button";
 import { Menu } from "@/components/parts/menu";
 import { StateWord } from "@/components/parts/state";
-import { Icon } from "@/components/shell/icon";
 import type { Variation } from "@/lib/quotes/lines-job";
 
 /* THE QUOTE'S BUTTONS, PINNED AT THE RAIL'S FOOT (layout B, Isaac's pick on
@@ -43,17 +42,26 @@ export function LinesButton({ up, onLines }: { up: boolean; onLines: () => void 
   );
 }
 
-/** given: a solid green block in Approve's seat, not a button (a press would
-    say nothing more); white words on green's word value, as a schedule's
-    block wears them (rule 19) */
+/** given: Approve's seat says so in green, a state word as rule 17 has it,
+    where it stood as a solid green block (the walk of 15 November 2026, T3:
+    "As the mock") */
 const given = (words: string) => (
-  <span className="pt-btn pt-btn--36 qc-given">
-    <span className="pt-btn__icon" aria-hidden="true">
-      <Icon name="check" size={16} />
-    </span>
-    <span className="pt-btn__word">{words}</span>
+  <span className="qc-given">
+    <StateWord tone="good">{words}</StateWord>
   </span>
 );
+
+/** a client's yes, said in green, with Undo beside it while it can be taken back */
+function Taken({ words, busy, onUndo }: { words: string; busy: boolean; onUndo: () => void }) {
+  return (
+    <span className="qc-taken">
+      <StateWord tone="good">{words}</StateWord>
+      <Button kind="quiet" size={32} disabled={busy} onClick={onUndo} aria-label={`Undo ${words.toLowerCase()}`}>
+        Undo
+      </Button>
+    </span>
+  );
+}
 
 export function QuoteActions({
   money,
@@ -139,17 +147,23 @@ export function QuoteActions({
   const left = waiting && !ready && why ? <StateWord tone="look">{why}</StateWord> : null;
   const accept =
     !money || lines === 0 || kept ? null : variation ? (
-      <Button aria-pressed={!!variation.acceptedAt} disabled={busy} onClick={onAccept}>
-        {variation.acceptedAt ? `Variation ${variation.n} accepted` : `Mark variation ${variation.n} accepted`}
-      </Button>
+      variation.acceptedAt ? (
+        <Taken words={`Variation ${variation.n} accepted`} busy={busy} onUndo={onAccept} />
+      ) : (
+        <Button disabled={busy} onClick={onAccept}>{`Mark variation ${variation.n} accepted`}</Button>
+      )
     ) : acceptable ? (
-      <Button aria-pressed={accepted} disabled={busy} onClick={onAccept}>
-        {accepted ? (options > 1 ? `Option ${at + 1} accepted` : "Accepted") : options > 1 ? `Mark option ${at + 1} accepted` : "Mark accepted"}
-      </Button>
+      /* "Mark accepted" until it is, then the word in green with Undo (T3) */
+      accepted ? (
+        <Taken words={options > 1 ? `Option ${at + 1} accepted` : "Accepted"} busy={busy} onUndo={onAccept} />
+      ) : (
+        <Button disabled={busy} onClick={onAccept}>{options > 1 ? `Mark option ${at + 1} accepted` : "Mark accepted"}</Button>
+      )
     ) : null;
   const updating =
     !paper && money && update ? (
-      <Button disabled={busy} onClick={onUpdate}>
+      /* quoting orange once it's gone out, as rule 25c has it on the rail */
+      <Button kind="quote" disabled={busy} onClick={onUpdate}>
         Update quote
       </Button>
     ) : null;

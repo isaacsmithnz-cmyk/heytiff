@@ -531,8 +531,6 @@ export function JobConversation({
   };
   const lastTiff = [...live].reverse().find((t) => t.who === "tiff") ?? null;
 
-  const empty = !loading && story.length === 0 && talks.length === 0 && live.length === 0 && customer.length === 0 && comms.length === 0;
-
   /* THE FILTER: the soft tabs' dress (rule 29), but buttons that say
      whether they are pressed, each its own stop for the keyboard (the walk
      of 25 October 2026: they were tabs with one stop between them) */
@@ -622,12 +620,9 @@ export function JobConversation({
         {filter === "todo" && todos && <TodoTab todos={todos} />}
 
         {/* a job with nothing on it yet is an empty card down to its box,
-            with no words in it (mock C; no hint text) */}
-        {loading && story.length === 0 ? (
-          <p className="jov-none">Reading the job&rsquo;s notes from the mirror</p>
-        ) : empty || filter === "all" || filter === "todo" ? null : (filter === "comms" ? comms.length === 0 : shown.length === 0 && !(filter === "tiff" && liveShown)) ? (
-          <p className="jov-none">Nothing of that kind on the job.</p>
-        ) : null}
+            with no words in it (mock C; no hint text), and so is a tab with
+            nothing on it (the walk of 15 November 2026, T4: "No words") */}
+        {loading && story.length === 0 ? <p className="jov-none">Reading the job&rsquo;s notes from the mirror</p> : null}
 
         {/* COMMS: the messages alone, oldest first, as a phone shows them */}
         {filter === "comms" && comms.length > 0 && <CommsView threads={comms} />}
@@ -821,8 +816,8 @@ function TodoTab({ todos }: { todos: FeedTodos }) {
   const open = todos.tasks.map((t) => ({ ...t, done: false }));
   const done = todos.done.map((t) => ({ id: t.id, title: t.title, line: t.line, assigneeId: null, done: true }) as FeedTodo);
   const asks = todos.open && (todos.openCount ?? 0) > 0;
-  if (!asks && open.length === 0 && done.length === 0)
-    return <p className="jov-none">{todos.read ? "Nothing to do on it." : "Reading the job's to dos"}</p>;
+  /* nothing to do is an empty tab down to its box, "Add a to do" (T4) */
+  if (!asks && open.length === 0 && done.length === 0) return todos.read ? null : <p className="jov-none">Reading the job&rsquo;s to dos</p>;
   return (
     <>
       {(asks || open.length > 0) && (

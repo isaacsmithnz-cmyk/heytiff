@@ -15,7 +15,8 @@ import { Fixing, SpeakBar } from "@/components/conversations/speak-bar";
 import { useNoteScope } from "@/components/notes/note-context";
 import { fmtAud } from "@/lib/workboard/project-money";
 import { splitSpokenList } from "@/lib/workboard/spoken-materials";
-import { onShelves } from "@/lib/workboard/material-shelves";
+import { onShelves, SHELF_LOOK, type Shelf } from "@/lib/workboard/material-shelves";
+import { CATEGORIES, type CategoryKey } from "@/lib/quotes/categories";
 import type { MaterialHit } from "@/app/api/workboard/material-search/route";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { groupChecklist, type JobChecklistItem } from "@/lib/workboard/all-jobs";
@@ -73,11 +74,64 @@ const bookLine = (h: MaterialHit) => [h.code, h.supplier].filter(Boolean).join("
     where it's up to (To order, Ordered, In stock, To site on the day it
     lands). Isaac, 14 November 2026, mock F: one list, the word on the row. */
 const bare = (s: string | null | undefined) => (s ?? "").replace(/\s+/g, "").toLowerCase();
+const sameModel = (item: Pick<JobPicklistItem, "sub">, r: EquipmentRow) => {
+  const model = bare(item.sub);
+  return r.group !== "duct" && !!model && (bare(r.detail) === model || bare(r.detail).endsWith(model) || bare(r.title) === model);
+};
 export function stockWordOf(item: Pick<JobPicklistItem, "name" | "sub">, stock: readonly EquipmentRow[] | null | undefined): EquipmentRow["word"] {
   if (!stock?.length) return null;
-  const model = bare(item.sub);
-  const hit = stock.find((r) => r.group !== "duct" && !!model && (bare(r.detail) === model || bare(r.detail).endsWith(model) || bare(r.title) === model));
-  return hit?.word ?? null;
+  return stock.find((r) => sameModel(item, r))?.word ?? null;
+}
+
+/** The quote's units and controls the list doesn't have: without them a job
+    quoted but never given a pick list showed no units at all once the
+    Overview's Equipment block went (Isaac, 15 November 2026, on 2798, 3209,
+    3446 and 3516: "Yes, add them"). */
+export function quoteOnly(items: readonly Pick<JobPicklistItem, "sub">[], stock: readonly EquipmentRow[] | null | undefined): EquipmentRow[] {
+  return (stock ?? []).filter((r) => r.group !== "duct" && !items.some((i) => sameModel(i, r)));
+}
+
+type Placed = Shelf<JobPicklistItem> & { quote: EquipmentRow[] };
+/** The list's shelves with the quote's own rows on Units and Controls, a
+    shelf drawn for them where the list had none, in the book's order. */
+function withQuote(shelves: Shelf<JobPicklistItem>[], quote: readonly EquipmentRow[]): Placed[] {
+  const by = new Map<CategoryKey, EquipmentRow[]>();
+  for (const r of quote) {
+    const k: CategoryKey = r.group === "unit" ? "units" : "controls";
+    by.set(k, [...(by.get(k) ?? []), r]);
+  }
+  const have = new Map(shelves.map((s) => [s.key, s]));
+  return CATEGORIES.filter((c) => have.has(c.key) || by.has(c.key)).map((c) => ({
+    ...(have.get(c.key) ?? { ...c, ...SHELF_LOOK[c.key], items: [] }),
+    quote: by.get(c.key) ?? [],
+  }));
+}
+
+/** A unit or control the quote has and the list doesn't: ticked as loaded,
+    it goes on the list ticked, under its model, and from then on is the
+    list's own row. */
+function QuoteRow({ row, ready, onLoad }: { row: EquipmentRow; ready: boolean; onLoad: (row: EquipmentRow) => void }) {
+  return (
+    <li className="jm-row">
+      <Tick
+        className="jm-tick"
+        checked={false}
+        disabled={!ready}
+        aria-label={`Loaded: ${row.title}`}
+        onChange={(on) => on && onLoad(row)}
+        label={
+          <Fade className="jm-text">
+            <Tooltip label="From the quote">
+              <b className="jm-name">{row.title}</b>
+            </Tooltip>
+            {row.detail && <span className="jm-sub">{row.detail}</span>}
+          </Fade>
+        }
+      />
+      {row.word && <StateWord tone={row.word.tone}>{row.word.word}</StateWord>}
+      <span className="jm-qty">{row.qty}</span>
+    </li>
+  );
 }
 
 function MaterialRow({
@@ -164,7 +218,8 @@ export function JobMaterialsFace({
   ready: boolean;
   onTick: (id: string, picked: boolean) => void;
   onRemove: (id: string) => void;
-  onAdd: (input: { kind: "material"; name: string; qty: string; sub?: string }) => void;
+  /** `picked` adds the row ticked: a quote's unit ticked as loaded. */
+  onAdd: (input: { kind: "material"; name: string; qty: string; sub?: string; picked?: boolean }) => void;
   /** What was bought for the job (purchases/job-bought), above the list. */
   bought?: ReactNode;
   /** Stock's read of the job: each unit and control's word goes on its row. */
@@ -252,8 +307,10 @@ export function JobMaterialsFace({
   };
 
   const ours = items ?? [];
-  const shelves = onShelves(ours);
-  const anything = ours.length + sm8.length > 0;
+  const fromQuote = quoteOnly(ours, stock);
+  const shelves = withQuote(onShelves(ours), fromQuote);
+  const anything = ours.length + sm8.length + fromQuote.length > 0;
+  const load = (r: EquipmentRow) => ready && onAdd({ kind: "material", name: r.title, qty: String(r.qty), sub: r.detail, picked: true });
 
   const add = () => {
     const name = text.trim();
@@ -384,6 +441,9 @@ export function JobMaterialsFace({
             <Shelf key={s.key} id={`${made}-${s.key}`} icon={s.icon} hue={s.hue} label={s.label}>
               {s.items.map((item) => (
                 <MaterialRow key={item.id} item={item} timezone={timezone} today={today} manage={manage} onTick={onTick} onRemove={onRemove} word={stockWordOf(item, stock)} />
+              ))}
+              {s.quote.map((r) => (
+                <QuoteRow key={`q-${r.key}`} row={r} ready={ready} onLoad={load} />
               ))}
             </Shelf>
           ))}

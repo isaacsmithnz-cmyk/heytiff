@@ -1475,23 +1475,27 @@ export function JobSheet({
     void removePicklistItem(id).catch((e: unknown) => onToast(thrownWords(e, "Could not remove that line")));
   };
 
-  const addChecklistItem = (input: { kind: "material" | "todo"; name: string; qty: string; sub?: string }) => {
+  /* `picked`: a quote's unit ticked as loaded goes on the list, then is ticked */
+  const addChecklistItem = ({ picked = false, ...input }: { kind: "material" | "todo"; name: string; qty: string; sub?: string; picked?: boolean }) => {
     if (!cardId) return;
+    const now = new Date().toISOString();
     const temp: JobPicklistItem = {
       id: `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       name: input.name,
       sub: input.sub ?? "",
       qty: input.qty,
       kind: input.kind,
-      picked: false,
-      pickedAt: null,
+      picked,
+      pickedAt: picked ? now : null,
       pickedBy: null,
       addedBy: null,
       designId: null,
-      addedAt: new Date().toISOString(),
+      addedAt: now,
     };
     setPicklist((cur) => [...(cur ?? []), temp]);
     void addJobPicklistItem(cardId, input)
+      /* added but the tick didn't save: the row stays, unticked, to tick again */
+      .then((item) => (picked ? setPicklistItemPicked(item.id, true).then((saved) => saved ?? item, () => item) : item))
       .then((item) => {
         setPicklist((cur) => (cur ?? []).map((p) => (p.id === temp.id ? item : p)));
       })

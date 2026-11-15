@@ -107,3 +107,30 @@ it("the microphone is the one icon-only button, and the To do kind is gone", () 
   expect(screen.queryByRole("button", { name: "To do" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Material" })).toBeNull();
 });
+
+/* The quote's units on a job with no pick list (Isaac, 15 November 2026,
+   "Yes, add them"): 2798, 3209, 3446 and 3516 showed no units once the
+   Overview's Equipment block went. */
+const UNIT = { key: "u", title: "Ducted unit 14 kW", detail: "PEA-M140HAA", qty: 1, group: "unit" as const, when: null, word: { tone: "look" as const, word: "To order" } };
+const CONTROL = { key: "c", title: "Zone controller", detail: "ZONEIQ-8", qty: 1, group: "control" as const, when: null, word: { tone: "good" as const, word: "In stock" } };
+const DUCT = { key: "d", title: "Ductwork, suggested", detail: "200 flex x 6", qty: 1, group: "duct" as const, when: null, word: null };
+
+it("lists the quote's units and controls the list doesn't have, with Stock's word, and ticking one adds it ticked", () => {
+  const onAdd = jest.fn();
+  render(<JobMaterialsFace loading={false} sm8={[]} items={[]} timezone={null} manage ready onTick={jest.fn()} onRemove={jest.fn()} onAdd={onAdd} stock={[UNIT, CONTROL, DUCT]} />);
+  expect(screen.getByRole("heading", { name: "Units" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Controls and zoning" })).toBeInTheDocument();
+  expect(screen.getByText("To order")).toBeInTheDocument();
+  expect(screen.getByText("In stock")).toBeInTheDocument();
+  expect(screen.queryByText("Ductwork, suggested")).toBeNull();
+  fireEvent.click(screen.getByLabelText("Loaded: Ducted unit 14 kW"));
+  expect(onAdd).toHaveBeenCalledWith({ kind: "material", name: "Ducted unit 14 kW", qty: "1", sub: "PEA-M140HAA", picked: true });
+});
+
+it("a unit already on the list isn't listed twice", () => {
+  const item = { id: "p1", name: "Ducted indoor", sub: "PEA-M140HAA", qty: "1", kind: "material" as const, picked: false, pickedAt: null, pickedBy: null, addedBy: null, designId: null, addedAt: "2026-11-01T00:00:00Z" };
+  render(<JobMaterialsFace loading={false} sm8={[]} items={[item]} timezone={null} manage ready onTick={jest.fn()} onRemove={jest.fn()} onAdd={jest.fn()} stock={[UNIT]} />);
+  expect(screen.getByText("Ducted indoor")).toBeInTheDocument();
+  expect(screen.queryByText("Ducted unit 14 kW")).toBeNull();
+  expect(screen.getAllByText("To order")).toHaveLength(1);
+});

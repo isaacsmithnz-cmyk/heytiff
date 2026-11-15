@@ -107,6 +107,14 @@ describe("an apply event", () => {
     expect(onApply).toHaveBeenCalledWith({ target: "design-roof", designId: "d1", roof: { parts: [] } });
   });
 
+  it("hands a subfloor asked for in the chat to the page", async () => {
+    const subfloor = { rooms: ["family"], heightMm: 1400, remove: false };
+    streamLines([{ t: "apply", target: "design-subfloor", designId: "d1", subfloor }, { t: "done" }]);
+    const onApply = jest.fn();
+    await askBrain({ question: "subfloor under the family room at 1400" }, { ...done, onApply });
+    expect(onApply).toHaveBeenCalledWith({ target: "design-subfloor", designId: "d1", subfloor });
+  });
+
   it("passes on nothing it doesn't know", async () => {
     streamLines([{ t: "apply", target: "the-bank", designId: "d1", roof: {} }, { t: "apply", target: "design-roof", roof: {} }, { t: "done" }]);
     const onApply = jest.fn();

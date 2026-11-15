@@ -1,6 +1,7 @@
 import "server-only";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { isDesignDocumentShape } from "./document";
+import { askedSubfloor, type SubfloorAsk } from "./floor-spaces";
 import { firstPlanPage, type RoofReading } from "./reading";
 import { readRoof, type SheetToRead } from "./reading-server";
 
@@ -33,3 +34,16 @@ export async function reviseDesignRoof(orgId: string, designId: string, words: s
     return { ok: false, error: "The drawings couldn't be read again this time." };
   }
 }
+
+/** A subfloor asked for in the design's chat, tried on the design as saved:
+    what to tell the person, and whether the open design should take it.
+    Nothing is saved here either: the open design makes it through its own
+    history (studio.tsx, TIFF_APPLY), on the design as it stands there. */
+export async function askSubfloor(orgId: string, designId: string, ask: SubfloorAsk): Promise<{ ok: boolean; said: string }> {
+  if (!designId) return { ok: false, said: "Open the design first." };
+  const { data, error } = await supabaseAdmin.from("studio_designs").select("doc").eq("org_id", orgId).eq("id", designId).maybeSingle();
+  if (error || !data || !isDesignDocumentShape(data.doc)) return { ok: false, said: "That design isn't saved yet." };
+  const made = askedSubfloor(data.doc, ask);
+  return { ok: made.ok, said: made.said };
+}
+

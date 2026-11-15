@@ -9,6 +9,7 @@
 import type { DesignDocument, Floor, FloorSpace, Point } from "./document";
 import { polygonArea } from "./geometry";
 import type { ReadSpace } from "./reading";
+import { andList } from "@/lib/swms/library";
 
 export type SpaceKind = "under" | "over";
 
@@ -288,3 +289,96 @@ export function mentionWords(doc: Pick<DesignDocument, "floors" | "reading">): s
   if (!read || read.shown !== "mentioned" || !canAdd(doc, "under")) return null;
   return `The plans mention a subfloor${read.sheet ? `, on ${read.sheet}` : ""}`;
 }
+
+/* ── asked of Tiff in the design's chat ──────────────────────────────── */
+
+/** A subfloor asked for in words (Isaac, 15 November 2026: "create a
+    subfloor area under family @ 1400 high"): the rooms it runs under, by
+    name, on the lowest floor (null keeps where it is; none, the whole
+    floor), its height (null keeps it), or taken away. */
+export type SubfloorAsk = { rooms: string[] | null; heightMm: number | null; remove: boolean };
+
+const key = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+/** a room named in words against one on the plan: the same, one inside the
+    other ("family" in "Family room"), or a word of it cut short ("kit" for
+    the kitchen) */
+function names(word: string, name: string): boolean {
+  const a = key(word);
+  const b = key(name);
+  if (!a || !b) return false;
+  if (a === b || b.includes(a) || a.includes(b)) return true;
+  const as = a.split(" ").filter((t) => t.length >= 3);
+  const bs = b.split(" ").filter((t) => t.length >= 3);
+  return as.length > 0 && as.every((t) => bs.some((u) => t.startsWith(u) || u.startsWith(t)));
+}
+
+/** The rooms on a floor that can stand over a subfloor, each with its outline on the floor. */
+function roomsOn(doc: Pick<DesignDocument, "reading" | "objects">, floor: Floor): { name: string; outline: Point[] }[] {
+  const out: { name: string; outline: Point[] }[] = [];
+  for (const o of doc.objects)
+    if (o.floorId === floor.id && o.type === "room" && o.geometry.kind === "polygon" && o.geometry.points.length >= 3)
+      out.push({ name: String(o.props.name ?? ""), outline: o.geometry.points });
+  for (const r of doc.reading?.floors[floor.id] ?? []) {
+    const sheet = floor.plans.find((p) => p.id === r.sheetId);
+    if (!sheet) continue;
+    for (const sp of r.spaces) if (sp.outline.length >= 3 && standsOver(sp)) out.push({ name: sp.name, outline: sp.outline.map((p) => ({ x: sheet.x + p.x, y: sheet.y + p.y })) });
+  }
+  return out.filter((r) => r.name.trim());
+}
+
+/** The design with the subfloor asked for, and what to say of it; or why it can't be. */
+export function askedSubfloor(doc: DesignDocument, ask: SubfloorAsk): { ok: true; doc: DesignDocument; said: string } | { ok: false; said: string } {
+  const floor = lowestFloor(doc);
+  if (!floor) return { ok: false, said: "The design has no floor to put a subfloor under yet." };
+  if (ask.remove) {
+    if (!floor.under) return { ok: false, said: "The design has no subfloor to take away." };
+    return { ok: true, doc: removeSpace(doc, "under"), said: `Took the subfloor away from under the ${floor.name}.` };
+  }
+  if (ask.heightMm != null && (heightOf(ask.heightMm) == null || ask.heightMm < 100 || ask.heightMm > 6000))
+    return { ok: false, said: `${ask.heightMm} mm isn't a subfloor's height: give it in millimetres, between 100 and 6000.` };
+  if (floor.under && ask.rooms == null && ask.heightMm == null) return { ok: false, said: "Say the rooms it runs under, or how high it is." };
+
+  let outline: Point[] | null | undefined;
+  let under = "";
+  if (ask.rooms && ask.rooms.length > 0) {
+    const rooms = roomsOn(doc, floor);
+    const picked: { name: string; outline: Point[] }[] = [];
+    const missing: string[] = [];
+    for (const word of ask.rooms) {
+      const hit = rooms.filter((r) => names(word, r.name));
+      if (hit.length) picked.push(...hit);
+      else missing.push(word);
+    }
+    if (missing.length) {
+      const known = [...new Set(rooms.map((r) => r.name))];
+      return {
+        ok: false,
+        said: `There's no ${andList(missing.map((m) => `"${m}"`))} on the ${floor.name}${known.length ? `. Its rooms are ${andList(known)}` : ", which has no rooms marked or read yet"}.`,
+      };
+    }
+    outline = traceOutline(picked.map((r) => r.outline), floor.scaleMmPerUnit);
+    if (!outline) return { ok: false, said: "Those rooms' outline couldn't be traced." };
+    under = andList([...new Set(picked.map((r) => r.name))]);
+  } else if (ask.rooms) outline = null;
+
+  const was = floor.under;
+  /* rooms named: drawn round them, by hand (what the plans drew is kept to
+     go back to); the whole floor: it follows the floor; neither: as it was */
+  const space: FloorSpace =
+    outline === undefined
+      ? { heightMm: was?.heightMm ?? null, outline: was?.outline ?? null, from: was?.from ?? "hand", ...(was?.planOutline ? { planOutline: was.planOutline } : {}), ...(was?.said ? { said: was.said } : {}) }
+      : outline === null
+        ? { heightMm: was?.heightMm ?? null, outline: null, from: "hand" }
+        : { heightMm: was?.heightMm ?? null, outline, from: "hand", ...(was?.planOutline ? { planOutline: was.planOutline } : {}) };
+  if (ask.heightMm != null) {
+    space.heightMm = heightOf(ask.heightMm);
+    delete space.said;
+  }
+  const next = withSpace(doc, floor.id, "under", space);
+  const at = outlineOf(next, floor, space);
+  const m2 = at ? areaM2(at, floor.scaleMmPerUnit) : null;
+  const where = under ? `under ${under}` : space.outline ? "where it was drawn" : `under the whole ${floor.name}`;
+  const high = space.heightMm ? `${space.heightMm} mm high` : "its height not set yet";
+  return { ok: true, doc: next, said: `${was ? "The subfloor is now" : "Made a subfloor"} ${where}, ${high}${m2 ? `, about ${Math.round(m2)} m²` : ""}.` };
+}
+

@@ -21,7 +21,7 @@ export type BrainAskHandlers = {
   onOffer?: (offer: unknown) => void;
 };
 
-export type TiffApply = { target: "design-roof"; designId: string; roof: unknown };
+export type TiffApply = { target: "design-roof"; designId: string; roof: unknown } | { target: "design-subfloor"; designId: string; subfloor: unknown };
 
 /** The window event a tool's result for the page goes out on: the page
     open (Design) listens, and nothing else does. */
@@ -119,6 +119,7 @@ export async function askBrain(
       if (event.offer && typeof event.offer === "object") handlers.onOffer?.(event.offer);
     } else if (event.t === "apply") {
       if (typeof event.designId === "string" && event.target === "design-roof") handlers.onApply?.({ target: "design-roof", designId: event.designId, roof: event.roof });
+      else if (typeof event.designId === "string" && event.target === "design-subfloor") handlers.onApply?.({ target: "design-subfloor", designId: event.designId, subfloor: event.subfloor });
     } else if (event.t === "screen") {
       /* A move is the end of the turn: nothing after it (a torn connection
          included) is reported as a cut-off answer. */

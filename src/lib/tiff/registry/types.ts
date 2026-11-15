@@ -44,8 +44,10 @@ export type Outcome =
   | { kind: "result"; value: unknown }
   | { kind: "screen"; href: string; label: string; line: string }
   /** Something for the page open to take in its own history, with Undo: the
-      tool itself writes nothing. Today only a design's corrected roof. */
+      tool itself writes nothing: a design's corrected roof, or its subfloor
+      as asked (floor-spaces.ts SubfloorAsk). */
   | { kind: "apply"; target: "design-roof"; designId: string; roof: unknown; said: string }
+  | { kind: "apply"; target: "design-subfloor"; designId: string; subfloor: unknown; said: string }
   /** A result for the model, and something the person may take from her
       answer: a quick price's Add to quote. Writes nothing itself. */
   | { kind: "offer"; value: unknown; offer: unknown };

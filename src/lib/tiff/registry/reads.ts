@@ -16,7 +16,7 @@ import { retrieveForQuestion } from "@/lib/tiff/retrieve";
 import type { NoteTarget } from "@/app/actions/workboard-notes";
 import { fitDesignRead } from "@/lib/quotes/design-read";
 import { readAnyDesign } from "@/lib/quotes/design-read-server";
-import { reviseDesignRoof } from "@/lib/studio/revise-server";
+import { askSubfloor, reviseDesignRoof } from "@/lib/studio/revise-server";
 import { quickPriceFor } from "@/lib/quotes/quick-price-server";
 import type { Outcome, TiffTool } from "./types";
 
@@ -93,6 +93,44 @@ export const READS: readonly TiffTool[] = [
       const got = await reviseDesignRoof(viewer.orgId, designId, typeof input.words === "string" ? input.words : "");
       if (!got.ok) return result({ changed: false, said: got.error });
       return { kind: "apply", target: "design-roof", designId, roof: got.roof, said: got.said };
+    },
+  },
+
+  /* Tiff makes the subfloor from the chat (Isaac, 15 November 2026: "What
+     if I said, create a subfloor area under family @ 1400 high to her in
+     chat on design?"). Under rooms named on the lowest floor, the whole
+     floor, a height, or taken away; the open design makes it in its own
+     history, so Undo takes it back. Nothing is written here. */
+  {
+    name: "design_subfloor",
+    label: "Making the subfloor",
+    risk: "read",
+    gate: { capability: "studio" },
+    description:
+      "Make, change or take away the subfloor (the space under the house, where outdoor units and ducts can go) of the design open on the screen (its id is in the screen line), when the person asks: " +
+      "\"put a subfloor under the family room at 1400\", \"make the subfloor 900 high\", \"run it under the kitchen and laundry too\", \"take the subfloor out\". " +
+      "It sits under the design's lowest floor. Give the rooms it runs under by their names as the person said them; give no rooms at all to keep where it is, or an empty list for under the whole floor. " +
+      "Give the height in millimetres (1.4 m is 1400) or leave it out to keep it. The open design takes it, and they can undo it. " +
+      "Only for the design open on the screen. Then say in a line what was made, as the result says it; if the result says a room wasn't found, say so and name the rooms it lists.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        design_id: { type: "string", description: "The open design's id, from the screen line" },
+        rooms: { type: "array", items: str, description: "The rooms it runs under, by name; empty for the whole lowest floor; leave out to keep where it is" },
+        height_mm: { type: "number", description: "How high it is, ground to the underside of the floor, in mm; leave out to keep it" },
+        remove: { type: "boolean", description: "True to take the subfloor away" },
+      },
+      required: ["design_id"],
+      additionalProperties: false,
+    },
+    run: async (viewer, input) => {
+      const designId = typeof input.design_id === "string" ? input.design_id.slice(0, 80) : "";
+      const rooms = Array.isArray(input.rooms) ? input.rooms.filter((r): r is string => typeof r === "string").map((r) => r.slice(0, 80)).slice(0, 30) : null;
+      const heightMm = typeof input.height_mm === "number" && Number.isFinite(input.height_mm) ? input.height_mm : null;
+      const subfloor = { rooms, heightMm, remove: input.remove === true };
+      const got = await askSubfloor(viewer.orgId, designId, subfloor);
+      if (!got.ok) return result({ changed: false, said: got.said });
+      return { kind: "apply", target: "design-subfloor", designId, subfloor, said: got.said };
     },
   },
 

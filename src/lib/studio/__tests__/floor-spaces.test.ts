@@ -3,6 +3,7 @@ import type { PlanReading, SheetReading } from "../reading";
 import {
   addSpace,
   areaM2,
+  askedSubfloor,
   canAdd,
   fitWords,
   floorOutline,
@@ -164,3 +165,49 @@ describe("what fits in it", () => {
     expect(fitWords("under", 981, null)).toEqual({ text: "The subfloor's height isn't set", good: null });
   });
 });
+
+describe("asked for in Tiff's chat", () => {
+  const ask = (rooms: string[] | null, heightMm: number | null = null, remove = false) => ({ rooms, heightMm, remove });
+
+  it("makes one under the rooms named, at the height said, drawn round them", () => {
+    const made = askedSubfloor(design(), ask(["living"], 1400));
+    expect(made.ok).toBe(true);
+    if (!made.ok) return;
+    const under = made.doc.floors.find((f) => f.id === "gf")!.under!;
+    expect(under).toMatchObject({ heightMm: 1400, from: "hand" });
+    const xs = under.outline!.map((p) => p.x);
+    expect(Math.min(...xs)).toBe(100);
+    expect(Math.max(...xs)).toBe(600);
+    expect(made.said).toBe("Made a subfloor under Living, 1400 mm high, about 20 m².");
+  });
+
+  it("finds a room by a word of its name, cut short or not", () => {
+    const made = askedSubfloor(design(), ask(["bed", "living room"], 900));
+    expect(made.ok && made.said).toBe("Made a subfloor under Bed 1 and Living, 900 mm high, about 37 m².");
+  });
+
+  it("goes under the whole floor for no rooms, and keeps where it is when the rooms aren't said", () => {
+    const whole = askedSubfloor(design(), ask([], 1200));
+    expect(whole.ok && whole.said).toMatch(/^Made a subfloor under the whole Ground floor, 1200 mm high, about \d+ m²\.$/);
+    if (!whole.ok) return;
+    expect(whole.doc.floors[0].under?.outline).toBeNull();
+    const higher = askedSubfloor(whole.doc, ask(null, 1500));
+    expect(higher.ok && higher.doc.floors[0].under).toMatchObject({ heightMm: 1500, outline: null });
+    expect(higher.ok && higher.said).toMatch(/^The subfloor is now under the whole Ground floor, 1500 mm high/);
+  });
+
+  it("says which rooms there are when one named isn't on the lowest floor", () => {
+    const made = askedSubfloor(design(), ask(["family"], 1400));
+    expect(made).toEqual({ ok: false, said: `There's no "family" on the Ground floor. Its rooms are Living, Bed 1 and Balcony.` });
+  });
+
+  it("refuses a height that isn't one, and takes it away when asked", () => {
+    expect(askedSubfloor(design(), ask(null, 14)).ok).toBe(false);
+    expect(askedSubfloor(design(), ask(null, null, true))).toEqual({ ok: false, said: "The design has no subfloor to take away." });
+    const made = askedSubfloor(design(), ask(["living"], 1400));
+    if (!made.ok) throw new Error("not made");
+    const gone = askedSubfloor(made.doc, ask(null, null, true));
+    expect(gone.ok && gone.doc.floors[0].under).toBeUndefined();
+  });
+});
+

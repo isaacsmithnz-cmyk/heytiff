@@ -88,7 +88,6 @@ jest.mock("@/lib/voice/transcribe", () => ({ isTranscriptionConfigured: () => fa
 jest.mock("@/lib/integrations/store", () => ({
   getConnectionView: jest.fn(async () => null),
 }));
-jest.mock("@/components/workboard/quote/quote-screen", () => ({ QuoteScreen: () => null }));
 jest.mock("@/lib/workboard/all-jobs-query", () => ({
   resolveJobCard: jest.fn(async (_org: string, id: string) => ({ parentRemoteId: id, focusRemoteId: null })),
 }));
@@ -163,7 +162,6 @@ describe("the dynamic leaves check the same door", () => {
   type Leaf = { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> };
   const DYNAMIC: [string, (p: Leaf) => Promise<unknown>][] = [
     ["jobs/projects/[id]", ProjectPage],
-    ["jobs/[id]/quote", JobQuotePage],
   ];
   const props = { params: Promise.resolve({ id: "x-1" }), searchParams: Promise.resolve({}) };
 
@@ -267,26 +265,28 @@ describe("the knowledge base hands the client what this viewer may do", () => {
   });
 });
 
-/* Anyone on the Workboard quotes, its money hidden without financials
-   (Isaac, 2026-10-12: "the quoting section should still be accessible. For
-   techs who are quoting a job"); without the Workboard, nobody. */
-describe("the quote page", () => {
-  it("lets a tech in without Workboard manage, without the money", async () => {
+/* THE QUOTE'S OLD PAGE lands on the job's Price tab, where the quote and
+   its page are one (the job page plan's build 10, 15 November 2026), asking
+   what it asked; without the Workboard, nobody. */
+describe("the quote's old page", () => {
+  const open = (q: Record<string, string> = {}) => JobQuotePage({ params: Promise.resolve({ id: "x-1" }), searchParams: Promise.resolve(q) });
+
+  it("lands on the job's Price tab", async () => {
     (can as jest.Mock).mockImplementation(async (cap: string) => cap === "workboard");
-    const page = (await JobQuotePage({ params: Promise.resolve({ id: "x-1" }), searchParams: Promise.resolve({}) })) as { props: { moneyVisible: boolean; financials: boolean; start: boolean } };
-    expect(page.props).toMatchObject({ moneyVisible: false, financials: false, start: false });
+    await expect(open()).rejects.toThrow("REDIRECT:/dashboard/jobs/x-1?tab=price");
   });
 
-  /* the job card's Create a quote links ?start=1 (the chat-first page, 2026-10-13) */
-  it("starts at the reply box from the job card's Create a quote", async () => {
+  /* the job card's Create a quote linked ?start=1 (the chat-first page, 2026-10-13) */
+  it("keeps the start, the option and Update quote it asked for", async () => {
     (can as jest.Mock).mockImplementation(async () => true);
-    const page = (await JobQuotePage({ params: Promise.resolve({ id: "x-1" }), searchParams: Promise.resolve({ start: "1" }) })) as { props: { start: boolean } };
-    expect(page.props.start).toBe(true);
+    await expect(open({ start: "1" })).rejects.toThrow("REDIRECT:/dashboard/jobs/x-1?tab=price&start=1");
+    await expect(open({ option: "2", update: "1" })).rejects.toThrow("REDIRECT:/dashboard/jobs/x-1?tab=price&option=2&update=1");
   });
 
   it("sends someone without the Workboard away", async () => {
     (can as jest.Mock).mockImplementation(async () => false);
-    await expect(JobQuotePage({ params: Promise.resolve({ id: "x-1" }), searchParams: Promise.resolve({}) })).rejects.toThrow("REDIRECT:/dashboard");
+    await expect(open()).rejects.toThrow("REDIRECT:/dashboard");
+    expect(can).toHaveBeenCalledWith("workboard");
   });
 });
 
@@ -305,12 +305,12 @@ describe("retired → the v2 home", () => {
     [
       "workboard/quotes/[id]?start=1",
       () => OldQuotePage({ params: Promise.resolve({ id: "j-1" }), searchParams: Promise.resolve({ start: "1" }) }),
-      "/dashboard/jobs/j-1/quote?start=1",
+      "/dashboard/jobs/j-1?tab=price&start=1",
     ],
     [
       "workboard/quotes/[id]?option=2",
       () => OldQuotePage({ params: Promise.resolve({ id: "j-1" }), searchParams: Promise.resolve({ option: "2" }) }),
-      "/dashboard/jobs/j-1/quote?option=2",
+      "/dashboard/jobs/j-1?tab=price&option=2",
     ],
     /* the field tools are the Library's Toolbox shelf */
     ["toolbox", ToolboxPage, "/dashboard/tiff/library?view=toolbox"],

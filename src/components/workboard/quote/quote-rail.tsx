@@ -11,7 +11,7 @@ import type { OptionPrice, QuotePrice } from "@/lib/quotes/quote-price-server";
 import { cents2, labourOf, quoteParts, unitsOf } from "@/lib/quotes/quote-sum";
 import type { JobMediaItem } from "@/lib/workboard/job-media";
 import { DocRow } from "../board/job-documents-face";
-import type { Sm8Quote } from "../board/job-quote-card";
+import type { Sm8Quote } from "./sm8-quote-of";
 
 /* THE RAIL: what the quote comes to, beside the conversation (the
    chat-first quote page, Isaac, 2026-10-13), in layout B (his pick, 21

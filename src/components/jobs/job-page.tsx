@@ -14,6 +14,7 @@ import { jobPageHref, projectHref } from "@/lib/shell/links";
 import { recordKey, type RecordRef } from "@/lib/records/ref";
 import { jobHue } from "@/lib/workboard/job-hue";
 import { noteJobOpened } from "@/lib/jobs/opened-jobs";
+import type { PriceAsk } from "@/lib/jobs/job-prices";
 import type { AllJobRow } from "@/lib/workboard/all-jobs";
 
 /* ONE JOB AS A PAGE (v2, step 5, "Jobs and a job"), inside the dashboard
@@ -32,18 +33,25 @@ export function JobPage({
   section: firstSection,
   manage,
   moneyVisible,
+  financials = false,
   studio = false,
   add = null,
+  price = null,
   first,
 }: {
   row: AllJobRow;
   section: JobSection;
   manage: boolean;
   moneyVisible: boolean;
+  /** `financials`: the quote's own money on Price */
+  financials?: boolean;
   /** Holds the Studio: the job has a Design section. */
   studio?: boolean;
   /** `?add=`: Documents' Make a document asked for a SWMS or a certificate */
   add?: "swms" | "certificate" | null;
+  /** What Price was asked to open on: the quote's old page's `?start=`,
+      `?option=` and `?update=`, a claim's own number's `?invoice=` */
+  price?: Omit<PriceAsk, "n"> | null;
   /** What the page read on the server for the card (JobCardFirst). */
   first?: JobCardFirst;
 }) {
@@ -52,6 +60,16 @@ export function JobPage({
   const records = useRecords();
   const remember = useContext(WindowsContext)?.remember;
   const [section, setSection] = useState<JobSection>(firstSection);
+  /* A LINK TO THIS JOB FROM THIS JOB (a variation's Open, a Since the quote
+     in Tiff's window) comes back as new props, not a new page: the section
+     and Price's ask follow them */
+  const [priceAsk, setPriceAsk] = useState<PriceAsk | null>(() => (price ? { ...price, n: 1 } : null));
+  const [propsSeen, setPropsSeen] = useState({ firstSection, price });
+  if (propsSeen.firstSection !== firstSection || propsSeen.price !== price) {
+    setPropsSeen({ firstSection, price });
+    setSection(firstSection);
+    if (price) setPriceAsk((was) => ({ ...price, n: (was?.n ?? 0) + 1 }));
+  }
   const { toasts, toast, dismiss } = useBoardToasts();
   const [agreementFrom, setAgreementFrom] = useState<AllJobRow | null>(null);
 
@@ -74,14 +92,16 @@ export function JobPage({
     noteJobOpened(sm8Id);
   }, [sm8Id]);
 
-  /* `?add=` is asked once: the address drops it, so a reload or a copied
-     link opens the job, not the wizard again */
+  /* `?add=`, and Price's `?start=`, `?option=`, `?update=` and `?invoice=`,
+     are asked once: the address drops them, so a reload or a copied link
+     opens the job, not the wizard or a new quote again */
   useEffect(() => {
     const url = new URL(window.location.href);
-    if (!url.searchParams.has("add")) return;
-    url.searchParams.delete("add");
+    const once = ["add", "start", "option", "update", "invoice"].filter((k) => url.searchParams.has(k));
+    if (once.length === 0) return;
+    for (const k of once) url.searchParams.delete(k);
     window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
-  }, []);
+  }, [priceAsk?.n]);
 
   const pins = useSyncExternalStore(subscribePins, pinsSnapshot, pinsServerSnapshot);
   const pinned = isPinned(pins, ref);
@@ -120,10 +140,11 @@ export function JobPage({
           row={row}
           manage={manage}
           moneyVisible={moneyVisible}
+          financials={financials}
           studio={studio}
           initialTab={SECTION_FACES[firstSection][0]}
           first={first}
-          page={{ section, onSection: goSection, actions, onAction: (key) => void onAction(key), add }}
+          page={{ section, onSection: goSection, actions, onAction: (key) => void onAction(key), add, price: priceAsk }}
           /* New agreement opens over the page (rule 51), the job filled in */
           onCreateAgreement={(r) => setAgreementFrom(r)}
           /* a visit opens over the page; a project on its own page */

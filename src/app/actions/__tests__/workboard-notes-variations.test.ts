@@ -268,7 +268,7 @@ describe("starting a variation from the words", () => {
         how: "started",
         title: "Started variation 1: return grille in Bed 2",
         line: "A draft to change and price on the quote.",
-        href: `/dashboard/jobs/${JOB}/quote?option=1`,
+        href: `/dashboard/jobs/${JOB}?tab=price&option=1`,
         undo: true,
       },
     ]);

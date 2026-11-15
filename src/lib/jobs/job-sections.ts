@@ -10,9 +10,12 @@ import type { JobSheetTab } from "@/components/workboard/board/job-sheet";
      Scope     = the job's Scope, Since the quote and Latest updates, or its
                  Summary where it has no Scope (Isaac, 13 November 2026:
                  "Give scope its own tab"; mock A, 14 November)
-     Price     = the quote, where what the job is charged is built (Isaac, 13
-                 November 2026, who named it); today's Quote under its new
-                 name, a variation's "Variation" kept inside
+     Price     = where what the job is charged is built (Isaac, 13 November
+                 2026, who named it): every price on the job as a card, the
+                 quote and, to money, each invoice, the one open in Chat,
+                 Line items and Preview with its rail (build 10, 15
+                 November); the quote's own page is Price now, a
+                 variation's "Variation" kept inside
      On site   = the visits with their tasks, what's not on a day yet, and
                  the materials, each unit and control with its word from
                  Stock (mock F, 14 November 2026); Visits and Materials (the

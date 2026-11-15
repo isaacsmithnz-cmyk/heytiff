@@ -4208,34 +4208,10 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring);; border-r
 /* the claim the page was opened for, from a clone's own number */
 .fg .jb-pay .pt-row:has(.jb-here) { background:var(--sel); }
 .fg .jb-end { display:flex; align-items:center; gap:24px; }
-.fg .jb-amt,
-.pt-dialog .jb-amt { display:inline-flex; align-items:baseline; justify-content:flex-end; gap:8px; min-width:72px; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.fg .jb-amt { display:inline-flex; align-items:baseline; justify-content:flex-end; gap:8px; min-width:72px; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; white-space:nowrap; }
 .fg .jb-word { min-width:144px; justify-content:flex-end; white-space:nowrap; }
 .fg .jb-err { display:flex; align-items:center; gap:8px; margin:0; font-size:13px; line-height:18px; font-weight:500; color:var(--red-w); }
 @media (max-width:900px) { .fg .jb-band { grid-template-columns:minmax(0,1fr); gap:24px; } }
-/* a claim, opened: the close cross in the title's row, and the body's own
-   foot room, as the dialog has no buttons */
-.pt-scrim .pt-dialog:has(.jb-x) { position:relative; }
-.pt-scrim .pt-dialog:has(.jb-x) .pt-dialog-title { padding-right:64px; }
-.pt-dialog .pt-dialog-body:has(> .jb-x) { padding-bottom:24px; }
-.pt-dialog .pt-dialog-body .jb-x { position:absolute; top:24px; right:24px; }
-.pt-dialog .pt-dialog-body .jb-cl-line { margin:0 0 16px; font-size:14px; line-height:20px; color:var(--q); }
-.pt-dialog .pt-dialog-body .jb-cl-amt { display:flex; align-items:baseline; gap:12px; margin:0 0 24px; }
-.pt-dialog .pt-dialog-body .jb-cl-amt > b { font-size:20px; line-height:28px; font-weight:600; font-variant-numeric:tabular-nums; }
-.pt-dialog .jb-cl-grp { display:flex; flex-direction:column; gap:4px; }
-.pt-dialog .jb-cl-grp + .jb-cl-grp { margin-top:16px; }
-.pt-dialog .jb-cl-grp > h3 { margin:0; font-size:14px; line-height:20px; font-weight:600; }
-.pt-dialog .jb-cl-rows { margin:0; padding:0; list-style:none; border-top:1px solid var(--line); }
-.pt-dialog .jb-cl-rows > li { display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--line); }
-.pt-dialog .jb-cl-t { flex:1; display:flex; flex-direction:column; min-width:0; }
-.pt-dialog .jb-cl-t > b { font-weight:600; overflow-wrap:anywhere; }
-.pt-dialog .jb-cl-t > em,
-.pt-dialog .jb-cl-note > em { font-style:normal; font-size:13px; line-height:18px; color:var(--q); }
-.pt-dialog .pt-dialog-body .jb-cl-none { margin:0; font-size:13px; line-height:18px; color:var(--q); }
-.pt-dialog .pt-dialog-body .jb-cl-note > p { margin:0; white-space:pre-wrap; }
-.pt-dialog .jb-cl-note + .jb-cl-note { padding-top:8px; border-top:1px solid var(--line); }
-.pt-dialog .pt-dialog-body .jb-cl-paper { margin:0; }
-.pt-dialog .pt-link.jb-cl-open { padding:0; border:0; background:none; font:inherit; text-align:start; }
 
 .wb2-shcar { font-style:normal; font-size:12px; margin-left:4px; vertical-align:middle; }
 
@@ -5709,41 +5685,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .qs-item { min-width:0; }
 .qs-item em { display:block; font-style:normal; font-size:13px; font-weight:500; color:var(--q); }
 
-/* ===== THE QUOTE TAB'S LANDING, "QUOTES" (v2; job-quote-card.tsx) =====
-   Isaac, 18 October: the Quote tab opens on its quotes. The job's one quote
-   is a card (rule 35, something you act on), in one of three states: nothing
-   yet, in progress, accepted with its versions and variations as rows under
-   it (rule 39). ServiceM8's own quote sits under it as a card of its own,
-   with a caption over it. The parts draw the buttons, the state words, the
-   initials and the rows; these rules only lay them out. No `.fg`: the job
-   card is a dialog, portalled to <body>. */
-.qland { display:flex; flex-direction:column; gap:16px; max-width:1040px; font-family:var(--font); color:var(--ink); }
-.qland .qland-title { margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
-.qland-card { border:1px solid var(--line); border-radius:var(--r-card); background:var(--white); padding:24px; display:flex; flex-direction:column; gap:16px; min-width:0; }
-.qland-card.qland-card--rows { padding:8px 12px; }
-/* nothing yet: what's missing and its two doors, from the card's start (rule 40) */
-.qland-first .pt-empty { align-items:flex-start; text-align:start; min-height:0; padding:0; gap:0; }
-.qland-first .pt-empty-act { justify-content:flex-start; }
-.qland-top { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; }
-.qland-id { display:flex; flex-direction:column; gap:4px; min-width:0; flex:1; }
-.qland .qland-name { margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
-.qland .qland-line { margin:0; font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
-.qland .qland-sum { margin:0; display:flex; flex-direction:column; align-items:flex-end; flex:none; text-align:end; }
-.qland-sum b { font-size:16px; line-height:24px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
-.qland-sum span { font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
-.qland-foot { display:flex; align-items:center; flex-wrap:wrap; gap:12px 16px; }
-.qland-foot .qland-state { flex:1; min-width:0; }
-.qland-state { display:inline-flex; align-items:baseline; min-width:0; }
-.qland-rest { font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
-.qland-who { display:inline-flex; align-items:center; gap:8px; font-size:13px; line-height:18px; font-weight:500; color:var(--ink); }
-/* the versions and variations: rows under a hairline, the card's own edge their ends */
-.qland-rows { border-top:1px solid var(--line); margin:0 -12px; }
-.qland-end { display:inline-flex; align-items:center; gap:16px; }
-.qland-fig { font-size:14px; line-height:20px; font-weight:500; color:var(--ink); font-variant-numeric:tabular-nums; }
-.qland-acts { display:flex; flex-wrap:wrap; gap:8px; }
-.qland-sm8 { display:flex; flex-direction:column; gap:8px; }
-.qland .qland-label { margin:0; font-size:12px; line-height:16px; font-weight:500; color:var(--q); }
-
 /* ===== V2: A JOB'S PAGE (v2, step 5, "Jobs and a job") =====
    components/jobs and job-sheet.tsx's page mode. The head: the job's name,
    one grey line (its colour's dot, its kind, number and address, and where
@@ -5852,6 +5793,56 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jp-files-side { display:flex; flex-direction:column; gap:16px; min-width:0; max-height:var(--fit-h, none); }
 .fg .jp-files-side > .wb2-jcface { flex:0 1 auto; min-height:0; }
 .fg .jp-files-side > .wb2-jcface[hidden] { display:none; }
+/* PRICE (the job page plan's build 10, 15 November 2026): every price on
+   the job as a flat card across the top, the one open filled light (old law
+   14: a selection is a fill, never an edge), then the one open, fitted to
+   the screen: its views in a tray over the left, its rail 400 wide down the
+   right with its buttons pinned at the foot, as the quote page had them */
+.fg .jp-price { display:flex; flex-direction:column; height:var(--fit-h, auto); min-height:0; }
+.fg .jpr { flex:1; min-height:0; display:flex; flex-direction:column; gap:16px; }
+.fg .jpr-cards { flex:none; display:flex; flex-wrap:wrap; align-items:stretch; gap:8px; }
+.fg .jpr-card { display:flex; flex-direction:column; align-items:flex-start; gap:2px; width:240px; min-width:0; padding:12px 16px;
+  border:1px solid var(--line); border-radius:var(--r-card); background:var(--white); font:inherit; color:var(--ink); text-align:start; cursor:pointer;
+  transition:background-color var(--t-fast) var(--ease); }
+.fg .jpr-card:hover { background:var(--hov); }
+.fg .jpr-card.on { background:var(--sel); }
+.fg .jpr-card:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
+.fg .jpr-label { font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.fg .jpr-name { width:100%; min-width:0; font-size:14px; line-height:20px; font-weight:600; }
+.fg .jpr-fig { font-size:14px; line-height:20px; font-weight:600; font-variant-numeric:tabular-nums; }
+.fg .jpr-state { font-size:13px; line-height:18px; }
+.fg .jpr-new { display:flex; align-items:center; padding:0 8px; }
+.fg .jpr-open { flex:1; min-height:0; display:flex; flex-direction:column; }
+/* the quote: the quote page's body, in the tab's own frame */
+.fg .jpr-quote { flex:1; min-height:0; display:flex; flex-direction:column; }
+.fg .jpr-quote .qc-body { padding:0; }
+.fg .qc-views { flex:none; display:flex; padding:0 0 12px; }
+/* ServiceM8's quote and an invoice: the paper or the lines on the left,
+   the rail on the right */
+.fg .jpr-body { flex:1; min-height:0; display:grid; grid-template-columns:minmax(0,1fr) 400px; grid-template-rows:minmax(0,1fr); gap:24px; }
+.fg .jpr-main { min-width:0; min-height:0; display:flex; flex-direction:column; }
+.fg .jpr-left { flex:1; min-height:0; overflow:auto; display:flex; flex-direction:column; }
+.fg .jpr-paper { flex:1; min-height:0; width:100%; border:1px solid var(--line); border-radius:var(--r-card); background:var(--white); }
+.fg .jpr-paper--img { flex:none; height:auto; object-fit:contain; }
+.fg .jpr-none { margin:0; font-size:14px; line-height:20px; color:var(--q); }
+.fg .jpr-lines { margin:0; padding:0; list-style:none; border-top:1px solid var(--line); }
+.fg .jpr-lines > li { display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--line); }
+.fg .jpr-line { flex:1; display:flex; flex-direction:column; min-width:0; }
+.fg .jpr-line > b { font-weight:600; overflow-wrap:anywhere; }
+.fg .jpr-line > em, .fg .jpr-note > em { font-style:normal; font-size:13px; line-height:18px; color:var(--q); }
+.fg .jpr-amt { flex:none; font-size:14px; line-height:20px; font-weight:600; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.fg .jpr-total .jpr-line > b { font-weight:600; }
+.fg .jpr-rail { min-height:0; display:flex; flex-direction:column; }
+.fg .jpr-railtop { flex:1; min-height:0; overflow:auto; display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
+.fg .jpr-railname { margin:0; font-size:16px; line-height:24px; font-weight:600; }
+.fg .jpr-railamt { margin:0; display:flex; align-items:baseline; gap:8px; }
+.fg .jpr-railfig { font-size:20px; line-height:28px; font-weight:600; font-variant-numeric:tabular-nums; }
+.fg .jpr-railline { margin:0; font-size:14px; line-height:20px; color:var(--q); }
+.fg .jpr-grp { align-self:stretch; display:flex; flex-direction:column; gap:4px; margin-top:16px; }
+.fg .jpr-grp > h3 { margin:0; font-size:14px; line-height:20px; font-weight:600; }
+.fg .jpr-note > p { margin:0; white-space:pre-wrap; }
+.fg .jpr-note + .jpr-note { padding-top:8px; border-top:1px solid var(--line); }
+.fg .jpr-dock { flex:none; display:flex; flex-wrap:wrap; gap:8px; padding:16px 0 0; border-top:1px solid var(--line); }
 .fg .jm-add { display:flex; align-items:center; gap:8px; }
 .fg .jm-find { flex:1 1 auto; min-width:0; }
 .fg .jm-add .jm-qtyin { flex:none; width:72px; }

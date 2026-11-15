@@ -274,14 +274,17 @@ describe("the job's Add", () => {
     expect(within(menu).getAllByRole("menuitem")[0]).toHaveTextContent("Add visit");
   });
 
-  it("reads Variation once the quote is accepted, and takes you to the quote to start it", async () => {
+  it("reads Variation once the quote is accepted, and opens the quote on Price to start it", async () => {
     quoteAnswer = { ok: true, facts: facts({ accepted: [0] }) };
     await open();
     const menu = await addMenu();
     expect(await within(menu).findByRole("menuitem", { name: "Add variation" })).toBeInTheDocument();
     expect(within(menu).queryByRole("menuitem", { name: "Add quote" })).toBeNull();
     await userEvent.click(within(menu).getByRole("menuitem", { name: "Add variation" }));
-    expect(push).toHaveBeenCalledWith(`/dashboard/jobs/${JOB}/quote`);
+    /* the quote and its page are one: Price, opened in place (build 10) */
+    expect(push).not.toHaveBeenCalled();
+    expect(jobTab("Price")).toHaveAttribute("aria-selected", "true");
+    expect(await screen.findByRole("button", { name: /^Quote/, pressed: true })).toBeInTheDocument();
   });
 
   it("reads where the quote stands once, from the Quote section's own route", async () => {
@@ -299,16 +302,18 @@ describe("the job's Add", () => {
     const menu = await addMenu();
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(`/api/workboard/quote-status?job=${JOB}`));
     await userEvent.click(within(menu).getByRole("menuitem", { name: "Add quote" }));
-    expect(push).toHaveBeenCalledWith(`/dashboard/jobs/${JOB}/quote?start=1`);
+    expect(push).not.toHaveBeenCalled();
+    expect(jobTab("Price")).toHaveAttribute("aria-selected", "true");
+    expect(await screen.findByRole("button", { name: /New quote/, pressed: true })).toBeInTheDocument();
   });
 
-  it("opens the Quote section when where the quote stands couldn't be read", async () => {
+  it("opens Price when where the quote stands couldn't be read, and Price says so", async () => {
     quoteAnswer = { ok: false };
     await open();
     await pick("Add quote");
     expect(push).not.toHaveBeenCalled();
     expect(jobTab("Price")).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("region", { name: "Quote" })).toBeVisible();
+    expect(await screen.findByText("The quote wasn't read")).toBeVisible();
   });
 
   describe("hides what the reader may not use", () => {

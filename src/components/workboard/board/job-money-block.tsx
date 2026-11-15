@@ -190,12 +190,16 @@ export function readMoney({
     job's value in its own box, the one big figure. Then Payments, a row a
     claim, each opening the claim. Every figure ex GST, and saying so
     ("Figures need to be clearly excluding GST"); see lib/workboard/job-billing
-    for what is said when a figure isn't known ex GST. */
+    for what is said when a figure isn't known ex GST. An invoiced claim's row
+    opens its invoice on Price, the invoice's one home (the job page plan's
+    build 10, 15 November 2026); one still to come isn't an invoice yet, and
+    its row is only read. */
 export function JobMoneyBlock({
   view,
   unavailable = false,
   focusRemoteId = null,
   onOpenClaim,
+  opens,
   deposit = null,
   tracker = null,
 }: {
@@ -204,8 +208,10 @@ export function JobMoneyBlock({
   unavailable?: boolean;
   /** The claim the page was opened for, from a clone's own number. */
   focusRemoteId?: string | null;
-  /** Opens one claim; absent leaves the rows inert. */
+  /** Opens one claim's invoice; absent leaves the rows inert. */
   onOpenClaim?: (remoteId: string) => void;
+  /** Whether a claim's row opens: an invoice does, a claim to come doesn't. */
+  opens?: (remoteId: string) => boolean;
   /** The deposit tick (Isaac, 2026-10-03: "if no deposit required make
       that as an option so it can get ticked off"). Absent where there is
       nothing to ask: a deposit invoice exists, or the work has started. */
@@ -300,7 +306,12 @@ export function JobMoneyBlock({
               />
             )}
             {rows.map((r) => (
-              <PaymentRowItem key={r.claimId ?? r.name} row={r} here={r.claimId === focusRemoteId} onOpen={onOpenClaim} />
+              <PaymentRowItem
+                key={r.claimId ?? r.name}
+                row={r}
+                here={r.claimId === focusRemoteId}
+                onOpen={r.claimId && (!opens || opens(r.claimId)) ? onOpenClaim : undefined}
+              />
             ))}
           </RowList>
           {deposit?.error && (

@@ -559,7 +559,7 @@ it("lands on Overview, the stages line over the tiles", async () => {
     await detailLanded();
     await userEvent.click(screen.getByRole("button", { name: /^Quoted/ }));
     expect(jobTab("Price")).toHaveAttribute("aria-selected", "true");
-    expect(document.querySelector("#jcsec-quote")).not.toHaveAttribute("hidden");
+    expect(document.querySelector(".jp-price")).not.toHaveAttribute("hidden");
     expect(document.querySelector(".jp-over")).toHaveAttribute("hidden");
   });
 
@@ -901,7 +901,7 @@ it("puts a day's photos in the conversation and sends the reader to the Photos s
   });
   /* A money event states what happened and is a DOOR — it opens the claim's
      own modal and never repeats the ledger. */
-  it("opens the claim modal from a money event", async () => {
+  it("opens a money event's invoice on Price", async () => {
     readClaim.mockResolvedValue({
       ledger: { materials: [], payments: [] },
       notes: [],
@@ -915,9 +915,8 @@ it("puts a day's photos in the conversation and sends the reader to the Photos s
     /* the deposit settled — its card names the invoice, and Open is its door */
     const ev = (await convo().findAllByText("Invoice #2380A"))[0]!.closest(".jc-event") as HTMLElement;
     await userEvent.click(within(ev).getByRole("button", { name: "Open" }));
-    expect(
-      await screen.findByRole("dialog", { name: /Payment 1, Deposit/ })
-    ).toBeInTheDocument();
+    expect(jobTab("Price")).toHaveAttribute("aria-selected", "true");
+    expect(await screen.findByRole("button", { name: /Invoice #2380A/, pressed: true })).toBeInTheDocument();
   });
 
 });
@@ -1606,7 +1605,7 @@ const openMoney = async () => {
 
 /** A payment row on Billing, by its bold name. */
 const payRow = (name: string) =>
-  face("money").getByRole("button", { name }).closest("li") as HTMLElement;
+  face("money").getByText(name).closest("li") as HTMLElement;
 
 describe("Billing, ex GST", () => {
   it("draws the band: the bar's three shares and figures, and the job value in its own box", async () => {
@@ -1889,17 +1888,21 @@ describe("a page opened from a progress claim", () => {
 
 });
 
-describe("one claim, opened", () => {
+/* AN INVOICE'S ONE HOME IS PRICE (the job page plan's build 10, 15 November
+   2026): Billing's row opens it there, not in a dialog of its own */
+describe("an invoice, opened on Price", () => {
+  const price = () => within(document.querySelector(".jp-price") as HTMLElement);
   const openProgress = async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce(record({ family: chandra() }));
     render(<Job row={row()} {...props} moneyVisible />);
     await openMoney();
     await userEvent.click(await face("money").findByRole("button", { name: "Progress, 30%" }));
-    return screen.findByRole("dialog", { name: "Payment 2, Progress" });
+    await waitFor(() => expect(jobTab("Price")).toHaveAttribute("aria-selected", "true"));
+    return price();
   };
 
-  it("says which invoice, its share, its days, its figure ex GST and its word", async () => {
+  it("opens Billing's row on Price, its card chosen, saying its figure and word as the row does", async () => {
     readClaim.mockResolvedValue({
       ledger: {
         materials: [line("m-1", "Progress payment for air conditioning installation 30%", 591000)],
@@ -1908,22 +1911,23 @@ describe("one claim, opened", () => {
       notes: [],
       media: { photos: [], documents: [], elsewhere: [], truncated: false },
     });
-    const d = within(await openProgress());
+    const p = await openProgress();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    const chosen = await p.findByRole("button", { name: /Invoice #3237B/, pressed: true });
+    expect(chosen).toHaveTextContent("Progress, 30%");
+    expect(chosen).toHaveTextContent("$5,910 ex GST");
+    expect(chosen).toHaveTextContent("25 days overdue");
 
-    expect(d.getByText(/^Invoice #3237B, 30% of the job\. Raised Tue 15 Sept?, due Tue 29 Sept?\.$/)).toBeInTheDocument();
-    const amt = d.getByText("ex GST", { selector: ".jb-cl-amt .jb-basis" }).parentElement as HTMLElement;
-    expect(within(amt).getByText("$5,910")).toBeInTheDocument();
-    expect(within(amt).getByText("25 days overdue")).toHaveClass("pt-state--wrong");
+    const rail = within(p.getByRole("complementary", { name: "Invoice #3237B" }));
+    expect(rail.getByText(/^Invoice #3237B, 30% of the job\. Raised Tue 15 Sept?, due Tue 29 Sept?\.$/)).toBeInTheDocument();
+    expect(rail.getByText("$5,910")).toBeInTheDocument();
+    expect(rail.getByText("25 days overdue").closest(".pt-state")).toHaveClass("pt-state--wrong");
+    expect(await rail.findByText("Nothing written on it.")).toBeInTheDocument();
 
-    expect(await d.findByText("On this invoice")).toBeInTheDocument();
-    expect(d.getByText("Progress payment for air conditioning installation 30%")).toBeInTheDocument();
-    expect(d.getByText("× 1")).toBeInTheDocument();
-    expect(d.getByText("Total ex GST")).toBeInTheDocument();
-    expect(d.getByText("Nothing written on it.")).toBeInTheDocument();
-    /* no crumb back to the job, and no closing line */
-    expect(d.queryByText("#3237")).toBeNull();
-    expect(d.queryByText(/The work itself/)).toBeNull();
-    expect(d.queryByText(/Visits/)).toBeNull();
+    await userEvent.click(p.getByRole("radio", { name: "Line items" }));
+    expect(p.getByText("Progress payment for air conditioning installation 30%")).toBeInTheDocument();
+    expect(p.getByText("× 1")).toBeInTheDocument();
+    expect(p.getByText("Total ex GST")).toBeInTheDocument();
   });
 
   it("gives no total when a line has no ex-GST price", async () => {
@@ -1934,12 +1938,13 @@ describe("one claim, opened", () => {
         payments: [],
       },
     });
-    const d = within(await openProgress());
-    expect(await d.findByText("Unpriced extra")).toBeInTheDocument();
-    expect(d.queryByText("Total ex GST")).toBeNull();
+    const p = await openProgress();
+    await userEvent.click(await p.findByRole("radio", { name: "Line items" }));
+    expect(await p.findByText("Unpriced extra")).toBeInTheDocument();
+    expect(p.queryByText("Total ex GST")).toBeNull();
   });
 
-  it("opens its paper in the job's viewer", async () => {
+  it("previews the PDF ServiceM8 sent, and opens it in the job's viewer", async () => {
     readClaim.mockResolvedValue({
       ...emptyClaim(),
       media: {
@@ -1951,10 +1956,9 @@ describe("one claim, opened", () => {
         truncated: false,
       },
     });
-    const d = within(await openProgress());
-    await userEvent.click(await d.findByRole("button", { name: "Partial Invoice #3237B" }));
-
-    expect(screen.queryByRole("dialog", { name: "Payment 2, Progress" })).toBeNull();
+    const p = await openProgress();
+    expect(await p.findByLabelText("Partial Invoice #3237B")).toHaveAttribute("src", "https://files.example/3237b.pdf");
+    await userEvent.click(p.getByRole("button", { name: "Open the PDF" }));
     expect(await screen.findByRole("dialog", { name: "Partial Invoice #3237B" })).toBeInTheDocument();
   });
 
@@ -1973,29 +1977,21 @@ describe("one claim, opened", () => {
     render(<Job row={row()} {...props} moneyVisible />);
     await openMoney();
     await userEvent.click(await face("money").findByRole("button", { name: "Deposit, 30%" }));
-    const d = within(await screen.findByRole("dialog", { name: "Payment 1, Deposit" }));
-
-    expect(await d.findByText("Stripe")).toBeInTheDocument();
-    expect(d.getByText("$6,501 inc GST")).toBeInTheDocument();
+    const p = price();
+    expect(await p.findByText("Stripe")).toBeInTheDocument();
+    expect(p.getByText("$6,501 inc GST")).toBeInTheDocument();
   });
 
-  it("closes on Escape and on its cross, leaving the page where it was", async () => {
+  it("leaves a claim still to come on Billing: it isn't an invoice yet", async () => {
     readClaim.mockResolvedValue(emptyClaim());
-    await openProgress();
-    await userEvent.keyboard("{Escape}");
-    expect(screen.queryByRole("dialog", { name: "Payment 2, Progress" })).toBeNull();
-    expect(jobTab("Billing")).toHaveAttribute("aria-selected", "true");
-
-    await userEvent.click(face("money").getByRole("button", { name: "Progress, 30%" }));
-    await userEvent.click(await screen.findByRole("button", { name: "Close this invoice" }));
-    expect(screen.queryByRole("dialog", { name: "Payment 2, Progress" })).toBeNull();
-  });
-
-  it("opens over the page as the parts' dialog, after it in the body", async () => {
-    readClaim.mockResolvedValue(emptyClaim());
-    await openProgress();
-    expect(document.body.firstElementChild?.querySelector(".jp-sheet")).not.toBeNull();
-    expect(document.body.lastElementChild).toHaveClass("pt-scrim");
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobRecord.mockResolvedValueOnce(record({ family: chandra() }));
+    render(<Job row={row()} {...props} moneyVisible />);
+    await openMoney();
+    await face("money").findByRole("button", { name: "Progress, 30%" });
+    /* the final claim, still to come, is a row to read, not a door */
+    expect(face("money").queryByRole("button", { name: /^Final/ })).toBeNull();
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 });
 

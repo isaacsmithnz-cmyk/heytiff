@@ -65,6 +65,7 @@ export function JobScope({
   reading = false,
   onUndo,
   updateHref,
+  onUpdate,
   onLeave,
   view: shown,
   onView,
@@ -85,6 +86,8 @@ export function JobScope({
   onUndo?: () => Promise<void>;
   /** The quote, opened on Update quote with what's changing written in. */
   updateHref?: string;
+  /** The same on the job's own page: its Price tab, opened in place. */
+  onUpdate?: () => void;
   /** Leave out: off Since the quote; it stays in the brief. */
   onLeave?: (text: string) => Promise<void>;
 }) {
@@ -188,7 +191,11 @@ export function JobScope({
           icon="plus"
           hue="orange"
           action={
-            updateHref && rows.open.length > 0 ? (
+            onUpdate && rows.open.length > 0 ? (
+              <Button kind="quote" size={32} onClick={onUpdate}>
+                Update quote
+              </Button>
+            ) : updateHref && rows.open.length > 0 ? (
               <Button kind="quote" size={32} href={updateHref}>
                 Update quote
               </Button>

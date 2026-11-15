@@ -60,6 +60,7 @@ export function QuoteActions({
   lines,
   busy,
   paper,
+  views = false,
   back,
   kept,
   variation,
@@ -85,6 +86,9 @@ export function QuoteActions({
   busy: boolean;
   /** the paper is up */
   paper: boolean;
+  /** Chat, Line items and Preview are a tray over the left (the job's Price
+      tab): no Preview quote or way back here */
+  views?: boolean;
   /** the way back off the paper, in words: where it goes */
   back: string;
   /** a version kept at an earlier approval is open: nothing to approve or accept */
@@ -115,7 +119,7 @@ export function QuoteActions({
   onUpdate: () => void;
   onAccept: () => void;
 }) {
-  const view = paper ? (
+  const view = views ? null : paper ? (
     <Button onClick={onBack}>{back}</Button>
   ) : money && lines > 0 ? (
     <Button icon="eye" onClick={onView}>

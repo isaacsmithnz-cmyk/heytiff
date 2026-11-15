@@ -92,12 +92,18 @@ export function JobScope({
   onLeave?: (text: string) => Promise<void>;
 }) {
   const [undoing, setUndoing] = useState(false);
-  const [own, setOwn] = useState<ScopeView>("quoted");
+  /* NOTHING QUOTED YET (the walk of 15 November 2026, 3533: "The quoted
+     scope is weird because we haven't actually quoted anything yet. The
+     supplied scope is accurate"): the brief is the Scope, not the quoted
+     one, and the card opens on what was supplied */
+  const quotedYet = !!scope.quoted;
+  const [own, setOwn] = useState<ScopeView>(quotedYet ? "quoted" : "supplied");
   const supplied = scope.supplied ?? null;
   const view: ScopeView = supplied ? (shown ?? own) : "quoted";
   const pick = (v: ScopeView) => (onView ? onView(v) : setOwn(v));
-  const tray = supplied ? <Tray options={sideBySide ? VIEWS : VIEWS.slice(0, 2)} value={view === "side" && !sideBySide ? "quoted" : view} onChange={pick} ariaLabel="Which scope" /> : undefined;
-  const quotedName = supplied ? "Quoted scope" : scope.quoted ? "Scope as quoted" : "Scope";
+  const views = quotedYet ? VIEWS : VIEWS.map((v) => (v.value === "quoted" ? { ...v, label: "Scope" } : v));
+  const tray = supplied ? <Tray options={sideBySide ? views : views.slice(0, 2)} value={view === "side" && !sideBySide ? "quoted" : view} onChange={pick} ariaLabel="Which scope" /> : undefined;
+  const quotedName = supplied ? (quotedYet ? "Quoted scope" : "Scope") : scope.quoted ? "Scope as quoted" : "Scope";
   const [leaving, setLeaving] = useState<string | null>(null);
   const rows = pastQuote(scope) ? sinceRows(scope) : { open: [], inVersion: [], sent: [] };
   const since = [...rows.open, ...rows.inVersion];

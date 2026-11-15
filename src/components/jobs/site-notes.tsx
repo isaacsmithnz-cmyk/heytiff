@@ -43,6 +43,18 @@ function Asterisk() {
   );
 }
 
+/** The building, as the phone's Site notes row has it (Isaac, 15 November
+    2026: "a little building symbol, which I actually don't mind. So maybe
+    just do that"): always on the button, the asterisk after the word when
+    the site has notes. */
+function Building() {
+  return (
+    <svg className="stn-bldg" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16M16 9h2a2 2 0 0 1 2 2v10M3 21h18M8 7h4M8 11h4M8 15h4" />
+    </svg>
+  );
+}
+
 /** The mark on the button: how many notes the job's site has for it. Reads
     again whenever the pop-up changes them. */
 export function useSiteNoteCount(jobUuid: string | null): [number | null, (n: number) => void] {
@@ -76,10 +88,12 @@ export function SiteNotes({ jobUuid }: { jobUuid: string }) {
 
 export function SiteNotesButton({ marked, onOpen }: { marked: boolean; onOpen: () => void }) {
   return (
-    <Button kind="second" size={32} className="stn-btn" icon={marked ? <Asterisk /> : undefined} onClick={onOpen} aria-haspopup="dialog">
+    <Button kind="second" size={32} className="stn-btn" icon={<Building />} onClick={onOpen} aria-haspopup="dialog">
       {marked ? (
         <>
-          Site notes<span className="stn-sr">, the site has notes</span>
+          Site notes
+          <Asterisk />
+          <span className="stn-sr">, the site has notes</span>
         </>
       ) : (
         "Site notes"

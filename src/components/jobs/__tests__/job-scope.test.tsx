@@ -162,8 +162,16 @@ describe("two scopes: what was supplied and what's quoted (11 November 2026)", (
     expect(screen.getByRole("region", { name: "Scope" })).toBeInTheDocument();
   });
 
-  it("opens on the quoted scope, each system that departs saying Differs", () => {
+  it("before anything's quoted, names the brief Scope and opens on what was supplied (3533, the walk of 15 November 2026)", () => {
     render(<JobScope scope={both()} />);
+    expect(screen.getByRole("region", { name: "Supplied scope" })).toBeInTheDocument();
+    expect(screen.getAllByRole("radio").map((r) => r.textContent)).toEqual(["Scope", "Supplied", "Side by side"]);
+    fireEvent.click(screen.getByRole("radio", { name: "Scope" }));
+    expect(screen.getByRole("region", { name: "Scope" })).toBeInTheDocument();
+  });
+
+  it("once quoted, opens on the quoted scope, each system that departs saying Differs", () => {
+    render(<JobScope scope={{ ...both(), quoted: { on: "Wed 11 Nov", version: 1 } } as Parameters<typeof JobScope>[0]["scope"]} />);
     const s = screen.getByRole("region", { name: "Quoted scope" });
     expect(within(s).getByRole("radio", { name: "Quoted" })).toHaveAttribute("aria-checked", "true");
     expect(within(s).getAllByRole("heading", { level: 3 })[0]).toHaveTextContent("Ground floor: ducted, under the floorDiffers");
@@ -199,7 +207,7 @@ describe("two scopes: what was supplied and what's quoted (11 November 2026)", (
 
   it("offers no side by side where there's no room for it, as in the Studio's column", () => {
     render(<JobScope scope={both()} sideBySide={false} />);
-    expect(screen.getAllByRole("radio").map((r) => r.textContent)).toEqual(["Quoted", "Supplied"]);
+    expect(screen.getAllByRole("radio").map((r) => r.textContent)).toEqual(["Scope", "Supplied"]);
   });
 });
 

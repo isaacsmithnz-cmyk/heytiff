@@ -1,7 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
-import { JobFacts, directionsHref, phoneWords } from "../job-facts";
+import { JobFacts, addressLines, directionsHref, phoneWords } from "../job-facts";
 
 const counts: Record<string, number> = { "job-3416": 3, "job-bare": 0 };
 jest.mock("@/app/actions/site-notes", () => ({
@@ -139,6 +139,8 @@ it("offers Site notes under the site, marked only when the site has notes", asyn
   const site = cell("Site");
   const button = await site.findByRole("button", { name: /^Site notes\s?, the site has notes$/ });
   expect(button.querySelector(".stn-mark")).not.toBeNull();
+  /* the phone's building on the button, always (Isaac, 15 November 2026) */
+  expect(button.querySelector(".stn-bldg")).not.toBeNull();
   /* after their PO */
   expect(site.getByText("PO-77").compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
@@ -150,4 +152,11 @@ it("offers Site notes under the site, marked only when the site has notes", asyn
   expect(cell("Site").queryByRole("button", { name: /Site notes/ })).toBeNull();
   rerender(<JobFacts {...base} detail={detail({ address: "", suburb: "" })} jobUuid="job-3416" />);
   expect(cell("Site").queryByRole("button", { name: /Site notes/ })).toBeNull();
+});
+
+it("lays a one-line address over two lines at its last comma (3533)", () => {
+  expect(addressLines("2 Krui Street, Fairlight")).toEqual(["2 Krui Street", "Fairlight"]);
+  expect(addressLines("Unit 2, 106 Kirribilli Ave, Kirribilli NSW 2061")).toEqual(["Unit 2, 106 Kirribilli Ave", "Kirribilli NSW 2061"]);
+  expect(addressLines("910/226 Victoria St\nPotts Point NSW 2011")).toEqual(["910/226 Victoria St", "Potts Point NSW 2011"]);
+  expect(addressLines("Fairlight")).toEqual(["Fairlight"]);
 });

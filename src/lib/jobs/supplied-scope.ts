@@ -31,7 +31,7 @@ export type SuppliedScope = {
     on the air, an email from outside. `id` and `at` make the stamp. */
 export type SuppliedSource = { id: string; at: string; kind: "drawings" | "spec" | "email"; label: string; words: string };
 
-const MAX = { lede: 400, text: 700, short: 120, line: 300, systems: 12, fine: 16, notOurs: 8, clarify: 10, from: 6 };
+const MAX = { lede: 700, text: 700, short: 120, line: 300, systems: 12, fine: 16, notOurs: 8, clarify: 10, from: 6 };
 /** The most of the sources' words handed to Tiff. */
 export const SOURCE_WORDS_MAX = 120_000;
 
@@ -132,6 +132,18 @@ export function drawingWords(sheets: readonly { n: number; lines: readonly strin
 export const emailSupplies = (subject: string, body: string): boolean => topicsOf(`${subject} ${body}`).length > 0;
 
 const str = (v: unknown, max: number): string => (typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, max) : "");
+/** A paragraph clamped to whole sentences: past the cap, or cut off by an
+    earlier cap, it ends at its last full stop rather than mid-word (3533's
+    lede ended "outdoor unit locati", 15 November 2026). */
+export function wholeSentences(v: unknown, max: number): string {
+  let s = typeof v === "string" ? v.replace(/\s+/g, " ").trim() : "";
+  if (s.length > max) s = s.slice(0, max);
+  if (!s || /[.!?]["'’”)]?$/.test(s)) return s;
+  let end = -1;
+  for (const m of s.matchAll(/[.!?]["'’”)]?(?=\s)/g)) end = m.index + m[0].length;
+  return end > 0 ? s.slice(0, end) : s;
+}
+
 const list = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
 const obj = (v: unknown): Record<string, unknown> => (v && typeof v === "object" ? (v as Record<string, unknown>) : {});
 
@@ -154,7 +166,7 @@ export function suppliedOf(raw: unknown): SuppliedScope | null {
     .map((x) => ({ q: str(obj(x).q, MAX.line), who: str(obj(x).who, MAX.short) }))
     .filter((c) => c.q)
     .slice(0, MAX.clarify);
-  const lede = str(r.lede, MAX.lede);
+  const lede = wholeSentences(r.lede, MAX.lede);
   if (!lede && systems.length === 0 && fine.length === 0) return null;
   return { lede, systems, fine, notOurs, clarify };
 }

@@ -34,7 +34,7 @@
    version's number: "In version 2" until ServiceM8 sends it, then it's in
    Added as "Version 2, from …". */
 
-import { suppliedWords, type SuppliedScope } from "./supplied-scope";
+import { suppliedWords, wholeSentences, type SuppliedScope } from "./supplied-scope";
 import type { StoryEntry } from "@/lib/workboard/job-story";
 
 /** One system, area by area: "First floor, front: ducted, a zone per room". */
@@ -105,7 +105,7 @@ export type ScopeQuoted = { on: string; version: number };
 
 /* Clamped on our side as well as asked of the model: a rule the schema
    can't state is a rule that will eventually be broken. */
-const MAX = { description: 300, lede: 400, text: 700, short: 120, line: 240, systems: 12, added: 12, notOurs: 8, clarify: 12, updates: 4, from: 6 };
+const MAX = { description: 300, lede: 700, text: 700, short: 120, line: 240, systems: 12, added: 12, notOurs: 8, clarify: 12, updates: 4, from: 6 };
 
 /* No nullable fields: an empty string or an empty list says "none"
    (structured outputs take few nullable fields). */
@@ -289,7 +289,7 @@ export function scopeOf(raw: unknown): JobScope | null {
     .map((x) => ({ on: str(obj(x).on, MAX.short), from: str(obj(x).from, MAX.short), said: str(obj(x).said, MAX.line) }))
     .filter((u) => u.said)
     .slice(0, MAX.updates);
-  const lede = str(r.lede, MAX.lede);
+  const lede = wholeSentences(r.lede, MAX.lede);
   if (!lede && systems.length === 0 && added.length === 0) return null;
   return { description: str(r.description, MAX.description), lede, systems, added, notOurs, clarify, updates, undoSaid: str(r.undoSaid, MAX.line) };
 }

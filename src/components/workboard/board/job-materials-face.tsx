@@ -24,6 +24,9 @@ import { naiveInZone } from "@/lib/workboard/job-story";
 import type { JobPicklistItem } from "@/app/actions/job-picklist";
 import { StateWord } from "@/components/parts/state";
 import type { EquipmentRow } from "@/lib/stock/stock";
+import { quoteOnly, stockWordOf } from "@/lib/stock/materials";
+
+export { quoteOnly, stockWordOf };
 
 /* MATERIALS — the job's own list, OURS AND WRITABLE: the van's pick list,
    ticked as it's loaded (Isaac, 25 October 2026; it was the Checklist).
@@ -69,27 +72,6 @@ function provenanceOf(item: JobPicklistItem, timezone: string | null): string {
 }
 
 const bookLine = (h: MaterialHit) => [h.code, h.supplier].filter(Boolean).join(", ");
-
-/** Stock's word for a material: the unit or control whose model it is,
-    where it's up to (To order, Ordered, In stock, To site on the day it
-    lands). Isaac, 14 November 2026, mock F: one list, the word on the row. */
-const bare = (s: string | null | undefined) => (s ?? "").replace(/\s+/g, "").toLowerCase();
-const sameModel = (item: Pick<JobPicklistItem, "sub">, r: EquipmentRow) => {
-  const model = bare(item.sub);
-  return r.group !== "duct" && !!model && (bare(r.detail) === model || bare(r.detail).endsWith(model) || bare(r.title) === model);
-};
-export function stockWordOf(item: Pick<JobPicklistItem, "name" | "sub">, stock: readonly EquipmentRow[] | null | undefined): EquipmentRow["word"] {
-  if (!stock?.length) return null;
-  return stock.find((r) => sameModel(item, r))?.word ?? null;
-}
-
-/** The quote's units and controls the list doesn't have: without them a job
-    quoted but never given a pick list showed no units at all once the
-    Overview's Equipment block went (Isaac, 15 November 2026, on 2798, 3209,
-    3446 and 3516: "Yes, add them"). */
-export function quoteOnly(items: readonly Pick<JobPicklistItem, "sub">[], stock: readonly EquipmentRow[] | null | undefined): EquipmentRow[] {
-  return (stock ?? []).filter((r) => r.group !== "duct" && !items.some((i) => sameModel(i, r)));
-}
 
 type Placed = Shelf<JobPicklistItem> & { quote: EquipmentRow[] };
 /** The list's shelves with the quote's own rows on Units and Controls, a

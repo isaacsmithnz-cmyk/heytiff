@@ -22,8 +22,10 @@ import { JobPage } from "@/components/jobs/job-page";
    where its claims are, so one job never has two pages (rule 11: two tabs
    never show the same page). The Workboard's gate is this page's gate.
 
-   `?tab=` names the section: one of the eight; anything else, Billing
-   without the money grant and Design without the Studio, is Overview.
+   `?tab=` names the section: one of the six; anything else, and Billing
+   without the money grant, is Overview. On Price, `?start=1`, `?option=N`
+   and `?update=1` are the quote's old page's (it lands here), and
+   `?invoice=` a claim's.
 
    Awaits the request on purpose: under the dashboard's loading.tsx the
    frame paints at once and this streams in behind it (the layout stays
@@ -45,15 +47,19 @@ export default async function JobPageRoute({
   const job = id.trim().slice(0, 80);
   if (!job) notFound();
 
-  const [target, moneyVisible, manage, studio, search] = await Promise.all([
+  const [target, moneyVisible, manage, studio, financials, search] = await Promise.all([
     resolveJobCard(orgId, job),
     can("workboard_money"),
     can("workboard_manage"),
     can("studio"),
+    can("financials"),
     searchParams,
   ]);
   const section = parseSection(search.tab, moneyVisible, studio);
-  if (target.parentRemoteId !== job) redirect(jobPageHref(target.parentRemoteId, moneyVisible ? "billing" : section));
+  /* a claim's own number opens its invoice on Price, an invoice's one home
+     (build 10), for whoever sees money */
+  if (target.parentRemoteId !== job)
+    redirect(moneyVisible ? `${jobPageHref(target.parentRemoteId, "price")}&invoice=${encodeURIComponent(job)}` : jobPageHref(target.parentRemoteId, section));
 
   /* the row the card opens on, read inside this org's mirror: null for a
      job it doesn't hold. AND WHAT THE CARD READS FIRST, beside it: the
@@ -80,6 +86,27 @@ export default async function JobPageRoute({
   /* `?add=`: Documents' Make a document, asking for what Add › SWMS or Add ›
      Certificate does; anything else asks for nothing */
   const add = search.add === "swms" || search.add === "certificate" ? search.add : null;
+  /* PRICE'S ASK, from the quote's old page (?start=1, ?option=N, ?update=1)
+     and a claim's own number (?invoice=): the quote and its page are one */
+  const raw = typeof search.option === "string" ? Number(search.option) : NaN;
+  const option = Number.isInteger(raw) && raw >= 0 && raw <= 19 ? raw : null;
+  const invoice = typeof search.invoice === "string" && moneyVisible ? search.invoice.trim().slice(0, 80) || null : null;
+  const price =
+    section === "price" && (search.start === "1" || search.update === "1" || option !== null || invoice)
+      ? { start: search.start === "1", option, update: search.update === "1", invoice }
+      : null;
 
-  return <JobPage row={row} section={section} manage={manage} moneyVisible={moneyVisible} studio={studio} add={add} first={first} />;
+  return (
+    <JobPage
+      row={row}
+      section={section}
+      manage={manage}
+      moneyVisible={moneyVisible}
+      financials={financials}
+      studio={studio}
+      add={add}
+      price={price}
+      first={first}
+    />
+  );
 }

@@ -1,6 +1,5 @@
 "use client";
 
-import { quoteHref } from "@/lib/shell/links";
 import { projectHref } from "@/lib/shell/links";
 import { Fragment, Suspense, lazy, useEffect, useEffectEvent, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
@@ -10,6 +9,8 @@ import { Button } from "@/components/parts/button";
 import { Loading } from "@/components/parts/states";
 import type { MenuItem } from "@/components/parts/menu";
 import { quoteStarted, type QuoteFacts } from "@/lib/quotes/quote-card";
+import type { PriceAsk } from "@/lib/jobs/job-prices";
+import { JobPriceTab } from "@/components/jobs/job-price-tab";
 import {
   createProjectFromJob,
   readJobFiles,
@@ -21,10 +22,9 @@ import {
 import type { JobConversationRead } from "@/lib/jobs/job-conversation";
 import { readJobConversation } from "@/app/actions/job-conversation";
 import { paymentsTotalCents } from "@/lib/workboard/job-ledger";
-import { claimFor, isPartialInvoiceLine } from "@/lib/workboard/job-family";
+import { isPartialInvoiceLine } from "@/lib/workboard/job-family";
 import { readBilling } from "@/lib/workboard/job-billing";
 import { buildJobStory, storyStamp } from "@/lib/workboard/job-story";
-import { JobClaimModal } from "./job-claim-modal";
 import { JobMoneyBlock } from "./job-money-block";
 import { cacheJobFiles } from "@/app/actions/workboard-media";
 import { addPlansToJob, chooseFloorsOnPlan, pageForScale, readPlansOnJob, setScaleOnPlan } from "@/app/actions/job-plans";
@@ -45,7 +45,6 @@ import { JobDocumentsFace } from "./job-documents-face";
 import { descriptionOf, scopeStamp, scopeWanted, type JobScopeRead } from "@/lib/jobs/job-scope";
 import type { SummaryGroup } from "@/lib/jobs/job-summary-rows";
 import { JobDesignFace } from "./job-design-face";
-import { JobQuoteCard } from "./job-quote-card";
 import { JobVisits, VisitDialog, type ComingVisit } from "./job-visit-tasks";
 import { sm8QuoteOf } from "../quote/sm8-quote-of";
 import { JobProgressLine } from "./job-progress-line";
@@ -241,10 +240,6 @@ const ExpenseForm = lazy(() => import("@/components/making/expense-form").then((
 const JobBought = lazy(() => import("@/components/purchases/job-bought").then((m) => ({ default: m.JobBought })));
 const AddPurchase = lazy(() => import("@/components/purchases/add-purchase").then((m) => ({ default: m.AddPurchase })));
 
-/** Where a quote is made, as the Quote section's own link goes: a quote
-    not started yet starts with Tiff. */
-const quotePage = (job: string, started: boolean) => quoteHref(job, { start: !started });
-
 /* The band's wash lives in lib/workboard/card-tint.ts — the dress has three
    wearers now, and importing a sheet for a pure helper drags its server
    actions into every jsdom suite that renders the borrower. */
@@ -280,6 +275,10 @@ export type JobSheetPage = {
   /** Arrived from Documents' Make a document (`?add=`): do what Add › SWMS
       or Add › Certificate does, once the job's papers are read. */
   add?: "swms" | "certificate" | null;
+  /** What the Price tab was asked to open on, by the address (the quote's
+      old page, a claim's own number): the quote started, an option, Update
+      quote, an invoice. Bumped `n` asks again. */
+  price?: PriceAsk | null;
 };
 
 /** WHAT THE PAGE ALREADY READ, on the server and all at once, so the card
@@ -306,6 +305,7 @@ export function JobSheet({
   row,
   manage,
   moneyVisible,
+  financials = false,
   studio = false,
   initialTab,
   onCreateAgreement,
@@ -322,6 +322,8 @@ export function JobSheet({
   row: AllJobRow;
   manage: boolean;
   moneyVisible: boolean;
+  /** `financials`: the quote's own money on Price, its price and its paper */
+  financials?: boolean;
   /** Holds the Studio: the job has a Design section. */
   studio?: boolean;
   /** The face to open on, for a door that knows what it came for — a
@@ -404,8 +406,20 @@ export function JobSheet({
   /* The claim this card was opened FOR, when a clone's row was clicked. It
      names the row in the ledger — the card is always the job. */
   const [focus, setFocus] = useState<string | null>(() => pageRead?.mirror?.focusRemoteId ?? null);
-  /* Which claim's modal is open, and whether the number's list is showing. */
-  const [openClaim, setOpenClaim] = useState<string | null>(null);
+  /* WHAT PRICE IS ASKED TO OPEN ON: the address's ask, then each door's (Add ›
+     Quote, Billing's invoice, a claim in the feed), bumped so the same door
+     twice still lands. An invoice's one home is Price (build 10). */
+  const [priceAsk, setPriceAsk] = useState<PriceAsk | null>(() => page.price ?? null);
+  const [pageAskSeen, setPageAskSeen] = useState<number | null>(() => page.price?.n ?? null);
+  if (page.price && page.price.n !== pageAskSeen) {
+    setPageAskSeen(page.price.n);
+    setPriceAsk((was) => ({ ...page.price!, n: Math.max(page.price!.n, (was?.n ?? 0) + 1) }));
+  }
+  const askPrice = (a: Omit<PriceAsk, "n">) => setPriceAsk((was) => ({ ...a, n: (was?.n ?? 0) + 1 }));
+  const openInvoice = (claimId: string) => {
+    askPrice({ invoice: claimId });
+    go("quote");
+  };
   /* ADD (rule 54): what belongs to the job, each item a door to the flow the
      card already has for it. `taskAsk` is bumped by Add > Task, which opens
      the Visits face's own Add a task. */
@@ -838,7 +852,6 @@ export function JobSheet({
   /* Every header fact follows the CARD once the detail lands; until then the
      row's own facts paint, which is what was clicked. */
   const cardStatus = detail?.status ?? row.statusLabel;
-  const openClaimRow = claimFor(family, openClaim);
   /* BILLING, ex GST, read once: the section and the claim it opens */
   const billing =
     moneyVisible && record !== undefined && !recordFailed
@@ -1521,6 +1534,7 @@ export function JobSheet({
   /* ON SITE AND FILES FIT THE SCREEN */
   const [onsiteRef, onsiteH] = useFitHeight<HTMLDivElement>();
   const [filesRef, filesH] = useFitHeight<HTMLDivElement>();
+  const [priceRef, priceH] = useFitHeight<HTMLDivElement>(520);
   /* STOCK'S WORD FOR EACH UNIT AND CONTROL, read once On site is opened
      (/api/stock/job, what the Overview's Equipment block read) */
   const [stock, setStock] = useState<EquipmentRow[] | null>(null);
@@ -1632,8 +1646,8 @@ export function JobSheet({
       case "quote":
         /* until the card knows where the quote stands, the Quote section
            does, and holds its own Create or Continue */
-        if (quoteFacts) router.push(quotePage(job, variation || quoteStarted(quoteFacts)));
-        else openStep("quoted");
+        askPrice({ start: !!quoteFacts && !variation && !quoteStarted(quoteFacts) });
+        go("quote");
         return;
       case "cost":
         setCosting(true);
@@ -1698,7 +1712,10 @@ export function JobSheet({
                   view={billing}
                   unavailable={recordFailed}
                   focusRemoteId={focus}
-                  onOpenClaim={setOpenClaim}
+                  /* an invoice opens on Price, its one home; a claim still
+                     to come isn't an invoice yet */
+                  onOpenClaim={openInvoice}
+                  opens={(id) => !!family?.claims.some((c) => c.remoteId === id && c.state !== "not_invoiced")}
                   deposit={(() => {
                     const status = (detail?.status ?? "").trim().toLowerCase();
                     const started = (detail?.visits.length ?? 0) > 0 || status === "completed";
@@ -1816,28 +1833,41 @@ export function JobSheet({
           )}
     </>
   );
-  const faceQuote = (
-    <>
-          {panel(
-            "quote",
-            /* the card keeps a small Quote face: ServiceM8's quote, where
-               HeyTiff's stands, and the way into the quote page (Isaac,
-               2026-10-05: "it should have opened up the proper quote screen
-               not a section below"); for everyone on the Workboard */
-            <JobQuoteCard
-              job={cardId ?? row.id}
-              visible={faceOn("quote")}
-              sm8={sm8QuoteOf({
-                documents: media?.documents ?? null,
-                sentOn: detail?.quoteSentOn ?? null,
-                moneyVisible,
-                family,
-                rowValueCents: money?.valueCents ?? null,
-              })}
-              onOpenPaper={(item) => setViewer({ kind: "paper", id: item.remoteId })}
-            />
-          )}
-    </>
+  /* PRICE (build 10): every price on the job as a card, the one open in
+     Chat, Line items and Preview with its rail, fitted to the screen. The
+     quote is everyone's on the Workboard; the invoices are money's */
+  const facePrice = (
+    <div
+      className="jp-price jp-fit"
+      hidden={page.section !== "price"}
+      ref={priceRef}
+      style={priceH == null ? undefined : ({ "--fit-h": `${priceH}px` } as React.CSSProperties)}
+    >
+      {seen.has("price") && (
+        <JobPriceTab
+          job={cardId ?? row.id}
+          ready={!!cardId}
+          moneyVisible={moneyVisible}
+          financials={financials}
+          detail={detail}
+          sm8={sm8QuoteOf({
+            documents: media?.documents ?? null,
+            sentOn: detail?.quoteSentOn ?? null,
+            moneyVisible,
+            family,
+            rowValueCents: money?.valueCents ?? null,
+          })}
+          billing={billing}
+          claims={family?.claims ?? []}
+          materials={materials}
+          ask={priceAsk}
+          onOpenPaper={(item) =>
+            setViewer(media?.documents.some((d) => d.remoteId === item.remoteId) ? { kind: "paper", id: item.remoteId } : { kind: "page", item })
+          }
+          onToast={onToast}
+        />
+      )}
+    </div>
   );
   /* THE JOB'S DESIGNS, a section of their own (Isaac, 28 October 2026: "a
      separate tab outside of the quoting"), for whoever holds the Studio */
@@ -2014,20 +2044,6 @@ export function JobSheet({
           it lands after the page and over it, on the modal layer. */}
       {editingCustomer && cardId && (
         <JobCustomerDialog jobUuid={cardId} onClose={() => setEditingCustomer(false)} onSaved={onToast} />
-      )}
-      {openClaimRow && (
-        <JobClaimModal
-          key={openClaimRow.remoteId}
-          claim={openClaimRow}
-          row={billing?.rows.find((r) => r.claimId === openClaimRow.remoteId) ?? null}
-          staged={billing ? billing.staged : true}
-          onOpenPaper={(item) => {
-            /* the viewer stands where the claim stood */
-            setOpenClaim(null);
-            setViewer({ kind: "page", item });
-          }}
-          onClose={() => setOpenClaim(null)}
-        />
       )}
 
       {/* Add › Cost: the expense claim, with this job filled in. A claim
@@ -2406,7 +2422,7 @@ export function JobSheet({
                 openCount: attention?.total ?? 0,
               }}
               diary={{
-                onOpenClaim: setOpenClaim,
+                onOpenClaim: openInvoice,
                 onPhotos: () => go("photos"),
                 onRemoveNote: unwriteNote,
                 /* Save wrote a note the card's own list doesn't hold: it
@@ -2466,7 +2482,14 @@ export function JobSheet({
                 reading={scopeReading}
                 onUndo={undoScope}
                 onLeave={leaveScope}
-                updateHref={cardId ? quoteHref(cardId, { update: true }) : undefined}
+                onUpdate={
+                  cardId
+                    ? () => {
+                        askPrice({ update: true });
+                        go("quote");
+                      }
+                    : undefined
+                }
                 summary={{
                   fromQuote: quoteGroups ?? null,
                   description: (detail?.description ?? row.title ?? "").trim(),
@@ -2503,7 +2526,7 @@ export function JobSheet({
               {faceDesign}
             </div>
           </div>
-          {faceQuote}
+          {facePrice}
         </div>
         {footer}
       </div>

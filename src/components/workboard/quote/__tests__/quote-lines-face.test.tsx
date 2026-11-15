@@ -595,6 +595,23 @@ describe("the proposal (7.1)", () => {
     expect(screen.queryByRole("article", { name: "The proposal" })).not.toBeInTheDocument();
   });
 
+  /* the job's Price tab (build 10, 15 November 2026): its views are a tray
+     over the left, so the rail has no Preview quote and no way back */
+  it("on the Price tab, lays Line items and Preview in a tray over the left, and keeps them off the rail", async () => {
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => ({ json: async () => view([indoor]) }));
+    render(<QuoteLinesFace job="job-3377" views price={pricedWhole} onPriced={jest.fn()} meta={{ title: "Air conditioning for 12 Smith St", client: "Jo Bloggs", site: "12 Smith St", jobNumber: "3377" }} />);
+    const tray = await screen.findByRole("radiogroup", { name: "What the quote shows" });
+    /* no conversation here (Tiff isn't on): no Chat */
+    expect(within(tray).getAllByRole("radio").map((r) => r.textContent)).toEqual(["Line items", "Preview"]);
+    expect(within(tray).getByRole("radio", { name: "Line items" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.queryByRole("button", { name: "Preview quote" })).toBeNull();
+    fireEvent.click(within(tray).getByRole("radio", { name: "Preview" }));
+    expect(screen.getByRole("article", { name: "The proposal" })).toHaveTextContent("Jo Bloggs");
+    expect(screen.queryByRole("button", { name: "Back to the line items" })).toBeNull();
+    fireEvent.click(within(tray).getByRole("radio", { name: "Line items" }));
+    expect(screen.queryByRole("article", { name: "The proposal" })).not.toBeInTheDocument();
+  });
+
   /* layout B (Isaac, 21 October 2026): "Price on top, buttons pinned" */
   it("pins Preview quote and Approve quote at the rail's foot, out of its scroll, Approve the main button on the right", async () => {
     mountPriced();

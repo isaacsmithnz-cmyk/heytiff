@@ -64,7 +64,7 @@ When two sources disagree: Isaac's own words win, then this file, then the canva
 
 - **29. Views of a list.** Soft tabs under the title: words alone, the one you're on in a light fill. No outlines. No tab anywhere carries a number, and a screen's title carries no count beside it ("Team", not "Team 3 people"): a view with something waiting has its word in amber, red when something is wrong (Isaac, 20 October: "We need to rule it out everywhere").
 - **30. One of a few.** Day, Week, Month in a thin tray; the chosen one filled light.
-- **31. Section tabs.** Underlined, the one you're on standing on 2px of ink. No numbers on them, as rule 29: a tab with something to look at has its word in amber, red when something is wrong (Isaac, 20 October). A job has six: Overview, Scope, Price, On site, Files, Billing (Isaac, 13 November 2026: "compact the row"; built 15 November). Overview is the facts and the Activity feed, with the stages line beside the name. Scope is the job's Scope, Since the quote and Latest updates, or its Summary where it has no Scope (mock A). Price is where what the job is charged is built, today's Quote under the name he gave it; a variation keeps its "Variation" inside. On site is the visits with their tasks, what's not on a day yet and the materials, each unit and control with its word from Stock (mock F). Files is the photos, then the documents and, for whoever holds the Studio, the job's designs, a design listed once. Billing is the money, only with `workboard_money`. Overview, Scope, On site and Files fit the screen, each card scrolling inside itself and never under 420 high. Every old name still lands: `?tab=quote` on Price; `visits`, `materials` and `checklist` on On site; `photos`, `documents` and `design` on Files. Under the job's name on every tab, its description: the Scope's first sentence, plain text at 16 with no mark, wrapping when it's long; a job with no Scope has no line (14 November 2026, calls 19 and 22). A project has six: Overview, Trips, Scope, Money, Site, Documents (27 October 2026). A person has five: Overview, Hours & leave, Papers, Pay, Access.
+- **31. Section tabs.** Underlined, the one you're on standing on 2px of ink. No numbers on them, as rule 29: a tab with something to look at has its word in amber, red when something is wrong (Isaac, 20 October). A job has six: Overview, Scope, Price, On site, Files, Billing (Isaac, 13 November 2026: "compact the row"; built 15 November). Overview is the facts and the Activity feed, with the stages line beside the name. Scope is the job's Scope, Since the quote and Latest updates, or its Summary where it has no Scope (mock A). Price is where what the job is charged is built: every price on the job as a card across the top, the quote and, for whoever holds `workboard_money`, each invoice, and the one open in Chat, Line items and Preview with its rail (build 10, below); the quote's own page is Price now, and its old address lands there; a variation keeps its "Variation" inside. On site is the visits with their tasks, what's not on a day yet and the materials, each unit and control with its word from Stock (mock F). Files is the photos, then the documents and, for whoever holds the Studio, the job's designs, a design listed once. Billing is the money, only with `workboard_money`. Overview, Scope, On site and Files fit the screen, each card scrolling inside itself and never under 420 high. Every old name still lands: `?tab=quote` and the quote's old page on Price, a claim's own number on its invoice there; `visits`, `materials` and `checklist` on On site; `photos`, `documents` and `design` on Files. Under the job's name on every tab, its description: the Scope's first sentence, plain text at 16 with no mark, wrapping when it's long; a job with no Scope has no line (14 November 2026, calls 19 and 22). A project has six: Overview, Trips, Scope, Money, Site, Documents (27 October 2026). A person has five: Overview, Hours & leave, Papers, Pay, Access.
 - **32. Ticks and switches.** Blue when on. A switch saves itself.
 - **33. Fields.** 36 tall, a 6 corner, the label above. A wrong field gets a red edge and says why underneath.
 - **34. Menus to choose from.** A field with a chevron; opens a menu. A time opens a wheel: the hour, minutes in fives, am or pm. Nothing types a clock time.
@@ -421,6 +421,29 @@ the fourth on the customer's messages, below).
   "Not paid" in orange while money is owing. Money and the Job tracker are
   Billing's, and a tracked job's board is a line in Actions. A long client
   name wraps beside its number and never fades.
+- **Price lays every price on the job across its top** (`.jpr`,
+  job-price-tab.tsx; the job page plan's build 10, on the Price Tab mock
+  https://claude.ai/artifact/LUi5CikRpK5frq6b6M4D9J, and Isaac, 14 November
+  2026: "Build all as recommended, I'll change anything I'm not happy with
+  after"). Each is a flat card in the hairline, what it is in grey, its name,
+  its figure and its state word, and the one open is filled light, never
+  outlined (old law 14). The quote built with Tiff; a quote typed into
+  ServiceM8 and never built here, with no chat behind it and an orange Update
+  quote; and, to `workboard_money` only, each claim ServiceM8 has invoiced,
+  its figure and word exactly as Billing's row says them, so what's owed is
+  said one way: ex GST where ServiceM8 itemised it, labelled inc GST where it
+  didn't, never worked out. New quote ends the row, orange (25c), while the
+  job has no quote. The one open has its views in a tray over the left (rule
+  30): Chat, where a quote is built and changed (only while Tiff is on for the
+  business), Line items, and Preview, the paper as the customer gets it (the
+  quote's paper is the money's, so a tech has no Preview), with its rail down
+  the right, 400 wide, its buttons pinned at the foot. An invoice opens on its
+  PDF, its lines a tab away, and its rail says its figure and word, what's
+  been paid inc GST, and what's written on it. **An invoice has one home**:
+  Billing's row opens it on Price, as does the feed's money event and a
+  claim's own number, and there is no claim dialog; a claim still to come
+  isn't an invoice yet, so its row on Billing is read and not pressed. The
+  part claims stay under Billing's Payments, and the Job tracker under them.
 - **The Job tracker's bar turns red past the quote** (`.jtr-over`),
   despite rule 16, no chart is red (Isaac, 3 November 2026: over the
   allowance is "a red line and how much over"). Used is grey, overtime's

@@ -2,7 +2,18 @@ import { fmtAud } from "@/lib/workboard/project-money";
 import { MONEY_BASIS } from "@/lib/workboard/job-money";
 import type { FamilyMoney } from "@/lib/workboard/job-family";
 import type { JobMediaItem } from "@/lib/workboard/job-media";
-import type { Sm8Quote } from "../board/job-quote-card";
+
+/** ServiceM8's own quote on the job: the PDF it generated, the day it went,
+    and what it came to for a reader who sees money. */
+export type Sm8Quote = {
+  papers: JobMediaItem[];
+  sentOn: string | null;
+  /** Already worded, "$45,430 inc GST"; null without the money grant. */
+  value: string | null;
+  /** The same, as money, on the basis ServiceM8 holds it; null without the
+      money grant. */
+  quoted?: { cents: number; basis: "ex" | "inc" } | null;
+};
 
 /* SERVICEM8'S OWN QUOTE ON A JOB, as the job card and the quote page both
    show it: the PDFs it generated, the day it went, and what it came to — the

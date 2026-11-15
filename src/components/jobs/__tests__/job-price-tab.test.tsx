@@ -1,0 +1,194 @@
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import type { ComponentProps } from "react";
+
+/* THE JOB'S PRICE TAB (the job page plan's build 10, 15 November 2026): every
+   price on the job as a card, the one open below with its views and rail.
+   The quote page's body moved here with it: a quote still on the old builder
+   is switched to its lines as it opens (Isaac, 2026-10-12). */
+
+const readClaim = jest.fn();
+jest.mock("@/app/actions/workboard", () => ({ readClaim: (...a: unknown[]) => readClaim(...a) }));
+/* the lines have a suite of their own: here, what the tab hands them */
+jest.mock("@/components/workboard/quote/quote-lines-face", () => ({
+  QuoteLinesFace: ({ price, sm8, start, views, openAt, update }: { price: unknown; sm8: { value: string | null }; start?: boolean; views?: boolean; openAt?: number | null; update?: boolean }) => (
+    <div>
+      <p>{`Lines, ${sm8.value ?? "no value"}`}</p>
+      {views && <p>Views over the left</p>}
+      {start && <p>Starts at the reply box</p>}
+      {openAt != null && <p>{`On option ${openAt}`}</p>}
+      {update && <p>Update quote asked</p>}
+      <p>{price === undefined ? "No price" : price ? "Priced" : "Price refused"}</p>
+    </div>
+  ),
+}));
+jest.mock("@/components/workboard/board/job-quote-send", () => ({ JobQuoteSend: () => null, sendVariation: jest.fn() }));
+
+import { JobPriceTab } from "../job-price-tab";
+
+const JOB = "a3539c01-9527-42a6-893b-24376269efbb";
+const detail = { jobNumber: "3408", status: "Work Order", clientName: "Sharon Doyle", address: "1 Example St\nManly NSW 2095", geoLine: null } as unknown as ComponentProps<typeof JobPriceTab>["detail"];
+const facts = (over: Record<string, unknown> = {}) => ({ lines: 3, options: 1, toConfirm: 0, changedAt: null, talked: true, drafted: false, approved: false, version: 1, sent: null, accepted: [], ...over });
+const landing = { name: "Return visit", startedAt: null, who: null, approvedBy: null, acceptedAt: null, totalCents: 77_500, money: true, versions: [], variations: [] };
+
+let status: Record<string, unknown>;
+let engine = "lines";
+let switches = true;
+let fetchMock: jest.Mock;
+beforeEach(() => {
+  status = { ok: true, facts: facts(), landing };
+  engine = "lines";
+  switches = true;
+  fetchMock = jest.fn(async (url: string, init?: { body?: string }) => ({
+    json: async () => {
+      if (String(url).startsWith("/api/workboard/quote-status")) return status;
+      if (String(url).startsWith("/api/workboard/quote-lines")) {
+        if (init?.body) {
+          if (!switches) return { ok: false };
+          engine = JSON.parse(init.body).engine;
+          return { ok: true };
+        }
+        return { ok: true, engine };
+      }
+      return { ok: true, price: { ok: true, options: [] } };
+    },
+  }));
+  (global as unknown as { fetch: unknown }).fetch = fetchMock;
+  readClaim.mockReset().mockResolvedValue({
+    ledger: { materials: [{ remoteId: "m-1", name: "Initial Service of Systems", quantity: 1, unitCents: 35_000, taxInclusive: false, lineCents: 35_000, exLineCents: 35_000 }], payments: [] },
+    notes: [],
+    media: { photos: [], documents: [{ remoteId: "inv", name: "Invoice #3408", fileType: ".pdf", kind: "document", origin: "Invoice", takenAt: null, url: "https://files.example/3408.pdf", width: null, height: null, fromClaim: null }], elsewhere: [], truncated: false },
+  });
+});
+
+const sm8None = { papers: [], sentOn: null, value: null };
+const billing = {
+  value: { cents: 35_000, basis: "ex" as const },
+  quoted: null,
+  segments: null,
+  figures: { paid: 0, waiting: 35_000, tocome: 0 },
+  staged: false,
+  rows: [{ claimId: JOB, name: "Invoice", line: "Invoice #3408, due Wed 25 Nov", percent: 100, cents: 35_000, basis: "ex" as const, word: "Awaiting", tone: "look" as const }],
+  fact: null,
+};
+const claims = [{ remoteId: JOB, jobNumber: "3408", index: 1, stage: "Final" as const, amountCents: 38_500, basis: "inc" as const, exCents: 35_000, percent: 100, raisedOn: "2026-11-11", paidCents: 0, paidOn: null, state: "awaiting" as const, dueOn: "2026-11-25", overdueDays: null }];
+
+const draw = (over: Partial<ComponentProps<typeof JobPriceTab>> = {}) =>
+  render(
+    <JobPriceTab
+      job={JOB}
+      ready
+      moneyVisible
+      financials
+      detail={detail}
+      sm8={sm8None}
+      billing={billing}
+      claims={claims}
+      materials={[]}
+      ask={null}
+      onOpenPaper={jest.fn()}
+      onToast={jest.fn()}
+      {...over}
+    />
+  );
+const prices = () => within(screen.getByRole("group", { name: "The job's prices" }));
+
+it("lays the job's prices across the top, the quote open in its views, the invoice beside it", async () => {
+  draw();
+  const quote = await prices().findByRole("button", { name: /^Quote/ });
+  expect(quote).toHaveAttribute("aria-pressed", "true");
+  expect(quote).toHaveTextContent("Return visit$775.00 ex GST");
+  /* owed said one way, as Billing's row says it */
+  expect(prices().getByRole("button", { name: /^Invoice #3408/ })).toHaveTextContent("$350 ex GSTAwaiting");
+  expect(await screen.findByText("Views over the left")).toBeInTheDocument();
+  expect(await screen.findByText("Priced")).toBeInTheDocument();
+});
+
+it("opens an invoice on its paper, with its figure and word down the right", async () => {
+  draw();
+  await userEvent.click(await prices().findByRole("button", { name: /^Invoice #3408/ }));
+  expect(prices().getByRole("button", { name: /^Invoice #3408/ })).toHaveAttribute("aria-pressed", "true");
+  expect(await screen.findByLabelText("Invoice #3408", { selector: "iframe" })).toHaveAttribute("src", "https://files.example/3408.pdf");
+  const rail = within(screen.getByRole("complementary", { name: "Invoice #3408" }));
+  expect(rail.getByText("$350")).toBeInTheDocument();
+  expect(rail.getByText("Awaiting")).toBeInTheDocument();
+  await userEvent.click(screen.getByRole("radio", { name: "Line items" }));
+  expect(screen.getByText("Initial Service of Systems")).toBeInTheDocument();
+});
+
+it("opens on the invoice a door asked for", async () => {
+  draw({ ask: { invoice: JOB.toUpperCase(), n: 1 } });
+  expect(await prices().findByRole("button", { name: /^Invoice #3408/, pressed: true })).toBeInTheDocument();
+});
+
+it("shows a tech no invoice, and reads no price without the money grants", async () => {
+  draw({ moneyVisible: false, financials: false, billing: null });
+  expect(await screen.findByText("No price")).toBeInTheDocument();
+  expect(prices().queryByRole("button", { name: /^Invoice/ })).toBeNull();
+  expect(readClaim).not.toHaveBeenCalled();
+  expect(fetchMock.mock.calls.some((c) => String(c[0]).startsWith("/api/workboard/quote-price"))).toBe(false);
+});
+
+it("offers New quote, orange, on a job with no price, and starts it at the reply box", async () => {
+  status = { ok: true, facts: facts({ lines: 0, talked: false }), landing: null };
+  draw({ billing: null, claims: [] });
+  expect(await screen.findByText("No quote on this job yet")).toBeInTheDocument();
+  const button = screen.getByRole("button", { name: "New quote" });
+  expect(button).toHaveClass("pt-btn--quote");
+  await userEvent.click(button);
+  expect(await screen.findByText("Starts at the reply box")).toBeInTheDocument();
+  expect(prices().getByRole("button", { name: /New quote/, pressed: true })).toBeInTheDocument();
+});
+
+it("hands the quote what the address asked: the start, an option, Update quote", async () => {
+  status = { ok: true, facts: facts({ lines: 0, talked: false }), landing: null };
+  const { unmount } = draw({ ask: { start: true, n: 1 } });
+  expect(await screen.findByText("Starts at the reply box")).toBeInTheDocument();
+  unmount();
+  status = { ok: true, facts: facts(), landing };
+  draw({ ask: { option: 2, update: true, n: 1 } });
+  expect(await screen.findByText("On option 2")).toBeInTheDocument();
+  expect(screen.getByText("Update quote asked")).toBeInTheDocument();
+  expect(screen.queryByText("Starts at the reply box")).toBeNull();
+});
+
+it("stands ServiceM8's own quote in for one never built here, with Update quote in orange", async () => {
+  status = { ok: true, facts: facts({ lines: 0, talked: false }), landing: null };
+  const paper = { remoteId: "q", name: "Quote #3408", fileType: ".pdf", kind: "document" as const, origin: "Quote", takenAt: null, url: "https://files.example/q.pdf", width: null, height: null, fromClaim: null };
+  draw({ sm8: { papers: [paper], sentOn: "2026-11-11", value: "$775 ex GST" }, billing: null, claims: [] });
+  expect(await prices().findByRole("button", { name: /^Quote, in ServiceM8/, pressed: true })).toBeInTheDocument();
+  expect(screen.getByLabelText("Quote #3408")).toHaveAttribute("src", "https://files.example/q.pdf");
+  expect(screen.getByText("Typed in ServiceM8, so there’s no chat with Tiff behind it.")).toBeInTheDocument();
+  const update = screen.getByRole("button", { name: "Update quote" });
+  expect(update).toHaveClass("pt-btn--quote");
+  await userEvent.click(update);
+  expect(await screen.findByText("Starts at the reply box")).toBeInTheDocument();
+});
+
+it("switches a quote still on the old builder to its lines as it opens", async () => {
+  engine = "old";
+  draw();
+  expect(await screen.findByText("Views over the left")).toBeInTheDocument();
+  expect(fetchMock.mock.calls.filter((c) => (c[1] as { method?: string } | undefined)?.method === "POST")).toEqual([
+    ["/api/workboard/quote-lines", expect.objectContaining({ body: JSON.stringify({ job: JOB, op: "switch", engine: "lines" }) })],
+  ]);
+});
+
+it("says when the quote couldn't be opened, and Try again opens it", async () => {
+  engine = "old";
+  switches = false;
+  draw();
+  expect(await screen.findByText("The quote couldn’t be opened.")).toBeInTheDocument();
+  switches = true;
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  expect(await screen.findByText("Views over the left")).toBeInTheDocument();
+});
+
+it("says when where the quote stands wasn't read, and reads it again", async () => {
+  status = { ok: false };
+  draw({ billing: null, claims: [] });
+  expect(await screen.findByText("The quote wasn't read")).toBeInTheDocument();
+  status = { ok: true, facts: facts(), landing };
+  await userEvent.click(screen.getByRole("button", { name: "Read the quote again" }));
+  await waitFor(() => expect(prices().getByRole("button", { name: /^Quote/ })).toBeInTheDocument());
+});

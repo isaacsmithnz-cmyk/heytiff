@@ -39,7 +39,7 @@ jest.mock("@/components/jobs/job-page", () => ({ JobPage: () => null }));
 
 import JobPageRoute from "../jobs/[id]/page";
 
-type Props = { row: { id: string }; section: string; manage: boolean; moneyVisible: boolean; add: string | null; first: Record<string, unknown> };
+type Props = { row: { id: string }; section: string; manage: boolean; moneyVisible: boolean; add: string | null; price: Record<string, unknown> | null; first: Record<string, unknown> };
 const visit = async (id: string, search: Record<string, string | string[] | undefined> = {}) =>
   (await JobPageRoute({ params: Promise.resolve({ id }), searchParams: Promise.resolve(search) })) as { props: Props };
 
@@ -85,10 +85,11 @@ describe("the job", () => {
     await expect(visit("   ")).rejects.toThrow("NOT_FOUND");
   });
 
-  it("sends a claim's id to its parent job's page, on Billing for whoever sees the money", async () => {
+  /* an invoice's one home is Price (the job page plan's build 10) */
+  it("sends a claim's id to its parent job's page, on its invoice on Price for whoever sees the money", async () => {
     resolveJobCard.mockResolvedValueOnce({ parentRemoteId: "j-3209", focusRemoteId: "j-3209a" });
     held = new Set(["workboard", "workboard_money"]);
-    await expect(visit("j-3209a")).rejects.toThrow("REDIRECT:/dashboard/jobs/j-3209?tab=billing");
+    await expect(visit("j-3209a")).rejects.toThrow("REDIRECT:/dashboard/jobs/j-3209?tab=price&invoice=j-3209a");
   });
 });
 
@@ -115,6 +116,23 @@ describe("?add=", () => {
     expect((await visit("j-3209", { tab: "documents", add: "certificate" })).props).toMatchObject({ add: "certificate" });
     expect((await visit("j-3209", { add: "quote" })).props).toMatchObject({ add: null });
     expect((await visit("j-3209")).props).toMatchObject({ add: null });
+  });
+});
+
+/* the quote's old page lands on Price, asking what it asked (build 10) */
+describe("Price's ask", () => {
+  it("hands Price the quote's start, option and Update quote, only on Price", async () => {
+    expect((await visit("j-3209", { tab: "price", start: "1" })).props.price).toEqual({ start: true, option: null, update: false, invoice: null });
+    expect((await visit("j-3209", { tab: "quote", option: "2", update: "1" })).props.price).toEqual({ start: false, option: 2, update: true, invoice: null });
+    expect((await visit("j-3209", { tab: "price", option: "99" })).props.price).toBeNull();
+    expect((await visit("j-3209", { start: "1" })).props.price).toBeNull();
+    expect((await visit("j-3209", { tab: "price" })).props.price).toBeNull();
+  });
+
+  it("opens an invoice only for whoever sees the money", async () => {
+    expect((await visit("j-3209", { tab: "price", invoice: "j-3209a" })).props.price).toBeNull();
+    held = new Set(["workboard", "workboard_money"]);
+    expect((await visit("j-3209", { tab: "price", invoice: "j-3209a" })).props.price).toMatchObject({ invoice: "j-3209a" });
   });
 });
 

@@ -448,8 +448,9 @@ describe("the job's sections are the card's faces", () => {
     await ready();
     const face = (key: string) => document.getElementById(`jcsec-${key}`)!;
     expect(face("money")).not.toBeEmptyDOMElement();
-    for (const key of ["visits", "checklist", "photos", "documents", "quote"]) expect(face(key)).toBeEmptyDOMElement();
+    for (const key of ["visits", "checklist", "photos", "documents"]) expect(face(key)).toBeEmptyDOMElement();
     expect(document.querySelector(".jp-over")).toBeEmptyDOMElement();
+    expect(document.querySelector(".jp-price")).toBeEmptyDOMElement();
     const at = (section: JobSection) => (
       <JobSheet
         row={row()}

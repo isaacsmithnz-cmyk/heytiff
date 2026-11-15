@@ -24,7 +24,7 @@ import type { VariationSendAnswer } from "@/app/actions/quote-sm8";
 import { VersionPaper } from "./version-paper";
 import type { QuoteVersion } from "@/lib/quotes/quote-versions";
 import type { JobMediaItem } from "@/lib/workboard/job-media";
-import type { Sm8Quote } from "../board/job-quote-card";
+import type { Sm8Quote } from "./sm8-quote-of";
 import { QuoteLineItems, RemoveLine, groupKey, sellEachOf } from "./quote-line-items";
 import { optionsWords, twinsOf } from "@/lib/quotes/line-twins";
 import { AddedRows, InServiceM8, OptionRows, QuoteCard, QuoteRail, signed } from "./quote-rail";
@@ -35,6 +35,7 @@ import { Dialog } from "@/components/parts/dialog";
 import { Button } from "@/components/parts/button";
 import { Field } from "@/components/parts/field";
 import { NoteToken } from "@/components/notes/note-token";
+import { Tray } from "@/components/parts/tabs";
 
 /* THE QUOTE, IN LAYOUT B (Isaac's pick, 21 October 2026; chat first since
    2026-10-13): the conversation with Tiff fills the left, and the rail
@@ -162,6 +163,7 @@ export function QuoteLinesFace({
   sendVariation: sendVariationTo,
   jobStatus = null,
   update = false,
+  views = false,
 }: {
   job: string;
   price: QuotePrice | null | undefined;
@@ -201,6 +203,10 @@ export function QuoteLinesFace({
   /** opened from the job's Since the quote (?update=1): Update quote, with
       what's changing written in */
   update?: boolean;
+  /** on the job's Price tab: Chat, Line items and Preview in a tray over the
+      left, in place of the rail's Line items and Preview quote (the job page
+      plan's build 10, 15 November 2026) */
+  views?: boolean;
 }) {
   const { view, post, reload } = useQuoteLines(job, true);
   const [at, setAt] = useState(openAt ?? 0);
@@ -339,6 +345,13 @@ export function QuoteLinesFace({
     openUpdate();
   }, [updateReady]);
   const linesUp = tiff !== null && (!chat || tab === "lines");
+  /* the Price tab's views: Chat while Tiff is on, the line items, and the
+     paper, which is the money's as Preview quote was; one alone is no tray */
+  const viewsOffered = [
+    ...(chat ? [{ value: "chat" as const, label: "Chat" }] : []),
+    { value: "lines" as const, label: "Line items" },
+    ...(money && all.length > 0 ? [{ value: "preview" as const, label: "Preview" }] : []),
+  ];
 
   /* the quote's state word, for the line under the job's name: where it has
      got to, or what's left to settle on the way */
@@ -681,6 +694,7 @@ export function QuoteLinesFace({
         lines={all.length}
         busy={busy}
         paper={paper}
+        views={views}
         back={chat && tab === "chat" ? "Back to the conversation" : "Back to the line items"}
         kept={!!shown}
         variation={variation}
@@ -713,6 +727,21 @@ export function QuoteLinesFace({
     <>
       <div className="qc-body">
         <div className="qc-main">
+          {views && tiff !== null && viewsOffered.length > 1 && (
+            <div className="qc-views">
+              <Tray
+                ariaLabel="What the quote shows"
+                value={paper ? "preview" : linesUp ? "lines" : "chat"}
+                options={viewsOffered}
+                onChange={(v) => {
+                  if (v === "preview") return setPaper(true);
+                  setPaper(false);
+                  setViewing(null);
+                  setTab(v);
+                }}
+              />
+            </div>
+          )}
           {note && <p className="wb2-sherr qc-note">{note}</p>}
           {/* mounted whatever is up: her work lands, and the page learns
               whether she's on, from here */}
@@ -872,7 +901,7 @@ export function QuoteLinesFace({
           }
           actions={actions}
           lines={
-            tiff !== null && chat ? (
+            tiff !== null && chat && !views ? (
               <LinesButton
                 up={linesUp && !paper}
                 onLines={() => {

@@ -26,7 +26,7 @@ export function JobScopeTab({
   reading = false,
   onUndo,
   onLeave,
-  updateHref,
+  onUpdate,
   summary,
 }: {
   scope: JobScopeRead | null;
@@ -35,8 +35,8 @@ export function JobScopeTab({
   onUndo?: () => Promise<void>;
   /** Leave out, off Since the quote. */
   onLeave?: (text: string) => Promise<void>;
-  /** The quote, opened on Update quote with what's changing written in. */
-  updateHref?: string;
+  /** Price, opened on Update quote with what's changing written in. */
+  onUpdate?: () => void;
   /** For a job with no Scope: the quote's groups, the office's words, and
       whether the quote has been asked. */
   summary: { fromQuote: SummaryGroup[] | null; description: string; read: boolean };
@@ -58,7 +58,7 @@ export function JobScopeTab({
       </div>
       {rail && (
         <div className="jst-rail">
-          <JobScope scope={scope} part="rail" reading={reading} onUndo={onUndo} onLeave={onLeave} updateHref={updateHref} />
+          <JobScope scope={scope} part="rail" reading={reading} onUndo={onUndo} onLeave={onLeave} onUpdate={onUpdate} />
         </div>
       )}
     </div>

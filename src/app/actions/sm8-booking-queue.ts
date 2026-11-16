@@ -1058,6 +1058,69 @@ export async function queueRecordedTime(
   return row ? { ok: true, rowId: row.id } : { ok: false, refusal: "unqueued" };
 }
 
+/* ── time on the job, changed after it went ── */
+
+/** `clear`: nothing of the stint's time is in ServiceM8 or on its way, and
+    its slot is free for the new time; `taking_out`: its take-out is on its
+    way, and the new time waits on it (giveTimeBack). */
+export type RetakeTimeResult = { ok: true; plan: "clear" } | { ok: true; plan: "taking_out"; takeOutRowId: string } | { ok: false; refusal: BookingRefusal };
+
+/** A stint's time changed, or taken off the day, after Clock off sent it
+    (Isaac, 17 November 2026: "I can't adjust my times after clocking off").
+    ServiceM8 never holds two of one stint: what went is taken out first, by
+    the one who sent it, and only while ServiceM8 has it as it was sent (the
+    sender's undo checks); the new time goes after (sendTimeAgain). One that
+    never landed is stopped and gives its slot back at once. Changed in
+    ServiceM8 since, it's theirs, and this is refused `changed`. */
+export async function retakeRecordedTime(press: Sm8Press, state: Sm8WriteState, input: { jobUuid: string; checkInId: string }): Promise<RetakeTimeResult> {
+  if (!isSm8Press(press)) {
+    console.error("[sm8] refused to take back time on a job that nobody pressed for (no press, or a stale one)");
+    return { ok: false, refusal: "unqueued" };
+  }
+  const orgId = press.orgId;
+  const { jobUuid, checkInId } = input ?? ({} as never);
+  if (!UUID.test(jobUuid ?? "") || !UUID.test(checkInId ?? "")) return { ok: false, refusal: "unqueued" };
+  const key = dedupeKey("booking", jobUuid.toLowerCase(), bookingSubject.time(checkInId.toLowerCase()));
+  const there = await readByKeys(orgId, [key]);
+  if (!there) return { ok: false, refusal: "unqueued" };
+  const row = there.get(key);
+  /* nothing ever queued for it */
+  if (!row) return { ok: true, plan: "clear" };
+  const took = await queueBookingTakeBack(press, state, { createRowId: row.id, anyTime: true });
+  if (!took.ok) return took;
+  if (took.plan === "deleting" || took.plan === "already") {
+    const d = await readTakeBack(orgId, row.id);
+    if (d === "failed" || !d) return { ok: false, refusal: "unqueued" };
+    if (d.status !== "sent") return { ok: true, plan: "taking_out", takeOutRowId: d.id };
+  }
+  return (await giveTimeBack(press, { jobUuid, checkInId })) ? { ok: true, plan: "clear" } : { ok: false, refusal: "unqueued" };
+}
+
+/** A stint's time, taken back, gives its slot back once nothing of it can
+    be in ServiceM8: never landed, or its take-out sent. False while it may
+    still be there, or on a miss. */
+export async function giveTimeBack(press: Sm8Press, input: { jobUuid: string; checkInId: string }): Promise<boolean> {
+  if (!isSm8Press(press)) return false;
+  const orgId = press.orgId;
+  if (!UUID.test(input?.jobUuid ?? "") || !UUID.test(input?.checkInId ?? "")) return false;
+  const key = dedupeKey("booking", input.jobUuid.toLowerCase(), bookingSubject.time(input.checkInId.toLowerCase()));
+  const there = await readByKeys(orgId, [key]);
+  const row = there?.get(key);
+  if (!there) return false;
+  /* released already */
+  if (!row) return true;
+  if (!row.taken_back_at || (row.requested_by_user ?? null) !== press.userId) return false;
+  if (row.status === "sending" && leaseLive(row, Date.now())) return false;
+  if (mayBeThere(row)) {
+    const d = await readTakeBack(orgId, row.id);
+    const shown = row.remote_uuid ? await readMirrorBookings(orgId, [row.remote_uuid]) : null;
+    const m = shown?.get(row.remote_uuid.toLowerCase());
+    const out = (d && d !== "failed" && d.status === "sent") || (!!m && Number(m.active) !== 1);
+    if (!out) return false;
+  }
+  return release(orgId, row);
+}
+
 /* ── Try again ── */
 
 /** The one door for Try again on a line (try_again, and a take-back's

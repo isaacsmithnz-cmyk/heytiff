@@ -84,7 +84,7 @@ import { BOOKING_STATUS_WAIT_MS, BOOKING_WORDS, bookingLine, clearLine, localNow
 import { checkedIn } from "../sm8-booking-send";
 import { NOTE_WORDS } from "../sm8-note-words";
 import { WRITE_WORDS, offersSend, sendHold } from "../sm8-write-plan";
-import { queueBookIn, queueBookingRetry, queueBookingTakeBack, queueClear, queueMakeWorkOrder, queueMarkCompleted, queueMarkUnsuccessful, queueRecordedTime, queueTakeOff } from "@/app/actions/sm8-booking-queue";
+import { queueBookIn, queueBookingRetry, queueBookingTakeBack, queueClear, queueMakeWorkOrder, queueMarkCompleted, queueMarkUnsuccessful, queueRecordedTime, queueTakeOff, retakeRecordedTime, giveTimeBack } from "@/app/actions/sm8-booking-queue";
 import { readBookingOverlay } from "../sm8-booking-overlay";
 
 const ORG = "org-1";
@@ -2452,6 +2452,63 @@ describe("time on the job goes as recorded time, never as a booking (the phone's
     due(r);
     await run();
     expect(r.status).toBe("sent");
+  });
+});
+
+describe("time on the job changed after Clock off: ServiceM8 holds one of it, never two", () => {
+  beforeEach(() => {
+    sm8.job(OTHER_JOB, { status: "Completed", kept: { generated_job_id: "9002" } as never });
+  });
+  const retake = async () => retakeRecordedTime(await pressAs(), await state(), { jobUuid: OTHER_JOB, checkInId: STINT });
+  const giveBack = async () => giveTimeBack(await pressAs(), { jobUuid: OTHER_JOB, checkInId: STINT });
+
+  it("(F) what went is taken out first, and only once it's out does the new time go", async () => {
+    await worked();
+    await run();
+    const old = timeRow();
+    expect(old.status).toBe("sent");
+    mirrored(old.remote_uuid as string);
+    const r = await retake();
+    expect(r).toMatchObject({ ok: true, plan: "taking_out" });
+    /* still in ServiceM8: the slot stays the old time's */
+    expect(await giveBack()).toBe(false);
+    await run();
+    expect(deleteSm8Booking).toHaveBeenCalledTimes(1);
+    expect(sm8.get(old.remote_uuid as string)?.active).not.toBe(1);
+    expect(await giveBack()).toBe(true);
+    expect(String(old.subject)).toBe(`time:${STINT}:was:${old.id}`);
+    const again = await worked({ end: at(YESTERDAY, "14:00") });
+    expect(again).toMatchObject({ ok: true });
+    expect((again as { rowId: string }).rowId).not.toBe(old.id);
+    await run();
+    expect(postSm8Booking).toHaveBeenCalledTimes(2);
+    expect(postSm8Booking.mock.calls[1][1]).toMatchObject({ start: at(YESTERDAY, "06:58"), end: at(YESTERDAY, "14:00"), recorded: true });
+  });
+
+  it("(F) one that hasn't gone yet is stopped, and the new time takes its place at once", async () => {
+    await worked();
+    expect(await retake()).toEqual({ ok: true, plan: "clear" });
+    await worked({ end: at(YESTERDAY, "14:00") });
+    await run();
+    expect(postSm8Booking).toHaveBeenCalledTimes(1);
+    expect(postSm8Booking.mock.calls[0][1]).toMatchObject({ end: at(YESTERDAY, "14:00") });
+    expect(deleteSm8Booking).not.toHaveBeenCalled();
+  });
+
+  it("(F) one changed in ServiceM8 since is theirs: nothing is taken out", async () => {
+    await worked();
+    await run();
+    const old = timeRow();
+    sm8.get(old.remote_uuid as string)!.end = at(YESTERDAY, "16:00");
+    mirrored(old.remote_uuid as string);
+    expect(await retake()).toEqual({ ok: false, refusal: "changed" });
+    await run();
+    expect(deleteSm8Booking).not.toHaveBeenCalled();
+    expect(await giveBack()).toBe(false);
+  });
+
+  it("(F) a stint nothing was sent for is clear to send", async () => {
+    expect(await retake()).toEqual({ ok: true, plan: "clear" });
   });
 });
 

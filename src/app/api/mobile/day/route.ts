@@ -45,7 +45,7 @@ export async function POST(request: Request) {
   else if (body?.do === "leave") answer = await leave(ctx, body.jobUuid, body.at);
   else if (body?.do === "office") answer = await atOffice(ctx, body.at);
   else if (body?.do === "reason") answer = await setReason(ctx, body.jobUuid, body.reason);
-  else if (body?.do === "stint") answer = await changeStint(ctx, body.id, body.from, body.until, body.remove === true, Date.now(), body.joined);
+  else if (body?.do === "stint") answer = await changeStint(ctx, body.id, body.from, body.until, body.remove === true, Date.now(), body.joined, await sm8PressFromMobile(ctx));
   else if (body?.do === "off") answer = await clockOffDay(ctx, await sm8PressFromMobile(ctx), body.at);
   else return no(400, "Say on, undo, arrive, leave, office, reason, stint or off.");
   if (!answer.ok) return no(answer.status, answer.error);

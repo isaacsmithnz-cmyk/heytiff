@@ -15,7 +15,7 @@ import { streetLine } from "@/lib/studio/job-link";
 import { derivedDayHours, dowOf, expectedDay, expectsWork, normalHours, paidTimeOf, parseClock, type PaidTime, type WeekCtx } from "@/components/timepay/logic";
 import { saveDay } from "@/app/actions/timepay";
 import { endCheckIn, jobOf, openCheckIn, startCheckIn, type CheckIn } from "@/lib/workboard/check-in-rules";
-import { jobsOf, sendTime, staffUuidOf, wallMinute, type ClockJob } from "./clock";
+import { jobsOf, sendTime, sendTimeAgain, staffUuidOf, wallMinute, type ClockJob } from "./clock";
 import { actAsPhoneUser, type MobileCtx } from "./auth";
 import { readCheckInFixes, withFix } from "@/lib/workboard/check-in-fixes";
 import { joinDay, type Away } from "./day-join";
@@ -102,6 +102,7 @@ export const DAY_WORDS = {
   notOn: "Your day isn't on. Clock on first.",
   noJob: "That job isn't in HeyTiff.",
   future: "That time hasn't come yet.",
+  afterOff: "That's after you clocked off.",
   noTime: "Pick the time.",
   beforeOn: "That's before you clocked on.",
   backwards: "It has to finish after it starts.",
@@ -252,7 +253,12 @@ async function sm8CheckIns(ctx: MobileCtx, staffUuid: string | null, zone: strin
     .gte("start_date", a)
     .lte("start_date", b);
   type Act = { uuid: string; job_uuid: string; start_date: string | null; end_date: string | null };
-  const acts = (data ?? []) as Act[];
+  const all = (data ?? []) as Act[];
+  /* the phone's own time, sent at Clock off and read back, is the phone's
+     stint still: it stays yours to change, and a copy whose take-out is on
+     its way after a change isn't counted twice */
+  const ours = await ownTimeIn(ctx.orgId, all.map((r) => r.uuid));
+  const acts = all.filter((r) => !ours.has(r.uuid.toLowerCase()));
   /* a check-in left on and fixed counts to its fixed end (check_in_fixes), as the job card and the schedule count it */
   const fixes = await readCheckInFixes(ctx.orgId, acts.map((r) => r.uuid)).catch(() => new Map<string, string>());
   const out: { jobUuid: string; from: string; until: string }[] = [];
@@ -265,6 +271,25 @@ async function sm8CheckIns(ctx: MobileCtx, staffUuid: string | null, zone: strin
     const untilIso = new Date(e).toISOString();
     if (untilIso <= from || fromIso >= until) continue;
     out.push({ jobUuid: r.job_uuid, from: fromIso, until: untilIso });
+  }
+  return out;
+}
+
+/** Of these ServiceM8 activities, the ones the phone's time on a job made (a `time:` row's uuid). */
+async function ownTimeIn(orgId: string, uuids: string[]): Promise<Set<string>> {
+  const out = new Set<string>();
+  if (uuids.length === 0) return out;
+  const spell = [...new Set(uuids.flatMap((u) => [u, u.toLowerCase(), u.toUpperCase()]))];
+  const { data } = await supabaseAdmin
+    .from("sm8_writes")
+    .select("remote_uuid, replaced_uuids")
+    .eq("org_id", orgId)
+    .eq("kind", "booking")
+    .eq("op", "create")
+    .like("subject", "time:%")
+    .in("remote_uuid", spell);
+  for (const r of (data ?? []) as { remote_uuid: string | null; replaced_uuids: string[] | null }[]) {
+    for (const u of [r.remote_uuid, ...(r.replaced_uuids ?? [])]) if (u) out.add(u.toLowerCase());
   }
   return out;
 }
@@ -567,30 +592,50 @@ export function stintTimes(p: { from: unknown; until: unknown; onAt: string; now
 /* A JOINED STRETCH CHANGES WHOLE: its row is its first stint with the later
    ones joined on (joinDay), so new times for it are that stint's, and the
    joined ones go, or they'd join back on past the times you set. */
-export async function changeStint(ctx: MobileCtx, id: unknown, from: unknown, until: unknown, remove: boolean, now: number = Date.now(), joined?: unknown): Promise<DayAnswer> {
-  const day = await openDay(ctx);
+/* AND AFTER CLOCK OFF, ON THE DAY ITSELF (Isaac, 17 November 2026: "I
+   can't adjust my times after clocking off or view my full day"): today's
+   day once it's off takes changes too, inside its own on and off. What Clock
+   off sent ServiceM8 for that stint is taken out and the new time sent
+   (sendTimeAgain); one taken off the day is taken out. The day's own start
+   and finish don't move, so the timesheet stands as Clock off left it. */
+export async function changeStint(
+  ctx: MobileCtx,
+  id: unknown,
+  from: unknown,
+  until: unknown,
+  remove: boolean,
+  now: number = Date.now(),
+  joined?: unknown,
+  press: Sm8Press | null = null,
+): Promise<DayAnswer> {
+  const day = (await openDay(ctx)) ?? (await endedToday(ctx, now));
   if (!day) return { ok: false, error: DAY_WORDS.notOn, status: 409 };
+  const ended = day.off_at;
   const stintId = typeof id === "string" && /^[0-9a-f-]{36}$/i.test(id) ? id : null;
   if (!stintId) return { ok: false, error: DAY_WORDS.noStint, status: 404 };
   const { data: row } = await supabaseAdmin
     .from("job_check_ins")
-    .select("id, checked_in_at")
+    .select("id, sm8_job_uuid, checked_in_at")
     .eq("org_id", ctx.orgId)
     .eq("user_id", ctx.userId)
     .eq("id", stintId)
     .maybeSingle();
-  if (!row || (row as { checked_in_at: string }).checked_in_at < day.on_at) return { ok: false, error: DAY_WORDS.noStint, status: 404 };
+  const stint = row as { id: string; sm8_job_uuid: string; checked_in_at: string } | null;
+  if (!stint || stint.checked_in_at < day.on_at || (ended && stint.checked_in_at > ended)) return { ok: false, error: DAY_WORDS.noStint, status: 404 };
   const others = (Array.isArray(joined) ? joined : []).filter((x): x is string => typeof x === "string" && /^[0-9a-f-]{36}$/i.test(x) && x !== stintId).slice(0, 50);
   const dropOthers = async () => {
     if (others.length) await supabaseAdmin.from("job_check_ins").delete().eq("org_id", ctx.orgId).eq("user_id", ctx.userId).gte("checked_in_at", day.on_at).in("id", others);
   };
+  const sent = { id: stint.id, jobUuid: stint.sm8_job_uuid };
   if (remove) {
     await supabaseAdmin.from("job_check_ins").delete().eq("org_id", ctx.orgId).eq("user_id", ctx.userId).eq("id", stintId);
     await dropOthers();
+    if (ended) await sendTimeAgain(ctx, press, sent, null);
     return { ok: true, state: await readDay(ctx, now), said: DAY_WORDS.removed };
   }
-  const t = stintTimes({ from, until, onAt: day.on_at, now });
-  if ("error" in t) return { ok: false, error: t.error, status: 400 };
+  /* an ended day's times stop at its finish, as an open one's stop at now */
+  const t = stintTimes({ from, until, onAt: day.on_at, now: ended ? Math.min(Date.parse(ended), now) : now });
+  if ("error" in t) return { ok: false, error: ended && t.error === DAY_WORDS.future ? DAY_WORDS.afterOff : t.error, status: 400 };
   await dropOthers();
   const { error } = await supabaseAdmin
     .from("job_check_ins")
@@ -599,7 +644,23 @@ export async function changeStint(ctx: MobileCtx, id: unknown, from: unknown, un
     .eq("user_id", ctx.userId)
     .eq("id", stintId);
   if (error) return { ok: false, error: DAY_WORDS.noStint, status: 400 };
-  return { ok: true, state: await readDay(ctx, now), said: DAY_WORDS.changed };
+  const state = await readDay(ctx, now);
+  if (ended) {
+    /* to the quarter hour as the day shows it, as Clock off sends; one
+       ServiceM8's own check-in now covers isn't sent again (mergeJobs) */
+    const shown = state.summary?.jobs.find((j) => j.stintId === stintId && j.how === "phone");
+    await sendTimeAgain(ctx, press, sent, shown ? { id: stint.id, jobUuid: stint.sm8_job_uuid, inAt: shown.from, outAt: shown.until } : null);
+  }
+  return { ok: true, state, said: DAY_WORDS.changed };
+}
+
+/** Today's day, once it's off: the one changes after Clock off are made to. */
+async function endedToday(ctx: MobileCtx, now: number): Promise<DayRow | null> {
+  const zone = await zoneOf(ctx.orgId);
+  const nowIso = new Date(now).toISOString();
+  const today = wallMinute(nowIso, zone)?.slice(0, 10) ?? nowIso.slice(0, 10);
+  const row = await dayRow(ctx, today);
+  return row && row.off_at && row.work_date === today ? row : null;
 }
 
 /** Why you're at a job, on the stint you're on there (or the one you just left), while the day is on.

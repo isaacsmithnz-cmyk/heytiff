@@ -38,7 +38,7 @@ jest.mock("@/app/actions/sm8-booking-queue", () => ({}));
 jest.mock("@/lib/integrations/sm8-drain", () => ({}));
 jest.mock("@auth0/nextjs-auth0/server", () => ({ Auth0Client: class {} }));
 
-import { AWAY_KEPT_MS, arrivedOf, clockOnPlan, hasLife, joinDay, mayUndo, mergeJobs, normalStartOn, paidFromOf, recentWindow, rosteredDays, sheetCall, stintTimes, summarise, toQuarter, type DayJob } from "@/lib/mobile/day";
+import { AWAY_KEPT_MS, arrivedOf, clockOnPlan, finishedLately, hasLife, joinDay, mayUndo, mergeJobs, normalStartOn, paidFromOf, recentWindow, rosteredDays, sheetCall, stintTimes, summarise, toQuarter, type DayJob } from "@/lib/mobile/day";
 import type { MobileCtx } from "@/lib/mobile/auth";
 
 /* 27 October 2026 is daylight time in Sydney: +11:00 */
@@ -153,6 +153,15 @@ test("an open job counts as somewhere you dropped in only with some life in it",
   /* untouched for months, but a visit booked: still a place */
   expect(hasLife({ uuid: "ABC-OLD", edit_date: "2026-03-01 09:00:00" }, from, new Set(["abc-old"]))).toBe(true);
   expect(hasLife({ uuid: "no-date", edit_date: null }, from, none)).toBe(false);
+});
+
+/* 1352, 9/6 Holbrook Avenue: Completed on 3 November 2026, and Isaac's 15 minutes there on
+   the 16th went on nothing. A job finished within the last 60 days is still a place. */
+test("a job finished lately is still somewhere you dropped in", () => {
+  const [from] = recentWindow("2026-11-16");
+  expect(finishedLately({ completion_date: "2026-11-03 06:17:40" }, from)).toBe(true);
+  expect(finishedLately({ completion_date: "2026-08-01 10:00:00" }, from)).toBe(false);
+  expect(finishedLately({ completion_date: null }, from)).toBe(false);
 });
 
 /* THE JOB-TIME RULES (Isaac, 29 October 2026, "Build them"), drawn on his

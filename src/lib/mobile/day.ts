@@ -849,7 +849,12 @@ export async function placesFor(ctx: MobileCtx, now: number = Date.now()): Promi
      work orders hadn't been touched in 60 days. A job counts only when it
      changed, or has a visit, within RECENT_DAYS either side of today. */
   const [from, until] = recentWindow(today);
-  const [{ data: openJobs }, visits] = await Promise.all([
+  /* A JOB FINISHED LATELY IS STILL A PLACE (Isaac, 17 November 2026: 1352, 9/6 Holbrook Avenue,
+     Completed on 3 November, and his 15 minutes there two weeks later went on nothing). People go
+     back to a finished job, to look at a fault or meet the builder, so one completed within
+     RECENT_DAYS counts as an open job does. Its completion, not its last change: invoicing and
+     payments keep touching a job long after the work. */
+  const [{ data: openJobs }, { data: doneJobs }, visits] = await Promise.all([
     supabaseAdmin
       .from("sm8_jobs")
       .select("uuid, generated_job_id, job_address, geo_city, lat, lng, edit_date")
@@ -859,11 +864,22 @@ export async function placesFor(ctx: MobileCtx, now: number = Date.now()): Promi
       .not("lat", "is", null)
       .not("lng", "is", null)
       .limit(2000),
+    supabaseAdmin
+      .from("sm8_jobs")
+      .select("uuid, generated_job_id, job_address, geo_city, lat, lng, completion_date")
+      .eq("org_id", ctx.orgId)
+      .eq("active", 1)
+      .eq("status", "Completed")
+      .gte("completion_date", `${from} 00:00:00`)
+      .not("lat", "is", null)
+      .not("lng", "is", null)
+      .limit(2000),
     visitedBetween(ctx.orgId, from, until),
   ]);
   const visited = visits;
   const open = ((openJobs ?? []) as (JobRow & { edit_date: string | null })[]).filter((j) => hasLife(j, from, visited));
-  return { office, booked, next, open: open.map(placeOf) };
+  const done = ((doneJobs ?? []) as (JobRow & { completion_date: string | null })[]).filter((j) => finishedLately(j, from));
+  return { office, booked, next, open: [...open, ...done].map(placeOf) };
 }
 
 /** Every job with a visit in the window, read a page at a time: the API answers 1,000 rows at most,
@@ -901,4 +917,9 @@ export function recentWindow(today: string): [string, string] {
 /** An open job changed since `from`, or with a visit in the window. */
 export function hasLife(j: { uuid: string; edit_date: string | null }, from: string, visited: ReadonlySet<string>): boolean {
   return (!!j.edit_date && j.edit_date.slice(0, 10) >= from) || visited.has(j.uuid.toLowerCase());
+}
+
+/** A Completed job finished on or after `from`: still somewhere people go back to. */
+export function finishedLately(j: { completion_date: string | null }, from: string): boolean {
+  return !!j.completion_date && j.completion_date.slice(0, 10) >= from;
 }

@@ -1,7 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
-import { JobFacts, addressLines, directionsHref, phoneWords } from "../job-facts";
+import { JobFacts, JobHeadMap, JobSiteWords, addressLines, directionsHref, phoneWords } from "../job-facts";
 
 const counts: Record<string, number> = { "job-3416": 3, "job-bare": 0 };
 jest.mock("@/app/actions/site-notes", () => ({
@@ -34,24 +34,12 @@ const base = { detail: detail(), next: null, nextRead: true, onVisits: jest.fn()
 const cells = () => within(screen.getByRole("group", { name: "The job's facts" })).getAllByRole("region");
 const cell = (name: string | RegExp) => within(screen.getByRole("region", { name }));
 
-it("reads Next visit first, then the site, then the contacts, and no money", () => {
-  // eslint-disable-next-line @next/next/no-img-element
-  render(<JobFacts {...base} map={<img className="jfc-map" alt="Map of 8/36 Abbott Road" />} />);
-  expect(cells().map((c) => c.querySelector(".jov-lab")?.firstChild?.textContent)).toEqual(["Next visit", "Site", "Contact"]);
+it("reads Next visit first, then the stages, then the contacts, and no money or site", () => {
+  render(<JobFacts {...base} stages={<nav aria-label="Where the job is up to" />} />);
+  expect(cells().map((c) => c.getAttribute("aria-label") ?? c.querySelector(".jov-lab")?.firstChild?.textContent)).toEqual(["Next visit", "Where the job is up to", "Contact"]);
   expect(screen.queryByRole("region", { name: "Money" })).toBeNull();
-  /* the map sits between Next visit and the site */
-  expect(screen.getByAltText("Map of 8/36 Abbott Road").nextElementSibling).toBe(screen.getByRole("region", { name: "Site" }));
-});
-
-/* calls 21 and the mock: the address at 16 bold, the rest grey, Directions beside its label */
-it("puts the address's first line in bold, the rest under it, and Directions to it in a new tab", () => {
-  render(<JobFacts {...base} />);
-  expect(cell("Site").getByText("8/36 Abbott Road").tagName).toBe("B");
-  expect(cell("Site").getByText("Seven Hills NSW 2147")).toBeInTheDocument();
-  const go = cell("Site").getByRole("link", { name: "Directions" });
-  expect(go).toHaveAttribute("href", directionsHref("8/36 Abbott Road\nSeven Hills NSW 2147"));
-  expect(go).toHaveAttribute("target", "_blank");
-  expect(directionsHref("8/36 Abbott Road\nSeven Hills NSW 2147")).toBe("https://www.google.com/maps/dir/?api=1&destination=8%2F36%20Abbott%20Road%2C%20Seven%20Hills%20NSW%202147");
+  /* the site and its map are the head's now (Isaac, 16 November 2026) */
+  expect(screen.queryByRole("region", { name: "Site" })).toBeNull();
 });
 
 /* important text never fades: an email is shown whole, and not underlined */
@@ -62,13 +50,24 @@ it("shows a contact's email whole", () => {
   expect(mail).toHaveClass("jov-mail");
 });
 
-it("says the job's address in Site, not its number (the header's), and falls back to the geo line", () => {
-  const { unmount } = render(<JobFacts {...base} />);
-  expect(cell("Site").queryByText(/Job 3385/)).toBeNull();
-  expect(cell("Site").getByText(/8\/36 Abbott Road/).closest("p")).toHaveTextContent("Seven Hills NSW 2147");
+/* THE SITE IN THE HEAD (Isaac, 16 November 2026, A): the address's first line bold over the rest */
+it("puts the address's first line in bold over the rest, and falls back to the geo line", () => {
+  const { container, unmount } = render(<JobSiteWords detail={detail()} jobUuid={null} />);
+  expect(screen.getByText("8/36 Abbott Road").tagName).toBe("B");
+  expect(container.querySelector(".jp-addr")).toHaveTextContent("Seven Hills NSW 2147");
+  expect(container).not.toHaveTextContent(/3385/);
   unmount();
-  render(<JobFacts {...base} detail={detail({ address: null, geoLine: "Rose Bay NSW 2029" })} />);
-  expect(cell("Site").getByText("Rose Bay NSW 2029")).toBeInTheDocument();
+  render(<JobSiteWords detail={detail({ address: null, geoLine: "Rose Bay NSW 2029" })} jobUuid={null} />);
+  expect(screen.getByText("Rose Bay NSW 2029")).toBeInTheDocument();
+});
+
+it("makes the head's map the directions to the site, in a new tab, its wide picture from our own route", () => {
+  render(<JobHeadMap jobUuid="job-3385" hue="purple" address={"8/36 Abbott Road\nSeven Hills NSW 2147"} />);
+  const go = screen.getByRole("link", { name: "Directions to 8/36 Abbott Road, Seven Hills NSW 2147" });
+  expect(go).toHaveAttribute("href", directionsHref("8/36 Abbott Road\nSeven Hills NSW 2147"));
+  expect(go).toHaveAttribute("target", "_blank");
+  expect(go.querySelector("img")).toHaveAttribute("src", "/api/workboard/job-map?job=job-3385&hue=purple&shape=head");
+  expect(directionsHref("8/36 Abbott Road\nSeven Hills NSW 2147")).toBe("https://www.google.com/maps/dir/?api=1&destination=8%2F36%20Abbott%20Road%2C%20Seven%20Hills%20NSW%202147");
 });
 
 it("puts who to ring in Contact: their disc, name, role and the number to dial, and Edit only where it saves", async () => {
@@ -132,26 +131,24 @@ it("keeps Book a visit's room while the visits are read, so nothing jumps", () =
   expect(screen.getByRole("region", { name: "Next visit" }).querySelector(".jov-press--held")).toBeNull();
 });
 
-/* Site notes (build 9): under the address and their PO, the orange asterisk
+/* Site notes (build 9): beside the address in the head, the orange asterisk
    on it only when the site has notes; no job, or no address, no button. */
-it("offers Site notes under the site, marked only when the site has notes", async () => {
-  const { rerender } = render(<JobFacts {...base} detail={detail({ purchaseOrder: "PO-77" })} jobUuid="job-3416" />);
-  const site = cell("Site");
-  const button = await site.findByRole("button", { name: /^Site notes\s?, the site has notes$/ });
+it("offers Site notes beside the site, marked only when the site has notes", async () => {
+  const { rerender } = render(<JobSiteWords detail={detail({ purchaseOrder: "PO-77" })} jobUuid="job-3416" />);
+  const button = await screen.findByRole("button", { name: /^Site notes\s?, the site has notes$/ });
   expect(button.querySelector(".stn-mark")).not.toBeNull();
   /* the phone's building on the button, always (Isaac, 15 November 2026) */
   expect(button.querySelector(".stn-bldg")).not.toBeNull();
-  /* after their PO */
-  expect(site.getByText("PO-77").compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(screen.getByText("PO-77")).toBeInTheDocument();
 
-  rerender(<JobFacts {...base} jobUuid="job-bare" />);
-  expect(await cell("Site").findByRole("button", { name: "Site notes" })).toBeTruthy();
-  expect(cell("Site").getByRole("button", { name: "Site notes" }).querySelector(".stn-mark")).toBeNull();
+  rerender(<JobSiteWords detail={detail()} jobUuid="job-bare" />);
+  expect(await screen.findByRole("button", { name: "Site notes" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Site notes" }).querySelector(".stn-mark")).toBeNull();
 
-  rerender(<JobFacts {...base} />);
-  expect(cell("Site").queryByRole("button", { name: /Site notes/ })).toBeNull();
-  rerender(<JobFacts {...base} detail={detail({ address: "", suburb: "" })} jobUuid="job-3416" />);
-  expect(cell("Site").queryByRole("button", { name: /Site notes/ })).toBeNull();
+  rerender(<JobSiteWords detail={detail()} jobUuid={null} />);
+  expect(screen.queryByRole("button", { name: /Site notes/ })).toBeNull();
+  rerender(<JobSiteWords detail={detail({ address: "", suburb: "" })} jobUuid="job-3416" />);
+  expect(screen.queryByRole("button", { name: /Site notes/ })).toBeNull();
 });
 
 it("lays a one-line address over two lines at its last comma (3533)", () => {

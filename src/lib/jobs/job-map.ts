@@ -24,6 +24,18 @@ const PIN: Record<Hue, string> = {
 
 export const MAP_SIZE = { width: 320, height: 96 } as const;
 
+/* THE HEAD'S MAP (Isaac, 16 November 2026: "the map can probably become like
+   a hero", then "zoomed out a bit more so you can see surrounding areas"):
+   the right of the job's head, 640 by 112, one step further out than the
+   card's was, so the streets round the site show and the pin keeps its size. */
+export const HEAD_MAP_SIZE = { width: 640, height: 112 } as const;
+export type MapShape = "card" | "head";
+const SHAPES: Record<MapShape, { width: number; height: number; zoom: number }> = {
+  card: { ...MAP_SIZE, zoom: 16 },
+  head: { ...HEAD_MAP_SIZE, zoom: 15 },
+};
+export const mapShape = (raw: string | null | undefined): MapShape => (raw === "head" ? "head" : "card");
+
 const HUES = new Set<string>(Object.keys(PIN));
 export const pinHue = (raw: string | null | undefined): Hue => (raw && HUES.has(raw) ? (raw as Hue) : "grey");
 
@@ -35,11 +47,12 @@ export function mapAddress(job: { address?: string | null; geoLine?: string | nu
 }
 
 /** Static Maps' address for one job's picture. The key stays on the server. */
-export function staticMapUrl(address: string, hue: Hue, key: string): string {
+export function staticMapUrl(address: string, hue: Hue, key: string, shape: MapShape = "card"): string {
+  const { width, height, zoom } = SHAPES[shape];
   const p = new URLSearchParams();
-  p.set("size", `${MAP_SIZE.width}x${MAP_SIZE.height}`);
+  p.set("size", `${width}x${height}`);
   p.set("scale", "2");
-  p.set("zoom", "16");
+  p.set("zoom", String(zoom));
   p.set("maptype", "roadmap");
   p.append("style", "saturation:-100");
   p.append("style", "feature:poi|visibility:off");

@@ -1,7 +1,7 @@
 import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { mapAddress, pinHue, staticMapUrl } from "@/lib/jobs/job-map";
+import { mapAddress, mapShape, pinHue, staticMapUrl } from "@/lib/jobs/job-map";
 
 /* A JOB'S MAP, the picture over its address on the Overview (lib/jobs/job-map).
    Fetched here so the key never reaches a browser (it can also look up
@@ -31,7 +31,7 @@ export async function GET(req: Request) {
   const geoLine = [row.geo_city, row.geo_state, row.geo_postcode].map((x) => x?.trim()).filter(Boolean).join(" ");
   const address = mapAddress({ address: row.job_address, geoLine });
   if (!address) return new Response(null, { status: 404 });
-  const res = await fetch(staticMapUrl(address, pinHue(q.get("hue")), key)).catch(() => null);
+  const res = await fetch(staticMapUrl(address, pinHue(q.get("hue")), key, mapShape(q.get("shape")))).catch(() => null);
   if (!res?.ok || !(res.headers.get("content-type") ?? "").startsWith("image/")) return new Response(null, { status: 502 });
   return new Response(await res.arrayBuffer(), {
     headers: { "content-type": res.headers.get("content-type") ?? "image/png", "cache-control": `private, max-age=${DAY}` },

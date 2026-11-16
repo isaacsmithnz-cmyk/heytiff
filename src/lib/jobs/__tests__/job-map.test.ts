@@ -1,4 +1,4 @@
-import { mapAddress, pinHue, staticMapUrl } from "../job-map";
+import { mapAddress, mapShape, pinHue, staticMapUrl } from "../job-map";
 
 /* The map over a job's address (Isaac, 14 November 2026: "Yes, add the map") */
 it("asks for the address as written, its lines joined, else the suburb line", () => {
@@ -20,4 +20,15 @@ it("takes only a hue of the palette for the pin, grey otherwise", () => {
   expect(pinHue("pink")).toBe("pink");
   expect(pinHue("teal")).toBe("grey");
   expect(pinHue(null)).toBe("grey");
+});
+
+/* the head's map (Isaac, 16 November 2026: "zoomed out a bit more so you can see surrounding areas") */
+it("asks for the head's wide picture one step further out, and anything else as the card's", () => {
+  const head = new URL(staticMapUrl("3 Surrey St, Marrickville NSW 2204", "purple", "k", mapShape("head")));
+  expect(head.searchParams.get("size")).toBe("640x112");
+  expect(head.searchParams.get("zoom")).toBe("15");
+  expect(head.searchParams.get("scale")).toBe("2");
+  const card = new URL(staticMapUrl("3 Surrey St, Marrickville NSW 2204", "purple", "k", mapShape("anything")));
+  expect(card.searchParams.get("size")).toBe("320x96");
+  expect(card.searchParams.get("zoom")).toBe("16");
 });

@@ -229,6 +229,11 @@ const actionsMenu = async () => {
   await userEvent.click(screen.getByRole("button", { name: "Actions" }));
   return screen.findByRole("menu", { name: "Actions on this job" });
 };
+/** Actions' More, open: the rest of the list. */
+const moreMenu = async () => {
+  await userEvent.click(within(await actionsMenu()).getByRole("menuitem", { name: "More" }));
+  return screen.findByRole("menu", { name: "Actions on this job" });
+};
 
 /** One of the job's section tabs (a face may hold tabs of its own). */
 const jobTab = (name: string | RegExp) => within(screen.getByRole("tablist", { name: "The job" })).getByRole("tab", { name });
@@ -261,7 +266,8 @@ describe("the job's page head", () => {
     const plate = container.querySelector(".jp-plate")!;
     expect(plate).toHaveClass("jp-plate--blue");
     expect(plate.querySelector(".jp-num")).toHaveTextContent(/^3209$/);
-    expect(container.querySelector(".jp-head")).not.toHaveTextContent(/Woorarra/);
+    /* the site is under the name, on every tab (Isaac, 16 November 2026: the map as the head's hero) */
+    expect(container.querySelector(".jp-head .jp-site")).toHaveTextContent(/Woorarra/);
     /* no grey line of stage or kind, and no breadcrumb: one word back */
     expect(container.querySelector(".jp-line, .jp-facts, .jp-stage")).toBeNull();
     expect(container.querySelector(".jp-head")).not.toHaveTextContent(/Work order|Job 3209|Accepted/);
@@ -279,7 +285,7 @@ describe("the job's page head", () => {
     expect(screen.queryByRole("button", { name: "Close" })).toBeNull();
     /* the card's band said "ServiceM8, synced"; Open in ServiceM8 is the head's menu's last word */
     const open = jest.spyOn(window, "open").mockImplementation(() => null);
-    await userEvent.click(within(await actionsMenu()).getByRole("menuitem", { name: "Open in ServiceM8" }));
+    await userEvent.click(within(await moreMenu()).getByRole("menuitem", { name: "Open in ServiceM8" }));
     expect(open).toHaveBeenCalledWith(expect.stringContaining(`OpenJob/${JOB}`), "_blank", "noopener,noreferrer");
     open.mockRestore();
   });
@@ -295,6 +301,7 @@ describe("the job's page head", () => {
     expect(screen.queryByRole("button", { name: "Add" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Open in ServiceM8" })).toBeNull();
     const menu = await actionsMenu();
+    /* the six made most, then More (Isaac, 16 November 2026: "Should some of these things be minimized?") */
     expect(within(menu).getAllByRole("menuitem").map((i) => i.textContent)).toEqual([
       "Add visit",
       "Add to do",
@@ -302,6 +309,10 @@ describe("the job's page head", () => {
       "Add quote",
       "Add cost",
       "Add purchase",
+      "More",
+    ]);
+    await userEvent.click(within(menu).getByRole("menuitem", { name: "More" }));
+    expect(within(await screen.findByRole("menu", { name: "Actions on this job" })).getAllByRole("menuitem").map((i) => i.textContent)).toEqual([
       "Add SWMS",
       "Add certificate",
       "Pin the job",
@@ -310,8 +321,11 @@ describe("the job's page head", () => {
       "Create a maintenance agreement",
       "Open in ServiceM8",
     ]);
+    await userEvent.keyboard("{Escape}");
+    /* a fresh open starts at the six */
+    const again = await actionsMenu();
     /* Add visit is the Visit form, over the section you're on (rule 51) */
-    await userEvent.click(within(menu).getByRole("menuitem", { name: "Add visit" }));
+    await userEvent.click(within(again).getByRole("menuitem", { name: "Add visit" }));
     const form = await screen.findByRole("dialog", { name: "Book a visit" });
     expect(within(form).getByText(/^Job 3209\b/)).toHaveClass("jv-dline");
     expect(onSection).not.toHaveBeenCalledWith("on-site");
@@ -320,11 +334,9 @@ describe("the job's page head", () => {
   it("puts what's done to the job under Actions: pin, copy the link, then the card's once-per-job acts", async () => {
     draw("overview");
     await ready();
-    const menu = await actionsMenu();
-    await userEvent.click(within(menu).getByRole("menuitem", { name: "Pin the job" }));
+    await userEvent.click(within(await moreMenu()).getByRole("menuitem", { name: "Pin the job" }));
     expect(onAction).toHaveBeenCalledWith("pin");
-    await userEvent.click(screen.getByRole("button", { name: "Actions" }));
-    await userEvent.click(await screen.findByRole("menuitem", { name: "Create a maintenance agreement" }));
+    await userEvent.click(within(await moreMenu()).getByRole("menuitem", { name: "Create a maintenance agreement" }));
     expect(onCreateAgreement).toHaveBeenCalled();
   });
 
@@ -399,11 +411,13 @@ describe("the job's sections are the card's faces", () => {
     const { container } = draw("overview", { moneyVisible: true });
     await ready();
     expect(jobTab("Overview")).toHaveAttribute("aria-selected", "true");
+    /* the stages are the facts card's, under Next visit (Isaac, 16 November 2026) */
     const head = container.querySelector(".jp-head") as HTMLElement;
-    expect(within(head).getByRole("navigation", { name: "Where the job is up to" })).toBeVisible();
+    expect(within(head).queryByRole("navigation", { name: "Where the job is up to" })).toBeNull();
     const over = container.querySelector(".jov") as HTMLElement;
     const facts = within(screen.getByRole("group", { name: "The job's facts" }));
-    expect(facts.getAllByRole("region").map((r) => r.querySelector(".jov-lab")?.firstChild?.textContent)).toEqual(["Next visit", "Site", "Contact"]);
+    expect(facts.getByRole("navigation", { name: "Where the job is up to" })).toBeVisible();
+    expect(facts.getAllByRole("region").map((r) => r.getAttribute("aria-label") ?? r.querySelector(".jov-lab")?.firstChild?.textContent)).toEqual(["Next visit", "Where the job is up to", "Contact"]);
     expect([...over.querySelectorAll(".jov-left .jov-title")].map((h) => h.textContent)).toEqual([]);
     expect([...over.querySelectorAll(".jov-side .jov-title")].map((h) => h.textContent)).toEqual(["Activity feed"]);
     expect(screen.getByRole("region", { name: "Activity feed" })).toBeVisible();

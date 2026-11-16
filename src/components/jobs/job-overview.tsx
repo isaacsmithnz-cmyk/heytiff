@@ -11,8 +11,7 @@ import { nextVisitOf, type JobConversationRead, type RailTask } from "@/lib/jobs
 import type { StoryEntry } from "@/lib/workboard/job-story";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import { JobConversation, type ConversationDiary } from "./job-conversation";
-import { JobFacts, JobMap } from "./job-facts";
-import { mapAddress } from "@/lib/jobs/job-map";
+import { JobFacts } from "./job-facts";
 import type { Hue } from "@/components/parts/state";
 import { useFitHeight } from "./use-fit-height";
 import { useTasksChanged } from "@/lib/tasks/changed";
@@ -72,7 +71,6 @@ export function JobOverview({
   loading,
   moneyVisible,
   detail,
-  hue = "grey",
   askTodo = 0,
   diary,
   onToast,
@@ -100,6 +98,8 @@ export function JobOverview({
     onBook?: () => void;
     /** Contact's Edit, where saving customers is on. */
     onEditContact?: () => void;
+    /** Where the job is up to, in the facts card under Next visit. */
+    stages?: ReactNode;
     /** What's open on the job (the attention rows), at the head of To do,
         leaving out the tasks To do lists as its own rows. */
     open?: (taskIds: ReadonlySet<string>) => { rows: ReactNode; count: number };
@@ -240,12 +240,7 @@ export function JobOverview({
           onVisits={doors.onVisits}
           onBook={doors.onBook}
           onEditContact={doors.onEditContact}
-          jobUuid={cardId}
-          map={
-            cardId && mapAddress({ address: detail?.address, geoLine: detail?.geoLine }) ? (
-              <JobMap jobUuid={cardId} hue={hue} address={mapAddress({ address: detail?.address, geoLine: detail?.geoLine })!} />
-            ) : null
-          }
+          stages={doors.stages}
         />
         {openTask ? <TaskForm taskId={openTask} onClose={() => setOpenTask(null)} onChanged={again} /> : null}
       </div>

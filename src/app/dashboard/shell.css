@@ -5827,15 +5827,16 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    quantity on the right. */
 .fg .jm { display:flex; flex-direction:column; gap:16px; }
 .fg .jm-title { margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
-/* ON SITE (job-sheet.tsx; Isaac, 14 November 2026, mock F): Visits, Not on a
-   day yet and Materials side by side, fitted to the screen (`--fit-h`), each a
-   flat card in the hairline Not on a day yet has always worn, scrolling
-   inside itself; no card in a card */
-.fg .jp-onsite { display:grid; grid-template-columns:minmax(0,1fr) 400px; gap:16px; align-items:start; }
+/* ON SITE (job-sheet.tsx; Isaac, 14 November 2026, mock F; then the On site
+   mock of 16 November 2026): Visits, with the tasks not on a visit yet in the
+   same card, and Materials 520 wide beside it, so a unit's model shows whole,
+   fitted to the screen (`--fit-h`), each a flat card in the hairline,
+   scrolling inside itself; no card in a card */
+.fg .jp-onsite { display:grid; grid-template-columns:minmax(0,1fr) 520px; gap:16px; align-items:start; }
 .fg .jp-onsite > .wb2-jcface { min-width:0; }
-.fg .jp-onsite .jv { grid-template-columns:minmax(0,1fr) 320px; gap:16px; }
+.fg .jp-onsite .jv { grid-template-columns:minmax(0,1fr); gap:16px; }
 .fg .jp-onsite .jv-main, .fg .jp-onsite .jm { padding:16px; border:1px solid var(--edge); border-radius:var(--r-card); background:var(--paper); }
-.fg .jp-onsite .jv-main, .fg .jp-onsite .jv-plan, .fg .jp-onsite .jm { height:var(--fit-h, auto); overflow:auto; }
+.fg .jp-onsite .jv-main, .fg .jp-onsite .jm { height:var(--fit-h, auto); overflow:auto; }
 .fg .jv-title { margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
 /* in On site's 400 column the shelves stand in one column, each a group under its hairline, no card in a card */
 .fg .jp-onsite .jm-shelves { display:flex; flex-direction:column; gap:16px; columns:auto; }
@@ -8237,10 +8238,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jv-pgrid li { display:flex; align-items:center; gap:12px; min-width:0; padding:8px 0; border-bottom:1px solid var(--line); font-size:13px; line-height:18px; }
 .fg .jv-pgrid b { flex:none; width:92px; font-weight:600; }
 .fg .jv-pgrid em { margin-left:auto; font-style:normal; color:var(--q); font-variant-numeric:tabular-nums; white-space:nowrap; }
-/* On site's Visits card is 416 wide: a day a row, as mock F drew it, where
-   two to a row wrapped the hours ("25h" over "26m", the walk of 15 November
-   2026, 2845) */
-.fg .jp-onsite .jv-pgrid { grid-template-columns:minmax(0,1fr); }
 /* Tasks to plan: a card, its stages, a field and the foot while anything is ticked */
 .fg .jv-plan { display:flex; flex-direction:column; gap:12px; padding:16px; border:1px solid var(--edge); border-radius:var(--r-card); background:var(--paper); }
 .fg .jv-plan.drop { border-style:dashed; border-color:var(--ink); }
@@ -8253,6 +8250,10 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jv-task { display:flex; align-items:flex-start; gap:12px; padding:8px 0; border-top:1px solid var(--line); }
 .fg .jv-tname { flex:1 1 auto; min-width:0; font-size:14px; line-height:20px; }
 .fg .jv-hours { flex:none; font-size:13px; line-height:20px; color:var(--q); font-variant-numeric:tabular-nums; }
+/* Tasks in the Visits card: no card in a card, the tasks two to a row */
+.fg .jv-main > .jv-plan { margin-top:12px; padding:0; border:0; border-radius:0; background:none; }
+.fg .jv-main > .jv-plan.drop { outline:1px dashed var(--ink); outline-offset:4px; }
+.fg .jv-main > .jv-plan .jv-tasks { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); column-gap:24px; }
 .fg .jv-selbar { display:flex; align-items:center; justify-content:space-between; gap:12px; padding-top:12px; border-top:1px solid var(--line); font-size:14px; font-weight:600; }
 @media (max-width:900px) {
   .fg .jv, .fg .jv-pgrid { grid-template-columns:minmax(0,1fr); }

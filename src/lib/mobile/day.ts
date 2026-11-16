@@ -726,9 +726,13 @@ export function cutOffice(office: readonly DayStop[], from: string, until: strin
 /* WHICH JOB? for Add a job: before anything's typed, your jobs of the last
    two weeks, latest first; typed, any job by number or street, finished ones
    too (1352 was Completed). Number and street only, as the day's own rows. */
-export async function dayJobs(ctx: MobileCtx, typed: string, now: number = Date.now()): Promise<{ jobUuid: string; number: string | null; where: string; status: string | null }[]> {
+export async function dayJobs(ctx: MobileCtx, typed: string, now: number = Date.now()): Promise<{ jobUuid: string; number: string | null; where: string; street: string; city: string | null; status: string | null }[]> {
   type Row = { uuid: string; generated_job_id: string | null; job_address: string | null; geo_city: string | null; status: string | null };
-  const shape = (r: Row) => ({ jobUuid: r.uuid, number: r.generated_job_id, where: [streetLine(r.job_address), r.geo_city?.trim()].filter(Boolean).join(", "), status: r.status });
+  const shape = (r: Row) => {
+    const street = streetLine(r.job_address);
+    const city = r.geo_city?.trim() || null;
+    return { jobUuid: r.uuid, number: r.generated_job_id, where: [street, city].filter(Boolean).join(", "), street, city, status: r.status };
+  };
   const cols = "uuid, generated_job_id, job_address, geo_city, status";
   const q = typed.trim().replace(/[%_,()*\\]/g, " ").replace(/\s+/g, " ").slice(0, 60);
   if (q.length >= 2) {

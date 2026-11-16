@@ -413,7 +413,9 @@ function faceOf(item: AttentionItem): Face {
         title: item.title,
         ...(item.note && named ? { words: item.note } : {}),
         meta: [
-          "Task",
+          /* a To do, said as one: "Task" means site work (the walk of 16
+             November 2026, N3) */
+          "To do",
           named ? null : item.assignee,
           item.dueDate
             ? `${item.overdue ? "was due" : "due"} ${fmtAuWeekdayDayMonth(item.dueDate)}`

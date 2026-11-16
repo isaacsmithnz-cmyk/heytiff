@@ -138,7 +138,10 @@ export function QuoteActions({
   const waiting = !money || kept || lines === 0 ? null : variation ? !variation.approvedAt : !approved;
   const approve =
     waiting === null ? null : !waiting ? (
-      given(variation ? `Variation ${variation.n} approved` : "Approved")
+      /* on the Price tab the steps say it (the Price mock, 16 November 2026) */
+      views && !variation ? null : (
+        given(variation ? `Variation ${variation.n} approved` : "Approved")
+      )
     ) : (
       <Button kind="main" disabled={busy || !ready} onClick={onApprove}>
         {variation ? "Approve variation" : "Approve quote"}
@@ -155,7 +158,10 @@ export function QuoteActions({
     ) : acceptable ? (
       /* "Mark accepted" until it is, then the word in green with Undo (T3) */
       accepted ? (
-        <Taken words={options > 1 ? `Option ${at + 1} accepted` : "Accepted"} busy={busy} onUndo={onAccept} />
+        /* on the Price tab the steps say it, with Undo beside it */
+        views ? null : (
+          <Taken words={options > 1 ? `Option ${at + 1} accepted` : "Accepted"} busy={busy} onUndo={onAccept} />
+        )
       ) : (
         <Button disabled={busy} onClick={onAccept}>{options > 1 ? `Mark option ${at + 1} accepted` : "Mark accepted"}</Button>
       )
@@ -178,12 +184,28 @@ export function QuoteActions({
       )}
       {left}
       {send}
-      {pdf && <Share pdf={pdf} />}
-      {(updating || accept) && (
-        <div className="qc-pair">
-          {updating}
+      {views ? (
+        /* the Price tab: Mark accepted as wide as the rail till it's said,
+           then Update quote and Share side by side (the Price mock) */
+        <>
           {accept}
-        </div>
+          {(updating || pdf) && (
+            <div className="qc-pair qc-pair--two">
+              {updating}
+              {pdf && <Share pdf={pdf} />}
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          {pdf && <Share pdf={pdf} />}
+          {(updating || accept) && (
+            <div className="qc-pair">
+              {updating}
+              {accept}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

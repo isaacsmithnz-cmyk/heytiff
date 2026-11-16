@@ -3419,16 +3419,19 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
    on is green, as for a step done, but the dot stays open and the name grey */
 .fg .qp-steps > li.skip > i { border-color:var(--green); }
 .fg .qp-steps > li.skip::after { background:var(--green); }
-/* AS A LIST DOWN THE RAIL (the job's Price tab, as its mock drew it; the
-   walk of 15 November 2026, T3): each step's name, and its words under it,
-   the join running down from dot to dot */
-.fg .qp-steps--list { flex-direction:column; padding:0; }
-.fg .qp-steps--list > li { flex:none; padding:0 0 12px 24px; gap:0; }
-.fg .qp-steps--list > li:last-child { padding-bottom:0; }
-.fg .qp-steps--list > li > i { top:4px; }
-.fg .qp-steps--list > li::after { top:16px; bottom:-4px; left:5px; right:auto; width:2px; height:auto; }
-.fg .qp-steps--list b { font-size:14px; line-height:20px; color:var(--q); }
+/* AS A LIST DOWN THE RAIL (the job's Price tab), read as the Overview's
+   stages are (the Price mock, 16 November 2026): a green tick for a step
+   done, an open ring for one to come, the step, its words on the right;
+   no join. Undo beside Accepted, the only place the yes is said there */
+.fg .qp-steps--list { flex-direction:column; padding:12px 0 0; border-top:1px solid var(--line); }
+.fg .qp-steps--list > li { flex:none; flex-direction:row; align-items:center; gap:8px; min-height:28px; padding:0; }
+.fg .qp-steps--list > li::after { display:none; }
+.fg .qp-steps--list > li > i { position:static; flex:none; width:12px; height:12px; margin:0 2px; }
+.fg .qp-steps--list > li > span:first-child { display:flex; flex:none; color:var(--green); }
+.fg .qp-steps--list > li.now > i { box-shadow:none; }
+.fg .qp-steps--list b { flex:1 1 auto; min-width:0; font-size:14px; line-height:20px; font-weight:500; color:var(--q); }
 .fg .qp-steps--list > li.done b, .fg .qp-steps--list > li.now b { color:var(--ink); }
+.fg .qp-steps--list .qp-words { flex:none; }
 .fg .qp-words { font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
 .fg .qp-steps--list > li.now .qp-words { color:var(--orange-w); }
 /* THE BODY: the conversation, or the line items, fills the left; the rail,
@@ -3463,6 +3466,9 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
    rail, then Update quote and Mark accepted. Every one 36 */
 .fg .qc-dock { flex:none; display:flex; flex-direction:column; align-items:stretch; gap:8px; padding:12px 0 24px; border-top:1px solid var(--line); background:var(--white); }
 .fg .qc-pair { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0, 1fr); gap:8px; }
+/* Update quote and Share side by side, Share's word under them both */
+.fg .qc-pair--two { grid-auto-flow:row; grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); }
+.fg .qc-pair--two > .qc-said { grid-column:1 / -1; }
 /* the Design step's group (quote-design.tsx): what the job has, in grey, and
    Design it beside it once the step is passed by */
 .fg .qc-dsl { margin:0; font-size:14px; line-height:20px; color:var(--q); }
@@ -5868,12 +5874,25 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jpr-name { width:100%; min-width:0; font-size:14px; line-height:20px; font-weight:600; }
 .fg .jpr-fig { font-size:14px; line-height:20px; font-weight:600; font-variant-numeric:tabular-nums; }
 .fg .jpr-state { font-size:13px; line-height:18px; }
-.fg .jpr-new { display:flex; align-items:center; padding:0 8px; }
+/* New invoice at the row's right end, level with the cards' tops (the Price mock, 16 November 2026) */
+.fg .jpr-new { display:flex; align-items:flex-start; gap:8px; margin-left:auto; }
 .fg .jpr-open { flex:1; min-height:0; display:flex; flex-direction:column; }
 /* the quote: the quote page's body, in the tab's own frame */
 .fg .jpr-quote { flex:1; min-height:0; display:flex; flex-direction:column; }
 .fg .jpr-quote .qc-body { padding:0; }
-.fg .qc-views { flex:none; display:flex; padding:0 0 12px; }
+.fg .qc-views { flex:none; display:flex; align-items:center; gap:16px; padding:0 0 12px; }
+/* TWO CARDS (the Price mock, 16 November 2026: "The Price page is messy"):
+   what's open on a white card on the left, its name heading it with the
+   views on the heading's right, and the rail a white card beside it, both
+   starting level, as the Overview's facts card and Activity are */
+.fg .jpr-quote .qc-main, .fg .jpr-main { padding:12px 16px 16px; border-radius:var(--r-card); background:var(--paper); box-shadow:var(--shadow-card); }
+.fg .jpr-quote .qc-rail, .fg .jpr-rail { padding:0 16px; border-radius:var(--r-card); background:var(--paper); box-shadow:var(--shadow-card); }
+.fg .jpr-quote .qc-scroll { padding:16px 0; }
+.fg .jpr-quote .qc-dock { padding:12px 0 16px; background:none; }
+.fg .jpr-rail { padding-top:16px; padding-bottom:16px; }
+.fg .jpr-quote .qc-views { margin:0 -16px 0; padding:0 16px 12px; border-bottom:1px solid var(--line); }
+.fg .qc-vt { flex:1 1 auto; min-width:0; margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); overflow-wrap:anywhere; }
+.fg .qc-views > .pt-tray { flex:none; margin-left:auto; }
 /* ServiceM8's quote and an invoice: the paper or the lines on the left,
    the rail on the right */
 .fg .jpr-body { flex:1; min-height:0; display:grid; grid-template-columns:minmax(0,1fr) 400px; grid-template-rows:minmax(0,1fr); gap:24px; }
@@ -5996,8 +6015,8 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg button.jov-who:focus-visible { outline:none; box-shadow:var(--ring); }
 .fg .jov-who-words { flex:1 1 auto; min-width:0; display:flex; align-items:baseline; gap:8px; overflow:hidden; white-space:nowrap; }
 .fg .jov-who-words .jov-cap { flex:none; }
-.fg .jov-who > svg { flex:none; color:var(--q); transition:transform var(--t-fast) var(--ease); }
-.fg .jov-who[aria-expanded="true"] > svg { transform:rotate(180deg); }
+.fg button.jov-who > :last-child { display:flex; flex:none; color:var(--q); transition:transform var(--t-fast) var(--ease); }
+.fg .jov-who[aria-expanded="true"] > :last-child { transform:rotate(180deg); }
 .fg .jov-reach { display:flex; flex-direction:column; padding:0 0 8px 32px; }
 .fg .jov-reach[hidden] { display:none; }
 .fg .jov-person { display:flex; flex-direction:column; min-width:0; }

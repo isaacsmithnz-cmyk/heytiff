@@ -738,21 +738,25 @@ export function QuoteLinesFace({
     <>
       <div className="qc-body">
         <div className="qc-main">
-          {views && tiff !== null && viewsOffered.length > 1 && (
+          {views && tiff !== null && (meta?.title || viewsOffered.length > 1) && (
+            /* the quote's name heading its card, the views on its right (the Price mock, 16 November 2026) */
             <div className="qc-views">
-              <Tray
-                ariaLabel="What the quote shows"
-                value={paper ? "preview" : linesUp ? "lines" : face === "talk" ? "chat" : face}
-                options={viewsOffered}
-                onChange={(v) => {
-                  if (v === "preview") return setPaper(true);
-                  setPaper(false);
-                  setViewing(null);
-                  if (v === "lines") return setTab("lines");
-                  setTab("chat");
-                  setFace(v === "chat" ? "talk" : v);
-                }}
-              />
+              {meta?.title && <h2 className="qc-vt">{meta.title}</h2>}
+              {viewsOffered.length > 1 && (
+                <Tray
+                  ariaLabel="What the quote shows"
+                  value={paper ? "preview" : linesUp ? "lines" : face === "talk" ? "chat" : face}
+                  options={viewsOffered}
+                  onChange={(v) => {
+                    if (v === "preview") return setPaper(true);
+                    setPaper(false);
+                    setViewing(null);
+                    if (v === "lines") return setTab("lines");
+                    setTab("chat");
+                    setFace(v === "chat" ? "talk" : v);
+                  }}
+                />
+              )}
             </div>
           )}
           {note && <p className="wb2-sherr qc-note">{note}</p>}
@@ -881,7 +885,15 @@ export function QuoteLinesFace({
           </div>
         </Dialog>
         <QuoteRail
-          progress={<QuoteStepsLine steps={steps} list={views} />}
+          progress={
+            <QuoteStepsLine
+              steps={steps}
+              list={views}
+              /* on the Price tab the client's yes is said once, here, with Undo beside it, not again at the foot */
+              onUndoAccepted={views && money && !variation && !shown && accepted.includes(at) ? () => void accept() : undefined}
+              busy={busy}
+            />
+          }
           priceFirst={views}
           options={
             <OptionRows

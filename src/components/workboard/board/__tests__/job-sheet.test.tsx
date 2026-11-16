@@ -486,6 +486,11 @@ const actionsMenu = async () => {
   await userEvent.click(screen.getByRole("button", { name: "Actions" }));
   return screen.findByRole("menu", { name: "Actions on this job" });
 };
+/** Actions' More, open: what isn't among the six made most. */
+const moreMenu = async () => {
+  await userEvent.click(within(await actionsMenu()).getByRole("menuitem", { name: "More" }));
+  return screen.findByRole("menu", { name: "Actions on this job" });
+};
 
 /** Queries scoped to one face's panel. The inactive panels are `hidden` (so
     role queries already skip them) but TEXT queries reach into them — a day
@@ -577,9 +582,10 @@ describe("the head (Isaac's mock, 25 October 2026)", () => {
     expect(h1).toHaveTextContent(/^Laing \+ Simmons Double Bay$/);
     expect(document.querySelector(".jp-num")).toHaveTextContent(/^3137$/);
     expect(document.querySelector(".jp-line, .jp-facts")).toBeNull();
-    /* on the Overview the stages line stands beside the name (call 19, mock D) */
-    expect(document.querySelector(".jp-top > .jp-stage")).not.toBeNull();
-    expect(document.querySelector(".jp-head")).not.toHaveTextContent(/Work order|Job 3137|Rose Bay/);
+    /* the stages are the facts card's, and the site is under the name (Isaac, 16 November 2026) */
+    expect(document.querySelector(".jp-stage")).toBeNull();
+    expect(document.querySelector(".jfc-part--stages .jcl-line")).not.toBeNull();
+    expect(document.querySelector(".jp-head")).not.toHaveTextContent(/Work order|Job 3137/);
   });
 
   it("is named by where it is when it has no client", async () => {
@@ -938,7 +944,7 @@ describe("Open in ServiceM8", () => {
     await detailLanded();
 
     const open = jest.spyOn(window, "open").mockImplementation(() => null);
-    await userEvent.click(within(await actionsMenu()).getByRole("menuitem", { name: "Open in ServiceM8" }));
+    await userEvent.click(within(await moreMenu()).getByRole("menuitem", { name: "Open in ServiceM8" }));
     expect(open).toHaveBeenCalledWith(`https://go.servicem8.com/OpenJob/${UUID}`, "_blank", "noopener,noreferrer");
     open.mockRestore();
   });
@@ -2005,7 +2011,7 @@ describe("the job's once-per-job acts", () => {
     render(<Job row={row()} {...props} manage />);
     await detailLanded();
 
-    const menu = within(await actionsMenu());
+    const menu = within(await moreMenu());
     expect(menu.getByRole("menuitem", { name: "Create a project from this job" })).toBeInTheDocument();
     expect(menu.getByRole("menuitem", { name: "Create a maintenance agreement" })).toBeInTheDocument();
   });
@@ -2024,7 +2030,7 @@ describe("the job's once-per-job acts", () => {
     render(<Job row={row()} {...props} manage />);
     await detailLanded();
 
-    await userEvent.click(within(await actionsMenu()).getByRole("menuitem", { name: "Create a project from this job" }));
+    await userEvent.click(within(await moreMenu()).getByRole("menuitem", { name: "Create a project from this job" }));
     const input = screen.getByLabelText("Name the project");
     await userEvent.clear(input);
     await userEvent.type(input, "Wallace St change-over{Enter}");
@@ -2041,7 +2047,7 @@ describe("the job's once-per-job acts", () => {
     render(<Job row={row()} {...props} manage />);
     await detailLanded();
 
-    await userEvent.click(within(await actionsMenu()).getByRole("menuitem", { name: "Create a project from this job" }));
+    await userEvent.click(within(await moreMenu()).getByRole("menuitem", { name: "Create a project from this job" }));
     expect(screen.getByLabelText("Name the project")).toHaveFocus();
     await userEvent.keyboard("{Escape}");
     expect(screen.queryByLabelText("Name the project")).toBeNull();
@@ -2070,7 +2076,7 @@ describe("the job's once-per-job acts", () => {
     );
     await detailLanded();
     expect(document.querySelector(".jov-under")).toBeNull();
-    await userEvent.click(screen.getByRole("button", { name: "Actions" }));
+    await moreMenu();
     await userEvent.click(await screen.findByRole("menuitem", { name: "Open it on the maintenance board" }));
     expect(onOpenTracked).toHaveBeenCalledWith({ kind: "visit", id: "v-1", label: "#1021" });
   });

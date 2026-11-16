@@ -23,11 +23,19 @@ import { WayBack } from "./way-back";
        its dot. A long name wraps, to three lines at ServiceM8's 100
        characters, and never fades (Isaac, 14 November 2026, call 19,
        mock C: important text never fades);
-     on the Overview only, the stages line beside the name (call 19);
-     on the right, one second button, Actions, with a chevron, opening a
-       white menu (rules 36, 53 and 54): what Add made first ("Add visit",
-       "Add task"), then what's done to the job, then Open in ServiceM8
-       (Isaac, 22 October 2026: one menu up top);
+     under the name, the site: its address, Site notes and their PO; and on
+       the right, the map of it, fading into the words, pressed for the
+       directions (Isaac, 16 November 2026: "The map can probably become
+       like a hero", A on https://claude.ai/artifact/XbKL1kUEjP1YxP3qEAQnL6).
+       One white card, the same on every tab. The stages are the Overview
+       card's (job-facts);
+     in its top right, over the map faded behind it, one second button,
+       Actions, with a chevron, opening a white menu (rules 36, 53 and 54):
+       the six things made most, Add visit, to do, task, quote, cost and
+       purchase, and a work order to make, then More, which holds the rest:
+       SWMS, Certificate, what's done to the job and Open in ServiceM8
+       (Isaac, 16 November 2026: "a huge list of things… Should some of
+       these things be minimized?");
      under them, on every tab, the job's description: the first sentence of
        its Scope, plain text at 16 with no mark, wrapping when it's long
        (Isaac, 14 November 2026, calls 22 and 19, mock B on
@@ -36,7 +44,7 @@ import { WayBack } from "./way-back";
      then the section tabs, each saying what's in it (rule 31).
 
    No breadcrumb (6-revisions, 17 October): the way back is one word, not
-   a path. The stages line is Overview's, not the head's.
+   a path.
 
    It draws what it's handed. What Add makes and what Actions does are the
    job card's own doors (job-sheet.tsx, in its page mode). */
@@ -45,6 +53,11 @@ import { WayBack } from "./way-back";
    their own, so none can be taken for one of the job's actions */
 const ADD = "add:";
 const SM8 = "open-in-servicem8";
+const MORE = "more";
+/** What Add makes that stays on Actions' first list; the rest of Add goes under More. */
+const FIRST_ADDS = new Set(["visit", "todo", "task", "quote", "cost", "purchase"]);
+/** What's done to the job that stays on the first list: a work order is the job's next step. */
+const FIRST_ACTS = new Set(["work-order"]);
 /** "Visit" after Add reads "Add visit"; an acronym keeps its capitals ("Add SWMS"). */
 const inSentence = (word: string) => (/^[A-Z]{2,}\b/.test(word) ? word : word.charAt(0).toLowerCase() + word.slice(1));
 
@@ -55,8 +68,8 @@ export type JobPageHeadProps = {
   description?: string | null;
   /** the job's number, in the plate's coloured box */
   number?: string | null;
-  /** the stages line, beside the name: the Overview's alone */
-  line?: ReactNode;
+  /** the site under the name, its words and its map: none until the job is read */
+  site?: { words: ReactNode; map: ReactNode } | null;
   hue: Hue;
   /** ServiceM8's own page for the job, when there is one */
   sm8Href: string | null;
@@ -67,9 +80,22 @@ export type JobPageHeadProps = {
   onSection: (key: string) => void;
 };
 
-export function JobPageHead({ name, description = null, number = null, line = null, hue, sm8Href, add, actions, sections, section, onSection }: JobPageHeadProps) {
+export function JobPageHead({ name, description = null, number = null, site = null, hue, sm8Href, add, actions, sections, section, onSection }: JobPageHeadProps) {
   const actRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
+  /* More swaps the list for the rest, and a fresh open starts at the six */
+  const [more, setMore] = useState(false);
+  const addAll = add.items.map((it) => ({ ...it, key: `${ADD}${it.key}`, label: `Add ${inSentence(it.label)}`, disabled: it.disabled || add.disabled }));
+  const firstList = [
+    ...addAll.filter((it) => FIRST_ADDS.has(it.key.slice(ADD.length))),
+    ...actions.items.filter((it) => FIRST_ACTS.has(it.key)),
+  ];
+  const rest = [
+    ...addAll.filter((it) => !FIRST_ADDS.has(it.key.slice(ADD.length))),
+    ...actions.items.filter((it) => !FIRST_ACTS.has(it.key)),
+    ...(sm8Href ? [{ key: SM8, label: "Open in ServiceM8" }] : []),
+  ];
+  const listed = more || firstList.length === 0 ? rest : [...firstList, ...(rest.length ? [{ key: MORE, label: "More", rule: true, count: <Icon name="chevR" size={16} /> }] : [])];
   const chevron = (
     <span className="jp-chev" aria-hidden="true">
       <Icon name="chevD" size={16} />
@@ -78,14 +104,17 @@ export function JobPageHead({ name, description = null, number = null, line = nu
   return (
     <header className="jp-head">
       <WayBack />
-      <div className="jp-top">
-        <div className={`jp-id jp-plate jp-plate--${hue}`}>
-          {number ? <span className="jp-num">{number}</span> : <Dot hue={hue} />}
-          <div className="jp-named">
-            <h1 className="jp-name">{name}</h1>
+      <div className="jp-top jp-top--site">
+        {site?.map}
+        <div className="jp-words">
+          <div className={`jp-id jp-plate jp-plate--${hue}`}>
+            {number ? <span className="jp-num">{number}</span> : <Dot hue={hue} />}
+            <div className="jp-named">
+              <h1 className="jp-name">{name}</h1>
+            </div>
           </div>
+          {site?.words}
         </div>
-        {line ? <div className="jov-line jp-stage">{line}</div> : null}
         <div className="jp-acts">
           <Button
             ref={actRef}
@@ -96,6 +125,7 @@ export function JobPageHead({ name, description = null, number = null, line = nu
             onFocus={add.onReach}
             onClick={() => {
               add.onReach?.();
+              setMore(false);
               setOpen((o) => !o);
             }}
           >
@@ -103,21 +133,24 @@ export function JobPageHead({ name, description = null, number = null, line = nu
             {chevron}
           </Button>
           <Menu
+            key={more ? "more" : "first"}
             anchor={actRef}
             open={open}
+            stay
             onClose={() => setOpen(false)}
             onSelect={(key) => {
+              if (key === MORE) {
+                setMore(true);
+                return;
+              }
               setOpen(false);
+              actRef.current?.focus({ preventScroll: true });
               if (key === SM8) {
                 if (sm8Href) window.open(sm8Href, "_blank", "noopener,noreferrer");
               } else if (key.startsWith(ADD)) add.onPick(key.slice(ADD.length));
               else actions.onPick(key);
             }}
-            items={[
-              ...add.items.map((it) => ({ ...it, key: `${ADD}${it.key}`, label: `Add ${inSentence(it.label)}`, disabled: it.disabled || add.disabled })),
-              ...actions.items,
-              ...(sm8Href ? [{ key: SM8, label: "Open in ServiceM8" }] : []),
-            ]}
+            items={listed}
             label="Actions on this job"
             align="end"
           />

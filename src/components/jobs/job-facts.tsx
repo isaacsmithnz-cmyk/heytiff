@@ -7,29 +7,27 @@ import { StateWord } from "@/components/parts/state";
 import { Icon } from "@/components/shell/icon";
 import type { NextVisit } from "@/lib/jobs/job-conversation";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
-import { MAP_SIZE } from "@/lib/jobs/job-map";
+import { HEAD_MAP_SIZE } from "@/lib/jobs/job-map";
 import { SiteNotes } from "./site-notes";
 
 /* THE FACTS CARD, ON THE LEFT OF A JOB'S OVERVIEW (Isaac, 13 and 14 November
-   2026: "Should next visit go above map?", calls 11, 19 and 21; mocks C and D
-   approved on https://claude.ai/artifact/MkfHutEG1PanPDCW7fyV5a). One white
-   card 320 wide, fitted to the screen and scrolling inside itself, its parts
-   under hairlines, each under a 13/500 label with an icon:
-
-     Next visit  the next booked visit, or Nothing booked and Book a visit,
-                 the one blue button (the Visit form's door, rule 52); its
-                 name opens Visits from anywhere on it
-     Site        the address, its first line at 16 bold and the rest grey,
-                 with Directions on the label's right (Google Maps, in a
-                 new tab); their PO under it, where they gave one; then
-                 Site notes, the orange asterisk on it when the site has
-                 notes (build 9, components/jobs/site-notes)
+   2026, calls 11, 19 and 21, mocks C and D; then 16 November 2026: "swap the
+   map and the address with the stepper and the actions button", "The next
+   visit and bookings can then take the place of the map"). One white card
+   320 wide, fitted to the screen, its parts under hairlines, each under a
+   13/500 label with an icon:
+     Next visit  the next booked visit, or Nothing booked with Book a visit,
+                 the one blue button (the Visit form's door, rule 52), on the
+                 label's right; its name opens Visits from anywhere on it
+     the stages  where the job is up to, a step to a line with its day, each
+                 opening its part of the job (job-progress-line)
      Contacts    who to ring, in full: a disc, the name in bold, the role
                  grey, the numbers to ring and the email, none underlined
                  and none faded (important text never fades); Edit at the
                  label's right where saving customers is on
-
-   Money and the Job tracker went to Billing (Isaac, 13 November 2026). */
+   The site, its map, Directions and Site notes are the head's now
+   (job-page-head, JobSiteWords and JobHeadMap below). Money and the Job
+   tracker went to Billing (Isaac, 13 November 2026). */
 
 /** A dialable href, or null when the field isn't one number.
 
@@ -122,25 +120,56 @@ export function directionsHref(address: string): string {
   return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address.replace(/\s*\n\s*/g, ", ").trim())}`;
 }
 
-/** THE MAP over the site (Isaac, 14 November 2026: "Yes, add the map"):
-    Google's picture of the address, 320 by 96, through our own route so the
-    key stays on the server (api/workboard/job-map). A picture that won't
-    load takes its room away. */
-export function JobMap({ jobUuid, hue, address }: { jobUuid: string; hue: string; address: string }) {
+/** THE MAP IN THE JOB'S HEAD (Isaac, 16 November 2026: "the map can probably
+    become like a hero", A on https://claude.ai/artifact/XbKL1kUEjP1YxP3qEAQnL6,
+    "zoomed out a bit more so you can see surrounding areas"): Google's picture
+    of the address and the streets round it, 640 by 112, through our own route
+    so the key stays on the server (api/workboard/job-map), fading into the
+    head where the words are. Pressed, it is the directions to the site, in a
+    new tab. A picture that won't load takes its room away. */
+export function JobHeadMap({ jobUuid, hue, address }: { jobUuid: string; hue: string; address: string }) {
   const [gone, setGone] = useState(false);
   if (gone) return null;
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      className="jfc-map"
-      src={`/api/workboard/job-map?job=${encodeURIComponent(jobUuid)}&hue=${encodeURIComponent(hue)}`}
-      alt={`Map of ${address}`}
-      width={MAP_SIZE.width}
-      height={MAP_SIZE.height}
-      loading="lazy"
-      onError={() => setGone(true)}
-    />
+    <a className="jp-map" href={directionsHref(address)} target="_blank" rel="noopener noreferrer" aria-label={`Directions to ${address.replace(/\s*\n\s*/g, ", ")}`}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={`/api/workboard/job-map?job=${encodeURIComponent(jobUuid)}&hue=${encodeURIComponent(hue)}&shape=head`}
+        alt=""
+        width={HEAD_MAP_SIZE.width}
+        height={HEAD_MAP_SIZE.height}
+        onError={() => setGone(true)}
+      />
+    </a>
   );
+}
+
+/** The site in the job's head: the address's first line bold over the rest,
+    their PO where they gave one, and Site notes (build 9). */
+export function JobSiteWords({ detail, jobUuid }: { detail: MirrorJobDetail | null; jobUuid: string | null }) {
+  if (!detail) return null;
+  const where = siteOf(detail);
+  const [first, ...rest] = addressLines(where);
+  if (!first) return null;
+  return (
+    <div className="jp-site">
+      <p className="jp-addr">
+        <b>{first}</b>
+        {rest.length > 0 && <span>{rest.join(", ")}</span>}
+      </p>
+      {jobUuid && <SiteNotes jobUuid={jobUuid} />}
+      {detail.purchaseOrder && (
+        <p className="jov-po">
+          <span>Their PO</span> <b>{detail.purchaseOrder}</b>
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Where the job is, as written: ServiceM8's address, else its place. */
+export function siteOf(detail: Pick<MirrorJobDetail, "address" | "geoLine" | "suburb">): string {
+  return (detail.address ?? "").trim() || detail.geoLine || detail.suburb || "";
 }
 
 export function JobFacts({
@@ -150,8 +179,7 @@ export function JobFacts({
   onVisits,
   onBook,
   onEditContact,
-  map = null,
-  jobUuid = null,
+  stages = null,
 }: {
   detail: MirrorJobDetail | null;
   next: NextVisit | null;
@@ -162,17 +190,26 @@ export function JobFacts({
   onBook?: () => void;
   /** Edit, where saving customers to ServiceM8 is on for this reader. */
   onEditContact?: () => void;
-  /** The map of the site, over its address. */
-  map?: ReactNode;
-  /** The job, for what hangs off its site (Site notes, build 9). */
-  jobUuid?: string | null;
+  /** Where the job is up to, under Next visit. */
+  stages?: ReactNode;
 }) {
-  const where = detail ? (detail.address ?? "").trim() || detail.geoLine || detail.suburb || "" : "";
-  const [first, ...rest] = addressLines(where);
   const contacts = detail?.contacts ?? [];
   return (
     <div className="jfc" role="group" aria-label="The job's facts">
-      <Fact label="Next visit" onOpen={onVisits}>
+      <Fact
+        label="Next visit"
+        onOpen={onVisits}
+        aside={
+          !onBook || next ? null : nextRead ? (
+            <Button kind="main" size={32} onClick={onBook}>
+              Book a visit
+            </Button>
+          ) : (
+            /* Book a visit's room, kept while it reads, so nothing jumps when it comes */
+            <span className="jov-press--held" aria-hidden="true" />
+          )
+        }
+      >
         {next ? (
           <>
             <b className="jov-strong">{next.when}</b>
@@ -180,62 +217,17 @@ export function JobFacts({
             {next.state && <StateWord tone={next.state.tone}>{next.state.word}</StateWord>}
           </>
         ) : nextRead ? (
-          <>
-            <b className="jov-strong">Nothing booked</b>
-            {onBook && (
-              <span className="jov-press">
-                <Button kind="main" size={32} onClick={onBook}>
-                  Book a visit
-                </Button>
-              </span>
-            )}
-          </>
+          <b className="jov-strong">Nothing booked</b>
         ) : (
-          <>
-            <p className="jov-cap">Reading the visits</p>
-            {/* Book a visit's room, kept while it reads, so nothing jumps when it comes */}
-            {onBook && <span className="jov-press jov-press--held" aria-hidden="true" />}
-          </>
+          <p className="jov-cap">Reading the visits</p>
         )}
       </Fact>
 
-      {map}
-
-      <Fact
-        label="Site"
-        aside={
-          where ? (
-            <Button kind="quiet" size={32} className="jov-edit" href={directionsHref(where)} target="_blank" rel="noopener noreferrer">
-              Directions
-            </Button>
-          ) : null
-        }
-      >
-        {!detail ? (
-          <p className="jov-cap">Reading the job</p>
-        ) : (
-          <>
-            {first ? (
-              <p className="jov-addr">
-                <b>{first}</b>
-                {rest.length > 0 && <span>{rest.join(", ")}</span>}
-              </p>
-            ) : (
-              <p className="jov-cap">No address on the job</p>
-            )}
-            {detail.purchaseOrder && (
-              <p className="jov-po">
-                <span>Their PO</span> <b>{detail.purchaseOrder}</b>
-              </p>
-            )}
-            {jobUuid && first && (
-              <span className="jov-press">
-                <SiteNotes jobUuid={jobUuid} />
-              </span>
-            )}
-          </>
-        )}
-      </Fact>
+      {stages && (
+        <section className="jfc-part jfc-part--stages" aria-label="Where the job is up to">
+          {stages}
+        </section>
+      )}
 
       <Fact
         label={contacts.length > 1 ? "Contacts" : "Contact"}

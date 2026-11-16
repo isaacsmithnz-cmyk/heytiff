@@ -48,6 +48,8 @@ import { JobDesignFace } from "./job-design-face";
 import { JobVisits, VisitDialog, type ComingVisit } from "./job-visit-tasks";
 import { sm8QuoteOf } from "../quote/sm8-quote-of";
 import { JobProgressLine } from "./job-progress-line";
+import { JobHeadMap, JobSiteWords, siteOf } from "@/components/jobs/job-facts";
+import { mapAddress } from "@/lib/jobs/job-map";
 import { JobCustomerDialog } from "./job-customer-dialog";
 import { customerEditOffered } from "@/app/actions/job-customer";
 import { setNoDeposit } from "@/app/actions/job-deposit";
@@ -2389,17 +2391,16 @@ export function JobSheet({
           name={jobPlateName(detail, row)}
           description={record?.scope ? descriptionOf(record.scope) : null}
           number={cardNumber}
-          line={
-            page.section === "overview" ? (
-              <JobProgressLine
-                /* no stage is the job's until its detail is read: the line
-                   said Quoted while it read, then Deposit paid (25 October
-                   2026) */
-                steps={detail ? steps : steps.map((s) => ({ ...s, state: "next" as const, fact: "" }))}
-                open={step}
-                onOpen={openStep}
-              />
-            ) : null
+          site={
+            detail && siteOf(detail)
+              ? {
+                  words: <JobSiteWords detail={detail} jobUuid={cardId} />,
+                  map:
+                    cardId && mapAddress({ address: detail.address, geoLine: detail.geoLine }) ? (
+                      <JobHeadMap jobUuid={cardId} hue={jobHue(categoryColour, status)} address={mapAddress({ address: detail.address, geoLine: detail.geoLine })!} />
+                    ) : null,
+                }
+              : null
           }
           hue={jobHue(categoryColour, status)}
           sm8Href={sm8Href}
@@ -2448,6 +2449,16 @@ export function JobSheet({
                 onVisits: () => go("visits"),
                 onBook: bookings?.canBook ? () => addPick("visit") : undefined,
                 onEditContact: customerEdit && cardId ? () => setEditingCustomer(true) : undefined,
+                stages: (
+                  <JobProgressLine
+                    /* no stage is the job's until its detail is read: the line
+                       said Quoted while it read, then Deposit paid (25 October
+                       2026) */
+                    steps={detail ? steps : steps.map((s) => ({ ...s, state: "next" as const, fact: "" }))}
+                    open={step}
+                    onOpen={openStep}
+                  />
+                ),
                 open: (taskIds) => {
                   const shown = attention ? attentionWithout(attention, taskIds) : null;
                   return { rows: attentionStripOf(true, shown), count: shown?.total ?? 0 };

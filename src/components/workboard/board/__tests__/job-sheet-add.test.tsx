@@ -240,17 +240,25 @@ const addMenu = async () => {
   await userEvent.click(screen.getByRole("button", { name: "Actions" }));
   return screen.findByRole("menu", { name: "Actions on this job" });
 };
-/** Add's items, as the menu words them. */
-const items = (menu: HTMLElement) =>
-  within(menu)
-    .getAllByRole("menuitem")
-    .map((i) => i.textContent ?? "")
-    .filter((t) => t.startsWith("Add "));
+/** Add's items, as the menu words them: the six made most, then More's (SWMS, Certificate). */
+const items = async (menu: HTMLElement) => {
+  const words = (m: HTMLElement) =>
+    within(m)
+      .getAllByRole("menuitem")
+      .map((i) => i.textContent ?? "")
+      .filter((t) => t.startsWith("Add "));
+  const first = words(menu);
+  const more = within(menu).queryByRole("menuitem", { name: "More" });
+  if (!more) return first;
+  await userEvent.click(more);
+  return [...first, ...words(await screen.findByRole("menu", { name: "Actions on this job" }))];
+};
 /** One of the job's section tabs. */
 const jobTab = (name: string) => within(screen.getByRole("tablist", { name: "The job" })).getByRole("tab", { name: new RegExp(`^${name}`) });
 const pick = async (name: string) => {
   const menu = await addMenu();
-  await userEvent.click(within(menu).getByRole("menuitem", { name }));
+  if (!within(menu).queryByRole("menuitem", { name })) await userEvent.click(within(menu).getByRole("menuitem", { name: "More" }));
+  await userEvent.click(await screen.findByRole("menuitem", { name }));
 };
 
 beforeEach(() => {
@@ -270,7 +278,7 @@ describe("the job's Add", () => {
     expect(add).toHaveAttribute("aria-haspopup", "menu");
     const menu = await addMenu();
     expect(add).toHaveAttribute("aria-expanded", "true");
-    expect(items(menu)).toEqual(["Add visit", "Add to do", "Add task", "Add quote", "Add cost", "Add purchase", "Add SWMS", "Add certificate"]);
+    expect(await items(menu)).toEqual(["Add visit", "Add to do", "Add task", "Add quote", "Add cost", "Add purchase", "Add SWMS", "Add certificate"]);
     /* Add's items come first */
     expect(within(menu).getAllByRole("menuitem")[0]).toHaveTextContent("Add visit");
   });
@@ -320,19 +328,19 @@ describe("the job's Add", () => {
   describe("hides what the reader may not use", () => {
     it("has no Task without Workboard manage", async () => {
       await open({ manage: false });
-      expect(items(await addMenu())).toEqual(["Add visit", "Add to do", "Add quote", "Add cost", "Add purchase", "Add SWMS", "Add certificate"]);
+      expect(await items(await addMenu())).toEqual(["Add visit", "Add to do", "Add quote", "Add cost", "Add purchase", "Add SWMS", "Add certificate"]);
     });
 
     it("has no Visit where Book in isn't offered", async () => {
       readJobRecord.mockResolvedValue(record(bookings({ canBook: false })));
       await open();
-      expect(items(await addMenu())).toEqual(["Add to do", "Add task", "Add quote", "Add cost", "Add purchase", "Add SWMS", "Add certificate"]);
+      expect(await items(await addMenu())).toEqual(["Add to do", "Add task", "Add quote", "Add cost", "Add purchase", "Add SWMS", "Add certificate"]);
     });
 
     it("has no SWMS once ServiceM8 has the job closed, as the Compliance section doesn't", async () => {
       readMirrorJob.mockResolvedValue({ detail: detail({ status: "Completed" }), focusRemoteId: null });
       await open();
-      expect(items(await addMenu())).toEqual(["Add visit", "Add to do", "Add task", "Add quote", "Add cost", "Add purchase", "Add certificate"]);
+      expect(await items(await addMenu())).toEqual(["Add visit", "Add to do", "Add task", "Add quote", "Add cost", "Add purchase", "Add certificate"]);
     });
   });
 

@@ -160,3 +160,15 @@ describe("its cap", () => {
     expect(screen.getByText("and 2 more — the diary has them all")).toBeTruthy();
   });
 });
+
+describe("a To do", () => {
+  /* "Task" means site work; a To do is said as one (the walk of 16 November 2026, N3) */
+  it("says To do, who it's on and its day", () => {
+    strip([
+      { kind: "task", key: "task:t1", id: "t1", title: "Send quote to the builder", assignee: "Isaac Smith", dueDate: "2026-11-09", note: null, overdue: true },
+    ]);
+    const row = rowOf(/Send quote to the builder/);
+    expect(row.textContent).toMatch(/To do, Isaac Smith, was due Mon 9 Nov/);
+    expect(row.textContent).not.toMatch(/Task/);
+  });
+});

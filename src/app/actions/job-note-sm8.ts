@@ -77,7 +77,6 @@ const revalidateNotes = () => {
 };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export type { ReplyResult };
 export type NoteStateResult =
   | { ok: true; state: NoteState | null }
   /** `state`: the row's line after the press, when it changed (a refusal

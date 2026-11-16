@@ -1096,7 +1096,7 @@ describe("the attention strip", () => {
       await detailLanded();
 
       const strip = within(await openStrip());
-      await userEvent.click(strip.getByRole("button", { name: "Not work" }));
+      await userEvent.click(strip.getByRole("button", { name: "Dismiss" }));
       expect(dismissJobNote).toHaveBeenCalledWith("j-1", "n-2");
       await waitFor(() =>
         expect(screen.queryByRole("region", { name: "Open on this job" })).toBeNull()

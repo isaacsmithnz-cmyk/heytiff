@@ -81,7 +81,7 @@ export function JobAttentionStrip({
     assigneeId: string;
     dueDate: string | null;
   }) => void;
-  /** "Not work": ServiceM8's note by its uuid, or one of HeyTiff's own by
+  /** "Dismiss": ServiceM8's note by its uuid, or one of HeyTiff's own by
       its row's id. */
   onDismissNote: (noteUuid: string) => void;
   sm8?: StripSm8 | null;
@@ -172,7 +172,7 @@ function AttentionRow({
   const ours = item.kind === "mention" && item.origin === "heytiff";
   const replyTo =
     item.kind === "mention" && item.you && sm8?.canReply && item.noteUuid ? item.noteUuid : null;
-  /* what "Not work" puts aside: ServiceM8's uuid, or our row's id — and on
+  /* what "Dismiss" puts aside: ServiceM8's uuid, or our row's id — and on
      one of ours only a mention of you */
   const asideId =
     item.kind !== "mention" ? null : ours ? (item.you ? (item.rowId ?? null) : null) : item.noteUuid;
@@ -234,7 +234,9 @@ function AttentionRow({
                 disabled={busy}
                 onClick={() => onDismissNote(asideId)}
               >
-                Not work
+                {/* a verb, as every button is (rule 49): "Not work" until
+                    the walk of 16 November 2026 (N5, Isaac: 2) */}
+                Dismiss
               </button>
             )}
           </>

@@ -1,6 +1,6 @@
 /* The strip's doors for notes to ServiceM8 (two-way phase 2, PR B): Reply on
    a mention of you, Mark done on a flag, and one of HeyTiff's own replies as
-   a mention — no task from it, and Not work only for the person it names. */
+   a mention — no task from it, and Dismiss only for the person it names. */
 
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -73,7 +73,7 @@ describe("a mention of you", () => {
   it("offers Reply beside today's doors, and Reply names the note", async () => {
     const h = strip([theirs]);
     const row = within(rowOf(/order the grilles/));
-    expect(row.getAllByRole("button").map((b) => b.textContent)).toEqual(["Reply", "Make it a task", "Not work"]);
+    expect(row.getAllByRole("button").map((b) => b.textContent)).toEqual(["Reply", "Make it a task", "Dismiss"]);
     await userEvent.click(row.getByRole("button", { name: "Reply" }));
     expect(h.onReply).toHaveBeenCalledWith(ASK);
   });
@@ -90,18 +90,18 @@ describe("a mention of you", () => {
 });
 
 describe("one of HeyTiff's own replies, as a mention", () => {
-  it("(F) is never made a task; Not work puts aside its ROW, so it stays aside when it goes under a new uuid", async () => {
+  it("(F) is never made a task; Dismiss puts aside its ROW, so it stays aside when it goes under a new uuid", async () => {
     const h = strip([ours()]);
     const row = within(rowOf(/on my way/));
     expect(row.queryByRole("button", { name: "Make it a task" })).toBeNull();
-    await userEvent.click(row.getByRole("button", { name: "Not work" }));
+    await userEvent.click(row.getByRole("button", { name: "Dismiss" }));
     expect(h.onDismissNote).toHaveBeenCalledWith("r1");
   });
 
   it("offers Reply only once it is in ServiceM8, and nothing at all to someone it doesn't name", () => {
     strip([ours({ noteUuid: null })]);
     expect(screen.queryByRole("button", { name: "Reply" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Not work" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Dismiss" })).toBeInTheDocument();
   });
 
   it("has no doors for someone it doesn't name", () => {
@@ -143,7 +143,7 @@ describe("a flag", () => {
 describe("where the deployment sends no notes", () => {
   it("is today's strip", () => {
     const { onDismissNote } = strip([{ ...theirs, you: undefined, origin: undefined, rowId: undefined } as AttentionItem, flag], null);
-    expect(within(rowOf(/order the grilles/)).getAllByRole("button").map((b) => b.textContent)).toEqual(["Make it a task", "Not work"]);
+    expect(within(rowOf(/order the grilles/)).getAllByRole("button").map((b) => b.textContent)).toEqual(["Make it a task", "Dismiss"]);
     expect(within(rowOf(/call the builder/)).getAllByRole("button").map((b) => b.textContent)).toEqual(["Open in the diary›"]);
     expect(onDismissNote).not.toHaveBeenCalled();
   });

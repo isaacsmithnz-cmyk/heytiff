@@ -1,56 +1,35 @@
 "use server";
 
 import { can } from "@/lib/permissions-server";
-import { installedPacks, loadInstalledPack } from "@/lib/studio/packs/server";
-import { loadPackWithOverrides } from "@/lib/studio/packs/overrides-server";
-import type { DataPack } from "@/lib/studio/packs/schema";
+import { libraryPacks, libraryUnits } from "@/lib/library/packs-server";
+import { combine, type Combined } from "@/lib/library/data-pack";
 import { matchUnits, type UnitSpec } from "@/lib/library/unit-specs";
 
-/* THE LIBRARY'S MODEL SEARCH (lib/library/unit-specs): the newest installed
-   pack of every brand, WITH HQ'S CORRECTIONS ON, as Design reads them
-   (quotes/design-read-server's studioPack): a figure fixed in HQ reads the
-   same here as in a design. Kept for five minutes, so a correction shows
-   within that; a pack whose corrections can't be read is read without
-   them rather than not at all. Reading the Library is the gate (`tiff`). */
-
-const KEEP_MS = 5 * 60 * 1000;
-let packs: Promise<DataPack[]> | null = null;
-let readAt = 0;
-
-function loadPacks(): Promise<DataPack[]> {
-  if (packs && Date.now() - readAt > KEEP_MS) packs = null;
-  if (!packs) readAt = Date.now();
-  packs ??= (async () => {
-    const refs = await installedPacks();
-    const newest = new Map<string, (typeof refs)[number]>();
-    for (const r of refs) {
-      const was = newest.get(r.brand);
-      if (!was || r.version.localeCompare(was.version) > 0) newest.set(r.brand, r);
-    }
-    const loaded = await Promise.all(
-      [...newest.values()].map((r) =>
-        loadPackWithOverrides(r.brand, r.version)
-          .then((p) => p.pack)
-          .catch(() =>
-            loadInstalledPack(r.brand, r.version)
-              .then((p) => p.pack)
-              .catch(() => null),
-          ),
-      ),
-    );
-    return loaded.filter((p): p is DataPack => p !== null);
-  })().catch((e) => {
-    packs = null;
-    throw e;
-  });
-  return packs;
-}
+/* THE LIBRARY'S MODEL SEARCH (lib/library/unit-specs) over the packs the
+   Library reads (lib/library/packs-server), and Data pack's Combine, which
+   asks the Studio's own check on the server where the packs are. Reading the
+   Library is the gate (`tiff`). */
 
 export async function findUnits(query: string): Promise<{ ok: true; units: UnitSpec[] } | { ok: false; error: string }> {
   if (!(await can("tiff"))) return { ok: false, error: "The Library isn't open to you." };
   try {
-    return { ok: true, units: matchUnits(await loadPacks(), String(query ?? "").slice(0, 60)) };
+    return { ok: true, units: matchUnits(await libraryPacks(), String(query ?? "").slice(0, 60)) };
   } catch {
     return { ok: false, error: "The model list couldn't be read." };
+  }
+}
+
+/** Data pack's Combine: an outdoor and the heads chosen for it, checked as the system builder checks them. */
+export async function combineUnits(
+  outdoor: string,
+  heads: string[],
+): Promise<{ ok: true; combined: Combined } | { ok: false; error: string }> {
+  if (!(await can("tiff"))) return { ok: false, error: "The Library isn't open to you." };
+  try {
+    const [packs, units] = await Promise.all([libraryPacks(), libraryUnits()]);
+    const combined = combine(packs, units, String(outdoor ?? ""), (Array.isArray(heads) ? heads : []).slice(0, 16).map(String));
+    return combined ? { ok: true, combined } : { ok: false, error: "That outdoor unit isn't in the data packs." };
+  } catch {
+    return { ok: false, error: "The data packs couldn't be read." };
   }
 }

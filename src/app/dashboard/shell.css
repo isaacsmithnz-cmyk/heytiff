@@ -8035,17 +8035,8 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .lb2-bar { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
 .fg .lb2-tools { display:flex; align-items:center; gap:8px; flex:0 1 auto; min-width:0; }
 .fg .lb2-chev { display:inline-flex; margin-left:4px; vertical-align:middle; }
-/* SHELVES (Isaac, 20 October): Tiff's mark and box, as Home has them, then
-   a button per shelf; a shelf is its own page of small cards */
-.fg .lb2-ask { margin:8px auto 16px; }
-.fg .lb2-cats { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:16px; }
-.fg .lb2-cat { all:unset; box-sizing:border-box; display:flex; align-items:center; gap:12px; min-width:0; padding:16px; border:1px solid var(--edge); border-radius:var(--r-card); background:var(--white); cursor:pointer; transition:background var(--t-fast) var(--ease); }
-.fg .lb2-cat:hover { background:var(--hov); }
-.fg .lb2-cat:focus-visible { box-shadow:var(--ring); }
-.fg .lb2-cat-t { display:flex; flex-direction:column; min-width:0; flex:1 1 auto; }
-.fg .lb2-cat-t b { font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
-.fg .lb2-cat-t span { font-size:14px; line-height:20px; color:var(--q); }
-.fg .lb2-cat-go { display:inline-flex; flex:none; color:var(--q); }
+/* SHELVES (Isaac, 20 October): a shelf is its own page of small cards; the
+   landing is the phone's now (library-shelves.css, 16 November 2026) */
 .fg .hm-blk--pink { background:var(--pink); }
 .fg .hm-blk--grey { background:var(--grey); }
 .fg .hm-blk--orange { background:var(--orange); }

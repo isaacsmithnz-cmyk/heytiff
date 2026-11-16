@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
@@ -26,11 +26,12 @@ import { auDayOf, fmtAuDayMonth } from "@/lib/au-dates";
 import { deleteKbDoc, retryKbDoc, updateKbDocMeta } from "@/app/actions/kb";
 import { filterByTags, KB_TAG_PILLS_SHOWN, type KbTagRef } from "@/lib/tiff/tags";
 import { writeAskQuestion, writeAskScope } from "@/lib/tiff/ask-handoff";
-import { CvBox } from "@/components/conversations/box";
 import { appendSpoken, useDictation } from "@/components/notes/dictation";
 import { findUnits } from "@/app/actions/library-units";
 import { SPEC_ROWS, differing, modelStem, squash, type UnitSpec } from "@/lib/library/unit-specs";
 import { useKbIngest, type KbIngestProgress } from "@/lib/tiff/use-kb-ingest";
+import type { CoverReading } from "@/lib/tiff/covers";
+import { BrandCards, Cover, SearchBoard, ToolTiles, brandLine, brandsOf, rowsOfBrand, type BrandCard, type DataPackSummary } from "./library-covers";
 import { useKbOcr, type KbOcrProgress } from "@/lib/tiff/use-kb-ocr";
 import { useKbBackfill } from "@/lib/tiff/use-kb-backfill";
 import type { KbDocRow } from "@/lib/tiff/query";
@@ -104,6 +105,25 @@ const n = (v: number) => v.toLocaleString("en-AU");
 const plural = (count: number, one: string, many = `${one}s`) => (count === 1 ? one : many);
 
 const PANEL = "lb2-panel";
+const OPENED_KEY = "heytiff.library.opened";
+const OPENED_MOST = 12;
+const OPENED_EVENT = "heytiff:library-opened";
+/** the opened-lately list as this browser keeps it, raw; another tab's change arrives as `storage` */
+const readOpened = () => {
+  try {
+    return window.localStorage.getItem(OPENED_KEY) ?? "[]";
+  } catch {
+    return "[]";
+  }
+};
+const onOpened = (changed: () => void) => {
+  window.addEventListener("storage", changed);
+  window.addEventListener(OPENED_EVENT, changed);
+  return () => {
+    window.removeEventListener("storage", changed);
+    window.removeEventListener(OPENED_EVENT, changed);
+  };
+};
 
 /** What a row says about itself right now — the live loop wins over the row
     the server rendered, which is a batch behind the moment work starts. */
@@ -229,7 +249,6 @@ const CATEGORY_LOOK: Record<Exclude<LibraryView, "all">, { hue: string; icon: st
   toolbox: { hue: "orange", icon: "calc" },
 };
 const TOOLBOX_CATEGORY = { key: "toolbox" as const, label: "Toolbox", blurb: "Calculators and references for site" };
-const said = (blurb: string) => blurb.replace(/ & /g, " and ");
 
 /** A document card's second line: the maker, then its edition, or the day it came in. */
 function cardLine(d: KbLibraryDoc): string {
@@ -237,45 +256,9 @@ function cardLine(d: KbLibraryDoc): string {
   return [d.source, d.edition || (added ? `Added ${added}` : null)].filter(Boolean).join(", ");
 }
 
-/** The Library's box: Tiff's, as Home has it. A question goes to
-    Conversations, asked there at once and kept. */
-function LibraryBox({ voice }: { voice: boolean }) {
-  const router = useRouter();
-  const [text, setText] = useState("");
-  const [voiceError, setVoiceError] = useState<string | null>(null);
-  const [ranOut, setRanOut] = useState(false);
-  const dict = useDictation({
-    onTranscript: (spoken, { capped }) => {
-      setVoiceError(null);
-      setRanOut(capped);
-      setText((prev) => appendSpoken(prev, spoken));
-    },
-    onError: setVoiceError,
-  });
-  const send = () => {
-    const q = text.trim();
-    if (!q) return;
-    writeAskQuestion(q);
-    router.push("/dashboard/conversations");
-  };
-  return (
-    <CvBox
-      value={text}
-      onChange={setText}
-      onSubmit={send}
-      label="Ask the Library anything"
-      placeholder="Ask the Library anything"
-      sendWord="Send"
-      dict={voice ? dict : null}
-      voiceError={voiceError}
-      ranOut={ranOut}
-    />
-  );
-}
-
 /** A model typed into Manufacturer specs' search, looked up in the data
     packs: its specs side by side, what differs in amber. */
-function ModelSpecs({ query }: { query: string }) {
+function ModelSpecs({ query, tail = true }: { query: string; tail?: boolean }) {
   const [found, setFound] = useState<{ q: string; units: UnitSpec[] } | null>(null);
   const q = query.trim();
   useEffect(() => {
@@ -316,7 +299,7 @@ function ModelSpecs({ query }: { query: string }) {
           </article>
         ))}
       </div>
-      <p className="lb2-subh">Documents</p>
+      {tail && <p className="lb2-subh">Documents</p>}
     </section>
   );
 }
@@ -357,8 +340,14 @@ export function Library({
   documents = true,
   voice = false,
   review = null,
+  reading = {},
+  dataPack = null,
 }: {
   docs: KbLibraryDoc[];
+  /** each document's cover and shelf, read off its tags and title (lib/tiff/shelves) */
+  reading?: Record<string, CoverReading>;
+  /** Data pack's tile: how many units from how many brands. Null: no tile. */
+  dataPack?: DataPackSummary | null;
   quota?: KbQuotaView | null;
   canManage?: boolean;
   isOwner?: boolean;
@@ -421,6 +410,28 @@ export function Library({
     () => docs.find((d) => d.id === initialDocId) ?? null,
   );
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
+  /* a brand's own page, opened from its card: its shelves of covers */
+  const [brandKey, setBrandKey] = useState<string | null>(null);
+  /* the manuals opened lately, newest first: this browser's, as the phone keeps its own */
+  const openedRaw = useSyncExternalStore(onOpened, readOpened, () => "[]");
+  const openedIds = useMemo(() => {
+    try {
+      const kept: unknown = JSON.parse(openedRaw);
+      return Array.isArray(kept) ? kept.filter((v): v is string => typeof v === "string").slice(0, OPENED_MOST) : [];
+    } catch {
+      return [];
+    }
+  }, [openedRaw]);
+  const openDoc = (d: KbLibraryDoc) => {
+    setSearching(d);
+    const next = [d.id, ...openedIds.filter((v) => v !== d.id)].slice(0, OPENED_MOST);
+    try {
+      window.localStorage.setItem(OPENED_KEY, JSON.stringify(next));
+      window.dispatchEvent(new Event(OPENED_EVENT));
+    } catch {
+      /* storage closed: no record of it */
+    }
+  };
 
   /* PARKED DOCUMENTS RESUME THEMSELVES, which is what the screens have
      always said they do ("Out of pages — resumes 1 Oct"). The allowance is the
@@ -532,6 +543,24 @@ export function Library({
   };
 
   const zero = docs.length === 0;
+
+  /* the landing in the phone's dress: covers, brands, and a brand's own page */
+  const covered = useMemo(() => docs.map((d) => ({ ...d, reading: reading[d.id] ?? null })), [docs, reading]);
+  const brands = useMemo(() => brandsOf(covered), [covered]);
+  const brand: BrandCard<(typeof covered)[number]> | null = brandKey ? (brands.find((b) => b.key === brandKey) ?? null) : null;
+  const lately = openedIds.map((id) => covered.find((d) => d.id === id)).filter((d): d is (typeof covered)[number] => !!d);
+  const searchingAll = documents && !zero && query.trim().length >= 2;
+  const askTiff = () => {
+    const q = query.trim();
+    if (!q) return;
+    writeAskQuestion(q);
+    router.push("/dashboard/conversations");
+  };
+  const dict = useDictation({
+    onTranscript: (spoken) => setQuery((prev) => appendSpoken(prev, spoken)),
+    onError: () => undefined,
+  });
+  const hearing = dict.recording || dict.arming || dict.transcribing;
   const inToolbox = view === "toolbox";
   /* Field notes, for an admin: its two views, and the one to look over */
   const fieldTabs = view === "field" && review !== null;
@@ -567,9 +596,28 @@ export function Library({
       : null;
 
   return (
-    <div className="page in">
+    <div className="page in lb3-page">
       <div className="wrap lb2">
-        {opened === null ? (
+        {opened === null && brand ? (
+          <>
+            <Button kind="quiet" size={32} className="lb2-back" onClick={() => setBrandKey(null)}>
+              ‹ Library
+            </Button>
+            <header className="lb2-head">
+              <div className="lb2-id">
+                <h1 className="lb2-title">{brand.name}</h1>
+                <p className="lb3-under">{brandLine(brand)}</p>
+              </div>
+              {canManage && (
+                <div className="lb2-acts">
+                  <Button kind="second" icon="plus" onClick={() => setDrawer(true)}>
+                    Add a document
+                  </Button>
+                </div>
+              )}
+            </header>
+          </>
+        ) : opened === null ? (
           <header className="lb2-head">
             <div className="lb2-id">
               <h1 className="lb2-title">Library</h1>
@@ -628,39 +676,104 @@ export function Library({
 
         {canManage && unembedded > 0 && <EmbedGap count={unembedded} />}
 
-        {opened === null && (
+        {opened === null && brand && (
           <>
-            {documents && (
-              <div className="hm-ask lb2-ask">
-                <TiffGlyph size={96} alive label="Tiff" />
-                <LibraryBox voice={voice} />
+            {rowsOfBrand(brand).map((sh) => (
+              <section key={sh.name} className="lb2-id" aria-label={sh.name}>
+                <h2 className="lb3-sh">{sh.name}</h2>
+                <div className="lb3-covers lb3-wrap">
+                  {sh.docs.map((d) => (
+                    <DocRow
+                      key={d.id}
+                      doc={d}
+                      reading={d.reading}
+                      showKind={false}
+                      layout="cover"
+                      state={rowState(d, ingest.progress[d.id], quota)}
+                      ocr={ocrView(d, ocr.progress[d.id], ocr.running)}
+                      canManage={canManage}
+                      isOwner={isOwner}
+                      error={rowErrors[d.id]}
+                      onOpen={() => openDoc(d)}
+                      onAsk={() => askAbout(d)}
+                      onEdit={() => setEditing(d)}
+                      onDelete={() => setDeleting(d)}
+                      onRetry={async () => {
+                        setRowError(d.id, null);
+                        const res = await retryKbDoc(d.id);
+                        if (!res.ok) {
+                          setRowError(d.id, res.error);
+                          return;
+                        }
+                        ingest.start([d.id]);
+                        router.refresh();
+                      }}
+                      onRead={() => ocr.read(d.id)}
+                    />
+                  ))}
+                </div>
+              </section>
+            ))}
+          </>
+        )}
+
+        {opened === null && !brand && (
+          <>
+            {documents && !zero && (
+              <div className="lb3-search" role="search">
+                <span className="lb3-search-icon" aria-hidden="true">
+                  <Icon name="search" size={20} />
+                </span>
+                <input
+                  type="search"
+                  aria-label={`Search ${n(docs.length)} ${plural(docs.length, "manual")}, or ask Tiff`}
+                  placeholder={`Search ${n(docs.length)} ${plural(docs.length, "manual")}, or ask Tiff`}
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape" && query) setQuery("");
+                    if (e.key === "Enter" && !e.nativeEvent.isComposing) askTiff();
+                  }}
+                />
+                {query ? (
+                  <IconButton glyph="clear" label="Clear the search box" size={36} onClick={() => setQuery("")} />
+                ) : voice ? (
+                  <IconButton glyph="mic" label="Speak instead of typing" size={36} disabled={hearing} onClick={dict.start} />
+                ) : null}
               </div>
             )}
-            {zero && !toolbox ? null : (
-            <nav className="lb2-cats" aria-label="Categories">
-              {categories.map((sh) => (
-                <button key={sh.key} type="button" className="lb2-cat" onClick={() => setView(sh.key)}>
-                  <span className={`hm-blk hm-blk--${CATEGORY_LOOK[sh.key].hue}`} aria-hidden="true">
-                    <Icon name={CATEGORY_LOOK[sh.key].icon} size={18} />
-                  </span>
-                  <span className="lb2-cat-t">
-                    {/* a shelf with something to look over has its word in amber, never a number (rule 29) */}
-                    {sh.key === "field" && waiting ? (
-                      <b className="lb2-cat-look">
-                        {sh.label}
-                        <span className="sr-only">, something to look over</span>
-                      </b>
-                    ) : (
-                      <b>{sh.label}</b>
-                    )}
-                    <span>{said(sh.blurb)}</span>
-                  </span>
-                  <span className="lb2-cat-go" aria-hidden="true">
-                    <Icon name="chevR" size={18} />
-                  </span>
-                </button>
-              ))}
-            </nav>
+            <ToolTiles onToolbox={toolbox ? () => setView("toolbox") : null} dataPack={documents ? dataPack : null} />
+            {searchingAll ? (
+              <>
+                <ModelSpecs query={query} tail={false} />
+                <SearchBoard query={query} docs={covered} onAsk={askTiff} onOpenDoc={(id) => {
+                  const d = docs.find((x) => x.id === id);
+                  if (d) openDoc(d);
+                }} />
+              </>
+            ) : (
+              <>
+                {lately.length > 0 && (
+                  <>
+                    <h2 className="lb3-sh">Opened lately</h2>
+                    <div className="lb3-covers">
+                      {lately.map((d) => (
+                        <Cover key={d.id} doc={d} onOpen={() => openDoc(d)} />
+                      ))}
+                    </div>
+                  </>
+                )}
+                {brands.length > 0 && (
+                  <>
+                    <h2 className="lb3-sh">Brands</h2>
+                    <BrandCards
+                      brands={brands}
+                      lookOver={waiting}
+                      onOpen={(b) => (b.brand ? setBrandKey(b.key) : setView(b.category as KbCategoryKey))}
+                    />
+                  </>
+                )}
+              </>
             )}
             {zero && (
               <Empty
@@ -945,6 +1058,7 @@ function EmbedGap({ count }: { count: number }) {
 
 function DocRow({
   doc,
+  reading = null,
   showKind,
   layout = "row",
   state,
@@ -960,9 +1074,11 @@ function DocRow({
   onRead,
 }: {
   doc: KbLibraryDoc;
+  /** what the cover says and its colour, for the "cover" layout */
+  reading?: CoverReading | null;
   showKind: boolean;
-  /** "card": a shelf's small card, the title on up to two lines */
-  layout?: "row" | "card";
+  /** "card": a shelf's small card, the title on up to two lines; "cover": a brand page's cover */
+  layout?: "row" | "card" | "cover";
   state: RowState;
   ocr: OcrView;
   canManage: boolean;
@@ -1058,6 +1174,23 @@ function DocRow({
   /* A SHELF'S CARD (Isaac, 20 October): the title on up to two lines, fading
      only past that (Edit details renames a long one), the maker and the
      edition, the state, and the one door. */
+  /* A BRAND PAGE'S COVER (16 November 2026): opens when it's read; until
+     then its state under it, and a manager's doings under that */
+  if (layout === "cover")
+    return (
+      <div className="lb3-cover-at">
+        <Cover doc={{ ...doc, reading }} showMaker={false} onOpen={ready ? onOpen : undefined} />
+        {!ready && <StateWord tone={said.tone}>{said.word}</StateWord>}
+        {error && <span className="lb2-err">{error}</span>}
+        {canManage && (
+          <span className="lb3-cover-foot">
+            {fix}
+            {actionsMenu}
+          </span>
+        )}
+      </div>
+    );
+
   if (layout === "card")
     return (
       <li className={`lb2-card${ready ? " lb2-card--open" : ""}`}>

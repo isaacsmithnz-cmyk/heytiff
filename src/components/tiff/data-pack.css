@@ -1,0 +1,63 @@
+/* DATA PACK (data-pack.tsx; Isaac, 16 November 2026, "Yep nice" to
+   https://claude.ai/artifact/2Jvc2mQkhQscbykt7abwhM): on the Library's grey
+   ground (library-covers.css), the filters down the left, every unit in a
+   white table, the ticked ones named in a bar at the foot. Compare quiets a
+   row where every unit matches, so what differs stands out in ink, never a
+   colour. Combine's word is the state (rule 17). */
+
+.fg .dp-back { align-self:flex-start; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); text-decoration:none; }
+.fg .dp-back:focus-visible { outline:2px solid var(--ink); outline-offset:2px; border-radius:var(--r-control); }
+
+.fg .dp-units { display:grid; grid-template-columns:208px minmax(0,1fr); gap:16px; align-items:start; padding-bottom:48px; }
+.fg .dp-filters { display:flex; flex-direction:column; gap:16px; padding:16px; border-radius:var(--r-card); background:var(--white); }
+.fg .dp-pair { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px; }
+.fg .dp-set { display:flex; flex-direction:column; gap:8px; margin:0; padding:0; border:0; min-width:0; }
+.fg .dp-set legend { margin-bottom:4px; padding:0; font-size:13px; line-height:18px; font-weight:500; color:var(--ink); }
+.fg .dp-main { display:flex; flex-direction:column; gap:12px; min-width:0; }
+.fg .dp-search { max-width:480px; }
+
+.fg .dp-scroll { overflow-x:auto; border-radius:var(--r-card); background:var(--white); }
+.fg .dp-table { width:100%; border-collapse:collapse; font-size:14px; line-height:20px; color:var(--ink); }
+.fg .dp-table th { padding:8px 4px; border-bottom:1px solid var(--line); font-size:12px; line-height:16px; font-weight:500; color:var(--q); text-align:left; vertical-align:bottom; }
+.fg .dp-table td { padding:8px 4px; border-bottom:1px solid var(--line); font-size:13px; line-height:18px; white-space:nowrap; }
+.fg .dp-table tbody tr:last-child td,
+.fg .dp-table tbody tr:last-child th { border-bottom:0; }
+.fg .dp-table .dp-num { text-align:right; font-variant-numeric:tabular-nums; }
+.fg .dp-table .dp-model { font-weight:600; }
+.fg .dp-table .dp-tickcol { width:32px; padding-right:0; }
+.fg .dp-table tr.dp-on td { background:var(--sel); }
+
+/* the ticked ones, named at the foot */
+.fg .dp-foot { position:sticky; bottom:16px; z-index:var(--z-sticky); grid-column:1 / -1; display:flex; align-items:center; gap:12px; padding:12px 16px; border-radius:var(--r-card); background:var(--white); box-shadow:var(--shadow-overlay); }
+.fg .dp-foot-t { flex:1 1 auto; min-width:0; margin:0; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+
+/* compare: a row a figure, a column a unit */
+.fg .dp-compare th[scope="row"] { font-size:14px; line-height:20px; font-weight:500; color:var(--q); }
+.fg .dp-compare thead th { vertical-align:top; }
+.fg .dp-ch { display:flex; flex-direction:column; align-items:flex-start; gap:2px; }
+.fg .dp-ch b { font-size:16px; line-height:24px; font-weight:700; color:var(--ink); }
+.fg .dp-ch span { font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.fg .dp-compare tr.dp-same td { color:var(--q); }
+
+/* combine: the outdoor and its heads, the verdict beside them */
+.fg .dp-combine { display:grid; grid-template-columns:minmax(0,1fr) 360px; gap:24px; align-items:start; max-width:1100px; }
+.fg .dp-build { display:flex; flex-direction:column; gap:16px; min-width:0; padding:16px; border-radius:var(--r-card); background:var(--white); }
+.fg .dp-heads { display:flex; flex-direction:column; gap:8px; }
+.fg .dp-heads .lb3-group { border:1px solid var(--line); }
+.fg .dp-head { display:flex; align-items:center; gap:12px; min-height:56px; padding:8px 12px; border-top:1px solid var(--line); }
+.fg .dp-head:first-child { border-top:0; }
+.fg .dp-port { flex:none; width:56px; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.fg .dp-verdict { display:flex; flex-direction:column; gap:8px; padding:16px; }
+.fg .dp-line { margin:0; font-size:13px; line-height:18px; color:var(--q); }
+.fg .dp-facts { margin:0; border-top:1px solid var(--line); }
+.fg .dp-facts > div { display:grid; grid-template-columns:104px minmax(0,1fr); gap:12px; padding:8px 0; border-bottom:1px solid var(--line); }
+.fg .dp-facts dt { font-size:14px; line-height:20px; color:var(--q); }
+.fg .dp-facts dd { margin:0; font-size:14px; line-height:20px; color:var(--ink); }
+
+@media (max-width:1100px) {
+  .fg .dp-combine { grid-template-columns:minmax(0,1fr); }
+}
+@media (max-width:760px) {
+  .fg .dp-units { grid-template-columns:minmax(0,1fr); }
+}
+.fg .dp-table tr > :first-child { padding-left:12px; }

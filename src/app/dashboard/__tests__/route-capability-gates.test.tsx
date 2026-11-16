@@ -45,6 +45,7 @@ jest.mock("@/lib/tiff/tags-query", () => ({
   ensureKbSeedTags: jest.fn(async () => {}),
 }));
 jest.mock("@/lib/tiff/large", () => ({ kbLargeAllowance: async () => null }));
+jest.mock("@/lib/library/packs-server", () => ({ libraryUnits: async () => [] }));
 /* Knowledge from the field, the Library's (25 October 2026) */
 const NOTE = { id: "n-1", title: "Daikin VRV needs the long purge", body: "Purge for ten minutes.", heading: null, authorName: "Alex L", createdAt: "2026-10-20T02:00:00Z" };
 const listUnreviewedFieldNotes = jest.fn(async () => [NOTE]);

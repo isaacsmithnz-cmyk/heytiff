@@ -55,6 +55,7 @@ const deleteKbTag = jest.fn();
 /* the model search reads the data packs on the server */
 const findUnits = jest.fn(async (..._a: unknown[]) => ({ ok: true as const, units: [] as unknown[] }));
 jest.mock("@/app/actions/library-units", () => ({ findUnits: (...a: unknown[]) => findUnits(...a) }));
+jest.mock("@/app/actions/library-search", () => ({ searchManuals: async () => ({ ok: true, found: { manuals: [], pages: [] } }) }));
 jest.mock("@/app/actions/kb-tags", () => ({
   createKbTag: (...a: unknown[]) => createKbTag(...(a as [])),
   updateKbTag: (...a: unknown[]) => updateKbTag(...(a as [])),
@@ -157,11 +158,15 @@ const openActions = async (title: string) => {
 };
 
 describe("the head (v2)", () => {
-  it("lands on Tiff's box and the shelves, with no count (Isaac, 20 October)", () => {
-    render(<Library docs={[doc(), doc({ id: "d-2", title: "PUZ install manual" })]} />, { landing: true });
+  /* the phone's dress (Isaac, 16 November 2026, "Yep looks good"): one
+     search that also asks Tiff, then a card per brand, or per category for
+     documents with no maker */
+  it("lands on the one search and a card per brand or category", () => {
+    render(<Library docs={[doc(), doc({ id: "d-2", category: "install", title: "PUZ install manual" })]} />, { landing: true });
     expect(screen.getByRole("heading", { level: 1, name: "Library" })).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: "Ask the Library anything" })).toBeInTheDocument();
-    expect(catBtn("Installation documents")).toHaveTextContent("Installation and commissioning manuals");
+    expect(screen.getByRole("searchbox", { name: "Search 2 manuals, or ask Tiff" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: "Brands" })).toBeInTheDocument();
+    expect(catBtn("Installation documents")).toHaveTextContent("1 document");
     expect(screen.queryByText(/documents Tiff can read/)).toBeNull();
   });
 
@@ -169,8 +174,7 @@ describe("the head (v2)", () => {
   it("hands what is asked to Conversations, which asks it", async () => {
     sessionStorage.clear();
     render(<Library docs={[doc()]} />, { landing: true });
-    await userEvent.type(screen.getByRole("textbox", { name: "Ask the Library anything" }), "what does P8 mean?");
-    await userEvent.click(screen.getByRole("button", { name: "Send to Tiff" }));
+    await userEvent.type(screen.getByRole("searchbox", { name: "Search 1 manual, or ask Tiff" }), "what does P8 mean?{Enter}");
     expect(JSON.parse(sessionStorage.getItem("heytiff.tiff.ask.v1")!)).toEqual({ ask: "what does P8 mean?" });
     expect(push).toHaveBeenCalledWith("/dashboard/conversations");
   });
@@ -832,26 +836,22 @@ describe("finding a document", () => {
   });
 
   it("an empty shelf beside full ones says what belongs in it", async () => {
-    render(<Library docs={library} />, { landing: true });
-
-    await userEvent.click(catBtn("Manufacturer specs"));
+    render(<Library docs={library} initialCategory="specs" />);
 
     expect(screen.getByText("Nothing in Manufacturer specs yet")).toBeInTheDocument();
     expect(screen.getByText(/Ask a manager to add/)).toBeInTheDocument();
   });
 
   it("offers a manager the upload from an empty shelf", async () => {
-    render(<Library docs={library} canManage />, { landing: true });
-
-    await userEvent.click(catBtn("Manufacturer specs"));
+    render(<Library docs={library} canManage initialCategory="specs" />);
     expect(screen.getByText(/Tiff can't answer from this category until something lands in it/)).toBeInTheDocument();
     expect(within(document.querySelector(".lb2-panel") as HTMLElement).getByRole("button", { name: "Add a document" })).toBeInTheDocument();
   });
 
-  it("puts no numbers on the shelves (Isaac, 20 October)", () => {
+  it("gives a category with nothing in it no card on the landing", () => {
     render(<Library docs={library} />, { landing: true });
 
-    expect(catBtn("Manufacturer specs").textContent).toBe("Manufacturer specsDatasheets, capacities and connections");
+    expect(screen.queryByRole("button", { name: /^Manufacturer specs/ })).toBeNull();
   });
 
   /* the view rides in the address, so an open tab holds it */
@@ -1216,15 +1216,16 @@ describe("the Toolbox view", () => {
     expect(screen.getByRole("heading", { level: 1, name: "Toolbox" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Heat Load" })).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "‹ Library" }));
-    expect(screen.queryByRole("textbox", { name: "Ask the Library anything" })).toBeNull();
-    const shelves = within(screen.getByRole("navigation", { name: "Categories" })).getAllByRole("button");
-    expect(shelves.map((b) => b.textContent)).toEqual([expect.stringMatching(/^Toolbox/)]);
+    expect(screen.queryByRole("searchbox")).toBeNull();
+    const tools = within(screen.getByRole("navigation", { name: "Tools" })).getAllByRole("button");
+    expect(tools.map((b) => b.textContent)).toEqual([expect.stringMatching(/^Toolbox/)]);
+    expect(screen.queryByRole("link", { name: /^Data pack/ })).toBeNull();
   });
 
   it("ignores the address's shelf for someone without the tools", () => {
     render(<Library docs={[doc()]} initialView="toolbox" />);
     expect(screen.queryByRole("button", { name: /^Toolbox/ })).toBeNull();
-    expect(screen.getByRole("textbox", { name: "Ask the Library anything" })).toBeInTheDocument();
+    expect(screen.getByRole("searchbox", { name: "Search 1 manual, or ask Tiff" })).toBeInTheDocument();
   });
 
   /* an empty library still reaches the tools */
@@ -1326,15 +1327,14 @@ describe("knowledge from the field", () => {
 
   it("puts Field notes' word in amber on the landing while something waits, with no number", () => {
     render(<Library docs={notes} review={[note()]} />, { landing: true });
-    const shelf = catBtn("Field notes");
-    expect(shelf.querySelector("b")).toHaveClass("lb2-cat-look");
-    expect(shelf).toHaveAccessibleName(/^Field notes ?, something to look over/);
-    expect(shelf.querySelector("b")!.textContent).not.toMatch(/\d/);
+    const card = catBtn("Field notes");
+    expect(card).toHaveTextContent("To look over");
+    expect(card.querySelector(".lb3-dot")).not.toBeNull();
   });
 
   it("is plain once nothing waits", () => {
     render(<Library docs={notes} review={[]} />, { landing: true });
-    expect(catBtn("Field notes").querySelector("b")).not.toHaveClass("lb2-cat-look");
+    expect(catBtn("Field notes")).not.toHaveTextContent("To look over");
   });
 
   it("gives an admin's Field notes two soft tabs, To look over in amber, and the address follows", async () => {

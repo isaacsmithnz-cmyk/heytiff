@@ -334,6 +334,8 @@ export type Combined = {
   outdoor: PackUnit;
   /** the indoor units this outdoor takes, by key: only these are offered */
   offered: string[];
+  /** the most heads it takes: a split's one, a multi's ports; null where the book gives no count */
+  most: number | null;
   /** each head's port, in the order given: its letter and its pipe sizes */
   ports: { port: string; pipes: string | null }[];
   /** null until a head is chosen */
@@ -419,7 +421,7 @@ export function combine(packs: readonly DataPack[], units: readonly PackUnit[], 
     const charge = chargeOf(rule.additional_charge);
     if (charge) facts.push({ label: "Extra charge", value: charge });
     if (power) facts.push({ label: "Power", value: power });
-    return { outdoor, offered: offeredUnits.map(keyOf), ports, verdict, facts, takes: takesOf(offeredUnits), source };
+    return { outdoor, offered: offeredUnits.map(keyOf), most: odu.ports ?? null, ports, verdict, facts, takes: takesOf(offeredUnits), source };
   }
 
   // a split: its pairs, one head
@@ -450,6 +452,7 @@ export function combine(packs: readonly DataPack[], units: readonly PackUnit[], 
   return {
     outdoor,
     offered: offeredUnits.map(keyOf),
+    most: 1,
     ports: heads.map((_, i) => ({ port: i === 0 ? "A" : PORT[i], pipes: i === 0 && pair ? pipesOf(pair.pipe_liquid_mm, pair.pipe_gas_mm) : null })),
     verdict,
     facts,

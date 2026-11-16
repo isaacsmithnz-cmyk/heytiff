@@ -5760,18 +5760,19 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    them, Actions in the top right over the map faded behind it. The words
    never fade; only the map does. */
 .fg .jp-top--site { position:relative; align-items:center; min-height:112px; padding:16px 24px; border-radius:var(--r-card); background:var(--paper); box-shadow:var(--shadow-card); overflow:hidden; }
-.fg .jp-words { position:relative; z-index:1; flex:1 1 0; min-width:0; display:flex; flex-direction:column; gap:8px; max-width:calc(100% - 280px); }
+.fg .jp-words { position:relative; z-index:1; flex:1 1 0; min-width:0; display:flex; flex-direction:column; gap:8px; max-width:calc(100% - 420px); }
 .fg .jp-words > .jp-id { flex:none; }
 .fg .jp-site { display:flex; align-items:center; flex-wrap:wrap; gap:8px 16px; }
 .fg .jp-addr { display:flex; flex-direction:column; margin:0; font-size:14px; line-height:20px; color:var(--ink); }
 .fg .jp-addr b { font-weight:600; }
 .fg .jp-addr span { color:var(--q); }
 .fg .jp-site .jov-po { margin:0; }
-.fg .jp-map { position:absolute; top:0; right:0; bottom:0; width:640px; max-width:60%; -webkit-mask-image:linear-gradient(90deg, transparent 0%, var(--ink) 40%); mask-image:linear-gradient(90deg, transparent 0%, var(--ink) 40%); }
+.fg .jp-map { position:absolute; top:0; right:0; bottom:0; width:640px; max-width:60%; -webkit-mask-image:linear-gradient(90deg, transparent 0%, var(--ink) 40%), linear-gradient(var(--ink), var(--ink)); mask-image:linear-gradient(90deg, transparent 0%, var(--ink) 40%), linear-gradient(var(--ink), var(--ink)); -webkit-mask-size:100% 100%, 72px 28px; mask-size:100% 100%, 72px 28px; -webkit-mask-position:0 0, 0 100%; mask-position:0 0, 0 100%; -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat; }
 .fg .jp-map img { display:block; width:100%; height:100%; object-fit:cover; object-position:center; background:var(--soft); }
 .fg .jp-map:focus-visible { outline:none; box-shadow:inset var(--ring); }
-.fg .jp-top--site .jp-acts { position:absolute; z-index:2; top:16px; right:16px; }
-.fg .jp-top--site .jp-acts::before { content:""; position:absolute; z-index:-1; inset:-16px -16px -32px -96px; background:radial-gradient(100% 100% at 100% 0%, var(--paper) 40%, transparent 100%); pointer-events:none; }
+/* Actions at the right end of the tabs' row, under the map, standing on the tabs' line */
+.fg .jp-tabrow { position:relative; }
+.fg .jp-tabrow > .jp-acts { position:absolute; z-index:1; right:0; bottom:6px; }
 /* the stages in the facts card: a step to a line, its day on the right */
 .fg .jfc-part--stages .jcl-line { flex-direction:column; align-items:stretch; gap:0; margin:0; padding:0; overflow:visible; }
 .fg .jfc-part--stages .jcl-link { display:none; }

@@ -32,3 +32,11 @@ it("asks for the head's wide picture one step further out, and anything else as 
   expect(card.searchParams.get("size")).toBe("320x96");
   expect(card.searchParams.get("zoom")).toBe("16");
 });
+
+/* the head's map in colour (Isaac, 16 November 2026: "the map should be in color"); the card's grey */
+it("draws the head's map in colour and the card's grey", () => {
+  const styles = (shape: "head" | "card") => new URL(staticMapUrl("3 Surrey St", "purple", "k", shape)).searchParams.getAll("style");
+  expect(styles("head")).not.toContain("saturation:-100");
+  expect(styles("card")).toContain("saturation:-100");
+  expect(styles("head")).toContain("feature:poi|visibility:off");
+});

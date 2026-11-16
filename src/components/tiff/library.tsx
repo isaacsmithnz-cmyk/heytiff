@@ -116,6 +116,22 @@ const readOpened = () => {
     return "[]";
   }
 };
+function parseOpened(raw: string): string[] {
+  try {
+    const kept: unknown = JSON.parse(raw);
+    return Array.isArray(kept) ? kept.filter((v): v is string => typeof v === "string").slice(0, OPENED_MOST) : [];
+  } catch {
+    return [];
+  }
+}
+function keepOpened(ids: string[]) {
+  try {
+    window.localStorage.setItem(OPENED_KEY, JSON.stringify(ids));
+    window.dispatchEvent(new Event(OPENED_EVENT));
+  } catch {
+    /* storage closed: no record of it */
+  }
+}
 const onOpened = (changed: () => void) => {
   window.addEventListener("storage", changed);
   window.addEventListener(OPENED_EVENT, changed);
@@ -414,23 +430,10 @@ export function Library({
   const [brandKey, setBrandKey] = useState<string | null>(null);
   /* the manuals opened lately, newest first: this browser's, as the phone keeps its own */
   const openedRaw = useSyncExternalStore(onOpened, readOpened, () => "[]");
-  const openedIds = useMemo(() => {
-    try {
-      const kept: unknown = JSON.parse(openedRaw);
-      return Array.isArray(kept) ? kept.filter((v): v is string => typeof v === "string").slice(0, OPENED_MOST) : [];
-    } catch {
-      return [];
-    }
-  }, [openedRaw]);
+  const openedIds = useMemo(() => parseOpened(openedRaw), [openedRaw]);
   const openDoc = (d: KbLibraryDoc) => {
     setSearching(d);
-    const next = [d.id, ...openedIds.filter((v) => v !== d.id)].slice(0, OPENED_MOST);
-    try {
-      window.localStorage.setItem(OPENED_KEY, JSON.stringify(next));
-      window.dispatchEvent(new Event(OPENED_EVENT));
-    } catch {
-      /* storage closed: no record of it */
-    }
+    keepOpened([d.id, ...openedIds.filter((v) => v !== d.id)].slice(0, OPENED_MOST));
   };
 
   /* PARKED DOCUMENTS RESUME THEMSELVES, which is what the screens have

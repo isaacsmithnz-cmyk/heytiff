@@ -19,7 +19,12 @@ import type { MobileCtx } from "./auth";
    then goes straight to storage by a signed upload, as every phone upload
    does (lib/documents/upload-slots).
 
-   The owner's alone: it's for whoever is building the app, not the team. */
+   The owner's alone: it's for whoever is building the app, not the team.
+
+   The website files its bugs here too (Isaac, 17 November 2026: "Yes, build
+   it" to https://claude.ai/artifact/V6XVjpPn7qFmdt3JVxELhL): Your name,
+   Report bug, through /api/bugs, into the same folder and the same numbers,
+   its App line "Web". So these take only the workspace and the role. */
 
 const MAX_NOTE = 1000;
 const MAX_FIELD = 200;
@@ -28,10 +33,12 @@ export const bugFolder = (orgId: string) => `bugs/${orgId}/`;
 export const bugName = (n: number) => String(n).padStart(4, "0");
 
 type Done<T> = { ok: true; value: T } | { ok: false; error: string; status: number };
+/** Who's filing: the phone's context, or the website's session, alike. */
+export type BugCtx = Pick<MobileCtx, "orgId" | "role">;
 const bad = (error: string, status = 500): Done<never> => ({ ok: false, error, status });
 const one = (v: unknown, max = MAX_FIELD) => (typeof v === "string" ? v.replace(/[\r\n]+/g, " ").trim().slice(0, max) : "");
 
-export function mayFileBugs(ctx: Pick<MobileCtx, "role">): boolean {
+export function mayFileBugs(ctx: Pick<BugCtx, "role">): boolean {
   return ctx.role === "owner";
 }
 
@@ -54,7 +61,7 @@ const bucket = () => supabaseAdmin.storage.from(DOCUMENTS_BUCKET);
 const text = (s: string) => new Blob([s], { type: "text/plain" });
 
 /** The next number, held, and a slot for its picture. */
-export async function openBug(ctx: MobileCtx, body: Record<string, unknown>): Promise<Done<{ number: number; uploadUrl: string }>> {
+export async function openBug(ctx: BugCtx, body: Record<string, unknown>): Promise<Done<{ number: number; uploadUrl: string; path: string; token: string }>> {
   if (!mayFileBugs(ctx)) return bad("Only the workspace's owner can save a bug.", 403);
   const folder = bugFolder(ctx.orgId);
   const { data: files, error: listErr } = await bucket().list(folder.slice(0, -1), { limit: 1000, sortBy: { column: "name", order: "desc" } });
@@ -79,13 +86,14 @@ export async function openBug(ctx: MobileCtx, body: Record<string, unknown>): Pr
     console.error("[bugs] slot", bugName(n), slotErr?.message);
     return bad("Couldn't save the bug.");
   }
-  return { ok: true, value: { number: n, uploadUrl: slot.signedUrl } };
+  /* the phone PUTs to the signed URL; the website's storage client takes its path and token */
+  return { ok: true, value: { number: n, uploadUrl: slot.signedUrl, path: slot.path, token: slot.token } };
 }
 
 const number = (raw: string) => (/^\d{1,6}$/.test(raw) ? Number(raw) : null);
 
 /** Your line about what's wrong, kept with the bug (a second note replaces the first). */
-export async function noteBug(ctx: MobileCtx, raw: string, body: Record<string, unknown>): Promise<Done<{ number: number }>> {
+export async function noteBug(ctx: BugCtx, raw: string, body: Record<string, unknown>): Promise<Done<{ number: number }>> {
   if (!mayFileBugs(ctx)) return bad("Only the workspace's owner can save a bug.", 403);
   const n = number(raw);
   if (!n) return bad("No such bug.", 404);
@@ -101,7 +109,7 @@ export async function noteBug(ctx: MobileCtx, raw: string, body: Record<string, 
 }
 
 /** Undo: the picture and its facts go. */
-export async function dropBug(ctx: MobileCtx, raw: string): Promise<Done<{ number: number }>> {
+export async function dropBug(ctx: BugCtx, raw: string): Promise<Done<{ number: number }>> {
   if (!mayFileBugs(ctx)) return bad("Only the workspace's owner can save a bug.", 403);
   const n = number(raw);
   if (!n) return bad("No such bug.", 404);

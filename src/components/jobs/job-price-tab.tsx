@@ -24,6 +24,8 @@ import type { JobMaterialLine } from "@/lib/workboard/job-ledger";
 import { Paper, Sm8Lines, Views, type View } from "./job-price-parts";
 import type { JobMediaItem } from "@/lib/workboard/job-media";
 import { fmtAud } from "@/lib/workboard/project-money";
+import { fmtMinutesAsHours } from "@/lib/workboard/all-jobs";
+import type { TrackerRead } from "@/lib/jobs/job-tracker";
 
 /* THE JOB'S PRICE TAB (the job page plan's build 10; the Price Tab mock,
    drawn on 3408 on 13 November 2026; Isaac, 14 November: "Build all as
@@ -215,6 +217,7 @@ export function JobPriceTab({
         claim={claims.find((c) => c.remoteId === shown.claimId) ?? null}
         row={billing?.rows.find((r) => r.claimId === shown.claimId) ?? null}
         staged={!!billing?.staged}
+        detail={detail}
         onOpenPaper={onOpenPaper}
       />
     );
@@ -437,6 +440,7 @@ function PriceInvoice({
   claim,
   row,
   staged,
+  detail,
   onOpenPaper,
 }: {
   job: string;
@@ -444,6 +448,7 @@ function PriceInvoice({
   claim: FamilyClaim | null;
   row: PaymentRow | null;
   staged: boolean;
+  detail: MirrorJobDetail | null;
   onOpenPaper: (item: JobMediaItem) => void;
 }) {
   const [view, setView] = useState<View>("preview");
@@ -459,6 +464,22 @@ function PriceInvoice({
       live = false;
     };
   }, [id]);
+
+  /* the job's own invoice is the job: what it was built from is the job's
+     (a claim's is a share of the job's value, which its line says) */
+  const own = id.toLowerCase() === job.toLowerCase();
+  const [used, setUsed] = useState<number | null | undefined>(undefined);
+  useEffect(() => {
+    if (!own) return;
+    let live = true;
+    void fetch(`/api/workboard/job-tracker?job=${encodeURIComponent(job)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j: { ok?: boolean; tracker?: TrackerRead } | null) => live && setUsed(j?.ok && j.tracker ? j.tracker.materials.count : null))
+      .catch(() => live && setUsed(null));
+    return () => {
+      live = false;
+    };
+  }, [own, job]);
 
   const paper = read ? invoicePaperOf(read.media.documents) : null;
   const href = sm8JobUrl(claim?.remoteId ?? job);
@@ -487,6 +508,7 @@ function PriceInvoice({
             <span className="jb-basis">{row?.basis === "inc" ? "inc GST" : "ex GST"}</span>
           </p>
           {row && <StateWord tone={row.tone}>{row.word}</StateWord>}
+          {own && detail && <BuiltFrom detail={detail} used={used} />}
           {read && read.ledger.payments.length > 0 && (
             <section className="jpr-grp" aria-label="Paid">
               <h3>Paid</h3>
@@ -541,4 +563,58 @@ function PriceInvoice({
       </aside>
     </div>
   );
+}
+
+/* BUILT FROM (the Price mock's invoice, 3408; the walk of 16 November 2026,
+   N4): what the job's own invoice stands on, oldest first: each day on site
+   with who went and for how long, the work done as written on the job, and
+   how much was said used (job_materials_used, as the Job tracker counts it). */
+function BuiltFrom({ detail, used }: { detail: MirrorJobDetail; used: number | null | undefined }) {
+  const visits = [...detail.visits].reverse();
+  const done = firstWords(detail.workDone);
+  return (
+    <section className="jpr-grp" aria-label="Built from">
+      <h3>Built from</h3>
+      <ul className="jpr-lines">
+        {visits.map((v) => (
+          <li key={v.day}>
+            <span className="jpr-line">
+              <b>Visit, {fmtAuWeekdayDayMonth(v.day)}</b>
+              <em>{[v.crew.map((c) => c.name).join(", "), v.minutes > 0 ? fmtMinutesAsHours(Math.round(v.minutes)) : null].filter(Boolean).join(", ") || "Nobody recorded"}</em>
+            </span>
+          </li>
+        ))}
+        {visits.length === 0 && (
+          <li>
+            <span className="jpr-line">
+              <b>Visits</b>
+              <em>No time on site recorded</em>
+            </span>
+          </li>
+        )}
+        <li>
+          <span className="jpr-line">
+            <b>Work done</b>
+            <em>{done ? <Fade lines={2}>{done}</Fade> : "Nothing written"}</em>
+          </span>
+        </li>
+        {typeof used === "number" && (
+          <li>
+            <span className="jpr-line">
+              <b>Used</b>
+              <em>{used === 0 ? "Nothing recorded" : `${used} ${used === 1 ? "thing" : "things"}`}</em>
+            </span>
+          </li>
+        )}
+      </ul>
+    </section>
+  );
+}
+
+/** The work done's first sentence, the rest left to the job's own page. */
+function firstWords(text: string | null): string | null {
+  const t = text?.replace(/\s+/g, " ").trim();
+  if (!t) return null;
+  const end = t.search(/[.!?](\s|$)/);
+  return end >= 0 ? t.slice(0, end + 1) : t;
 }

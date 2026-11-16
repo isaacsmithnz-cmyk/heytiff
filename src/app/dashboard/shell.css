@@ -5757,9 +5757,9 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 /* THE HEAD AS ONE CARD, THE MAP ITS HERO (Isaac, 16 November 2026, A on
    https://claude.ai/artifact/XbKL1kUEjP1YxP3qEAQnL6): the number, the name
    and under them the site on the paper, the map on the right fading into
-   them. The words never fade; only the map does, over its first sixth
-   ("The fade is pretty big"), and never over its foot, where Google signs
-   it. The picture is drawn whole at the card's height, never cropped:
+   them. The words never fade; only the map does, eased over its first third
+   ("The fade is pretty big", then "The fade looks too sharp"), and never
+   over its bottom left corner, where Google signs it. The picture is drawn whole at the card's height, never cropped:
    Google's widest is 640, and its mark and its data line stay on it. */
 .fg .jp-top--site { position:relative; align-items:center; min-height:112px; padding:16px 24px; border-radius:var(--r-card); background:var(--paper); box-shadow:var(--shadow-card); overflow:hidden; }
 .fg .jp-words { position:relative; z-index:1; flex:1 1 0; min-width:0; display:flex; flex-direction:column; gap:8px; max-width:calc(100% - 420px); }
@@ -5769,7 +5769,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jp-addr b { font-weight:600; }
 .fg .jp-addr span { color:var(--q); }
 .fg .jp-site .jov-po { margin:0; }
-.fg .jp-map { position:absolute; top:0; right:0; bottom:0; -webkit-mask-image:linear-gradient(90deg, transparent 0%, var(--ink) 16%), linear-gradient(0deg, var(--ink) 28px, transparent 44px); mask-image:linear-gradient(90deg, transparent 0%, var(--ink) 16%), linear-gradient(0deg, var(--ink) 28px, transparent 44px); }
+.fg .jp-map { position:absolute; top:0; right:0; bottom:0; -webkit-mask-image:linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--ink) 8%, transparent) 5%, color-mix(in srgb, var(--ink) 22%, transparent) 10%, color-mix(in srgb, var(--ink) 42%, transparent) 15%, color-mix(in srgb, var(--ink) 64%, transparent) 20%, color-mix(in srgb, var(--ink) 82%, transparent) 25%, color-mix(in srgb, var(--ink) 94%, transparent) 30%, var(--ink) 36%), radial-gradient(160px 60px at 0 100%, var(--ink) 65%, transparent 100%); mask-image:linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--ink) 8%, transparent) 5%, color-mix(in srgb, var(--ink) 22%, transparent) 10%, color-mix(in srgb, var(--ink) 42%, transparent) 15%, color-mix(in srgb, var(--ink) 64%, transparent) 20%, color-mix(in srgb, var(--ink) 82%, transparent) 25%, color-mix(in srgb, var(--ink) 94%, transparent) 30%, var(--ink) 36%), radial-gradient(160px 60px at 0 100%, var(--ink) 65%, transparent 100%); }
 .fg .jp-map img { display:block; width:auto; height:100%; background:var(--soft); }
 .fg .jp-map:focus-visible { outline:none; box-shadow:inset var(--ring); }
 /* Actions at the right end of the tabs' row, under the map, standing on the tabs' line */

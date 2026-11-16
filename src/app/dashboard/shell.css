@@ -8461,3 +8461,11 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .pt-dialog .stk-lbl { font-size:13px; line-height:18px; font-weight:600; color:var(--q); }
 .pt-dialog .stk-n { flex:none; font-size:13px; line-height:18px; font-weight:600; color:var(--q); font-variant-numeric:tabular-nums; }
 @media (max-width:900px) { .fg .stk-cols { grid-template-columns:minmax(0,1fr); } .fg .stk-masonry { columns:1; } }
+
+/* REPORT BUG (Your name, for the owner; components/shell/report-bug). The
+   dialog portals to <body>, so these are one class each. The picture that
+   goes with the bug, whole, its edge the line and the button's 10 corner. */
+.rb-body { display:flex; flex-direction:column; gap:16px; }
+.rb-shot { display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
+.rb-pic { display:block; max-width:100%; max-height:320px; width:auto; height:auto; box-sizing:border-box; border:1px solid var(--line); border-radius:10px; background:var(--white); }
+.rb-none { margin:0; font-size:14px; line-height:20px; color:var(--q); }

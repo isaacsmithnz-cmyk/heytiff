@@ -33,6 +33,8 @@ export const ICON_PATHS: Record<string, string> = {
   user: '<circle cx="12" cy="8" r="4"/><path d="M5.5 21a8.38 8.38 0 0 1 13 0"/>',
   logout:
     '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
+  /* Report bug, in Your name: the phone's bug, its body, feelers and legs */
+  bug: '<rect x="8" y="7" width="8" height="12" rx="4"/><path d="M12 7v12M9 5l1.5 2M15 5l-1.5 2M4 10h4M16 10h4M4 15h4M16 15h4M5 20l3-2M19 20l-3-2"/>',
   wind:
     '<path d="M12.8 19.6A2 2 0 1 0 14 16H2"/><path d="M17.5 8a2.5 2.5 0 1 1 2 4H2"/><path d="M9.8 4.4A2 2 0 1 1 11 8H2"/>',
   shield:

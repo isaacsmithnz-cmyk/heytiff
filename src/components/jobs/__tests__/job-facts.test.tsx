@@ -70,19 +70,24 @@ it("makes the head's map the directions to the site, in a new tab, its wide pict
   expect(directionsHref("8/36 Abbott Road\nSeven Hills NSW 2147")).toBe("https://www.google.com/maps/dir/?api=1&destination=8%2F36%20Abbott%20Road%2C%20Seven%20Hills%20NSW%202147");
 });
 
-it("puts who to ring in Contact: their disc, name, role and the number to dial, and Edit only where it saves", async () => {
+it("puts who to ring in Contact a line each, their numbers and email dropping down when pressed, and Edit only where it saves", async () => {
   const onEditContact = jest.fn();
   const { unmount } = render(<JobFacts {...base} />);
   expect(cell("Contact").queryByRole("button", { name: "Edit" })).toBeNull();
   unmount();
   render(<JobFacts {...base} onEditContact={onEditContact} />);
   const c = cell("Contact");
-  expect(c.getByText("Damian")).toBeInTheDocument();
-  expect(c.getByText("Job contact")).toBeInTheDocument();
-  const tel = c.getByText("0403 183 628").closest("a") as HTMLElement;
+  const who = c.getByRole("button", { name: /Damian\s*Job contact/ });
+  expect(who).toHaveAttribute("aria-expanded", "false");
+  expect(c.queryByRole("link", { name: "0403 183 628" })).toBeNull();
+  expect(screen.getByRole("region", { name: "Contact" }).querySelector(".pt-initials--24")).toHaveTextContent("D");
+  await userEvent.click(who);
+  expect(who).toHaveAttribute("aria-expanded", "true");
+  const tel = c.getByRole("link", { name: "0403 183 628" });
   expect(tel).toHaveAttribute("href", "tel:0403183628");
   expect(tel).toHaveClass("jov-tel");
-  expect(screen.getByRole("region", { name: "Contact" }).querySelector(".pt-initials--32")).toHaveTextContent("D");
+  await userEvent.click(who);
+  expect(c.queryByRole("link", { name: "0403 183 628" })).toBeNull();
   await userEvent.click(c.getByRole("button", { name: "Edit" }));
   expect(onEditContact).toHaveBeenCalled();
 });

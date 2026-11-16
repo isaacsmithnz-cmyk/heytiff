@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Button } from "@/components/parts/button";
+import { Icon } from "@/components/shell/icon";
 export { leftOn, priceState } from "@/lib/quotes/quote-left";
 import type { QuotePrice } from "@/lib/quotes/quote-price-server";
 import { stepPassed, type QuoteStep, type StepKey } from "@/lib/quotes/quote-steps";
@@ -39,7 +41,20 @@ export function useQuotePrice(job: string, enabled: boolean, version: string | n
    and the join on to the next, in green; the step it's up to in orange with
    a ring; the rest grey. Names only: what each step was waiting on is said
    once, under Approve quote, and the state word under the job's name. */
-export function QuoteStepsLine({ steps, onUndo, list = false }: { steps: QuoteStep[]; onUndo?: (key: StepKey) => void; list?: boolean }) {
+export function QuoteStepsLine({
+  steps,
+  onUndo,
+  list = false,
+  onUndoAccepted,
+  busy = false,
+}: {
+  steps: QuoteStep[];
+  onUndo?: (key: StepKey) => void;
+  list?: boolean;
+  /** Undo beside Accepted, where the yes is said only here (the Price tab) */
+  onUndoAccepted?: () => void;
+  busy?: boolean;
+}) {
   /* only the last thing marked by hand can be taken back; once accepted,
      that's the option's own Accepted, on the Proposal */
   const accepted = steps.some((s) => s.key === "accepted" && s.state === "done");
@@ -48,8 +63,9 @@ export function QuoteStepsLine({ steps, onUndo, list = false }: { steps: QuoteSt
      No design is), and none once the client said yes */
   const now = accepted ? -1 : steps.findIndex((s) => !stepPassed(s));
   return (
-    /* as a list down the rail, each step with its words under it, on the
-       job's Price tab (the Price Tab mock; the walk of 15 November 2026, T3) */
+    /* as a list down the rail on the job's Price tab, read as the Overview's
+       stages are: a tick and the step, its words on the right (the Price
+       mock, 16 November 2026) */
     <ol className={list ? "qp-steps qp-steps--list" : "qp-steps"} aria-label="Where the quote is">
       {steps.map((s, i) => (
         <li
@@ -57,9 +73,14 @@ export function QuoteStepsLine({ steps, onUndo, list = false }: { steps: QuoteSt
           className={s.state === "done" ? "done" : s.state === "skipped" ? "skip" : i === now ? "now" : undefined}
           aria-current={i === now ? "step" : undefined}
         >
-          <i aria-hidden="true" />
+          {list && s.state === "done" ? <Icon name="check" size={16} /> : <i aria-hidden="true" />}
           <b>{s.label}</b>
           {list && s.words && <span className="qp-words">{s.words}</span>}
+          {list && onUndoAccepted && s.key === "accepted" && s.state === "done" && (
+            <Button kind="quiet" size={32} disabled={busy} onClick={onUndoAccepted} aria-label="Undo accepted">
+              Undo
+            </Button>
+          )}
           {onUndo && s.key === undoable && (
             <button type="button" className="qp-undo" aria-label={`Undo ${s.label.toLowerCase()}`} onClick={() => onUndo(s.key)}>
               Undo

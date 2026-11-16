@@ -88,7 +88,7 @@ type Label = {
   base: THREE_NS.Vector3 | null;
   group: THREE_NS.Group;
   floorIndex: number;
-  kind: "room" | "unit" | "riser" | "check";
+  kind: "unit" | "riser" | "check";
   /** a check's words (a clash, a measure) show by their own rule, not the Labels switch */
   when?: () => boolean;
   /** a unit's place on the plan, so standing in a room shows only its own */
@@ -304,6 +304,60 @@ async function build(
     t.colorSpace = THREE.SRGBColorSpace;
     t.anisotropy = renderer.capabilities.getMaxAnisotropy();
     return t;
+  };
+  /* A ROOM'S NAME PRINTED ON ITS FLOOR (Isaac, 16 November 2026: "make
+     room names printed on their floor"): as the plan reads it, along the
+     room's longer way, as large as the room lets it up to a 450 mm band,
+     bold, in the quiet grey (a thin or pale name fades to nothing across
+     the floor from a little way off), turned each frame so its top is away
+     from you, never upside down. A room's floor is mostly behind its own
+     walls from above, so the name shows through them; the floor above and
+     the roof hide it, as they hid the names before. The Labels switch
+     shows it. Never picked: a tap on it is a tap on the floor under it. */
+  const nameFont = `700 96px ${getComputedStyle(host).fontFamily || "system-ui, sans-serif"}`;
+  const roomNames: THREE_NS.Mesh[] = [];
+  const floorName = (text: string, pts: XZ[], y: number, floorIndex: number) => {
+    if (!text.trim() || pts.length < 3) return null;
+    const xs = pts.map((p) => p[0]);
+    const zs = pts.map((p) => p[1]);
+    const w = Math.max(...xs) - Math.min(...xs);
+    const d = Math.max(...zs) - Math.min(...zs);
+    const meas = document.createElement("canvas").getContext("2d")!;
+    meas.font = nameFont;
+    const pw = Math.ceil(meas.measureText(text).width) + 24;
+    const ph = 128;
+    /* the band's height in metres: its words fit 80% of the room's length and half its width */
+    const hm = Math.min(0.45, (Math.max(w, d) * 0.8 * ph) / pw, Math.min(w, d) * 0.5);
+    if (hm < 0.12) return null;
+    const tex = canvasTex(pw, ph, (c) => {
+      c.font = nameFont;
+      c.fillStyle = "#5F6A79";
+      c.textAlign = "center";
+      c.textBaseline = "middle";
+      c.fillText(text, pw / 2, ph / 2 + 4);
+    });
+    const mat = own(
+      new THREE.MeshBasicMaterial({
+        map: tex,
+        transparent: true,
+        depthWrite: false,
+        depthTest: false,
+        toneMapped: false,
+      }),
+    );
+    const m = new THREE.Mesh(own(new THREE.PlaneGeometry((hm * pw) / ph, hm)), mat);
+    m.rotation.x = -Math.PI / 2;
+    /* a room deeper than it's wide reads along its depth; which way up is the camera's (frame) */
+    m.userData.turn = d > w ? Math.PI / 2 : 0;
+    const [x, z] = P(middleOf(pts));
+    m.position.set(x, y + 0.01, z);
+    /* seen through the walls round it: a room's floor is mostly behind its
+       own walls from above, so a name the walls hid would rarely show */
+    m.renderOrder = 5;
+    m.userData.floorIndex = floorIndex;
+    m.raycast = () => {};
+    roomNames.push(m);
+    return m;
   };
   /** a texture laid in metres: one tile of it covers `m` metres */
   const tiled = (t: THREE_NS.Texture, m: number) => {
@@ -1140,8 +1194,8 @@ async function build(
         }
       }
       if (s.kind !== "stair" && s.kind !== "cupboard") {
-        const [lx, lz] = P(middleOf(s.pts));
-        label(sentence(s.name), new THREE.Vector3(lx, f.y0 + 0.4, lz), g, i, "room");
+        const nm = floorName(sentence(s.name), s.pts, f.y0, i);
+        if (nm) g.add(nm);
       }
     }
     /* the floor across a wall's thickness where it's open or a door goes through it */
@@ -1816,20 +1870,30 @@ async function build(
   const clock = new THREE.Clock();
   const eyeIn = new THREE.Vector3();
   let raf = 0;
+  const ahead = new THREE.Vector3();
   const frame = () => {
     controls.update();
+    /* a room's name reads the right way up from where you look */
+    ahead.copy(controls.target).sub(camera.position);
+    /* a floor's names hide under the roof, and under the floor above
+       unless the floors are lifted apart */
+    const covered = (i: number) =>
+      (current.layer !== "inside" && scene3.roofs.length > 0) || (!current.apart && current.floor === ALL_FLOORS && scene3.floors.some((_, j) => j > i));
+    for (const m of roomNames) {
+      m.visible = !!current.labels && !walk && !covered(m.userData.floorIndex as number);
+      const turn = m.userData.turn as number;
+      /* its top points to -z read along x, to -x read along z */
+      const away = turn ? -ahead.x : -ahead.z;
+      m.rotation.z = turn + (away < 0 ? Math.PI : 0);
+    }
     const dt = Math.min(0.05, clock.getDelta());
     if (current.air) air.tick(dt, (floorId) => eyeIn.copy(camera.position).setY(camera.position.y - (groups.get(floorId)?.position.y ?? 0)));
     if (composer) composer.render(dt);
     else renderer.render(scene, camera);
     const w = host.clientWidth;
     const h = host.clientHeight;
-    /* a floor's room names hide under the roof, and under the floor above
-       unless the floors are lifted apart */
-    const covered = (i: number) =>
-      (current.layer !== "inside" && scene3.roofs.length > 0) || (!current.apart && current.floor === ALL_FLOORS && scene3.floors.some((_, j) => j > i));
     /* names never sit on each other: a unit's rises off the one under it on
-       its line, a room's steps down */
+       its line, a riser's or a check's steps down */
     const taken: { x0: number; x1: number; y0: number; y1: number }[] = [];
     const meets = (r: { x0: number; x1: number; y0: number; y1: number }) => taken.find((b) => b.x0 < r.x1 && b.x1 > r.x0 && b.y0 < r.y1 && b.y1 > r.y0);
     const toScreen = (p: THREE_NS.Vector3, lift: number) => {
@@ -1842,7 +1906,7 @@ async function build(
       const s = toScreen(l.at, l.group.position.y);
       /* standing in a room, only its own heads keep their names */
       const mine = !walk || (l.kind === "unit" && !l.outdoor && (!standRoom || (l.unitAt && within(l.unitAt, standRoom.pts))));
-      const on = l.when ? l.group.visible && s.z < 1 && l.when() : current.labels && l.group.visible && s.z < 1 && mine && (l.kind !== "room" || (!covered(l.floorIndex) && !walk));
+      const on = l.when ? l.group.visible && s.z < 1 && l.when() : current.labels && l.group.visible && s.z < 1 && mine;
       /* hidden, or the sheet's own display (a unit's name is a row: dot, then words) */
       l.el.style.display = on ? "" : "none";
       const line = lines.get(l);

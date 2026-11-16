@@ -44,6 +44,8 @@ beforeAll(() => {
   Object.assign(URL, { createObjectURL: () => `blob:${++urls}`, revokeObjectURL: () => {} });
   global.requestAnimationFrame = (cb: FrameRequestCallback) => setTimeout(() => cb(0), 0) as unknown as number;
   global.fetch = fetchMock as unknown as typeof fetch;
+  /* a Mac, whatever computer runs the tests */
+  Object.defineProperty(window.navigator, "platform", { value: "MacIntel", configurable: true });
 });
 
 beforeEach(() => {
@@ -87,7 +89,7 @@ describe("Report bug", () => {
     await openReportBug();
     fireEvent.click(screen.getByRole("button", { name: "Add a screenshot" }));
     expect(screen.queryByRole("dialog", { name: "Report bug" })).toBeNull();
-    expect(screen.getByText(/drag over the problem/)).toBeInTheDocument();
+    expect(screen.getByText("Press ⌘ Control Shift 4 and drag over the problem. Then press ⌘ V.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Choose file" })).toBeInTheDocument();
 
     paste(new File(["mine"], "Screenshot.png", { type: "image/png" }));
@@ -138,6 +140,7 @@ describe("its words", () => {
     expect(screenshotKeys("MacIntel")).toMatch(/^Press ⌘ Control Shift 4/);
     expect(screenshotKeys("Win32")).toBe("Press Windows Shift S and drag over the problem. Then press Ctrl V.");
     expect(screenshotKeys("Windows")).toMatch(/^Press Windows Shift S/);
+    expect(screenshotKeys("darwin")).toMatch(/^Take a screenshot/);
     expect(screenshotKeys("Linux x86_64")).toBe("Take a screenshot of the problem. Then press Ctrl V.");
   });
 

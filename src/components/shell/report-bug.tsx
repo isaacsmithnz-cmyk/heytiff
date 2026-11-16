@@ -29,7 +29,7 @@ import { pageName, pageNamesSnapshot } from "./page-names";
 /** The keys for a screenshot that lands on the clipboard, on the computer you're on. */
 export function screenshotKeys(platform: string): string {
   if (/mac|iphone|ipad/i.test(platform)) return "Press ⌘ Control Shift 4 and drag over the problem. Then press ⌘ V.";
-  if (/win/i.test(platform)) return "Press Windows Shift S and drag over the problem. Then press Ctrl V.";
+  if (/\bwin/i.test(platform)) return "Press Windows Shift S and drag over the problem. Then press Ctrl V.";
   return "Take a screenshot of the problem. Then press Ctrl V.";
 }
 

@@ -21,10 +21,14 @@ import { SiteNotes } from "./site-notes";
                  label's right; its name opens Visits from anywhere on it
      the stages  where the job is up to, a step to a line with its day, each
                  opening its part of the job (job-progress-line)
-     Contacts    who to ring, in full: a disc, the name in bold, the role
-                 grey, the numbers to ring and the email, none underlined
-                 and none faded (important text never fades); Edit at the
-                 label's right where saving customers is on
+     Contacts    a line each: a disc, the name in bold, the role grey;
+                 pressed, it drops down the numbers to ring and the email,
+                 none underlined and none faded (important text never fades),
+                 so three or four contacts fit (Isaac, 16 November 2026:
+                 "Name and role on one line each, clicking it brings a drop
+                 down with phone email etc."); Edit at the label's right,
+                 where saving customers is on, opens Edit customer with
+                 every contact on the job
    The site, its map, Directions and Site notes are the head's now
    (job-page-head, JobSiteWords and JobHeadMap below). Money and the Job
    tracker went to Billing (Isaac, 13 November 2026). */
@@ -194,6 +198,8 @@ export function JobFacts({
   stages?: ReactNode;
 }) {
   const contacts = detail?.contacts ?? [];
+  /* one contact open at a time */
+  const [opened, setOpened] = useState<number | null>(null);
   return (
     <div className="jfc" role="group" aria-label="The job's facts">
       <Fact
@@ -247,25 +253,48 @@ export function JobFacts({
         ) : (
           <ul className="jov-contacts">
             {contacts.map((c, i) => (
-              <li key={`${c.name}-${i}`}>
-                <Initials name={c.name || "Unnamed"} size={32} beside />
-                <span className="jov-person">
-                  <b className="jov-strong">{c.name || "Unnamed"}</b>
-                  {c.type && <span className="jov-cap">{roleWord(c.type)}</span>}
-                  <ContactNumber value={c.phone} />
-                  <ContactNumber value={c.altPhone} />
-                  {c.email && (
-                    <a className="jov-mail" href={`mailto:${c.email}`}>
-                      {c.email}
-                    </a>
-                  )}
-                </span>
-              </li>
+              <ContactRow key={`${c.name}-${i}`} contact={c} open={opened === i} onToggle={() => setOpened(opened === i ? null : i)} />
             ))}
           </ul>
         )}
       </Fact>
     </div>
+  );
+}
+
+type Contact = NonNullable<MirrorJobDetail["contacts"]>[number];
+
+/** A contact on one line, the name and the role; pressed, its numbers and
+    email drop down under it. A contact with neither is a line, not a press. */
+function ContactRow({ contact: c, open, onToggle }: { contact: Contact; open: boolean; onToggle: () => void }) {
+  const id = useId();
+  const name = c.name || "Unnamed";
+  const line = (
+    <>
+      <Initials name={name} size={24} beside />
+      <span className="jov-who-words">
+        <b className="jov-strong">{name}</b>
+        {c.type && <span className="jov-cap">{roleWord(c.type)}</span>}
+      </span>
+    </>
+  );
+  if (!c.phone && !c.altPhone && !c.email) return <li className="jov-who">{line}</li>;
+  return (
+    <li>
+      <button type="button" className="jov-who" aria-expanded={open} aria-controls={id} onClick={onToggle}>
+        {line}
+        <Icon name="chevD" size={16} />
+      </button>
+      <div className="jov-reach" id={id} hidden={!open}>
+        <ContactNumber value={c.phone} />
+        <ContactNumber value={c.altPhone} />
+        {c.email && (
+          <a className="jov-mail" href={`mailto:${c.email}`}>
+            {c.email}
+          </a>
+        )}
+      </div>
+    </li>
   );
 }
 

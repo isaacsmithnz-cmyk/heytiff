@@ -5783,7 +5783,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 /* the stages in the facts card: a step to a line, its day on the right */
 .fg .jfc-part--stages .jcl-line { flex-direction:column; align-items:stretch; gap:0; margin:0; padding:0; overflow:visible; }
 .fg .jfc-part--stages .jcl-link { display:none; }
-.fg .jfc-part--stages .jcl-step { width:100%; min-height:28px; padding:2px 8px; margin:0 -8px; width:calc(100% + 16px); }
+.fg .jfc-part--stages .jcl-step { width:100%; min-height:24px; padding:2px 8px; margin:0 -8px; width:calc(100% + 16px); }
 .fg .jfc-part--stages .jcl-sl { flex:1 1 auto; flex-direction:row; align-items:baseline; justify-content:space-between; gap:8px; }
 .fg .jfc-part--stages .jcl-sl b { font-size:14px; line-height:20px; font-weight:500; }
 .fg .jfc-part--stages .jcl-step.now .jcl-sl b { font-weight:600; }
@@ -5988,8 +5988,18 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jov-po { margin:4px 0 0; font-size:13px; line-height:18px; color:var(--ink); }
 .fg .jov-po span { color:var(--q); }
 .fg .jov-po b { font-weight:600; }
-.fg .jov-contacts { align-self:stretch; display:flex; flex-direction:column; gap:12px; margin:0; padding:0; list-style:none; }
-.fg .jov-contacts li { display:flex; align-items:center; gap:12px; min-width:0; }
+/* a contact a line, pressed for its numbers and email under it (Isaac, 16 November 2026) */
+.fg .jov-contacts { align-self:stretch; display:flex; flex-direction:column; gap:0; margin:0; padding:0; list-style:none; }
+.fg .jov-who { display:flex; align-items:center; gap:8px; width:calc(100% + 16px); min-height:32px; margin:0 -8px; padding:4px 8px; border:0; border-radius:var(--r-button); background:none; font:inherit; text-align:left; color:var(--ink); }
+.fg button.jov-who { cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
+.fg button.jov-who:hover { background:var(--hov); }
+.fg button.jov-who:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .jov-who-words { flex:1 1 auto; min-width:0; display:flex; align-items:baseline; gap:8px; overflow:hidden; white-space:nowrap; }
+.fg .jov-who-words .jov-cap { flex:none; }
+.fg .jov-who > svg { flex:none; color:var(--q); transition:transform var(--t-fast) var(--ease); }
+.fg .jov-who[aria-expanded="true"] > svg { transform:rotate(180deg); }
+.fg .jov-reach { display:flex; flex-direction:column; padding:0 0 8px 32px; }
+.fg .jov-reach[hidden] { display:none; }
 .fg .jov-person { display:flex; flex-direction:column; min-width:0; }
 /* the number to ring, easy to see and still a tel: link: 14 at 500 in ink, no underline (Isaac, 25 October 2026) */
 .fg .jov-tel { font-size:14px; line-height:20px; font-weight:500; color:var(--ink); text-decoration:none; overflow-wrap:anywhere; }

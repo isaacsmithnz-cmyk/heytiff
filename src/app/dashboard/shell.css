@@ -5761,17 +5761,20 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    height and corners, a gap between them. Nothing fades: Google signs the
    map at its bottom left, so any fade into the words had to bend round that.
    The picture is drawn whole at the cards' height, never cropped: Google's
-   widest is 640, and its mark and its data line stay on it. With no map, the
-   words' card runs the width. */
-.fg .jp-top--site { align-items:stretch; }
-.fg .jp-words { flex:1 1 0; min-width:0; display:flex; flex-direction:column; justify-content:center; gap:8px; min-height:112px; padding:16px 24px; border-radius:var(--r-card); background:var(--paper); box-shadow:var(--shadow-card); }
+   widest is 640, and its mark and its data line stay on it. The map is 120
+   high, set, not stretched to the words: a picture drawn at its height, in a
+   card that takes its height from what's beside it, sized each from the
+   other and the head stood 536 high (live, 16 November 2026). With no map,
+   the words' card runs the width. */
+.fg .jp-top--site { align-items:flex-start; }
+.fg .jp-words { flex:1 1 0; min-width:0; display:flex; flex-direction:column; justify-content:center; gap:8px; min-height:120px; box-sizing:border-box; padding:16px 24px; border-radius:var(--r-card); background:var(--paper); box-shadow:var(--shadow-card); }
 .fg .jp-words > .jp-id { flex:none; }
 .fg .jp-site { display:flex; align-items:center; flex-wrap:wrap; gap:8px 16px; }
 .fg .jp-addr { display:flex; flex-direction:column; margin:0; font-size:14px; line-height:20px; color:var(--ink); }
 .fg .jp-addr b { font-weight:600; }
 .fg .jp-addr span { color:var(--q); }
 .fg .jp-site .jov-po { margin:0; }
-.fg .jp-map { flex:none; align-self:stretch; display:flex; border-radius:var(--r-card); background:var(--soft); box-shadow:var(--shadow-card); overflow:hidden; }
+.fg .jp-map { flex:none; align-self:flex-start; display:flex; height:120px; border-radius:var(--r-card); background:var(--soft); box-shadow:var(--shadow-card); overflow:hidden; }
 .fg .jp-map img { display:block; width:auto; height:100%; }
 .fg .jp-map:focus-visible { outline:none; box-shadow:var(--ring); }
 /* Actions at the right end of the tabs' row, under the map, standing on the tabs' line */

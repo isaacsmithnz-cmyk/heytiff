@@ -38,7 +38,7 @@ jest.mock("@/app/actions/sm8-booking-queue", () => ({}));
 jest.mock("@/lib/integrations/sm8-drain", () => ({}));
 jest.mock("@auth0/nextjs-auth0/server", () => ({ Auth0Client: class {} }));
 
-import { AWAY_KEPT_MS, arrivedOf, clockOnPlan, finishedLately, hasLife, joinDay, mayUndo, mergeJobs, normalStartOn, paidFromOf, recentWindow, rosteredDays, sheetCall, stintTimes, summarise, toQuarter, type DayJob } from "@/lib/mobile/day";
+import { AWAY_KEPT_MS, arrivedOf, clockOnPlan, cutOffice, finishedLately, overlapsAny, hasLife, joinDay, mayUndo, mergeJobs, normalStartOn, paidFromOf, recentWindow, rosteredDays, sheetCall, stintTimes, summarise, toQuarter, type DayJob } from "@/lib/mobile/day";
 import type { MobileCtx } from "@/lib/mobile/auth";
 
 /* 27 October 2026 is daylight time in Sydney: +11:00 */
@@ -162,6 +162,40 @@ test("a job finished lately is still somewhere you dropped in", () => {
   expect(finishedLately({ completion_date: "2026-11-03 06:17:40" }, from)).toBe(true);
   expect(finishedLately({ completion_date: "2026-08-01 10:00:00" }, from)).toBe(false);
   expect(finishedLately({ completion_date: null }, from)).toBe(false);
+});
+
+/* ADD A JOB (Isaac, 17 November 2026, "Build it"): a stop the phone missed goes on the day
+   by hand, never over another job's time, and takes its time from the office it covers. */
+test("a job added by hand can't run over another job's time", () => {
+  const cremorne = { checked_in_at: "2026-11-16T01:00:00.000Z", checked_out_at: "2026-11-16T04:30:00.000Z" };
+  const now = Date.parse("2026-11-16T06:00:00.000Z");
+  expect(overlapsAny([cremorne], "2026-11-16T04:45:00.000Z", "2026-11-16T05:00:00.000Z", now)).toBe(false);
+  expect(overlapsAny([cremorne], "2026-11-16T04:30:00.000Z", "2026-11-16T04:45:00.000Z", now)).toBe(false);
+  expect(overlapsAny([cremorne], "2026-11-16T04:15:00.000Z", "2026-11-16T04:45:00.000Z", now)).toBe(true);
+  /* one still open runs to now */
+  expect(overlapsAny([{ checked_in_at: "2026-11-16T05:00:00.000Z", checked_out_at: null }], "2026-11-16T05:30:00.000Z", "2026-11-16T05:45:00.000Z", now)).toBe(true);
+});
+
+test("a job added by hand takes its time from the office it covers", () => {
+  const office = [
+    { from: "2026-11-15T20:00:00.000Z", until: "2026-11-15T23:00:00.000Z" },
+    { from: "2026-11-16T05:00:00.000Z", until: null },
+  ];
+  /* cut through the morning's: two */
+  expect(cutOffice(office, "2026-11-15T21:00:00.000Z", "2026-11-15T21:15:00.000Z")).toEqual([
+    { from: "2026-11-15T20:00:00.000Z", until: "2026-11-15T21:00:00.000Z" },
+    { from: "2026-11-15T21:15:00.000Z", until: "2026-11-15T23:00:00.000Z" },
+    office[1],
+  ]);
+  /* covers the end of the morning's; the open one starts after it */
+  expect(cutOffice(office, "2026-11-15T22:45:00.000Z", "2026-11-16T05:15:00.000Z")).toEqual([
+    { from: "2026-11-15T20:00:00.000Z", until: "2026-11-15T22:45:00.000Z" },
+    { from: "2026-11-16T05:15:00.000Z", until: null },
+  ]);
+  /* between them: nothing changes */
+  expect(cutOffice(office, "2026-11-16T01:00:00.000Z", "2026-11-16T01:15:00.000Z")).toEqual(office);
+  /* covers one whole: it goes */
+  expect(cutOffice([office[0]], "2026-11-15T19:45:00.000Z", "2026-11-15T23:15:00.000Z")).toEqual([]);
 });
 
 /* THE JOB-TIME RULES (Isaac, 29 October 2026, "Build them"), drawn on his

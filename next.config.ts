@@ -83,6 +83,13 @@ const nextConfig: NextConfig = {
     "/live/[token]": ["./data/packs/**/*"],
     // the studio's start screen lists the library off the same disk read
     "/dashboard/studio": ["./data/packs/**/*"],
+    // the Library counts the packs for Data pack, Data pack lists them, the
+    // phone reads them, and the Library page's model search and Combine are
+    // server actions posted to the Library's own routes
+    "/dashboard/tiff/library": ["./data/packs/**/*"],
+    "/dashboard/tiff/library/data-pack": ["./data/packs/**/*"],
+    "/api/mobile/data-pack": ["./data/packs/**/*"],
+    "/api/mobile/data-pack/combine": ["./data/packs/**/*"],
     /* pdfjs reaches for its worker with a DYNAMIC import, which is invisible
        to static file tracing: `pdf.mjs` gets bundled, `pdf.worker.mjs` does
        not, and the first document to be read dies on "Setting up fake worker

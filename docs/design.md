@@ -277,6 +277,31 @@ this list the way it holds the loops: both ways, by name.
 Some of Isaac's calls break a rule no ratchet counts, so they are written
 here rather than in the table below, each with his words and the day.
 
+#### On the Library
+
+- **The web Library wears the phone's** (`tiff/library-covers.tsx`,
+  `tiff/data-pack.tsx`), as mocked on
+  https://claude.ai/artifact/1CuFEACnPf9L8gwUGpsziw (Isaac, 16 November 2026:
+  "make library web version look more like mobile", then "The toolbox and
+  data pack look a little bit hidden", then "Yep looks good"). One search
+  that also asks Tiff, its last row the Ask (rule 43, first here, as the
+  phone's); Toolbox and Data pack as two big tiles under it, in their blocks'
+  orange and yellow; the manuals opened lately as covers; a card per brand.
+  Two rules give way, for the Library and Data pack alone:
+  - rule 1, the plain white page: the page is the phone's light grey, ink at
+    the soft fill's 5% on white, with white groups on it;
+  - rule 15 and "A business's own colour is its own": a cover and a brand's
+    card are filled with the maker's tag colour, as the phone's are, white
+    words on it or ink where white won't read; Mitsubishi Electric's is the
+    press blue. The covers keep the maker's name in its own case, not the
+    phone's capitals, as the eyebrow is retired.
+  - Data pack (Isaac, 16 November 2026: "Just have a Data pack section that
+    displays all units to search through, filter and combine. A bit like
+    system builder"; "Yep nice" to
+    https://claude.ai/artifact/2Jvc2mQkhQscbykt7abwhM) is every unit in the
+    Studio's packs: Units, Compare and Combine as soft tabs, Combine's word
+    the state (rule 17), read from the Studio's own multi check.
+
 #### On the box
 
 - **Every box you type or speak in is the phone's** (`conversations/box.tsx`,

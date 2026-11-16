@@ -1,0 +1,87 @@
+/* THE LIBRARY IN THE PHONE'S DRESS (library-covers.tsx; Isaac, 16 November
+   2026, "Yep looks good" to https://claude.ai/artifact/1CuFEACnPf9L8gwUGpsziw).
+   The phone's light grey ground with white groups on it, covers and brand
+   cards in each maker's own tag colour, and Toolbox and Data pack as two
+   big tiles in their blocks' colours. docs/design.md, "On the Library",
+   names what this breaks on his word: the grey ground (rule 1) and the
+   makers' colours as fills. The grey is ink at the soft fill's 5% on white,
+   no colour of its own. */
+
+.fg .page.lb3-page { --lb3-ground:color-mix(in srgb, var(--ink) 5%, var(--white)); background:var(--lb3-ground); }
+
+/* the search: one field, the phone's, the microphone on its end */
+.fg .lb3-search { display:flex; align-items:center; gap:8px; max-width:760px; height:48px; padding:0 4px 0 12px; border:1px solid var(--edge); border-radius:var(--r-card); background:var(--white); transition:border-color var(--t-fast) var(--ease); }
+.fg .lb3-search:focus-within { border-color:var(--ink); }
+.fg .lb3-search > .lb3-search-icon { display:inline-flex; flex:none; color:var(--q); }
+.fg .lb3-search input { flex:1 1 auto; min-width:0; height:100%; border:0; background:none; font:inherit; font-size:16px; line-height:24px; color:var(--ink); outline:none; }
+.fg .lb3-search input::placeholder { color:var(--q); }
+
+/* Toolbox and Data pack: two big tiles under the search */
+.fg .lb3-tools { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px; }
+.fg .lb3-tool { all:unset; box-sizing:border-box; display:flex; align-items:center; gap:16px; min-width:0; min-height:96px; padding:16px; border-radius:var(--r-card); color:var(--ink); cursor:pointer; box-shadow:var(--shadow-card); }
+.fg .lb3-tool--orange { background:var(--orange); }
+.fg .lb3-tool--yellow { background:var(--yellow); }
+.fg .lb3-tool:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
+.fg .lb3-ti { display:flex; align-items:center; justify-content:center; flex:none; width:48px; height:48px; border-radius:var(--r-button); background:color-mix(in srgb, var(--white) 55%, transparent); }
+.fg .lb3-tw { display:flex; flex-direction:column; gap:2px; flex:1 1 auto; min-width:0; }
+.fg .lb3-tw b { font-size:20px; line-height:28px; font-weight:700; }
+.fg .lb3-tw span { font-size:14px; line-height:20px; font-weight:500; }
+
+/* a section's name over the ground */
+.fg .lb3-sh { margin:8px 4px 0; font-size:16px; line-height:24px; font-weight:700; color:var(--ink); }
+
+/* the covers */
+.fg .lb3-covers { display:flex; gap:12px; overflow-x:auto; padding:4px 4px 12px; margin:0 -4px; }
+.fg .lb3-covers.lb3-wrap { flex-wrap:wrap; overflow:visible; }
+.fg .lb3-cover-at { display:flex; flex-direction:column; align-items:flex-start; gap:4px; flex:none; width:130px; }
+.fg .lb3-cover { all:unset; box-sizing:border-box; position:relative; flex:none; display:block; width:130px; height:164px; border-radius:var(--r-button); background:var(--c); overflow:hidden; text-align:left; box-shadow:var(--shadow-card); }
+.fg button.lb3-cover { cursor:pointer; }
+.fg button.lb3-cover:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
+.fg .lb3-on-white { color:var(--white); }
+.fg .lb3-on-ink { color:var(--ink); }
+.fg .lb3-spine { position:absolute; left:0; top:0; bottom:0; width:6px; background:color-mix(in srgb, var(--ink) 18%, transparent); }
+.fg .lb3-cv { position:absolute; inset:0; padding:12px 8px 12px 16px; display:flex; flex-direction:column; justify-content:space-between; gap:4px; }
+.fg .lb3-maker { font-size:12px; line-height:16px; font-weight:700; }
+.fg .lb3-cname { font-size:16px; line-height:20px; font-weight:700; overflow-wrap:anywhere; display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden; }
+.fg .lb3-cfoot { display:flex; align-items:center; justify-content:space-between; gap:4px; }
+.fg .lb3-ckind { font-size:12px; line-height:16px; font-weight:700; }
+.fg .lb3-year { font-size:12px; line-height:16px; font-weight:700; font-variant-numeric:tabular-nums; }
+.fg .lb3-cover-foot { display:flex; flex-wrap:wrap; align-items:center; gap:4px; }
+
+/* the brands: a card per brand in its colour, four to a row */
+.fg .lb3-brands { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:12px; }
+.fg .lb3-brand { all:unset; box-sizing:border-box; display:flex; flex-direction:column; gap:2px; min-width:0; min-height:112px; padding:12px 16px; border-radius:var(--r-card); background:var(--c); cursor:pointer; box-shadow:var(--shadow-card); }
+.fg .lb3-brand:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
+.fg .lb3-bn { margin-bottom:auto; font-size:16px; line-height:24px; font-weight:700; }
+.fg .lb3-bc { font-size:13px; line-height:18px; font-weight:700; }
+.fg .lb3-bs { font-size:13px; line-height:18px; font-weight:500; }
+.fg .lb3-look { display:inline-flex; align-items:center; gap:4px; }
+.fg .lb3-dot { width:8px; height:8px; border-radius:50%; background:var(--orange); }
+
+/* a brand's own page: its shelves */
+.fg .lb3-under { margin:0; font-size:14px; line-height:20px; color:var(--q); }
+
+/* white groups of rows on the ground, as the phone's */
+.fg .lb3-board { display:flex; flex-direction:column; gap:12px; max-width:760px; }
+.fg .lb3-group { background:var(--white); border-radius:var(--r-card); overflow:hidden; }
+.fg .lb3-cell { all:unset; box-sizing:border-box; width:100%; display:flex; align-items:center; gap:12px; min-height:56px; padding:8px 16px; border-top:1px solid var(--line); color:var(--ink); cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
+.fg .lb3-group > .lb3-cell:first-child { border-top:0; }
+.fg .lb3-cell:hover { background-color:var(--hov); }
+.fg .lb3-cell:focus-visible { box-shadow:inset 0 0 0 2px var(--ink); }
+.fg .lb3-cell > svg { flex:none; color:var(--q); }
+.fg .lb3-blk { display:flex; align-items:center; justify-content:center; flex:none; width:32px; height:32px; border-radius:var(--r-button); }
+.fg .lb3-blk--ink { background:var(--ink); color:var(--white); }
+.fg .lb3-cw { display:flex; flex-direction:column; flex:1 1 auto; min-width:0; }
+.fg .lb3-cw b { font-size:16px; line-height:24px; font-weight:600; }
+.fg .lb3-cw span { font-size:14px; line-height:20px; color:var(--q); overflow-wrap:anywhere; }
+.fg .lb3-cell--page .lb3-cw span b { font-size:14px; line-height:20px; font-weight:700; color:var(--ink); }
+.fg .lb3-err { margin:0; font-size:13px; line-height:18px; font-weight:500; color:var(--red-w); }
+.fg .lb3-none { margin:0 4px; font-size:14px; line-height:20px; color:var(--q); }
+
+@media (max-width:1100px) {
+  .fg .lb3-brands { grid-template-columns:repeat(3, minmax(0,1fr)); }
+}
+@media (max-width:760px) {
+  .fg .lb3-tools { grid-template-columns:minmax(0,1fr); }
+  .fg .lb3-brands { grid-template-columns:repeat(2, minmax(0,1fr)); }
+}

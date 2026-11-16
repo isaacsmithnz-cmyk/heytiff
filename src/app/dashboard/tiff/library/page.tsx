@@ -13,6 +13,9 @@ import { kbQuotaFor } from "@/lib/tiff/quota";
 import { kbLargeAllowance } from "@/lib/tiff/large";
 import { ensureKbSeedTags, kbTagsByDocument, kbTagsForOrg, kbTagUsage } from "@/lib/tiff/tags-query";
 import { listUnreviewedFieldNotes } from "@/lib/tiff/field-notes";
+import { shelvesOf } from "@/lib/tiff/shelves";
+import { coverReading } from "@/lib/tiff/covers";
+import { libraryUnits } from "@/lib/library/packs-server";
 
 /* The library (v2: the Library place lands here). Deep-linkable leaf — same `tiff` gate as the assistant page:
    the capability is revocable, so every route checks for itself and not just
@@ -70,7 +73,7 @@ export default async function LibraryPage({
   /* The passages stored without a vector. Counted only where a key exists:
      without one, EVERY chunk is null by design and the whole library would
      read as broken rather than as keyword-only. */
-  const [docs, quota, canManage, role, uploaders, unembedded, tags, docTags, tagUsage, canToolbox, review] =
+  const [docs, quota, canManage, role, uploaders, unembedded, tags, docTags, tagUsage, canToolbox, review, units] =
     await Promise.all([
       kbDocsForOrg(orgId),
       kbQuotaFor(orgId),
@@ -86,7 +89,12 @@ export default async function LibraryPage({
          looked over, read for an admin and nobody else (the same gate as
          actions/kb-review.ts; the role read is the request's, cached) */
       getDbRole().then((r) => (hasMinRole(r, "admin") ? listUnreviewedFieldNotes(orgId) : null)),
+      /* Data pack's tile says how many units from how many brands; a pack
+         that can't be read leaves the tile off rather than the page */
+      libraryUnits().catch(() => null),
     ]);
+  const covers = Object.fromEntries([...shelvesOf(docs, docTags, tags)].map(([id, s]) => [id, coverReading(s)]));
+  const dataPack = units?.length ? { units: units.length, brands: new Set(units.map((u) => u.brand)).size } : null;
 
   /* The URL names tags by SLUG, not by id — a link that survives being pasted
      into Slack has to be readable, and an id would also leak nothing useful
@@ -110,6 +118,8 @@ export default async function LibraryPage({
         tags: docTags[d.id] ?? [],
       }))}
       tags={tags}
+      reading={covers}
+      dataPack={dataPack}
       tagUsage={tagUsage}
       initialTagIds={initialTagIds}
       quota={{

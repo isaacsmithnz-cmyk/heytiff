@@ -50,9 +50,13 @@
    colour outside the palette a button wears, named in docs/design.md (Isaac,
    27 October 2026). Like main, its hover keeps the blue. */
 .pt-btn.pt-btn--xero { background: #13b5ea; color: var(--white); border: 1px solid transparent; cursor: pointer; }
-/* quote (25c): orange, ink words, on the button that starts or updates a
-   quote, as a quote is orange in ServiceM8 (Isaac, 3 November 2026) */
-.pt-btn.pt-btn--quote { background: var(--orange); color: var(--ink); border: 1px solid var(--orange); cursor: pointer; }
+/* quote (25c): a white button in a 2px orange edge, an orange quote mark
+   before ink words, on the button that starts or updates a quote, as a
+   quote is orange in ServiceM8 (Isaac, 3 November 2026; then 16 November
+   2026: "Black writing on orange button is a bit annoying", 6 of six). Ink
+   on white reads; the orange is the edge and the mark, never under words. */
+.pt-btn.pt-btn--quote { background: var(--white); color: var(--ink); border: 2px solid var(--orange); cursor: pointer; }
+.pt-btn.pt-btn--quote .pt-btn__icon { color: var(--orange); }
 /* sm8 (25b): ServiceM8's own green, ink words, on a button that goes to
    ServiceM8 (Isaac, 2 November 2026: "That could be an exception for
    anything service mate"); named in docs/design.md. A fill only. */
@@ -61,6 +65,7 @@
 /* a hover is one change, a fill (23) */
 .pt-btn.pt-btn--second:hover:not(:disabled):not([aria-disabled="true"]),
 .pt-btn.pt-btn--quiet:hover:not(:disabled):not([aria-disabled="true"]),
+.pt-btn.pt-btn--quote:hover:not(:disabled):not([aria-disabled="true"]),
 .pt-btn.pt-btn--delete:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--hov); }
 
 /* a press moves 1px and changes nothing else */

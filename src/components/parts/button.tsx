@@ -71,7 +71,8 @@ export function Button(props: ButtonProps) {
   const cls = buttonClass(kind, size, className);
   const body = (
     <>
-      {lead(icon, size === 44 ? 20 : 16)}
+      {/* a quote button carries the quote's mark, in orange (25c) */}
+      {lead(icon ?? (kind === "quote" ? "file" : undefined), size === 44 ? 20 : 16)}
       <span className="pt-btn__word">{children}</span>
     </>
   );

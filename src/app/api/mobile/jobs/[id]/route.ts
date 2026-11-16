@@ -3,6 +3,7 @@ import { todayInZone } from "@/lib/workboard/dates";
 import { familyMediaSources, readJobNotes, readMirrorJobDetail, resolveJobCard } from "@/lib/workboard/all-jobs-query";
 import { notesViewerOf, readOurJobNotes } from "@/lib/workboard/job-notes-query";
 import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
+import { replyableNotes } from "@/lib/mobile/note-replies";
 import { offersSend } from "@/lib/integrations/sm8-write-plan";
 import { senderWords } from "@/lib/integrations/sm8-note-words";
 import { comingVisits, missedVisits } from "@/lib/mobile/visits";
@@ -69,5 +70,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const missed = open ? missedAll : [];
   const sender = viewer?.sender ?? { state: "unknown" as const };
   const sm8Notes = viewer && offersSend(viewer.state, "note") ? { ready: sender.state === "ready", why: senderWords(sender) } : null;
-  return ok({ detail, notes, ourNotes, sm8Notes, coming, ...(missed.length ? { missed } : {}), focusRemoteId: target.focusRemoteId, ...(gate?.ok ? { canChange: true } : {}) });
+  /* the notes that ask you, each to the ServiceM8 note a reply answers (lib/mobile/note-replies) */
+  const replyable = sm8Notes?.ready ? replyableNotes(sender, notes, ourNotes) : {};
+  return ok({ detail, notes, ourNotes, sm8Notes, ...(Object.keys(replyable).length ? { replyable } : {}), coming, ...(missed.length ? { missed } : {}), focusRemoteId: target.focusRemoteId, ...(gate?.ok ? { canChange: true } : {}) });
 }

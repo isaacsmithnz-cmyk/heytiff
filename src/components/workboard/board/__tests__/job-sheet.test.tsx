@@ -35,9 +35,9 @@ import type {
   FlagResult,
   JobNoteStates,
   NoteStateResult,
-  ReplyResult,
   TakeBackNoteResult,
 } from "@/app/actions/job-note-sm8";
+import type { ReplyResult } from "@/lib/integrations/sm8-note-entry";
 import { NOTE_WORDS } from "@/lib/integrations/sm8-note-words";
 
 const readMirrorJob = jest.fn(

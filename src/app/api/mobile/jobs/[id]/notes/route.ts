@@ -5,6 +5,10 @@ import { ok, requireMobile } from "@/lib/mobile/auth";
 import { sendNoteOnToSm8 } from "@/lib/integrations/sm8-note-send-on";
 import { sm8PressFromMobile } from "@/lib/integrations/sm8-press";
 import { replaceWrapupNote } from "@/lib/mobile/wrapup-replace";
+import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
+import { readSm8WriteState } from "@/lib/integrations/sm8-writes";
+import { offersSend } from "@/lib/integrations/sm8-write-plan";
+import { NOTE_WORDS } from "@/lib/integrations/sm8-note-plan";
 
 /* WRITING A NOTE ON A JOB from the phone: the job sheet's pen, on the
    phone's token (lib/workboard/job-note-write, which actions/job-notes
@@ -22,20 +26,48 @@ import { replaceWrapupNote } from "@/lib/mobile/wrapup-replace";
 
    `replaces: { on }`, from the day's wrap-up gone back to: the note already
    in for that stretch is taken back first, so the changed words are the one
-   note (lib/mobile/wrapup-replace); the same words again change nothing. */
+   note (lib/mobile/wrapup-replace); the same words again change nothing.
+
+   `replyTo`, a ServiceM8 note's uuid: the words are a REPLY to that note,
+   which must mention you, and go to ServiceM8 as the job sheet's Reply goes
+   (lib/integrations/sm8-note-entry replyToNote), behind the same gates
+   (Isaac, 16 November 2026, bug 2: "Unable to reply to comments on this
+   job"). The job route's `replyable` says which notes offer it. */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireMobile(request, "workboard");
   if (ctx instanceof Response) return ctx;
   const no = (status: number, error: string) => Response.json({ error }, { status, headers: { "cache-control": "no-store" } });
 
   const id = (await params).id.trim().slice(0, 80);
-  const input = (await request.json().catch(() => null)) as { body?: unknown; id?: unknown; sendOn?: unknown; replaces?: unknown } | null;
+  const input = (await request.json().catch(() => null)) as {
+    body?: unknown;
+    id?: unknown;
+    sendOn?: unknown;
+    replaces?: unknown;
+    replyTo?: unknown;
+    spoken?: unknown;
+  } | null;
   const body = typeof input?.body === "string" ? input.body : "";
   if (!id) return no(400, "Which job?");
   if (!body.trim()) return no(400, "Nothing to write.");
   if (input?.id !== undefined && typeof input.id !== "string") return no(400, "Couldn't save that note.");
 
   const { parentRemoteId } = await resolveJobCard(ctx.orgId, id);
+  if (typeof input?.replyTo === "string") {
+    const startedAt = Date.now();
+    if (!sm8NotesAllowed()) return no(400, NOTE_WORDS.card.notesUnavailable);
+    const press = await sm8PressFromMobile(ctx);
+    if (!press) return no(401, "Not signed in.");
+    const [state, { notOffered, replyToNote }] = await Promise.all([readSm8WriteState(ctx.orgId), import("@/lib/integrations/sm8-note-entry")]);
+    if (!offersSend(state, "note")) return no(400, notOffered(state));
+    const replied = await replyToNote(
+      press,
+      state,
+      { jobUuid: parentRemoteId, sourceNoteUuid: input.replyTo, words: body, spoken: input.spoken === true, composeId: typeof input.id === "string" ? input.id : "" },
+      startedAt
+    );
+    return replied.ok ? ok(replied.note) : no(400, replied.error);
+  }
   const replacesOn = (input?.replaces as { on?: unknown } | null | undefined)?.on;
   try {
     if (typeof replacesOn === "string" && (await replaceWrapupNote(ctx, parentRemoteId, body, replacesOn)) === "same") return ok({ same: true });

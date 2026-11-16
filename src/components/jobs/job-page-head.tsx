@@ -106,7 +106,6 @@ export function JobPageHead({ name, description = null, number = null, site = nu
     <header className="jp-head">
       <WayBack />
       <div className="jp-top jp-top--site">
-        {site?.map}
         <div className="jp-words">
           <div className={`jp-id jp-plate jp-plate--${hue}`}>
             {number ? <span className="jp-num">{number}</span> : <Dot hue={hue} />}
@@ -116,6 +115,7 @@ export function JobPageHead({ name, description = null, number = null, site = nu
           </div>
           {site?.words}
         </div>
+        {site?.map}
       </div>
       {description ? <p className="jp-desc">{description}</p> : null}
       <div className="jp-tabrow">

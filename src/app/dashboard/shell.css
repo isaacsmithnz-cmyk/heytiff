@@ -5754,24 +5754,26 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jp-acts { flex:none; display:flex; align-items:center; gap:8px; }
 /* Add's and Actions' chevron, after the word */
 .fg .jp-chev { display:inline-flex; margin-left:4px; vertical-align:middle; }
-/* THE HEAD AS ONE CARD, THE MAP ITS HERO (Isaac, 16 November 2026, A on
-   https://claude.ai/artifact/XbKL1kUEjP1YxP3qEAQnL6): the number, the name
-   and under them the site on the paper, the map on the right fading into
-   them. The words never fade; only the map does, eased over its first third
-   ("The fade is pretty big", then "The fade looks too sharp"), and never
-   over its bottom left corner, where Google signs it. The picture is drawn whole at the card's height, never cropped:
-   Google's widest is 640, and its mark and its data line stay on it. */
-.fg .jp-top--site { position:relative; align-items:center; min-height:112px; padding:16px 24px; border-radius:var(--r-card); background:var(--paper); box-shadow:var(--shadow-card); overflow:hidden; }
-.fg .jp-words { position:relative; z-index:1; flex:1 1 0; min-width:0; display:flex; flex-direction:column; gap:8px; max-width:calc(100% - 420px); }
+/* THE HEAD AND ITS MAP, TWO CARDS SIDE BY SIDE (Isaac, 16 November 2026,
+   1 of the three in the walk: "That still looks bad, what else can you do?"
+   after the fade was eased twice): the number, the name and under them the
+   site on a white card, the map beside it as a card of its own, the same
+   height and corners, a gap between them. Nothing fades: Google signs the
+   map at its bottom left, so any fade into the words had to bend round that.
+   The picture is drawn whole at the cards' height, never cropped: Google's
+   widest is 640, and its mark and its data line stay on it. With no map, the
+   words' card runs the width. */
+.fg .jp-top--site { align-items:stretch; }
+.fg .jp-words { flex:1 1 0; min-width:0; display:flex; flex-direction:column; justify-content:center; gap:8px; min-height:112px; padding:16px 24px; border-radius:var(--r-card); background:var(--paper); box-shadow:var(--shadow-card); }
 .fg .jp-words > .jp-id { flex:none; }
 .fg .jp-site { display:flex; align-items:center; flex-wrap:wrap; gap:8px 16px; }
 .fg .jp-addr { display:flex; flex-direction:column; margin:0; font-size:14px; line-height:20px; color:var(--ink); }
 .fg .jp-addr b { font-weight:600; }
 .fg .jp-addr span { color:var(--q); }
 .fg .jp-site .jov-po { margin:0; }
-.fg .jp-map { position:absolute; top:0; right:0; bottom:0; -webkit-mask-image:linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--ink) 8%, transparent) 5%, color-mix(in srgb, var(--ink) 22%, transparent) 10%, color-mix(in srgb, var(--ink) 42%, transparent) 15%, color-mix(in srgb, var(--ink) 64%, transparent) 20%, color-mix(in srgb, var(--ink) 82%, transparent) 25%, color-mix(in srgb, var(--ink) 94%, transparent) 30%, var(--ink) 36%), radial-gradient(160px 60px at 0 100%, var(--ink) 65%, transparent 100%); mask-image:linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--ink) 8%, transparent) 5%, color-mix(in srgb, var(--ink) 22%, transparent) 10%, color-mix(in srgb, var(--ink) 42%, transparent) 15%, color-mix(in srgb, var(--ink) 64%, transparent) 20%, color-mix(in srgb, var(--ink) 82%, transparent) 25%, color-mix(in srgb, var(--ink) 94%, transparent) 30%, var(--ink) 36%), radial-gradient(160px 60px at 0 100%, var(--ink) 65%, transparent 100%); }
-.fg .jp-map img { display:block; width:auto; height:100%; background:var(--soft); }
-.fg .jp-map:focus-visible { outline:none; box-shadow:inset var(--ring); }
+.fg .jp-map { flex:none; align-self:stretch; display:flex; border-radius:var(--r-card); background:var(--soft); box-shadow:var(--shadow-card); overflow:hidden; }
+.fg .jp-map img { display:block; width:auto; height:100%; }
+.fg .jp-map:focus-visible { outline:none; box-shadow:var(--ring); }
 /* Actions at the right end of the tabs' row, under the map, standing on the tabs' line */
 .fg .jp-tabrow { position:relative; }
 .fg .jp-tabrow > .jp-acts { position:absolute; z-index:1; right:0; bottom:6px; }

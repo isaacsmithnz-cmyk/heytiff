@@ -36,35 +36,31 @@ import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
 import { readSm8WriteState } from "@/lib/integrations/sm8-writes";
 import { offersSend, sendHold, type Sm8WriteState } from "@/lib/integrations/sm8-write-plan";
 import { confirmSm8Link, sm8NoteSender, type NoteSender } from "@/lib/integrations/links";
-import { noteAskerOf, noteSourceOf, sourceStands } from "@/lib/integrations/sm8-note-source";
+import { noteSourceOf } from "@/lib/integrations/sm8-note-source";
 import {
   flagState,
   NOTE_WORDS,
-  replyText,
   type FlagState,
   type NoteState,
 } from "@/lib/integrations/sm8-note-plan";
-import { jobIsReal } from "@/lib/compliance/send";
 import { familyMediaSources, readJobNotes } from "@/lib/workboard/all-jobs-query";
 import {
   readFlagOps,
   readFlagStates,
   readOurJobNote,
   readOurJobNotes,
-  type OurJobNote,
 } from "@/lib/workboard/job-notes-query";
-import { mentionedHandles } from "@/lib/workboard/sm8-mentions";
-import { englishLine } from "@/lib/workboard/note-english";
-import { queueFlagChange, queueNoteCreate, queueNoteTakeBack } from "./sm8-note-queue";
+import { queueFlagChange, queueNoteTakeBack } from "./sm8-note-queue";
 import { completeTask } from "./dashboard";
 import {
   notOffered,
   readHead,
   refusalWords,
   sendEntryToSm8,
-  senderWords,
   settle,
   viewerOf,
+  replyToNote,
+  type ReplyResult,
 } from "@/lib/integrations/sm8-note-entry";
 
 const WB = "/dashboard/workboard";
@@ -80,13 +76,8 @@ const revalidateNotes = () => {
   revalidatePath(HOME);
 };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const MAX_WORDS = 4000;
 
-export type ReplyResult =
-  | { ok: true; note: OurJobNote }
-  /** `sender`: who the server found the person to be, when that is why —
-      the box then asks its question instead. */
-  | { ok: false; error: string; sender?: NoteSender };
+export type { ReplyResult };
 export type NoteStateResult =
   | { ok: true; state: NoteState | null }
   /** `state`: the row's line after the press, when it changed (a refusal
@@ -170,114 +161,26 @@ export async function replyToJobNote(input: {
   const g = await gate(true);
   if (!g.ok) return g;
   const { orgId, press } = g;
-  const job = typeof input?.jobUuid === "string" ? input.jobUuid.trim() : "";
-  const sourceUuid = typeof input?.sourceNoteUuid === "string" ? input.sourceNoteUuid.trim() : "";
-  const composeId = typeof input?.composeId === "string" ? input.composeId.trim() : "";
-
-  /* 1. the box's own id: one reply per box, however many presses */
-  if (!UUID.test(composeId)) return { ok: false, error: NOTE_WORDS.press.saveFailed };
-  /* 2. words */
-  const words = typeof input?.words === "string" ? input.words.trim().slice(0, MAX_WORDS) : "";
-  if (!words) return { ok: false, error: NOTE_WORDS.press.emptyReply };
-
-  /* 3. the note it answers, on this job or one of its claims */
-  const source = job ? await noteSourceOf(orgId, sourceUuid) : null;
-  if (!source) return { ok: false, error: NOTE_WORDS.press.noNote };
-  if (source.relatedUuid !== job) {
-    const family = await familyMediaSources(orgId, job);
-    if (!family.some((c) => c.remoteId === source.relatedUuid)) return { ok: false, error: NOTE_WORDS.press.noNote };
-  }
-  /* ...and still standing: nobody answers a note its author took back, or
-     one somebody removed in ServiceM8 */
-  const standing = await sourceStands(orgId, sourceUuid, source.origin);
-  if (standing === null) return { ok: false, error: NOTE_WORDS.press.saveFailed };
-  if (!standing) return { ok: false, error: NOTE_WORDS.press.noNote };
-  /* 4. nothing goes to a job its own business deleted — checked before the
-     row is saved, so the words stay in the box */
-  if (!(await jobIsReal(orgId, source.relatedUuid))) return { ok: false, error: NOTE_WORDS.press.jobGone };
-
-  /* 5. who it would go as: the box asks the question instead of saving */
-  const sender = await sm8NoteSender(orgId, press.staffId, g.state?.tenantId ?? undefined);
-  const refused = senderWords(sender);
-  if (refused || sender.state !== "ready" || !press.staffId) {
-    return { ok: false, error: refused ?? NOTE_WORDS.press.unknown, sender };
-  }
-
-  /* 6. a reply answers a note that asked YOU */
-  if (!sender.handle || mentionedHandles(source.text, [sender.handle]).length === 0) {
-    return { ok: false, error: NOTE_WORDS.press.notMentioned };
-  }
-
-  /* 7. the words go as said; the diary keeps them in English (lang/policy)
-     — both fixed now, so every later send sends the same words */
-  const english = await englishLine(words);
-  const asker = await noteAskerOf(orgId, sourceUuid, source);
-  /* nobody is addressed by their own reply */
-  const askerHandle = asker && asker.sm8Uuid.toLowerCase() !== sender.staffUuid.toLowerCase() ? asker.handle : null;
-
-  /* the task this reply closes, if it asked to: one made from this very
-     note, and still open — otherwise it closes nothing */
-  const closes = await taskItCloses(orgId, sourceUuid, input?.closesTaskId);
-
-  /* 8. RECORD FIRST: HeyTiff's row, under the box's id */
-  const now = new Date().toISOString();
-  const { error: saveError } = await supabaseAdmin.from("workboard_notes").upsert(
-    {
-      id: composeId,
-      org_id: orgId,
-      author_id: press.staffId,
-      target_kind: "job",
-      target_id: job,
-      transcript: words,
-      source: input.spoken ? "voice" : "text",
-      status: "applied",
-      applied: { jobNotes: [replyText(askerHandle, english)], sm8Text: replyText(askerHandle, words) },
-      applied_at: now,
-      reply_to_sm8_note_uuid: sourceUuid,
-    },
-    { onConflict: "id", ignoreDuplicates: true }
-  );
-  if (saveError) return { ok: false, error: NOTE_WORDS.press.saveFailed };
-  const saved = await readHead(orgId, composeId);
-  if (
-    !saved ||
-    saved.target_kind !== "job" ||
-    saved.target_id !== job ||
-    saved.author_id !== press.staffId ||
-    saved.reply_to_sm8_note_uuid !== sourceUuid
-  ) {
-    return { ok: false, error: NOTE_WORDS.press.saveFailed };
-  }
-  /* a late second press of a reply somebody has already taken back */
-  if (saved.removed_at) return { ok: false, error: NOTE_WORDS.press.noNote };
-
-  /* 9. queue it — a refusal stays on the row; an Undo racing this press is
-     settled inside the helper */
-  const queued = await queueNoteCreate(press, { noteId: composeId });
-
-  /* THE REPLY CLOSES ITS TASK (PR C): the task is ticked with no Done — the
-     reply is the answer, so one note goes, not two — and the reply stands
-     for the task while it is done. Only when this reply's own tick won. */
-  if (closes) {
-    const done = await completeTask(closes);
-    if (done.ok) {
-      const { error: linkError } = await supabaseAdmin
-        .from("workboard_notes")
-        .update({ task_id: closes })
-        .eq("org_id", orgId)
-        .eq("id", composeId)
-        .is("task_id", null);
-      if (linkError) console.error(`[sm8] couldn't link reply ${composeId} to the task it closed for org ${orgId}:`, linkError);
-    }
-  }
-
-  if (queued.ok) await settle(orgId, queued.rowIds, startedAt);
-
+  const closes = await taskItCloses(orgId, typeof input?.sourceNoteUuid === "string" ? input.sourceNoteUuid.trim() : "", input?.closesTaskId);
+  const replied = await replyToNote(press, g.state, input, startedAt, closes ? (composeId) => closeItsTask(orgId, composeId, closes) : undefined);
   revalidateNotes();
-  /* 10. the row, as it now stands */
-  const note = await readOurJobNote(orgId, composeId, viewerOf(orgId, press, g.state));
-  if (!note) return { ok: false, error: NOTE_WORDS.press.noNote };
-  return { ok: true, note };
+  return replied;
+}
+
+/** THE REPLY CLOSES ITS TASK (PR C): the task is ticked with no Done — the
+    reply is the answer, so one note goes, not two — and the reply stands
+    for the task while it is done. Only when this reply's own tick won. */
+async function closeItsTask(orgId: string, composeId: string, closes: string): Promise<void> {
+  const done = await completeTask(closes);
+  if (done.ok) {
+    const { error: linkError } = await supabaseAdmin
+      .from("workboard_notes")
+      .update({ task_id: closes })
+      .eq("org_id", orgId)
+      .eq("id", composeId)
+      .is("task_id", null);
+    if (linkError) console.error(`[sm8] couldn't link reply ${composeId} to the task it closed for org ${orgId}:`, linkError);
+  }
 }
 
 /** The task a reply closes: `taskId` when the task was made from the note

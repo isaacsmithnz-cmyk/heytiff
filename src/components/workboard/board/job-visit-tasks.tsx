@@ -31,9 +31,9 @@ import { dateBlock, rangeWords } from "@/lib/workboard/visit-words";
    Previous: the last six days on site, two to a row, and Show all for the
    rest.
 
-   On the right, Not on a day yet (Tasks to plan until mock F, 14 November
-   2026): the job's tasks not on a day yet, under
-   their stage. A manager ticks a stage, or a few tasks, and adds them to a
+   Under Coming up, in the same card, Tasks (Tasks to plan until mock F,
+   14 November 2026, then Not on a day yet until 16 November 2026): the
+   job's tasks not on a day yet, under their stage, two columns. A manager ticks a stage, or a few tasks, and adds them to a
    day at once, or drags one onto a visit; the field at the foot adds one.
    A task on a day shows under that visit, so no task carries a date.
 
@@ -365,6 +365,103 @@ export function JobVisits({
           <p className="jv-none">Nothing booked yet.</p>
         )}
 
+        {/* the tasks not on a visit yet, between the visits to come and those
+            gone, as a task goes from here onto a visit (Isaac, 16 November
+            2026: "Not on a day yet, should just say tasks", and the On site
+            mock: Visits and their tasks one card) */}
+        {data && (manage || toPlan.length > 0) && (
+          <section className={"jv-plan" + (dragging && manage ? " drop" : "")} aria-labelledby={planId} {...landOn(null)}>
+            <h3 id={planId}>
+              <Icon name="listCheck" size={16} />
+              Tasks
+            </h3>
+            {stages.map((st) => {
+              const lines = toPlan.filter((l) => l.task.stage === st);
+              const ids = lines.map((l) => l.task.id);
+              return (
+                <div className="jv-group" key={st}>
+                  {manage ? (
+                    <Tick className="jv-ghead" label={st} checked={ids.every((id) => ticked.includes(id))} disabled={saving} onChange={(on) => toggle(ids, on)} />
+                  ) : (
+                    <h4 className="jv-ghead">{st}</h4>
+                  )}
+                  <ul className="jv-tasks">
+                    {lines.map((l) => (
+                      <li
+                        key={l.task.id}
+                        className="jv-task"
+                        draggable={manage && !saving}
+                        onDragStart={manage ? carry(l.task.id) : undefined}
+                        onDragEnd={() => setDragging(false)}
+                      >
+                        {manage ? (
+                          <Tick label={l.task.name} checked={ticked.includes(l.task.id)} disabled={saving} onChange={(on) => toggle([l.task.id], on)} />
+                        ) : (
+                          <span className="jv-tname">{l.task.name}</span>
+                        )}
+                        {l.task.hours != null && <span className="jv-hours">{hWords(l.task.hours)}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
+            {tasks.length === 0 && data.canMake && (
+              <div>
+                <Button kind="second" disabled={making} aria-busy={making || undefined} onClick={() => void make()}>
+                  {making ? "Writing the tasks from the quote" : "Make tasks from the quote"}
+                </Button>
+              </div>
+            )}
+            {manage && (
+              <div ref={addBox}>
+                <NoteToken
+                  as="field"
+                  rows={1}
+                  label="a task"
+                  offer={false}
+                  placeholder="Add a task"
+                  value={name}
+                  disabled={saving}
+                  onChange={setName}
+                  box={{
+                    "aria-label": "Add a task",
+                    onKeyDown: (e) => {
+                      if (e.key !== "Enter") return;
+                      e.preventDefault();
+                      void add();
+                    },
+                  }}
+                />
+              </div>
+            )}
+            {manage && ticked.length > 0 && (
+              <div className="jv-selbar">
+                <span>{plural(ticked.length, "task")}</span>
+                <Button ref={dayBtn} kind="second" size={32} disabled={saving || dayItems.length === 0} aria-haspopup="menu" aria-expanded={dayMenu} onClick={() => setDayMenu((o) => !o)}>
+                  Add to a day
+                  <span className="jv-chev" aria-hidden="true">
+                    <Icon name="chevD" size={16} />
+                  </span>
+                </Button>
+                <Menu
+                  open={dayMenu}
+                  anchor={dayBtn}
+                  onClose={() => setDayMenu(false)}
+                  onSelect={(d) => {
+                    setDayMenu(false);
+                    const n = slotOn(d)?.n;
+                    if (n != null) void place(ticked, n);
+                  }}
+                  items={dayItems}
+                  label="Add to a day"
+                  align="end"
+                />
+              </div>
+            )}
+          </section>
+        )}
+
         {previous.length > 0 && (
           <section className="jv-prev" aria-labelledby={`${planId}-prev`}>
             <div className="jv-head">
@@ -392,98 +489,6 @@ export function JobVisits({
         )}
       </div>
 
-      {data && (manage || toPlan.length > 0) && (
-        <section className={"jv-plan" + (dragging && manage ? " drop" : "")} aria-labelledby={planId} {...landOn(null)}>
-          <h3 id={planId}>
-            <Icon name="listCheck" size={16} />
-            Not on a day yet
-          </h3>
-          {stages.map((st) => {
-            const lines = toPlan.filter((l) => l.task.stage === st);
-            const ids = lines.map((l) => l.task.id);
-            return (
-              <div className="jv-group" key={st}>
-                {manage ? (
-                  <Tick className="jv-ghead" label={st} checked={ids.every((id) => ticked.includes(id))} disabled={saving} onChange={(on) => toggle(ids, on)} />
-                ) : (
-                  <h4 className="jv-ghead">{st}</h4>
-                )}
-                <ul className="jv-tasks">
-                  {lines.map((l) => (
-                    <li
-                      key={l.task.id}
-                      className="jv-task"
-                      draggable={manage && !saving}
-                      onDragStart={manage ? carry(l.task.id) : undefined}
-                      onDragEnd={() => setDragging(false)}
-                    >
-                      {manage ? (
-                        <Tick label={l.task.name} checked={ticked.includes(l.task.id)} disabled={saving} onChange={(on) => toggle([l.task.id], on)} />
-                      ) : (
-                        <span className="jv-tname">{l.task.name}</span>
-                      )}
-                      {l.task.hours != null && <span className="jv-hours">{hWords(l.task.hours)}</span>}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            );
-          })}
-          {tasks.length === 0 && data.canMake && (
-            <div>
-              <Button kind="second" disabled={making} aria-busy={making || undefined} onClick={() => void make()}>
-                {making ? "Writing the tasks from the quote" : "Make tasks from the quote"}
-              </Button>
-            </div>
-          )}
-          {manage && (
-            <div ref={addBox}>
-              <NoteToken
-                as="field"
-                rows={1}
-                label="a task"
-                offer={false}
-                placeholder="Add a task"
-                value={name}
-                disabled={saving}
-                onChange={setName}
-                box={{
-                  "aria-label": "Add a task",
-                  onKeyDown: (e) => {
-                    if (e.key !== "Enter") return;
-                    e.preventDefault();
-                    void add();
-                  },
-                }}
-              />
-            </div>
-          )}
-          {manage && ticked.length > 0 && (
-            <div className="jv-selbar">
-              <span>{plural(ticked.length, "task")}</span>
-              <Button ref={dayBtn} kind="second" size={32} disabled={saving || dayItems.length === 0} aria-haspopup="menu" aria-expanded={dayMenu} onClick={() => setDayMenu((o) => !o)}>
-                Add to a day
-                <span className="jv-chev" aria-hidden="true">
-                  <Icon name="chevD" size={16} />
-                </span>
-              </Button>
-              <Menu
-                open={dayMenu}
-                anchor={dayBtn}
-                onClose={() => setDayMenu(false)}
-                onSelect={(d) => {
-                  setDayMenu(false);
-                  const n = slotOn(d)?.n;
-                  if (n != null) void place(ticked, n);
-                }}
-                items={dayItems}
-                label="Add to a day"
-                align="end"
-              />
-            </div>
-          )}
-        </section>
-      )}
 
       {issueTask && (
         <IssueDialog

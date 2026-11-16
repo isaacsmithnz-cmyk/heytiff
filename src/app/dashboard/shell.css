@@ -5757,8 +5757,10 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 /* THE HEAD AS ONE CARD, THE MAP ITS HERO (Isaac, 16 November 2026, A on
    https://claude.ai/artifact/XbKL1kUEjP1YxP3qEAQnL6): the number, the name
    and under them the site on the paper, the map on the right fading into
-   them, Actions in the top right over the map faded behind it. The words
-   never fade; only the map does. */
+   them. The words never fade; only the map does, over its first sixth
+   ("The fade is pretty big"), and never over its foot, where Google signs
+   it. The picture is drawn whole at the card's height, never cropped:
+   Google's widest is 640, and its mark and its data line stay on it. */
 .fg .jp-top--site { position:relative; align-items:center; min-height:112px; padding:16px 24px; border-radius:var(--r-card); background:var(--paper); box-shadow:var(--shadow-card); overflow:hidden; }
 .fg .jp-words { position:relative; z-index:1; flex:1 1 0; min-width:0; display:flex; flex-direction:column; gap:8px; max-width:calc(100% - 420px); }
 .fg .jp-words > .jp-id { flex:none; }
@@ -5767,8 +5769,8 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jp-addr b { font-weight:600; }
 .fg .jp-addr span { color:var(--q); }
 .fg .jp-site .jov-po { margin:0; }
-.fg .jp-map { position:absolute; top:0; right:0; bottom:0; width:640px; max-width:60%; -webkit-mask-image:linear-gradient(90deg, transparent 0%, var(--ink) 40%), linear-gradient(var(--ink), var(--ink)); mask-image:linear-gradient(90deg, transparent 0%, var(--ink) 40%), linear-gradient(var(--ink), var(--ink)); -webkit-mask-size:100% 100%, 72px 28px; mask-size:100% 100%, 72px 28px; -webkit-mask-position:0 0, 0 100%; mask-position:0 0, 0 100%; -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat; }
-.fg .jp-map img { display:block; width:100%; height:100%; object-fit:cover; object-position:center; background:var(--soft); }
+.fg .jp-map { position:absolute; top:0; right:0; bottom:0; -webkit-mask-image:linear-gradient(90deg, transparent 0%, var(--ink) 16%), linear-gradient(0deg, var(--ink) 28px, transparent 44px); mask-image:linear-gradient(90deg, transparent 0%, var(--ink) 16%), linear-gradient(0deg, var(--ink) 28px, transparent 44px); }
+.fg .jp-map img { display:block; width:auto; height:100%; background:var(--soft); }
 .fg .jp-map:focus-visible { outline:none; box-shadow:inset var(--ring); }
 /* Actions at the right end of the tabs' row, under the map, standing on the tabs' line */
 .fg .jp-tabrow { position:relative; }

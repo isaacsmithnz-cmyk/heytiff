@@ -57,6 +57,9 @@ export type BillingView = {
   /** "Paid", "Invoiced, waiting", "Not invoiced": the figures under the bar,
       each null when it can't be known */
   figures: { paid: number | null; waiting: number | null; tocome: number | null };
+  /** of what's invoiced and waiting, how much is past its due day, on the
+      value's basis; null when it can't be known (a part payment) */
+  overdue: number | null;
   /** billed in stages: two claims or more */
   staged: boolean;
   rows: PaymentRow[];
@@ -159,6 +162,7 @@ export function readBilling({
       quoted: null,
       segments: null,
       figures: { paid: null, waiting: null, tocome: null },
+      overdue: null,
       staged: false,
       rows: [],
       fact: factOf(money, statusLabel, family ? family.paidCents : ledgerPaidCents),
@@ -252,7 +256,14 @@ export function readBilling({
     return { claimId: c.remoteId, name, line, percent, cents, basis, ...wordOf(c) };
   });
 
-  return { value, quoted, segments, figures, staged, rows, fact: null };
+  /* OVERDUE, said under Payments' bar: only where every claim is paid,
+     awaiting or still to come, so a figure is the claim's whole amount owed */
+  const overdue =
+    valueEx !== null && figures.waiting !== null
+      ? claims.filter((c) => c.state === "awaiting" && c.overdueDays !== null).reduce((t, c) => t + (exOf(c) ?? 0), 0)
+      : null;
+
+  return { value, quoted, segments, figures, overdue, staged, rows, fact: null };
 }
 
 /** The claim's own line in its dialog: "Invoice #3237B, 30% of the job.

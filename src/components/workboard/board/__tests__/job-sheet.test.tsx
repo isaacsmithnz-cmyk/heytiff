@@ -1615,7 +1615,7 @@ const payRow = (name: string) =>
   face("money").getByText(name).closest("li") as HTMLElement;
 
 describe("Billing, ex GST", () => {
-  it("draws the band: the bar's three shares and figures, and the job value in its own box", async () => {
+  it("draws Payments: the job value on the heading's right, one bar a part a claim in its colour, and what's paid and invoiced under it", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce(record({ family: chandra() }));
     render(<Job row={row()} {...props} moneyVisible />);
@@ -1623,19 +1623,20 @@ describe("Billing, ex GST", () => {
 
     const f = face("money");
     const box = (await f.findByText("Job value")).closest(".jb-value") as HTMLElement;
+    expect(box.closest(".jb-payhead")).not.toBeNull();
     expect(within(box).getByText("ex GST")).toBeInTheDocument();
     expect(within(box).getByText("$19,700")).toBeInTheDocument();
 
-    const band = document.querySelector(".jb-cols") as HTMLElement;
-    expect([...band.querySelectorAll(".jb-pct")].map((p) => p.textContent)).toEqual(["30%", "30%", "40%"]);
-    expect([...band.querySelectorAll(".jb-lab")].map((p) => p.textContent)).toEqual([
-      "Paid",
-      "Invoiced, waiting",
-      "Not invoiced",
-    ]);
-    expect([...band.querySelectorAll(".jb-fig")].map((p) => p.textContent)).toEqual(["$5,910", "$5,910", "$7,880"]);
-    /* the bar's columns follow the shares */
-    expect(band.style.gridTemplateColumns).toBe("minmax(max-content, 30fr) minmax(max-content, 30fr) minmax(max-content, 40fr)");
+    /* paid green, overdue red, still to invoice grey, each as wide as its claim */
+    const segs = [...document.querySelectorAll<HTMLElement>(".jb-bar .jb-seg")];
+    expect(segs.map((g) => g.className)).toEqual(["jb-seg jb-seg--green", "jb-seg jb-seg--red", "jb-seg jb-seg--grey"]);
+    expect(segs.map((g) => g.style.flexGrow)).toEqual(["591000", "591000", "788000"]);
+    expect(document.querySelector(".jb-bar")).toHaveAttribute("aria-label", expect.stringContaining("Progress, 30%: 25 days overdue"));
+    expect((document.querySelector(".jb-under") as HTMLElement).textContent).toBe("$5,910 paid$11,820 invoiced, $5,910 of it overdue");
+    /* each row wears its part's colour */
+    expect(payRow("Deposit, 30%").querySelector(".pt-dot--green")).not.toBeNull();
+    expect(payRow("Progress, 30%").querySelector(".pt-dot--red")).not.toBeNull();
+    expect(payRow("Final, 40%").querySelector(".pt-dot--grey")).not.toBeNull();
   });
 
   it("lists a row a claim, its figure ex GST and one word on the right", async () => {
@@ -1802,9 +1803,10 @@ describe("Billing, ex GST", () => {
     expect(inv.getByText("Invoice #2968, $1,000 inc GST paid")).toBeInTheDocument();
     expect(inv.getByText("$2,540")).toBeInTheDocument();
     expect(inv.getByText("Part paid")).toHaveClass("pt-state--look");
-    /* part paid can't be split into paid and waiting ex GST */
-    expect([...document.querySelectorAll(".jb-fig")].map((p) => p.textContent)).toEqual(["—", "—", "$0"]);
-    expect(document.querySelector(".jb-seg")).toBeNull();
+    /* the one claim in its colour; part paid can't be split into paid and
+       waiting ex GST, so nothing is said under the bar */
+    expect([...document.querySelectorAll(".jb-seg")].map((g) => g.className)).toEqual(["jb-seg jb-seg--orange"]);
+    expect(document.querySelector(".jb-under")).toBeNull();
   });
 
   it("marks the claim the page was opened for", async () => {
@@ -2206,11 +2208,13 @@ describe("money stays behind its grant", () => {
     await detailLanded();
     await openTab("Money");
 
-    /* the value in its box, and the same figure paid, both inc GST */
-    expect(await face("money").findAllByText("$31,340.35")).toHaveLength(2);
-    expect([...document.querySelectorAll(".jb-pct")].map((p) => p.textContent)).toEqual(["100%"]);
-    expect([...document.querySelectorAll(".jb-lab")].map((p) => p.textContent)).toEqual(["Paid"]);
-    expect(face("money").queryByText("Invoiced, waiting")).toBeNull();
+    /* the value, and the same figure paid under the bar, both inc GST */
+    expect(await face("money").findByText("$31,340.35")).toHaveClass("jb-big");
+    expect(face("money").getByText("$31,340.35 paid")).toBeInTheDocument();
+    /* a part a claim, every one of them green */
+    const segs = [...document.querySelectorAll(".jb-seg")];
+    expect(segs.length).toBeGreaterThan(0);
+    expect(segs.every((g) => g.classList.contains("jb-seg--green"))).toBe(true);
   });
 
   it("renders no money fact at all without the grant, whatever the detail says", async () => {

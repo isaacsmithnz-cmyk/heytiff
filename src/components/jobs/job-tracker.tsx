@@ -13,6 +13,7 @@ import {
   trackerLabour,
   trackerMaterials,
   type TrackerItem,
+  type TrackerLook,
   type TrackerRead,
 } from "@/lib/jobs/job-tracker";
 import { fmtAud } from "@/lib/workboard/project-money";
@@ -22,7 +23,8 @@ import { JobSection } from "./job-section";
    "show the simple lines first and then you can drop them down"; rows A on
    https://claude.ai/artifact/YGZXZsQMdaJTQEckLEJ5to, checked against the
    laws on https://claude.ai/artifact/8L3hw5D8QxHZidsAAQNcX6, "build it").
-   Three lines against the quote, each two lines and a bar:
+   Three against the quote, each a ring of what's used against what was
+   quoted, side by side (the Billing mock, 16 November 2026, yes to it):
 
      Labour     hours worked of the quote's hours; overtime's extra paid
                 hours follow on the bar in orange, and only what passes
@@ -31,7 +33,8 @@ import { JobSection } from "./job-section";
                 materials
      Equipment  the quote's units, as quoted
 
-   Each line's Show opens its rows: the days, the things used, the units.
+   Each one's Show opens its rows under the three: the days, the things
+   used, the units.
 
    WHERE THE QUOTE DOESN'T SAY (Isaac, 5 November 2026, on the mock
    https://claude.ai/artifact/Gbw8CZCxNYBJSDEHTaAyv9, "Yes, build it"):
@@ -180,20 +183,52 @@ function AmountForm({ cents, save, onDone }: { cents: number | null; save: Save;
   );
 }
 
-function Meter({ parts, label }: { parts: { kind: "used" | "ot" | "over"; share: number }[]; label: string }) {
-  const shown = parts.filter((p) => p.share > 0);
+/** A ring of what's used against what was quoted (the Billing mock, 16
+    November 2026): green used, orange overtime's extra paid hours, red
+    only past the quote; the share in the middle. `whole` is the quote's
+    own units, drawn full in ink. */
+function Ring({ parts, pct, sub, label, whole = false }: { parts: TrackerLook["parts"]; pct: string; sub?: string; label: string; whole?: boolean }) {
+  const R = 44;
+  const C = 2 * Math.PI * R;
+  let at = 0;
+  const arcs = whole
+    ? [<circle key="whole" className="jtr-arc jtr-whole" cx="50" cy="50" r={R} />]
+    : parts
+        .filter((p) => p.share > 0)
+        .map((p) => {
+          const len = Math.min(1, p.share) * C;
+          const arc = (
+            <circle
+              key={p.kind}
+              className={`jtr-arc jtr-${p.kind}`}
+              cx="50"
+              cy="50"
+              r={R}
+              strokeDasharray={`${len} ${C}`}
+              strokeDashoffset={-at}
+              transform="rotate(-90 50 50)"
+            />
+          );
+          at += len;
+          return arc;
+        });
   return (
-    <span className="jtr-meter" role="img" aria-label={label}>
-      {shown.map((p) => (
-        <i key={p.kind} className={`jtr-${p.kind}`} style={{ width: `${Math.min(100, p.share * 100)}%` }} />
-      ))}
+    <span className="jtr-ring" role="img" aria-label={label}>
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <circle className="jtr-track" cx="50" cy="50" r={R} />
+        {arcs}
+      </svg>
+      <span className="jtr-pct" aria-hidden="true">
+        <b>{pct}</b>
+        {sub && <span>{sub}</span>}
+      </span>
     </span>
   );
 }
 
-function Rows({ items }: { items: TrackerItem[] }) {
+function Rows({ items, label }: { items: TrackerItem[]; label: string }) {
   return (
-    <ul className="jov-rows jtr-rows">
+    <ul className="jov-rows jtr-rows" aria-label={label}>
       {items.map((it, i) => (
         <li className="jov-row" key={`${it.name}-${i}`}>
           <span className="jtr-thing">
@@ -209,60 +244,46 @@ function Rows({ items }: { items: TrackerItem[] }) {
   );
 }
 
-function Line({
+/** One of the three: its ring, then its name, figure, overtime and word. */
+function Tile({
   name,
-  noun,
+  ring,
   figure,
-  word,
-  meter,
   under,
-  items,
+  word,
   action,
-  extra,
+  by,
 }: {
   name: string;
-  /** What Show opens: days, materials, equipment (rule 49). */
-  noun: string;
+  ring: ReactNode;
   figure: ReactNode;
-  word: ReactNode;
-  meter?: ReactNode;
   under?: string | null;
-  items: TrackerItem[];
-  /** the line's own button where it has one in place of Show (Add hours) */
+  word?: ReactNode;
+  /** Show its rows, or Add hours where the quote doesn't say */
   action?: ReactNode;
-  /** under the bar: who planned it, or the form adding it */
-  extra?: ReactNode;
+  /** who planned it, with Change */
+  by?: ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
   return (
     <li className="jtr-line">
-      <div className="jtr-top">
+      {ring}
+      <div className="jtr-words">
         <b className="jtr-name">{name}</b>
+        <span className="jtr-fig">{figure}</span>
+        {under && <span className="jtr-under">{under}</span>}
         {word}
+        {by}
+        {action}
       </div>
-      <div className="jtr-fig">
-        <span>{figure}</span>
-        {action ??
-          (items.length > 0 && (
-            <Button kind="quiet" size={32} className="jtr-show" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-              {open ? `Hide ${noun}` : `Show ${noun}`}
-            </Button>
-          ))}
-      </div>
-      {(meter || under) && (
-        <div className="jtr-bar">
-          {meter}
-          {under && <span className="jtr-under">{under}</span>}
-        </div>
-      )}
-      {extra}
-      {open && <Rows items={items} />}
     </li>
   );
 }
 
+const pctOf = (used: number, of: number | null) => (of !== null && of > 0 ? `${Math.round((used / of) * 100)}%` : "—");
+
 export function JobTracker({ read, jobId, onRead }: { read: TrackerRead | null; jobId?: string; onRead?: (r: TrackerRead) => void }) {
   const [editing, setEditing] = useState<"hours" | "amount" | null>(null);
+  const [open, setOpen] = useState<"labour" | "materials" | "equipment" | null>(null);
   if (!read) {
     return (
       <JobSection name="Job tracker" icon="gauge" hue="purple">
@@ -283,16 +304,43 @@ export function JobTracker({ read, jobId, onRead }: { read: TrackerRead | null; 
   const hoursPlan = read.labour.plan ?? null;
   const addHours = canEdit && read.labour.canPlan && !hoursPlan && editing !== "hours";
   const addAmount = canEdit && read.materials.canPlan && !read.materials.plan && editing !== "amount";
+  const days = read.labour.days.map((d) => ({
+    name: d.day,
+    detail: [d.who, d.paidAs !== null ? `Paid as ${fmtHours(d.paidAs)}` : null].filter(Boolean).join(". ") || null,
+    amount: fmtHours(d.hours),
+  }));
+  const units = read.equipment.items;
+  /* Show opens a line's rows under the three, the width of the card */
+  const show = (key: "labour" | "materials" | "equipment", noun: string, items: TrackerItem[]) =>
+    items.length > 0 ? (
+      <Button kind="quiet" size={32} className="jtr-show" aria-expanded={open === key} onClick={() => setOpen((o) => (o === key ? null : key))}>
+        {open === key ? `Hide ${noun}` : `Show ${noun}`}
+      </Button>
+    ) : undefined;
+  const add = (words: string, what: "hours" | "amount") => (
+    <Button kind="quiet" size={32} className="jtr-show" onClick={() => setEditing(what)}>
+      {words}
+    </Button>
+  );
+  const quoted = read.labour.quotedHours;
+  const allowance = read.materials.spent !== null ? read.materials.allowance : null;
   return (
     <JobSection name="Job tracker" icon="gauge" hue="purple">
       <ul className="jtr">
-        <Line
+        <Tile
           name="Labour"
-          noun="days"
+          ring={
+            <Ring
+              parts={lab.parts}
+              pct={pctOf(read.labour.workedHours, quoted)}
+              sub={quoted !== null && quoted > 0 ? "used" : undefined}
+              label={lab.label}
+            />
+          }
           figure={
-            read.labour.quotedHours !== null ? (
+            quoted !== null ? (
               <>
-                <b>{fmtHours(read.labour.workedHours)}</b> of {fmtHours(read.labour.quotedHours)}
+                <b>{fmtHours(read.labour.workedHours)}</b> of {fmtHours(quoted)}
               </>
             ) : (
               <>
@@ -300,32 +348,25 @@ export function JobTracker({ read, jobId, onRead }: { read: TrackerRead | null; 
               </>
             )
           }
-          word={<StateWord tone={lab.tone}>{lab.word}</StateWord>}
-          meter={lab.parts.length ? <Meter parts={lab.parts} label={lab.label} /> : null}
           under={lab.under}
-          action={
-            addHours ? (
-              <Button kind="quiet" size={32} className="jtr-show" onClick={() => setEditing("hours")}>
-                Add hours
-              </Button>
-            ) : undefined
-          }
-          extra={
-            editing === "hours" ? (
-              <HoursForm read={read.labour} save={save} onDone={() => setEditing(null)} />
-            ) : hoursPlan && canEdit ? (
+          word={<StateWord tone={lab.tone}>{lab.word}</StateWord>}
+          by={
+            hoursPlan && canEdit && editing !== "hours" ? (
               <PlannedBy words={`Planned${hoursPlan.by ? ` by ${hoursPlan.by}` : ""}: ${planWords(hoursPlan.visits)}.`} onChange={() => setEditing("hours")} />
             ) : null
           }
-          items={read.labour.days.map((d) => ({
-            name: d.day,
-            detail: [d.who, d.paidAs !== null ? `Paid as ${fmtHours(d.paidAs)}` : null].filter(Boolean).join(". ") || null,
-            amount: fmtHours(d.hours),
-          }))}
+          action={addHours ? add("Add hours", "hours") : show("labour", "days", days)}
         />
-        <Line
+        <Tile
           name="Materials"
-          noun="materials"
+          ring={
+            <Ring
+              parts={mat.parts}
+              pct={pctOf(read.materials.spent ?? 0, allowance)}
+              sub={allowance !== null && allowance > 0 ? "used" : undefined}
+              label={mat.label}
+            />
+          }
           figure={
             read.materials.spent === null ? (
               <>
@@ -341,43 +382,49 @@ export function JobTracker({ read, jobId, onRead }: { read: TrackerRead | null; 
               </>
             )
           }
-          word={<StateWord tone={mat.tone}>{mat.word}</StateWord>}
-          meter={mat.parts.length ? <Meter parts={mat.parts} label={mat.label} /> : null}
           under={mat.under}
-          action={
-            addAmount ? (
-              <Button kind="quiet" size={32} className="jtr-show" onClick={() => setEditing("amount")}>
-                Add amount
-              </Button>
-            ) : undefined
-          }
-          extra={
-            editing === "amount" ? (
-              <AmountForm cents={read.materials.plan ? read.materials.allowance : null} save={save} onDone={() => setEditing(null)} />
-            ) : read.materials.plan && canEdit ? (
+          word={<StateWord tone={mat.tone}>{mat.word}</StateWord>}
+          by={
+            read.materials.plan && canEdit && editing !== "amount" ? (
               <PlannedBy words={`Added${read.materials.plan.by ? ` by ${read.materials.plan.by}` : ""}, at cost.`} onChange={() => setEditing("amount")} />
             ) : null
           }
-          items={read.materials.items}
+          action={addAmount ? add("Add amount", "amount") : show("materials", "materials", read.materials.items)}
         />
-        <Line
+        <Tile
           name="Equipment"
-          noun="equipment"
+          ring={
+            <Ring
+              parts={[]}
+              whole={units.length > 0}
+              pct={units.length > 0 ? "100%" : "—"}
+              sub={units.length > 0 ? "as quoted" : undefined}
+              label={units.length > 0 ? `Equipment: ${units.length} on the quote, as quoted` : "Equipment: no units on the quote"}
+            />
+          }
           figure={
-            read.equipment.items.length === 0 ? (
+            units.length === 0 ? (
               "No units on the quote"
             ) : read.equipment.total !== null ? (
-              <b>{fmtAud(read.equipment.total)}</b>
+              <>
+                <b>{fmtAud(read.equipment.total)}</b> as quoted
+              </>
             ) : (
               <>
-                <b>{read.equipment.items.length}</b> on the quote
+                <b>{units.length}</b> on the quote
               </>
             )
           }
-          word={read.equipment.items.length ? <StateWord tone="info">As quoted</StateWord> : null}
-          items={read.equipment.items}
+          action={show("equipment", "equipment", units)}
         />
       </ul>
+      {editing === "hours" && <HoursForm read={read.labour} save={save} onDone={() => setEditing(null)} />}
+      {editing === "amount" && (
+        <AmountForm cents={read.materials.plan ? read.materials.allowance : null} save={save} onDone={() => setEditing(null)} />
+      )}
+      {open === "labour" && <Rows items={days} label="Days" />}
+      {open === "materials" && <Rows items={read.materials.items} label="Materials" />}
+      {open === "equipment" && <Rows items={units} label="Equipment" />}
     </JobSection>
   );
 }

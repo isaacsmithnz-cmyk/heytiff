@@ -89,6 +89,7 @@ const billing = {
   figures: { paid: 0, waiting: 35_000, tocome: 0 },
   staged: false,
   rows: [{ claimId: JOB, name: "Invoice", line: "Invoice #3408, due Wed 25 Nov", percent: 100, cents: 35_000, basis: "ex" as const, word: "Awaiting", tone: "look" as const }],
+  overdue: null,
   fact: null,
 };
 const claims = [{ remoteId: JOB, jobNumber: "3408", index: 1, stage: "Final" as const, amountCents: 38_500, basis: "inc" as const, exCents: 35_000, percent: 100, raisedOn: "2026-11-11", paidCents: 0, paidOn: null, state: "awaiting" as const, dueOn: "2026-11-25", overdueDays: null }];

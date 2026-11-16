@@ -3,13 +3,13 @@
 import type { ReactNode } from "react";
 import { Button } from "@/components/parts/button";
 import { Row, RowList } from "@/components/parts/row";
-import { Dot, StateWord } from "@/components/parts/state";
+import { Dot, StateWord, stateTone, type Hue } from "@/components/parts/state";
 import { Wrong } from "@/components/parts/states";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { fmtAud } from "@/lib/workboard/project-money";
 import { collectionFrom, MONEY_BASIS, type JobMoney } from "@/lib/workboard/job-money";
 import { familyInvoicedLine, type FamilyMoney } from "@/lib/workboard/job-family";
-import type { BillingView, PaymentRow } from "@/lib/workboard/job-billing";
+import type { BillingSegment, BillingView, PaymentRow } from "@/lib/workboard/job-billing";
 
 /* ONE JOB'S MONEY. `readMoney` and the Overview's tile (JobMoneyGlance)
    read it the way they always have; Billing (JobMoneyBlock) draws it ex GST
@@ -183,17 +183,17 @@ export function readMoney({
   };
 }
 
-/** BILLING (Isaac, 25 October 2026, the job page's frames 9 and 9b). Across
-    the top, one band under a hairline: on the left the bar in three solid
-    parts, green paid, orange invoiced and waiting, grey not invoiced yet,
-    each part's share under it and its figure under that; on the right the
-    job's value in its own box, the one big figure. Then Payments, a row a
-    claim, each opening the claim. Every figure ex GST, and saying so
-    ("Figures need to be clearly excluding GST"); see lib/workboard/job-billing
-    for what is said when a figure isn't known ex GST. An invoiced claim's row
-    opens its invoice on Price, the invoice's one home (the job page plan's
-    build 10, 15 November 2026); one still to come isn't an invoice yet, and
-    its row is only read. */
+/** BILLING (Isaac, 16 November 2026, yes to the Billing mock; frames 9
+    and 9b of 25 October before it). Payments is a white card: its heading,
+    the job's value on the heading's right, then one bar of that value, a
+    part a claim in its state's colour, what's paid and what's invoiced
+    under it, then a row a claim, each with a dot of its colour and opening
+    the claim. Every figure ex GST, and saying so ("Figures need to be
+    clearly excluding GST"); see lib/workboard/job-billing for what is said
+    when a figure isn't known ex GST. An invoiced claim's row opens its
+    invoice on Price, the invoice's one home (the job page plan's build 10,
+    15 November 2026); one still to come isn't an invoice yet, and its row
+    is only read. The Job tracker is the card under it. */
 export function JobMoneyBlock({
   view,
   unavailable = false,
@@ -227,65 +227,72 @@ export function JobMoneyBlock({
       </div>
     );
   }
-  const { value, quoted, segments, figures, rows } = view;
+  const { value, quoted, segments, figures, overdue, rows } = view;
   const basisWord = (b: "ex" | "inc") => (b === "ex" ? "ex GST" : "inc GST");
-  const allEx = rows.every((r) => r.basis === "ex" || r.cents === null);
-  const showFigures = rows.length > 0 && (figures.paid !== null || figures.waiting !== null || figures.tocome !== null);
-  const cols = segments ?? [
-    { key: "paid" as const, word: "Paid", cents: figures.paid, percent: 1 },
-    { key: "waiting" as const, word: "Invoiced, waiting", cents: figures.waiting, percent: 1 },
-    { key: "tocome" as const, word: "Not invoiced", cents: figures.tocome, percent: 1 },
-  ];
-  const hue = { paid: "green", waiting: "orange", tocome: "grey" } as const;
+
+  /* THE BAR (the Billing mock, 16 November 2026): the job's value in one
+     bar, a part a claim in its state's colour, red overdue, orange
+     awaiting, green paid, grey still to invoice, each claim's row under it
+     wearing a dot of the same colour. Only where every claim has a figure
+     on the value's own basis; otherwise the three parts where they're
+     known, and no bar where they aren't. */
+  const total = rows.reduce((t, r) => t + (r.cents ?? 0), 0);
+  const byClaim =
+    rows.length > 0 && total > 0 && rows.every((r) => r.cents !== null && r.cents >= 0 && r.basis === value.basis);
+  const parts: { key: string; hue: Hue; grow: number }[] | null = byClaim
+    ? rows.filter((r) => (r.cents ?? 0) > 0).map((r) => ({ key: r.claimId ?? r.name, hue: stateTone(r.tone), grow: r.cents! }))
+    : segments
+      ? segments.map((g) => ({ key: g.key, hue: SEGMENT_HUE[g.key], grow: g.cents }))
+      : null;
+  const barLabel = byClaim
+    ? rows.map((r) => `${r.name}: ${r.word}`).join(". ")
+    : (segments ?? []).map((g) => `${g.word} ${g.percent}%`).join(", ");
+  const paidLine = figures.paid !== null ? `${fmtAud(figures.paid)} paid` : null;
+  const invoiced = figures.paid !== null && figures.waiting !== null ? figures.paid + figures.waiting : null;
+  const invoicedLine =
+    invoiced === null
+      ? null
+      : invoiced > 0
+        ? `${fmtAud(invoiced)} invoiced${overdue ? `, ${fmtAud(overdue)} of it overdue` : ""}`
+        : "Nothing invoiced yet";
 
   return (
     <div className="jb">
-      <div className="jb-band">
-        <div className="jb-split">
-          {showFigures ? (
-            <div
-              className="jb-cols"
-              style={{ gridTemplateColumns: cols.map((c) => `minmax(max-content, ${Math.max(1, c.percent)}fr)`).join(" ") }}
-            >
-              {cols.map((c) => (
-                <div className={`jb-col jb-col--${c.key}`} key={c.key}>
-                  {segments && (
-                    <>
-                      <i className="jb-seg" aria-hidden="true" />
-                      <span className="jb-pct">{`${c.percent}%`}</span>
-                    </>
-                  )}
-                  <span className="jb-lab">
-                    <Dot hue={hue[c.key]} />
-                    {c.word}
-                  </span>
-                  <b className="jb-fig">{c.cents !== null ? fmtAud(c.cents) : "—"}</b>
-                </div>
-              ))}
-            </div>
-          ) : (
-            view.fact && <p className="jb-fact">{view.fact}</p>
-          )}
-        </div>
-
-        <div className="jb-value">
-          <span className="jb-vlab">
-            {quoted ? "Quoted job value" : "Job value"}
-            {value.cents !== null && <span className="jb-basis">{basisWord(value.basis)}</span>}
-          </span>
-          <b className="jb-big">{quoted ? fmtAud(quoted.cents) : value.cents !== null ? fmtAud(value.cents) : "—"}</b>
-          {quoted?.variations.map((v) => (
-            <span className="jb-var" key={v.n}>{`Variation ${v.n}, ${fmtAud(v.cents)}`}</span>
-          ))}
-        </div>
-      </div>
-
-      {(rows.length > 0 || deposit) && (
-        <section className="jb-pay" aria-labelledby="jb-pay-h">
-          <div className="jb-payhead">
-            <h3 id="jb-pay-h">Payments</h3>
-            {allEx && <span className="jb-basis">ex GST</span>}
+      <section className="jb-card jb-pay" aria-labelledby="jb-pay-h">
+        <div className="jb-payhead">
+          <h3 id="jb-pay-h">Payments</h3>
+          {/* the job's value on the heading's right, the one big figure */}
+          <div className="jb-value">
+            <span className="jb-vrow">
+              <span className="jb-vlab">{quoted ? "Quoted job value" : "Job value"}</span>
+              <b className="jb-big">{quoted ? fmtAud(quoted.cents) : value.cents !== null ? fmtAud(value.cents) : "—"}</b>
+              {value.cents !== null && <span className="jb-basis">{basisWord(value.basis)}</span>}
+            </span>
+            {quoted?.variations.map((v) => (
+              <span className="jb-var" key={v.n}>{`Variation ${v.n}, ${fmtAud(v.cents)}`}</span>
+            ))}
           </div>
+        </div>
+
+        {parts && parts.length > 0 ? (
+          <div className="jb-split">
+            <span className="jb-bar" role="img" aria-label={barLabel}>
+              {parts.map((p) => (
+                <i key={p.key} className={`jb-seg jb-seg--${p.hue}`} style={{ flexGrow: p.grow }} />
+              ))}
+            </span>
+            {(paidLine || invoicedLine) && (
+              <span className="jb-under">
+                <span>{paidLine}</span>
+                <span>{invoicedLine}</span>
+              </span>
+            )}
+          </div>
+        ) : (
+          view.fact && <p className="jb-fact">{view.fact}</p>
+        )}
+
+        {(rows.length > 0 || deposit) && (
           <RowList label="Payments">
             {/* NO DEPOSIT, said once and ticked here: the progress line's
                 Deposit step is done on the tick, and waits for it otherwise */}
@@ -314,18 +321,20 @@ export function JobMoneyBlock({
               />
             ))}
           </RowList>
-          {deposit?.error && (
-            <p className="jb-err">
-              <Dot hue="red" />
-              {deposit.error}
-            </p>
-          )}
-        </section>
-      )}
+        )}
+        {deposit?.error && (
+          <p className="jb-err">
+            <Dot hue="red" />
+            {deposit.error}
+          </p>
+        )}
+      </section>
       {tracker}
     </div>
   );
 }
+
+/** A part's colour where the claims can't each be drawn. */const SEGMENT_HUE: Record<BillingSegment["key"], Hue> = { paid: "green", waiting: "orange", tocome: "grey" };
 
 function PaymentRowItem({ row, here, onOpen }: { row: PaymentRow; here: boolean; onOpen?: (remoteId: string) => void }) {
   const claimId = row.claimId;
@@ -333,6 +342,7 @@ function PaymentRowItem({ row, here, onOpen }: { row: PaymentRow; here: boolean;
     <Row
       name={row.name}
       line={row.line}
+      dot={stateTone(row.tone)}
       onClick={onOpen && claimId ? () => onOpen(claimId) : undefined}
       end={
         <span className={"jb-end" + (here ? " jb-here" : "")}>

@@ -4193,40 +4193,39 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring);; border-r
 .wb2-jcrole { font-style:normal; font-weight:600; color:var(--gray500); }
 /* the Actions face — once-per-job acts, as quiet rows */
 
-/* ── BILLING (Isaac, 25 October 2026, the job page's frames 9, 9b and 10) ──
-   Across the top one band under a hairline: the bar in three solid parts
-   with each part's share and figure under it, and the job's value in its own
-   box on the right, the one big figure. Then Payments, a row a claim. Every
-   figure ex GST. The claim opens in the parts' dialog. */
-.fg .jb { display:flex; flex-direction:column; gap:24px; min-width:0; font-family:var(--font); color:var(--ink); }
-.fg .jb-band { display:grid; grid-template-columns:minmax(0,1fr) 280px; gap:48px; align-items:center; padding:8px 0 24px; border-bottom:1px solid var(--line); }
-.fg .jb-split { min-width:0; }
-.fg .jb-cols { display:grid; column-gap:4px; }
-.fg .jb-col { display:flex; flex-direction:column; gap:4px; min-width:0; }
-.fg .jb-seg { display:block; height:14px; border-radius:var(--r-control); background:var(--grey); }
-.fg .jb-col--paid .jb-seg { background:var(--green); }
-.fg .jb-col--waiting .jb-seg { background:var(--orange); }
-.fg .jb-pct { margin-bottom:12px; font-size:12px; line-height:16px; font-weight:500; color:var(--q); font-variant-numeric:tabular-nums; }
-.fg .jb-lab { display:flex; align-items:center; gap:8px; font-size:12px; line-height:16px; font-weight:500; color:var(--q); white-space:nowrap; }
-.fg .jb-fig { font-size:20px; line-height:28px; font-weight:600; color:var(--q); font-variant-numeric:tabular-nums; white-space:nowrap; }
-.fg .jb-col--paid .jb-fig { color:var(--green-w); }
-.fg .jb-col--waiting .jb-fig { color:var(--orange-w); }
+/* ── BILLING (Isaac, 16 November 2026, yes to the Billing mock; frames 9,
+   9b and 10 of 25 October before it) ──
+   Two white cards. Payments: its heading with the job's value on its right,
+   the one big figure; one bar of that value, a part a claim in its state's
+   colour (red overdue, orange awaiting, green paid, grey still to invoice),
+   what's paid and what's invoiced under it; then a row a claim with a dot
+   of its colour. The Job tracker under it. Every figure ex GST. */
+.fg .jb { display:flex; flex-direction:column; gap:16px; min-width:0; font-family:var(--font); color:var(--ink); }
+.fg .jb-card, .fg .jbl-tracker { padding:16px 24px; border-radius:var(--r-card); background:var(--paper); box-shadow:var(--shadow-card); }
+.fg .jb-split { display:flex; flex-direction:column; gap:8px; min-width:0; }
+.fg .jb-bar { display:flex; gap:2px; height:14px; }
+.fg .jb-seg { display:block; flex:1 1 0; min-width:4px; height:100%; border-radius:var(--r-control); background:var(--grey); }
+.fg .jb-seg--green { background:var(--green); }
+.fg .jb-seg--orange { background:var(--orange); }
+.fg .jb-seg--red { background:var(--red); }
+.fg .jb-under { display:flex; justify-content:space-between; gap:16px; font-size:13px; line-height:18px; color:var(--q); font-variant-numeric:tabular-nums; }
 .fg .jb-fact { margin:0; font-size:14px; line-height:20px; color:var(--q); }
-/* the job's value in its own box, centred: Isaac's exemption to rule 35 */
-.fg .jb-value { display:flex; flex-direction:column; align-items:center; gap:4px; padding:24px; border:1px solid var(--edge); border-radius:var(--r-card); text-align:center; }
-.fg .jb-vlab { display:flex; align-items:baseline; gap:8px; font-size:16px; line-height:24px; font-weight:600; }
+/* the job's value on Payments' right, the one big figure */
+.fg .jb-value { display:flex; flex-direction:column; align-items:flex-end; gap:0; text-align:right; }
+.fg .jb-vrow { display:flex; align-items:baseline; gap:8px; }
+.fg .jb-vlab { font-size:14px; line-height:20px; font-weight:500; color:var(--q); }
 .fg .jb-basis,
 .pt-dialog .jb-basis { font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
 .fg .jb-big { font-size:32px; line-height:40px; font-weight:700; font-variant-numeric:tabular-nums; }
 .fg .jb-var { font-size:13px; line-height:18px; color:var(--q); font-variant-numeric:tabular-nums; }
-.fg .jb-pay { display:flex; flex-direction:column; gap:8px; }
-.fg .jb-payhead { display:flex; align-items:baseline; justify-content:space-between; gap:16px; }
+.fg .jb-pay { display:flex; flex-direction:column; gap:12px; }
+.fg .jb-payhead { display:flex; align-items:center; justify-content:space-between; gap:16px; }
 .fg .jb-payhead h3 { margin:0; font-size:16px; line-height:24px; font-weight:600; }
 /* the Job tracker under Payments is titled as plainly as Payments, with no
    block (the walk of 15 November 2026, T5) */
 .fg .jbl-tracker .jov-head .hm-blk { display:none; }
 .fg .jbl-tracker .jov-head .jov-title { font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
-.fg .jb-pay .pt-rows { border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+.fg .jb-pay .pt-rows { border-top:1px solid var(--line); }
 .fg .jb-pay .pt-row { padding-block:12px; }
 /* the claim the page was opened for, from a clone's own number */
 .fg .jb-pay .pt-row:has(.jb-here) { background:var(--sel); }
@@ -4234,7 +4233,6 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring);; border-r
 .fg .jb-amt { display:inline-flex; align-items:baseline; justify-content:flex-end; gap:8px; min-width:72px; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; white-space:nowrap; }
 .fg .jb-word { min-width:144px; justify-content:flex-end; white-space:nowrap; }
 .fg .jb-err { display:flex; align-items:center; gap:8px; margin:0; font-size:13px; line-height:18px; font-weight:500; color:var(--red-w); }
-@media (max-width:900px) { .fg .jb-band { grid-template-columns:minmax(0,1fr); gap:24px; } }
 
 .wb2-shcar { font-style:normal; font-size:12px; margin-left:4px; vertical-align:middle; }
 
@@ -6346,30 +6344,38 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 /* the map over the site (Isaac, 14 November 2026: "Yes, add the map"): its room is kept while it loads */
 .fg .jfc .jov-addr { display:flex; flex-direction:column; margin-top:8px; white-space:normal; color:var(--q); overflow-wrap:anywhere; }
 .fg .jfc .jov-addr b { font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
-/* THE JOB TRACKER (job-tracker.tsx): a line per part of the quote, its
-   name and state, then its figure and Show, then a 6 tall bar: used grey,
-   overtime orange, past the quote red (design.md, "On a job's page") */
-.fg .jtr { margin:0; padding:0; list-style:none; border-top:1px solid var(--line); }
-.fg .jtr-line { display:flex; flex-direction:column; padding:8px 0; border-bottom:1px solid var(--line); }
-.fg .jtr-top { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:24px; }
-.fg .jtr-name { font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
-.fg .jtr-fig { display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:14px; line-height:20px; color:var(--q); font-variant-numeric:tabular-nums; }
+/* THE JOB TRACKER (job-tracker.tsx; the Billing mock, 16 November 2026):
+   three side by side on grey, each a ring of what's used against what was
+   quoted, green used, orange overtime, red only past the quote, the share
+   in its middle, then its name, figure, overtime and word; the units'
+   ring is whole, in ink. Show opens the rows under the three. */
+.fg .jtr { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:16px; margin:12px 0 0; padding:0; list-style:none; }
+.fg .jtr-line { display:flex; align-items:center; gap:24px; min-width:0; padding:16px 24px; border-radius:var(--r-card); background:var(--soft); }
+.fg .jtr-ring { position:relative; flex:none; width:100px; height:100px; }
+.fg .jtr-ring svg { display:block; width:100%; height:100%; }
+.fg .jtr-ring circle { fill:none; stroke-width:12; }
+.fg .jtr-track { stroke:var(--line); }
+.fg .jtr-used { stroke:var(--green); }
+.fg .jtr-ot { stroke:var(--orange); }
+.fg .jtr-over { stroke:var(--red); }
+.fg .jtr-whole { stroke:var(--ink); }
+.fg .jtr-pct { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; }
+.fg .jtr-pct b { font-size:20px; line-height:28px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .jtr-pct span { font-size:12px; line-height:16px; color:var(--q); }
+.fg .jtr-words { display:flex; flex-direction:column; align-items:flex-start; gap:2px; min-width:0; }
+.fg .jtr-name { font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+.fg .jtr-fig { font-size:14px; line-height:20px; color:var(--q); font-variant-numeric:tabular-nums; }
 .fg .jtr-fig b { font-weight:600; color:var(--ink); }
-.fg .jtr-show { margin-right:-12px; }
-.fg .jtr-bar { display:flex; flex-direction:column; gap:4px; padding:4px 0; }
-.fg .jtr-meter { display:flex; gap:2px; height:6px; overflow:hidden; border-radius:var(--r-control); background:var(--soft); }
-.fg .jtr-meter i { display:block; flex:none; height:100%; }
-.fg .jtr-used { background:var(--grey); }
-.fg .jtr-ot { background:var(--orange); }
-.fg .jtr-over { background:var(--red); }
+.fg .jtr-show { margin-left:-12px; }
 .fg .jtr-under { font-size:13px; line-height:18px; font-weight:500; color:var(--orange-w); }
+@media (max-width:1100px) { .fg .jtr { grid-template-columns:minmax(0, 1fr); } }
 .fg .jtr-rows { margin-top:4px; }
 .fg .jtr-thing { display:flex; flex-direction:column; min-width:0; }
 .fg .jtr-thing b { font-weight:500; overflow-wrap:anywhere; }
 .fg .jtr-amt { flex:none; font-size:14px; line-height:20px; color:var(--ink); font-variant-numeric:tabular-nums; }
-.fg .jtr-rows .jov-row:last-child, .fg .jtr-line:last-child { border-bottom:0; }
+.fg .jtr-rows .jov-row:last-child { border-bottom:0; }
 /* Add hours and Add amount, in the line (Isaac, 5 November 2026) */
-.fg .jtr-by { display:flex; align-items:center; gap:4px; font-size:13px; line-height:18px; color:var(--q); }
+.fg .jtr-by { display:flex; flex-wrap:wrap; align-items:center; gap:4px; font-size:13px; line-height:18px; color:var(--q); }
 .fg .jtr-plan { display:flex; flex-direction:column; gap:8px; padding:8px 0 4px; }
 .fg .jtr-visit { display:flex; align-items:center; gap:8px; font-size:14px; line-height:20px; color:var(--q); }
 .fg .jtr-visit b { width:56px; flex:none; font-weight:600; color:var(--ink); }

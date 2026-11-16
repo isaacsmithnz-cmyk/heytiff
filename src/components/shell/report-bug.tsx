@@ -75,6 +75,14 @@ async function asPng(blob: Blob): Promise<Blob> {
   return new Promise((done, fail) => canvas.toBlob((b) => (b ? done(b) : fail(new Error("no png"))), "image/png"));
 }
 
+/** The picture into the bug's slot. Out here, not in the hook: the compiler doesn't take an import() inside one. */
+async function uploadPicture(slot: { path: string; token: string }, pic: Blob): Promise<void> {
+  const { supabaseBrowser } = await import("@/lib/supabase-browser");
+  // the documents bucket (lib/documents/query), where the phone's bugs are
+  const { error } = await supabaseBrowser().storage.from("documents").uploadToSignedUrl(slot.path, slot.token, pic, { contentType: "image/png" });
+  if (error) throw new Error(error.message);
+}
+
 type Sent<T> = { ok: true; value: T } | { ok: false; error: string };
 
 async function send<T>(url: string, method: string, body?: unknown): Promise<Sent<T>> {
@@ -212,10 +220,7 @@ export function useReportBug(): { begin: () => void; view: ReactNode } {
     const pic = theirs?.blob ?? page?.blob ?? null;
     if (pic && uploaded.current !== pic) {
       try {
-        const { supabaseBrowser } = await import("@/lib/supabase-browser");
-        // the documents bucket (lib/documents/query), where the phone's bugs are
-        const { error: upErr } = await supabaseBrowser().storage.from("documents").uploadToSignedUrl(held.path, held.token, pic, { contentType: "image/png" });
-        if (upErr) throw new Error(upErr.message);
+        await uploadPicture(held, pic);
         uploaded.current = pic;
       } catch (e) {
         console.error("[bug] the picture didn't save", e);

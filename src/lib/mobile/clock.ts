@@ -11,7 +11,7 @@ import { settlePressedWrites } from "@/lib/integrations/sm8-drain";
 import { listSm8StaffLinks } from "@/lib/integrations/links";
 import { bookingZone } from "@/lib/integrations/sm8-booking-zone";
 import { BOOKING_PRESS_BUDGET_MS, bookingSubject, localNow, wallInstant } from "@/lib/integrations/sm8-booking-plan";
-import { queueRecordedTime } from "@/app/actions/sm8-booking-queue";
+import { giveTimeBack, queueRecordedTime, retakeRecordedTime } from "@/app/actions/sm8-booking-queue";
 import { staffProfileIdFor } from "@/lib/fleet/query";
 import { streetLine } from "@/lib/studio/job-link";
 import { endCheckIn, jobOf, lastCheckOut, openCheckIn, startCheckIn, type CheckIn } from "@/lib/workboard/check-in-rules";
@@ -229,6 +229,37 @@ export async function sendTime(ctx: MobileCtx, press: Sm8Press | null, stint: Ch
       );
   } catch (err) {
     console.error(`[mobile] time on job ${stint.jobUuid} for org ${ctx.orgId} couldn't be sent: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+/** A stint's time changed, or taken off the day (`to` null), after Clock off
+    sent it: what ServiceM8 has is taken out, and once it's out the new time
+    goes, so ServiceM8 never holds both. All of it after the answer. A take-out
+    still on its way after the press's budget holds the new time back (said
+    in the log): two in ServiceM8 would double the job's hours. Never throws. */
+export async function sendTimeAgain(ctx: MobileCtx, press: Sm8Press | null, stint: { id: string; jobUuid: string }, to: CheckIn | null): Promise<void> {
+  if (!press || press.orgId !== ctx.orgId || press.userId !== ctx.userId) return;
+  const said = (what: string, err?: unknown) =>
+    console.error(`[mobile] changed time on job ${stint.jobUuid} for org ${ctx.orgId} ${what}${err === undefined ? "" : `: ${err instanceof Error ? err.message : String(err)}`}`);
+  try {
+    const c = await cantSend(ctx);
+    if ("why" in c) return;
+    after(async () => {
+      try {
+        const startedAt = Date.now();
+        const r = await retakeRecordedTime(press, c.state, { jobUuid: stint.jobUuid, checkInId: stint.id });
+        if (!r.ok) return said(`stays in ServiceM8 as it was (${r.refusal})`);
+        if (r.plan === "taking_out") {
+          await settlePressedWrites(ctx.orgId, [r.takeOutRowId], { startedAt, budgetMs: BOOKING_PRESS_BUDGET_MS });
+          if (!(await giveTimeBack(press, { jobUuid: stint.jobUuid, checkInId: stint.id }))) return said("wasn't sent: the old time isn't out of ServiceM8 yet");
+        }
+        if (to) await sendTime(ctx, press, to, { wait: true });
+      } catch (err) {
+        said("couldn't be sent", err);
+      }
+    });
+  } catch (err) {
+    said("couldn't be sent", err);
   }
 }
 

@@ -1141,7 +1141,11 @@ async function sendBooking(
       booking a guard recorded compares its job and its edit time against
       the one the guard found, since what was booked can't be. A booking
       marked changed there is never taken out. Nothing under way or done,
-      and no recorded time, is ever taken out. */
+      and no recorded time, is ever taken out, but one: the phone's own time
+      on a job (isRecordedTime), recorded as it sent it, which its person
+      changed or took off their day after Clock off (Isaac, 17 November
+      2026: "I can't adjust my times after clocking off"). It is compared
+      exactly as any booking is, so one changed in ServiceM8 stays. */
   function undoRefusal(create: CreateRead, a: Sm8LiveActivity): Finish | null {
     const reason = reasonOf(create.last_error);
     const changed = done("cancelled", BOOKING_WORDS.row.changedNoTakeBack);
@@ -1158,7 +1162,7 @@ async function sendBooking(
       return changed;
     }
     if (!isAnyTime(row) && !isFuture(a.start, zone, t.clock())) return done("cancelled", BOOKING_WORDS.row.notFuture);
-    if (isRecorded(a)) return done("cancelled", BOOKING_WORDS.row.checkIn);
+    if (isRecorded(a) && !(isRecordedTime(create) && a.recorded === 1)) return done("cancelled", BOOKING_WORDS.row.checkIn);
     return null;
   }
 
@@ -1376,10 +1380,11 @@ type CreateRead = {
   booking_start: string | null;
   booking_end: string | null;
   updated_at: string | null;
+  subject: string | null;
 };
 
 const CREATE_COLUMNS =
-  "id, tenant_id, status, lease_until, remote_uuid, maybe_landed, verify_uuids, taken_back_at, attempts, last_error, landed_edit_date, sm8_job_uuid, booking_staff_uuid, booking_start, booking_end, updated_at";
+  "id, tenant_id, status, lease_until, remote_uuid, maybe_landed, verify_uuids, taken_back_at, attempts, last_error, landed_edit_date, sm8_job_uuid, booking_staff_uuid, booking_start, booking_end, updated_at, subject";
 
 /** Rule 8: settled exactly as the note sender settles a take-back's create,
     without the presser check (the queue helper made it). Its account

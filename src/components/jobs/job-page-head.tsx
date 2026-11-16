@@ -29,8 +29,9 @@ import { WayBack } from "./way-back";
        like a hero", A on https://claude.ai/artifact/XbKL1kUEjP1YxP3qEAQnL6).
        One white card, the same on every tab. The stages are the Overview
        card's (job-facts);
-     in its top right, over the map faded behind it, one second button,
-       Actions, with a chevron, opening a white menu (rules 36, 53 and 54):
+     under the map, at the right end of the tabs' row, one second button,
+       Actions (Isaac, 16 November 2026: "it could sit just under the map on
+       the far right-hand side, so it's in line with the tabs"), with a chevron, opening a white menu (rules 36, 53 and 54):
        the six things made most, Add visit, to do, task, quote, cost and
        purchase, and a work order to make, then More, which holds the rest:
        SWMS, Certificate, what's done to the job and Open in ServiceM8
@@ -115,49 +116,51 @@ export function JobPageHead({ name, description = null, number = null, site = nu
           </div>
           {site?.words}
         </div>
-        <div className="jp-acts">
-          <Button
-            ref={actRef}
-            kind="second"
-            aria-haspopup="menu"
-            aria-expanded={open}
-            onPointerEnter={add.onReach}
-            onFocus={add.onReach}
-            onClick={() => {
-              add.onReach?.();
-              setMore(false);
-              setOpen((o) => !o);
-            }}
-          >
-            Actions
-            {chevron}
-          </Button>
-          <Menu
-            key={more ? "more" : "first"}
-            anchor={actRef}
-            open={open}
-            stay
-            onClose={() => setOpen(false)}
-            onSelect={(key) => {
-              if (key === MORE) {
-                setMore(true);
-                return;
-              }
-              setOpen(false);
-              actRef.current?.focus({ preventScroll: true });
-              if (key === SM8) {
-                if (sm8Href) window.open(sm8Href, "_blank", "noopener,noreferrer");
-              } else if (key.startsWith(ADD)) add.onPick(key.slice(ADD.length));
-              else actions.onPick(key);
-            }}
-            items={listed}
-            label="Actions on this job"
-            align="end"
-          />
-        </div>
       </div>
       {description ? <p className="jp-desc">{description}</p> : null}
-      <SectionTabs items={sections} current={section} onGo={onSection} ariaLabel="The job" idPrefix="jp-tab" />
+      <div className="jp-tabrow">
+        <SectionTabs items={sections} current={section} onGo={onSection} ariaLabel="The job" idPrefix="jp-tab" />
+        <div className="jp-acts">
+        <Button
+          ref={actRef}
+          kind="second"
+          aria-haspopup="menu"
+          aria-expanded={open}
+          onPointerEnter={add.onReach}
+          onFocus={add.onReach}
+          onClick={() => {
+            add.onReach?.();
+            setMore(false);
+            setOpen((o) => !o);
+          }}
+        >
+          Actions
+          {chevron}
+        </Button>
+        <Menu
+          key={more ? "more" : "first"}
+          anchor={actRef}
+          open={open}
+          stay
+          onClose={() => setOpen(false)}
+          onSelect={(key) => {
+            if (key === MORE) {
+              setMore(true);
+              return;
+            }
+            setOpen(false);
+            actRef.current?.focus({ preventScroll: true });
+            if (key === SM8) {
+              if (sm8Href) window.open(sm8Href, "_blank", "noopener,noreferrer");
+            } else if (key.startsWith(ADD)) add.onPick(key.slice(ADD.length));
+            else actions.onPick(key);
+          }}
+          items={listed}
+          label="Actions on this job"
+          align="end"
+        />
+      </div>
+      </div>
     </header>
   );
 }

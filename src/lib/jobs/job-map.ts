@@ -30,9 +30,11 @@ export const MAP_SIZE = { width: 320, height: 96 } as const;
    card's was, so the streets round the site show and the pin keeps its size. */
 export const HEAD_MAP_SIZE = { width: 640, height: 112 } as const;
 export type MapShape = "card" | "head";
-const SHAPES: Record<MapShape, { width: number; height: number; zoom: number }> = {
-  card: { ...MAP_SIZE, zoom: 16 },
-  head: { ...HEAD_MAP_SIZE, zoom: 15 },
+/* the head's in colour (Isaac, 16 November 2026: "the map should be in color.
+   It looks like it's black and white"); the card's stays grey */
+const SHAPES: Record<MapShape, { width: number; height: number; zoom: number; grey: boolean }> = {
+  card: { ...MAP_SIZE, zoom: 16, grey: true },
+  head: { ...HEAD_MAP_SIZE, zoom: 15, grey: false },
 };
 export const mapShape = (raw: string | null | undefined): MapShape => (raw === "head" ? "head" : "card");
 
@@ -48,13 +50,13 @@ export function mapAddress(job: { address?: string | null; geoLine?: string | nu
 
 /** Static Maps' address for one job's picture. The key stays on the server. */
 export function staticMapUrl(address: string, hue: Hue, key: string, shape: MapShape = "card"): string {
-  const { width, height, zoom } = SHAPES[shape];
+  const { width, height, zoom, grey } = SHAPES[shape];
   const p = new URLSearchParams();
   p.set("size", `${width}x${height}`);
   p.set("scale", "2");
   p.set("zoom", String(zoom));
   p.set("maptype", "roadmap");
-  p.append("style", "saturation:-100");
+  if (grey) p.append("style", "saturation:-100");
   p.append("style", "feature:poi|visibility:off");
   p.append("style", "feature:transit|visibility:off");
   p.set("markers", `color:${PIN[hue]}|${address}`);

@@ -29,7 +29,7 @@ jest.mock("@/components/workboard/board/job-quote-send", () => ({ JobQuoteSend: 
 import { JobPriceTab } from "../job-price-tab";
 
 const JOB = "a3539c01-9527-42a6-893b-24376269efbb";
-const detail = { jobNumber: "3408", status: "Work Order", clientName: "Sharon Doyle", address: "1 Example St\nManly NSW 2095", geoLine: null } as unknown as ComponentProps<typeof JobPriceTab>["detail"];
+const detail = { jobNumber: "3408", status: "Work Order", clientName: "Sharon Doyle", address: "1 Example St\nManly NSW 2095", geoLine: null, visits: [], workDone: null } as unknown as ComponentProps<typeof JobPriceTab>["detail"];
 const facts = (over: Record<string, unknown> = {}) => ({ lines: 3, options: 1, toConfirm: 0, changedAt: null, talked: true, drafted: false, approved: false, version: 1, sent: null, accepted: [], ...over });
 const landing = { name: "Return visit", startedAt: null, who: null, approvedBy: null, acceptedAt: null, totalCents: 77_500, money: true, versions: [], variations: [] };
 
@@ -59,9 +59,11 @@ beforeEach(() => {
   engine = "lines";
   switches = true;
   fetchMock = jest.fn(async (url: string, init?: { body?: string }) => ({
+    ok: true,
     json: async () => {
       if (String(url).startsWith("/api/workboard/quote-status")) return status;
       if (String(url).startsWith("/api/workboard/invoice-draft")) return draft;
+      if (String(url).startsWith("/api/workboard/job-tracker")) return { ok: true, tracker: { labour: {}, materials: { count: 3 }, equipment: {} } };
       if (String(url).startsWith("/api/workboard/quote-lines")) {
         if (init?.body) {
           if (!switches) return { ok: false };
@@ -137,6 +139,36 @@ it("opens an invoice on its paper, with its figure and word down the right", asy
   expect(rail.getByText("Awaiting")).toBeInTheDocument();
   await userEvent.click(screen.getByRole("radio", { name: "Line items" }));
   expect(screen.getByText("Initial Service of Systems")).toBeInTheDocument();
+});
+
+it("says what the job's invoice was built from: the visits oldest first, the work done, what was used", async () => {
+  draw({
+    detail: {
+      ...detail!,
+      visits: [
+        { day: "2026-11-11", minutes: 60, crew: [{ name: "Isaac Smith" }] },
+        { day: "2026-10-14", minutes: 90, crew: [{ name: "Isaac Smith" }, { name: "Luke Brown" }] },
+      ],
+      workDone: "Cleaned the existing filters and serviced the outdoor unit. Checked the drains.",
+    } as unknown as ComponentProps<typeof JobPriceTab>["detail"],
+  });
+  await userEvent.click(await prices().findByRole("button", { name: /^Invoice #3408/ }));
+  const built = within(await screen.findByRole("region", { name: "Built from" }));
+  expect(built.getAllByRole("listitem").map((li) => li.textContent)).toEqual([
+    "Visit, Wed 14 OctIsaac Smith, Luke Brown, 1h 30m",
+    "Visit, Wed 11 NovIsaac Smith, 1h",
+    "Work doneCleaned the existing filters and serviced the outdoor unit.",
+    "Used3 things",
+  ]);
+});
+
+it("says so when the job's invoice has no visits and no work done", async () => {
+  draw();
+  await userEvent.click(await prices().findByRole("button", { name: /^Invoice #3408/ }));
+  const built = within(await screen.findByRole("region", { name: "Built from" }));
+  expect(await built.findByText("3 things")).toBeInTheDocument();
+  expect(built.getByText("No time on site recorded")).toBeInTheDocument();
+  expect(built.getByText("Nothing written")).toBeInTheDocument();
 });
 
 it("opens on the invoice a door asked for", async () => {

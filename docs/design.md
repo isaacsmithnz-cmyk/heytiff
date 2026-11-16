@@ -471,7 +471,10 @@ the fourth on the customer's messages, below).
   green words (rule 17), the yes with Undo, and Update quote orange (the walk
   of 15 November 2026). An invoice opens on its
   PDF alone, with no viewer's toolbar, its lines a tab away, and its rail says its figure and word, what's
-  been paid inc GST, and what's written on it. **An invoice has one home**:
+  been paid inc GST, and what's written on it; the job's own invoice says
+  what it was **Built from**, each visit oldest first with who went and for
+  how long, the work done's first sentence and how many things were used
+  (the walk of 16 November 2026, N4). **An invoice has one home**:
   Billing's row opens it on Price, as does the feed's money event and a
   claim's own number, and there is no claim dialog; a claim still to come
   isn't an invoice yet, so its row on Billing is read and not pressed. The

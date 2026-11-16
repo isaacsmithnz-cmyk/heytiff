@@ -7,6 +7,7 @@ import { openInTab } from "@/components/shell/open-tabs";
 import { auDayOf, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { designHref, studioJobHref } from "@/lib/shell/links";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
+import { FaceTitle } from "./face-title";
 
 /* A JOB'S DESIGN (Isaac, 28 October 2026: "It's going to have to be a
    separate tab outside of ... the quoting. And the quoting can just go back
@@ -49,7 +50,9 @@ export function JobDesignFace({
   return (
     <div className="jdoc">
       <div className="jdoc-head">
-        <h2 className="jdoc-h">{heading}</h2>
+        <FaceTitle as="h2" className="jdoc-h" icon="design" hue="yellow">
+          {heading}
+        </FaceTitle>
         <Button kind="main" icon="plus" href={fresh} onClick={() => keepJob(fresh)}>
           New design
         </Button>

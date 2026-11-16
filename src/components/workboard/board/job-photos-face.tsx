@@ -5,6 +5,7 @@ import { Icon } from "@/components/shell/icon";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { JOB_MEDIA_CAP, type JobMediaItem } from "@/lib/workboard/job-media";
 import type { JobVisit } from "@/lib/workboard/all-jobs-query";
+import { FaceTitle } from "./face-title";
 
 /* THE PHOTOS FACE — the justified mosaic, grouped by day, into the shared
    viewer.
@@ -97,7 +98,9 @@ export function JobPhotosFace({
   return (
     <div className="wb2-jcph">
       <div className="wb2-jcdhead">
-        <b>Photos</b>
+        <FaceTitle as="b" icon="cam" hue="yellow">
+          Photos
+        </FaceTitle>
         {shown.length > 0 && <em>{countLine()}</em>}
         {starred.length > 0 && (
           <button

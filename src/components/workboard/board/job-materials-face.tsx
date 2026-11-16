@@ -25,6 +25,7 @@ import type { JobPicklistItem } from "@/app/actions/job-picklist";
 import { StateWord } from "@/components/parts/state";
 import type { EquipmentRow } from "@/lib/stock/stock";
 import { quoteOnly, stockWordOf } from "@/lib/stock/materials";
+import { FaceTitle } from "./face-title";
 
 export { quoteOnly, stockWordOf };
 
@@ -306,7 +307,9 @@ export function JobMaterialsFace({
 
   return (
     <div className="jm">
-      <h3 className="jm-title">Materials</h3>
+      <FaceTitle className="jm-title" icon="box" hue="green">
+        Materials
+      </FaceTitle>
 
       {dict.recording || dict.arming ? (
         /* SAYING THE LIST, AS EVERY BOX DOES (Isaac, 9 November 2026: "I want

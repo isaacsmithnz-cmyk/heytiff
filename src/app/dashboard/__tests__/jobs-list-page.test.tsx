@@ -114,24 +114,33 @@ describe("the screen", () => {
     show(dataFor());
     const link = screen.getByRole("link", { name: /3342/ });
     expect(link).toHaveAttribute("href", "/dashboard/jobs/wo-booked");
-    expect(within(link).getByRole("img", { name: "Lyle Irving" })).toBeInTheDocument();
     expect(link).toHaveTextContent("Booked");
     expect(link).toHaveTextContent("Today 9am");
     expect(link).toHaveTextContent("$24,600");
-    expect(screen.getByRole("link", { name: /3361/ })).toHaveTextContent("Nobody yet");
   });
 
-  /* Isaac, 8 November 2026: the Job column is the job's card, its number in
-     a box of the job's colour with the client, the suburb and the kind */
-  it("draws the job as its card, a quote in orange", () => {
+  /* Isaac, 17 November 2026, the first-look fixes: who is on it is said by
+     first name under Next, not a column of initials */
+  it("names whoever is on the job by first name under Next, and no Who column", () => {
+    show(dataFor());
+    const link = screen.getByRole("link", { name: /3342/ });
+    expect(link.querySelector(".jl-next")).toHaveTextContent("Lyle");
+    expect(link.querySelector(".jl-next")).not.toHaveTextContent("Irving");
+    expect(within(link).queryByRole("img", { name: "Lyle Irving" })).toBeNull();
+    expect(screen.queryByText("Nobody yet")).toBeNull();
+  });
+
+  /* Isaac, 8 November 2026, then 17 November's first-look fixes: the Job
+     column is the head of the job's page, its number in a square of the
+     job's colour, the client over the kind and the suburb on one line */
+  it("draws the job as its page's head, a quote in orange", () => {
     show(dataFor());
     const booked = screen.getByRole("link", { name: /3342/ });
     const card = booked.querySelector(".jl-card");
     expect(card).toHaveClass("jl-card--blue");
     expect(card?.querySelector(".jl-cn")).toHaveTextContent("3342");
     expect(card).toHaveTextContent("Rifkin, Julian");
-    expect(card).toHaveTextContent("Bellevue Hill");
-    expect(card).toHaveTextContent("Installation");
+    expect(card?.querySelector(".jl-sub")).toHaveTextContent("Installation, Bellevue Hill");
     expect(screen.getByRole("link", { name: /3361/ }).querySelector(".jl-card")).toHaveClass("jl-card--orange");
   });
 

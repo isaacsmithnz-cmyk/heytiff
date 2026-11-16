@@ -18,6 +18,7 @@ export default async function FeedPage({
       <div className="wrap hm hm--all">
         <HomeFeed
           items={view.feed}
+          today={view.day}
           replyTo={typeof reply === "string" && /^[0-9a-f-]{36}$/i.test(reply) ? reply : null}
           all
           headingLevel={1}

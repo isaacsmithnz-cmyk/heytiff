@@ -18,14 +18,19 @@
 
 /* Toolbox and Data pack: two big tiles under the search */
 .fg .lb3-tools { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px; }
-.fg .lb3-tool { all:unset; box-sizing:border-box; display:flex; align-items:center; gap:16px; min-width:0; min-height:96px; padding:16px; border-radius:var(--r-card); color:var(--ink); cursor:pointer; box-shadow:var(--shadow-card); }
-.fg .lb3-tool--orange { background:var(--orange); }
-.fg .lb3-tool--yellow { background:var(--yellow); }
+/* white tiles, the colour in the icon's square, as the phone draws its tools
+   (Isaac, 17 November 2026, the first-look fixes,
+   https://claude.ai/artifact/7ijojbkVbMJUGasurPCvVF): white on orange, ink
+   on yellow */
+.fg .lb3-tool { all:unset; box-sizing:border-box; display:flex; align-items:center; gap:16px; min-width:0; min-height:96px; padding:16px; border-radius:var(--r-card); background:var(--white); color:var(--ink); cursor:pointer; box-shadow:var(--shadow-card); }
 .fg .lb3-tool:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
-.fg .lb3-ti { display:flex; align-items:center; justify-content:center; flex:none; width:48px; height:48px; border-radius:var(--r-button); background:color-mix(in srgb, var(--white) 55%, transparent); }
+.fg .lb3-ti { display:flex; align-items:center; justify-content:center; flex:none; width:48px; height:48px; border-radius:var(--r-button); }
+.fg .lb3-tool--orange .lb3-ti { background:var(--orange-card); color:var(--white); }
+.fg .lb3-tool--yellow .lb3-ti { background:var(--yellow-card); color:var(--ink); }
+.fg .lb3-tool > svg { flex:none; color:var(--q); }
 .fg .lb3-tw { display:flex; flex-direction:column; gap:2px; flex:1 1 auto; min-width:0; }
 .fg .lb3-tw b { font-size:20px; line-height:28px; font-weight:700; }
-.fg .lb3-tw span { font-size:14px; line-height:20px; font-weight:500; }
+.fg .lb3-tw span { font-size:14px; line-height:20px; font-weight:500; color:var(--q); }
 
 /* a section's name over the ground */
 .fg .lb3-sh { margin:8px 4px 0; font-size:16px; line-height:24px; font-weight:700; color:var(--ink); }
@@ -37,8 +42,6 @@
 .fg .lb3-cover { all:unset; box-sizing:border-box; position:relative; flex:none; display:block; width:130px; height:164px; border-radius:var(--r-button); background:var(--c); overflow:hidden; text-align:left; box-shadow:var(--shadow-card); }
 .fg button.lb3-cover { cursor:pointer; }
 .fg button.lb3-cover:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
-.fg .lb3-on-white { color:var(--white); }
-.fg .lb3-on-ink { color:var(--ink); }
 .fg .lb3-spine { position:absolute; left:0; top:0; bottom:0; width:6px; background:color-mix(in srgb, var(--ink) 18%, transparent); }
 .fg .lb3-cv { position:absolute; inset:0; padding:12px 8px 12px 16px; display:flex; flex-direction:column; justify-content:space-between; gap:4px; }
 .fg .lb3-maker { font-size:12px; line-height:16px; font-weight:700; }
@@ -52,6 +55,12 @@
 .fg .lb3-brands { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:12px; }
 .fg .lb3-brand { all:unset; box-sizing:border-box; display:flex; flex-direction:column; gap:2px; min-width:0; min-height:112px; padding:12px 16px; border-radius:var(--r-card); background:var(--c); cursor:pointer; box-shadow:var(--shadow-card); }
 .fg .lb3-brand:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
+/* white words on a cover's or a brand's colour, ink where white won't read.
+   After both, since each starts from `all: unset`, which took the colour
+   back to ink on every brand card (Isaac, 16 November 2026, the first-look
+   tour: ink words on the coloured tiles) */
+.fg .lb3-on-white { color:var(--white); }
+.fg .lb3-on-ink { color:var(--ink); }
 .fg .lb3-bn { margin-bottom:auto; font-size:16px; line-height:24px; font-weight:700; }
 .fg .lb3-bc { font-size:13px; line-height:18px; font-weight:700; }
 .fg .lb3-bs { font-size:13px; line-height:18px; font-weight:500; }

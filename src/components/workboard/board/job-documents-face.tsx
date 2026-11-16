@@ -36,6 +36,7 @@ import { AddPlansDialog, planCandidates, type UploadForPlans } from "./add-plans
 import { choosablePages, floorPagesOf, pageCaption, planLine, planPointsAt, planStateWord, replacedBy, scaleAsks, subfloorLine, type JobPlanPage, type JobPlanRead, type PlanPick } from "@/lib/jobs/plans";
 import { SetScaleDialog, type ScalePage, type ScalePoint } from "./set-scale-dialog";
 import { PlansDialog, type ChosenFloors } from "./plans-dialog";
+import { FaceTitle } from "./face-title";
 
 /* A JOB'S DOCUMENTS (v2; the mock of 25 October 2026, frame 6). One heading,
    no count under it, and one blue Add, whose white menu holds the ways in:
@@ -662,7 +663,9 @@ export function JobDocumentsFace({
     return (
       <div className="jdoc">
         <div className="jdoc-head">
-          <h2 className="jdoc-h">Plans</h2>
+          <FaceTitle as="h2" className="jdoc-h" icon="layers" hue="green">
+            Plans
+          </FaceTitle>
           {offerPlans && (
             <Button kind="main" icon="plus" onClick={() => setAddingPlans(true)}>
               Add plans
@@ -683,7 +686,9 @@ export function JobDocumentsFace({
   return (
     <div className="jdoc" data-over={over ? "" : undefined} {...dropProps}>
       <div className="jdoc-head">
-        <h2 className="jdoc-h">Documents</h2>
+        <FaceTitle as="h2" className="jdoc-h" icon="file" hue="pink">
+          Documents
+        </FaceTitle>
         {addItems.length > 0 && (
           <>
             <Button

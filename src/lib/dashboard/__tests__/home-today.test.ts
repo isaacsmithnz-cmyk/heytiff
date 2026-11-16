@@ -84,7 +84,19 @@ describe("todayRows", () => {
       state: { tone: "good", word: "Done" },
       href: "/dashboard/jobs/j-2380",
       taskId: null,
+      card: { number: "2380", client: "Kingsford Bakery", line: "Kingsford, Service", done: true },
     });
+  });
+
+  /* Isaac, 17 November 2026, the first-look fixes: Today draws a booking as
+     the Schedule's card, the client over the suburb, the kind and who else */
+  it("(F) gives a booking its card: the number, the client, and the suburb, the kind and who else is going", () => {
+    const [row] = todayRows(
+      rail({ blocks: [block({ key: "a2", remoteId: "j-3342", jobNumber: "3342", suburb: "Bellevue Hill", categoryName: "Installation", startMin: 9 * 60, endMin: 11 * 60 })], crew: { "j-3342": ["Lyle", "Callum"] }, nowMin: 8 * 60 }),
+    );
+    expect(row.card).toEqual({ number: "3342", client: "Kingsford Bakery", line: "Bellevue Hill, Installation, with Lyle and Callum", done: false });
+    const [bare] = todayRows(rail({ blocks: [block({ jobNumber: null })] }));
+    expect(bare.card).toBeNull();
   });
 
   it("(F) says who else is on it, On now while it runs, and nothing before it starts", () => {

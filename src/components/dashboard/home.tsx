@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CvBox } from "@/components/conversations/box";
 import { appendSpoken, useDictation } from "@/components/notes/dictation";
@@ -8,14 +9,15 @@ import { TiffGlyph } from "@/components/notes/tiff-mark";
 import { useTiff } from "@/components/tiff/modal/tiff-context";
 import { TiffInline } from "@/components/tiff/modal/tiff-inline";
 import { Button, LinkButton } from "@/components/parts/button";
-import { Row, RowList } from "@/components/parts/row";
+import { Row } from "@/components/parts/row";
+import { Fade } from "@/components/parts/fade";
 import { Empty } from "@/components/parts/states";
 import { StateWord } from "@/components/parts/state";
 import { Tick } from "@/components/parts/tick";
 import type { TodayRow, TodayView } from "@/lib/dashboard/home-today";
 import { Icon } from "@/components/shell/icon";
-import { columnOf, type TodoRow } from "@/lib/dashboard/todo";
-import { ColumnHead, HomeReplyContext, HomeTodo, TodoList, useTaskTick } from "./home-todo";
+import type { TodoRow } from "@/lib/dashboard/todo";
+import { ColumnHead, HomeReplyContext, useTaskTick } from "./home-todo";
 import { HomeFeed } from "./home-feed";
 import { TaskForm } from "@/components/making/task-form";
 import type { FeedItem } from "@/lib/dashboard/your-feed";
@@ -33,52 +35,91 @@ import type { FeedItem } from "@/lib/dashboard/your-feed";
    Send starts the conversation ON THE PAGE (../tiff/modal/tiff-inline):
    it takes Home's place, and Back to Home brings the columns back.
 
-   THREE COLUMNS UNDER IT (Isaac, 20 October). TODAY: your own visits and
-   timed tasks, then whatever is due today or late, with the Schedule a link
-   away. TO DO: what waits on you with no day, with Show all for the rest.
-   ACTIVITY: what comes in, from ServiceM8 and the team, approvals among it
-   (./home-todo, lib/dashboard/todo's `col`).
+   TWO CARDS UNDER IT, AS A JOB'S OVERVIEW HAS (Isaac, 17 November 2026,
+   "Make home todo part of activity feed like the job card", "Today should
+   be just your day", then "Make all fixes";
+   https://claude.ai/artifact/7ijojbkVbMJUGasurPCvVF). TODAY, the narrow one:
+   your own bookings as the Schedule's cards (rule 19), your timed tasks and
+   the day's events, with the Schedule a link away. THE ACTIVITY FEED, the
+   wide one (./home-feed): To do first, what waits on you, the reminders due
+   today among it, then what came in, by day. Before, To do stood as a third
+   column and today's reminders sat under Today (20 October to 17 November).
 
    A TASK THE ADDRESS NAMES (`?task=`, the bell's door for a Done that
    didn't reach ServiceM8) opens its own form over Home; closing it takes
    the task off the address. The old desk is gone (24 October 2026). */
 
-function TodayRows({ rows, tick }: { rows: readonly TodayRow[]; tick: (key: string, taskId: string) => Promise<void> | void }) {
+/** A booking as the Schedule's card: the number in its colour's box, the
+    client over the suburb, the kind and who else is going, and the time on
+    the right with where it's up to under it. A done one goes grey. */
+function TodayCard({ row }: { row: TodayRow }) {
+  const card = row.card!;
+  const inner = (
+    <>
+      <span className="hm-jc-n">{card.number}</span>
+      <span className="hm-jc-t">
+        <Fade className="hm-jc-client">{card.client}</Fade>
+        {card.line && <Fade className="hm-jc-line">{card.line}</Fade>}
+      </span>
+      <span className="hm-jc-end">
+        <span className="hm-jc-time">{row.time}</span>
+        {row.state && <StateWord tone={row.state.tone}>{row.state.word}</StateWord>}
+      </span>
+    </>
+  );
   return (
-    <RowList label="Today">
-      {rows.map((row) => (
-        <Row
-          key={row.key}
-          lead={
-            <span className="hm-lead">
-              <span className="hm-time">{row.time}</span>
-              {row.taskId && (
-                <Tick
-                  className="hm-tick"
-                  label={<span className="sr-only">Done, {row.name}</span>}
-                  onChange={(on) => {
-                    if (on && row.taskId) void tick(row.key, row.taskId);
-                  }}
-                />
-              )}
-              {/* an event: a calendar where a task's tick goes, as the
-                  phone's card has one where a job's number goes */}
-              {row.kind === "event" && <Icon name="calendar" size={16} />}
-            </span>
-          }
-          dot={row.hue ?? undefined}
-          lines={3}
-          name={row.name}
-          line={row.line || undefined}
-          href={row.href ?? undefined}
-          end={row.state ? <StateWord tone={row.state.tone}>{row.state.word}</StateWord> : undefined}
-        />
-      ))}
-    </RowList>
+    <li className={`hm-jc hm-jc--${card.done ? "grey" : (row.hue ?? "grey")}${card.done ? " hm-jc--done" : ""}`}>
+      {row.href ? (
+        <Link href={row.href} className="hm-jc-hit">
+          {inner}
+        </Link>
+      ) : (
+        <span className="hm-jc-hit">{inner}</span>
+      )}
+    </li>
   );
 }
 
-function HomeToday({ view, due }: { view: TodayView; due: readonly TodoRow[] }) {
+function TodayRows({ rows, tick }: { rows: readonly TodayRow[]; tick: (key: string, taskId: string) => Promise<void> | void }) {
+  return (
+    <ul className="pt-rows hm-day" aria-label="Today">
+      {rows.map((row) =>
+        row.card ? (
+          <TodayCard key={row.key} row={row} />
+        ) : (
+          <Row
+            key={row.key}
+            lead={
+              <span className="hm-lead">
+                <span className="hm-time">{row.time}</span>
+                {row.taskId && (
+                  <Tick
+                    className="hm-tick"
+                    label={<span className="sr-only">Done, {row.name}</span>}
+                    onChange={(on) => {
+                      if (on && row.taskId) void tick(row.key, row.taskId);
+                    }}
+                  />
+                )}
+                {/* an event: a calendar where a task's tick goes, as the
+                    phone's card has one where a job's number goes */}
+                {row.kind === "event" && <Icon name="calendar" size={16} />}
+              </span>
+            }
+            dot={row.hue ?? undefined}
+            lines={3}
+            name={row.name}
+            line={row.line || undefined}
+            href={row.href ?? undefined}
+            end={row.state ? <StateWord tone={row.state.tone}>{row.state.word}</StateWord> : undefined}
+          />
+        ),
+      )}
+    </ul>
+  );
+}
+
+function HomeToday({ view }: { view: TodayView }) {
   const { gone, tick } = useTaskTick();
   const rows = view.rows.filter((r) => !gone.has(r.key));
   /* the day's events (Isaac, 6 November 2026, the events and birthdays
@@ -110,7 +151,7 @@ function HomeToday({ view, due }: { view: TodayView; due: readonly TodoRow[] }) 
           ))}
         </ul>
       )}
-      {booked.length === 0 && due.length === 0 ? (
+      {booked.length === 0 ? (
         <>
           <Empty
             what={view.empty.what}
@@ -120,10 +161,7 @@ function HomeToday({ view, due }: { view: TodayView; due: readonly TodoRow[] }) 
           {events.length > 0 && <TodayRows rows={events} tick={tick} />}
         </>
       ) : (
-        <>
-          {rows.length > 0 && <TodayRows rows={rows} tick={tick} />}
-          <TodoList rows={due} label="Due today" />
-        </>
+        <TodayRows rows={rows} tick={tick} />
       )}
     </section>
   );
@@ -172,6 +210,7 @@ export function HomeScreen({
   today,
   todo,
   feed = [],
+  day,
   replyTo = null,
   openTask = null,
   voice = false,
@@ -179,6 +218,8 @@ export function HomeScreen({
   today: TodayView;
   todo: TodoRow[];
   feed?: readonly FeedItem[];
+  /** the account's day, YYYY-MM-DD: the feed's days count from it */
+  day?: string;
   /** a mention To do's Reply named (`?reply=`): its box opens in Your feed */
   replyTo?: string | null;
   /** a task the address names (`?task=`): its form opens over Home */
@@ -212,14 +253,12 @@ export function HomeScreen({
           <TiffGlyph size={96} alive working={tiff.isOpen} label="Tiff" />
           <HomeBox voice={voice} onStart={(words) => setChat((was) => ({ words, n: (was?.n ?? 0) + 1 }))} />
         </div>
-        {/* three columns (Isaac, 20 October): Today, anything timed or due;
-            Your feed, what comes in; To do, what waits on you. The feed sits
-            in the middle and widest, 30/40/30 (Isaac, 26 October 2026) */}
+        {/* two cards, as a job's Overview (Isaac, 17 November 2026): Today,
+            narrow, your day; the Activity feed, wide, To do first in it */}
         <HomeReplyContext.Provider value={(id) => setAsked((a) => ({ id, n: (a?.n ?? 0) + 1 }))}>
           <div className="hm-cols">
-            <HomeToday view={today} due={todo.filter((r) => columnOf(r) === "today")} />
-            <HomeFeed items={feed} replyTo={asked?.id ?? null} asked={asked?.n ?? 0} />
-            <HomeTodo rows={todo.filter((r) => columnOf(r) === "todo")} />
+            <HomeToday view={today} />
+            <HomeFeed items={feed} todo={todo} today={day} replyTo={asked?.id ?? null} asked={asked?.n ?? 0} />
           </div>
         </HomeReplyContext.Provider>
         {addressed && (

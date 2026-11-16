@@ -14,9 +14,18 @@ import { Empty } from "@/components/parts/states";
 import { Fade } from "@/components/parts/fade";
 import { Tray } from "@/components/parts/tabs";
 import { TaskForm } from "@/components/making/task-form";
-import { FEED_FILTERS, FEED_HOME_CAP, inFilter, type FeedFilter, type FeedItem } from "@/lib/dashboard/your-feed";
+import {
+  FEED_FILTERS,
+  FEED_HOME_CAP,
+  feedDays,
+  feedTime,
+  inFilter,
+  type FeedFilter,
+  type FeedItem,
+} from "@/lib/dashboard/your-feed";
+import { TODO_HOME_CAP, type TodoRow } from "@/lib/dashboard/todo";
 import { Icon } from "@/components/shell/icon";
-import { ColumnHead } from "./home-todo";
+import { ColumnHead, TodoList } from "./home-todo";
 
 /* YOUR FEED — Home's third column, in place of Activity (Isaac, 20 October
    2026; the board https://claude.ai/artifact/NzYjAQqzJJsgSgPPGCSJVq, built
@@ -33,14 +42,32 @@ import { ColumnHead } from "./home-todo";
    once the task is saved) or Done (closed) where it sits.
 
    The filter is remembered on this device (a convenience, so it can be lost
-   with nothing lost). */
+   with nothing lost).
+
+   ON HOME IT IS THE ACTIVITY FEED, AS A JOB'S IS (Isaac, 17 November 2026,
+   "Make home todo part of activity feed like the job card", then "Make all
+   fixes", https://claude.ai/artifact/7ijojbkVbMJUGasurPCvVF). To do is in it,
+   not a column of its own: its views sit on the right of its name, All, To
+   do, To you, Jobs and Approvals, and All starts with what waits on you,
+   then what came in, a day's name over each day's items and only the time
+   on an item. A mention's Reply went from under it, since the item opens
+   its job and To do's row opens its reply box here. */
+
+/** A view of the feed: one of its filters, or Home's To do. */
+type View = FeedFilter | "todo";
 
 const KEPT = "heytiff.home.feed.v1";
 const newComposeId = () => crypto.randomUUID();
-const readKept = (): FeedFilter | null => {
+const readKept = (): View | null => {
   try {
     const v = localStorage.getItem(KEPT);
-    return v === "you" || v === "jobs" || v === "approvals" || v === "all" ? v : null;
+    return v === "you" ||
+      v === "jobs" ||
+      v === "approvals" ||
+      v === "all" ||
+      v === "todo"
+      ? v
+      : null;
   } catch {
     return null;
   }
@@ -56,7 +83,7 @@ const subscribe = (fn: () => void) => {
     window.removeEventListener("storage", fn);
   };
 };
-const keep = (f: FeedFilter) => {
+const keep = (f: View) => {
   try {
     localStorage.setItem(KEPT, f);
   } catch {
@@ -68,7 +95,13 @@ const keep = (f: FeedFilter) => {
 /** The job card's reply, here: the same box, said or typed (no Tiff offer —
     a reply is a reply), and Send under it (Isaac, 7 November 2026: "Fix all
     of those", the feed's reply was one line with no microphone). */
-function ReplyBox({ item, onSent }: { item: FeedItem; onSent: (words: string) => void }) {
+function ReplyBox({
+  item,
+  onSent,
+}: {
+  item: FeedItem;
+  onSent: (words: string) => void;
+}) {
   const [words, setWords] = useState("");
   const [spoken, setSpoken] = useState(false);
   const [composeId] = useState(newComposeId);
@@ -87,7 +120,10 @@ function ReplyBox({ item, onSent }: { item: FeedItem; onSent: (words: string) =>
       spoken,
       composeId,
       ...(reply.closesTaskId ? { closesTaskId: reply.closesTaskId } : {}),
-    }).catch((): ReplyResult => ({ ok: false, error: "That didn't send. Try again." }));
+    }).catch((): ReplyResult => ({
+      ok: false,
+      error: "That didn't send. Try again.",
+    }));
     setSending(false);
     if (got.ok) onSent(w);
     else setError(got.error);
@@ -107,7 +143,12 @@ function ReplyBox({ item, onSent }: { item: FeedItem; onSent: (words: string) =>
         box={{ "aria-label": `Reply to ${item.who.name}`, autoFocus: true }}
       />
       <div className="wb2-jcattsave">
-        <Button kind="main" size={36} disabled={sending || !words.trim()} onClick={() => void send()}>
+        <Button
+          kind="main"
+          size={36}
+          disabled={sending || !words.trim()}
+          onClick={() => void send()}
+        >
           {sending ? "Sending" : "Send"}
         </Button>
       </div>
@@ -120,13 +161,27 @@ function ReplyBox({ item, onSent }: { item: FeedItem; onSent: (words: string) =>
   );
 }
 
-const THING_ICON: Record<FeedItem["filter"], string> = { approvals: "check", you: "note", jobs: "folder" };
+const THING_ICON: Record<FeedItem["filter"], string> = {
+  approvals: "check",
+  you: "note",
+  jobs: "folder",
+};
 
 /** A field issue made a task: its words, and the issue the saved task closes. */
 type MakeTask = { title: string; issueId: string };
 
 /** The item's words, as the door to what it is about. */
-function Opener({ item, onTask, onOpen, children }: { item: FeedItem; onTask: (taskId: string) => void; onOpen?: () => void; children: ReactNode }) {
+function Opener({
+  item,
+  onTask,
+  onOpen,
+  children,
+}: {
+  item: FeedItem;
+  onTask: (taskId: string) => void;
+  onOpen?: () => void;
+  children: ReactNode;
+}) {
   const open = item.open;
   if (open && "href" in open)
     return (
@@ -156,12 +211,19 @@ function FeedEntry({
   onTask,
   onMakeTask,
   open = false,
+  time,
+  replies = true,
 }: {
   item: FeedItem;
   onGone: (key: string) => void;
   onTask: (taskId: string) => void;
   onMakeTask: (m: MakeTask) => void;
   open?: boolean;
+  /** under a day's name, the item says only its time */
+  time?: string;
+  /** a Reply under a mention: on Show all's page, not on Home, where To do's
+      row opens the mention's box */
+  replies?: boolean;
 }) {
   const router = useRouter();
   /* To do's Reply lands here with this mention's box already open */
@@ -205,7 +267,9 @@ function FeedEntry({
               three lines before its end fades; when moves under their words,
               so the line has the column's whole width */}
           <span className="hm-feed-head">
-            {item.unread && !sent && <span className="hm-feed-new" aria-label="New" />}
+            {item.unread && !sent && (
+              <span className="hm-feed-new" aria-label="New" />
+            )}
             <Fade lines={3} className="hm-feed-headtext">
               <b className="hm-feed-name">{item.who.name}</b>
               {item.what ? (
@@ -221,7 +285,9 @@ function FeedEntry({
               {item.reply ? `"${item.said}"` : item.said}
             </Fade>
           )}
-          {item.when && <span className="hm-feed-when">{item.when}</span>}
+          {(time ?? item.when) && (
+            <span className="hm-feed-when">{time ?? item.when}</span>
+          )}
         </Opener>
         {yours && <p className="hm-feed-yours">You: {yours}</p>}
         {replying && !sent ? (
@@ -234,16 +300,21 @@ function FeedEntry({
             }}
           />
         ) : (
-          (item.reply || act?.kind === "issue") && (
+          ((replies && item.reply && !sent) || act?.kind === "issue") && (
             <div className="hm-feed-acts">
-              {item.reply && !sent && (
+              {replies && item.reply && !sent && (
                 <Button size={32} onClick={() => setReplying(true)}>
                   Reply
                 </Button>
               )}
               {act?.kind === "issue" && (
                 <>
-                  <Button size={32} onClick={() => onMakeTask({ title: act.title, issueId: act.issueId })}>
+                  <Button
+                    size={32}
+                    onClick={() =>
+                      onMakeTask({ title: act.title, issueId: act.issueId })
+                    }
+                  >
                     Make it a task
                   </Button>
                   <Button
@@ -267,14 +338,22 @@ function FeedEntry({
   );
 }
 
+const VIEW_TODO = { value: "todo" as const, label: "To do" };
+
 export function HomeFeed({
   items,
+  todo,
+  today,
   replyTo = null,
   asked: pressed = 0,
   all = false,
   headingLevel = 2,
 }: {
   items: readonly FeedItem[];
+  /** Home's To do, the first of the feed (Show all's page has its own) */
+  todo?: readonly TodoRow[];
+  /** the account's day, YYYY-MM-DD: the items stand under their day's name */
+  today?: string;
   replyTo?: string | null;
   /** how many times To do's Reply has been pressed on Home: each opens the box again */
   asked?: number;
@@ -289,52 +368,132 @@ export function HomeFeed({
   const [making, setMaking] = useState<MakeTask | null>(null);
   const kept = useSyncExternalStore(subscribe, readKept, () => null);
   /* chosen here before it could be kept (storage refused) still filters */
-  const [chosen, setChosen] = useState<FeedFilter | null>(null);
+  const [chosen, setChosen] = useState<View | null>(null);
+  const views: readonly { value: View; label: string }[] = todo
+    ? [FEED_FILTERS[0], VIEW_TODO, ...FEED_FILTERS.slice(1)]
+    : FEED_FILTERS;
+  const usable = (v: View | null): v is View =>
+    !!v && views.some((o) => o.value === v);
   /* To do's Reply names a note: show everything so its mention is there */
-  const filter: FeedFilter = chosen ?? (replyTo ? "all" : (kept ?? "all"));
+  const view: View = usable(chosen)
+    ? chosen
+    : replyTo
+      ? "all"
+      : usable(kept)
+        ? kept
+        : "all";
   const [gone, setGone] = useState<ReadonlySet<string>>(new Set());
-  const choose = (f: FeedFilter) => {
-    setChosen(f);
-    keep(f);
+  const choose = (v: View) => {
+    setChosen(v);
+    keep(v);
   };
-  const here = inFilter(items, filter).filter((i) => !gone.has(i.key));
+  const here =
+    view === "todo"
+      ? []
+      : inFilter(items, view).filter((i) => !gone.has(i.key));
   const named = (i: FeedItem) => !!replyTo && (i.notes ?? []).includes(replyTo);
   const capped = all ? here : here.slice(0, FEED_HOME_CAP);
   /* the mention To do's Reply named goes FIRST, its box open, where the
      press can see it: at the foot of the column it opened under the fold */
-  const asked = here.find(named) ?? null;
-  const shown = asked ? [asked, ...capped.filter((i) => i !== asked)] : capped;
+  const askedItem = here.find(named) ?? null;
+  const shown = askedItem
+    ? [askedItem, ...capped.filter((i) => i !== askedItem)]
+    : capped;
+  const waiting = todo && (view === "all" || view === "todo") ? todo : [];
+  const days = today
+    ? feedDays(shown, today)
+    : [{ key: "all", label: "", items: shown }];
+  const more = !all && here.length > FEED_HOME_CAP;
+  const name = todo ? "Activity feed" : "Your feed";
+  const entry = (item: FeedItem, time?: string) => (
+    <FeedEntry
+      /* keyed by whether To do's Reply named it, so a Reply pressed
+         while Home is open opens its box */
+      key={`${item.key}${named(item) ? `:reply:${pressed}` : ""}`}
+      item={item}
+      open={named(item)}
+      time={time}
+      replies={!todo}
+      onGone={(k) => setGone((g) => new Set([...g, k]))}
+      onTask={setTask}
+      onMakeTask={setMaking}
+    />
+  );
+  const tray = (
+    <Tray ariaLabel="Show" options={views} value={view} onChange={choose} />
+  );
   return (
-    <section className="hm-sec hm-feed" aria-labelledby="hm-feed">
-      <ColumnHead id="hm-feed" name="Your feed" icon="chat" hue="green" level={headingLevel}>
-        {!all && here.length > FEED_HOME_CAP && (
+    <section
+      className={todo ? "hm-sec hm-feed hm-feed--home" : "hm-sec hm-feed"}
+      aria-labelledby="hm-feed"
+    >
+      <ColumnHead
+        id="hm-feed"
+        name={name}
+        icon="chat"
+        hue="green"
+        level={headingLevel}
+      >
+        {todo ? <div className="hm-headtray">{tray}</div> : null}
+        {!todo && more && (
           <LinkButton href="/dashboard/feed" className="hm-headlink">
             Show all
           </LinkButton>
         )}
       </ColumnHead>
-      <div className="hm-feed-filter">
-        <Tray ariaLabel="Show" options={FEED_FILTERS} value={filter} onChange={choose} />
-      </div>
-      {shown.length === 0 ? (
-        <Empty what={filter === "all" ? "Nothing new" : "Nothing here"} action={null} />
-      ) : (
-        <ul className="hm-feed-list" aria-label="Your feed">
-          {shown.map((item) => (
-            <FeedEntry
-              /* keyed by whether To do's Reply named it, so a Reply pressed
-                 while Home is open opens its box */
-              key={`${item.key}${named(item) ? `:reply:${pressed}` : ""}`}
-              item={item}
-              open={named(item)}
-              onGone={(k) => setGone((g) => new Set([...g, k]))}
-              onTask={setTask}
-              onMakeTask={setMaking}
-            />
-          ))}
-        </ul>
+      {!todo && <div className="hm-feed-filter">{tray}</div>}
+      {waiting.length > 0 && (
+        <div className="hm-group">
+          <h3 className="hm-dayname">To do</h3>
+          <TodoList
+            rows={waiting}
+            label="To do"
+            disc
+            cap={view === "todo" ? undefined : TODO_HOME_CAP}
+          />
+          {view !== "todo" && waiting.length > TODO_HOME_CAP && (
+            <LinkButton href="/dashboard/todo" className="hm-grouplink">
+              Show all
+            </LinkButton>
+          )}
+        </div>
       )}
-      {task && <TaskForm taskId={task} onClose={() => setTask(null)} onChanged={() => router.refresh()} />}
+      {view === "todo"
+        ? waiting.length === 0 && (
+            <Empty what="Nothing is waiting on you" action={null} />
+          )
+        : shown.length === 0
+          ? waiting.length === 0 && (
+              <Empty
+                what={view === "all" ? "Nothing new" : "Nothing here"}
+                action={null}
+              />
+            )
+          : days.map((d) => (
+              <div key={d.key} className="hm-group">
+                {d.label && <h3 className="hm-dayname">{d.label}</h3>}
+                <ul
+                  className="hm-feed-list"
+                  aria-label={d.label ? `${name}, ${d.label}` : name}
+                >
+                  {d.items.map((item) =>
+                    entry(item, today ? feedTime(item.when) : undefined),
+                  )}
+                </ul>
+              </div>
+            ))}
+      {todo && more && view !== "todo" && (
+        <LinkButton href="/dashboard/feed" className="hm-grouplink">
+          Show all
+        </LinkButton>
+      )}
+      {task && (
+        <TaskForm
+          taskId={task}
+          onClose={() => setTask(null)}
+          onChanged={() => router.refresh()}
+        />
+      )}
       {making && (
         <TaskForm
           startWith={making.title}

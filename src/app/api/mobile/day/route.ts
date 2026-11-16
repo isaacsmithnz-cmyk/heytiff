@@ -1,11 +1,11 @@
 import { sm8PressFromMobile } from "@/lib/integrations/sm8-press";
 import { ok, requireMobile } from "@/lib/mobile/auth";
-import { arriveAt, atOffice, changeStint, clockOffDay, clockOnDay, leave, readDay, rosteredDays, setReason, undoClockOn, type DayAnswer } from "@/lib/mobile/day";
+import { addStint, arriveAt, atOffice, changeStint, clockOffDay, clockOnDay, leave, readDay, rosteredDays, setReason, undoClockOn, type DayAnswer } from "@/lib/mobile/day";
 import { todayInAu } from "@/lib/au-dates";
 
 /* YOUR DAY, from the phone: where it stands (GET, with `until` for the
    finish you're thinking of), and Clock on, Arrived, Left, At the office,
-   a job's time changed or taken off, and Clock off (POST). The token check comes first and the press is minted from
+   a job's time changed or taken off, a job the phone missed added, and Clock off (POST). The token check comes first and the press is minted from
    it alone; every rule is lib/mobile/day's. Your own day needs no grant
    beyond being a member. The phone says when you arrive and leave; it never
    sends where you are. */
@@ -46,8 +46,9 @@ export async function POST(request: Request) {
   else if (body?.do === "office") answer = await atOffice(ctx, body.at);
   else if (body?.do === "reason") answer = await setReason(ctx, body.jobUuid, body.reason);
   else if (body?.do === "stint") answer = await changeStint(ctx, body.id, body.from, body.until, body.remove === true, Date.now(), body.joined, await sm8PressFromMobile(ctx));
+  else if (body?.do === "add") answer = await addStint(ctx, body.jobUuid, body.from, body.until, Date.now(), await sm8PressFromMobile(ctx));
   else if (body?.do === "off") answer = await clockOffDay(ctx, await sm8PressFromMobile(ctx), body.at);
-  else return no(400, "Say on, undo, arrive, leave, office, reason, stint or off.");
+  else return no(400, "Say on, undo, arrive, leave, office, reason, stint, add or off.");
   if (!answer.ok) return no(answer.status, answer.error);
   return ok({ state: answer.state, said: answer.said });
 }

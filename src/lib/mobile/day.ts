@@ -109,6 +109,7 @@ export const DAY_WORDS = {
   noStint: "That time isn't in your day.",
   changed: "Changed.",
   removed: "Taken off your day.",
+  overlaps: "That's over another job's time in your day.",
   off: "Clocked off at {at}.",
 } as const;
 
@@ -652,6 +653,110 @@ export async function changeStint(
     await sendTimeAgain(ctx, press, sent, shown ? { id: stint.id, jobUuid: stint.sm8_job_uuid, inAt: shown.from, outAt: shown.until } : null);
   }
   return { ok: true, state, said: DAY_WORDS.changed };
+}
+
+/* A JOB THE PHONE MISSED, PUT ON YOUR DAY BY HAND (Isaac, 17 November 2026:
+   his 15 minutes at 1352, 9/6 Holbrook Avenue went on nothing; "Build it" to
+   https://claude.ai/artifact/K9ArftgQG9L2AzXv6Qrcvs). Today's day, on or off,
+   inside its own on and off (or now), and never over another job's time.
+   It takes its time from the office it covers, as arriving at a job does.
+   Before Clock off it goes to ServiceM8 at Clock off with the rest; after,
+   at once, as a changed time does. */
+export async function addStint(
+  ctx: MobileCtx,
+  jobUuid: unknown,
+  from: unknown,
+  until: unknown,
+  now: number = Date.now(),
+  press: Sm8Press | null = null,
+): Promise<DayAnswer> {
+  const day = (await openDay(ctx)) ?? (await endedToday(ctx, now));
+  if (!day) return { ok: false, error: DAY_WORDS.notOn, status: 409 };
+  const ended = day.off_at;
+  const j = jobOf(jobUuid);
+  const job = j ? (await jobsOf(ctx.orgId, [j])).get(j.toLowerCase()) : undefined;
+  if (!job) return { ok: false, error: DAY_WORDS.noJob, status: 404 };
+  const t = stintTimes({ from, until, onAt: day.on_at, now: ended ? Math.min(Date.parse(ended), now) : now });
+  if ("error" in t) return { ok: false, error: ended && t.error === DAY_WORDS.future ? DAY_WORDS.afterOff : t.error, status: 400 };
+  let q = supabaseAdmin.from("job_check_ins").select("checked_in_at, checked_out_at").eq("org_id", ctx.orgId).eq("user_id", ctx.userId).gte("checked_in_at", day.on_at);
+  if (ended) q = q.lte("checked_in_at", ended);
+  const { data: stints } = await q;
+  if (overlapsAny((stints ?? []) as { checked_in_at: string; checked_out_at: string | null }[], t.from, t.until, now)) return { ok: false, error: DAY_WORDS.overlaps, status: 409 };
+  const { data: added, error } = await supabaseAdmin
+    .from("job_check_ins")
+    .insert({ org_id: ctx.orgId, sm8_job_uuid: job.jobUuid, user_id: ctx.userId, checked_in_at: t.from, checked_out_at: t.until })
+    .select("id")
+    .single();
+  const id = (added as { id: string } | null)?.id;
+  if (error || !id) return { ok: false, error: DAY_WORDS.noStint, status: 400 };
+  if (day.office?.length) await setOffice(ctx, day, cutOffice(day.office, t.from, t.until));
+  const state = await readDay(ctx, now);
+  if (ended) {
+    const shown = state.summary?.jobs.find((s) => s.stintId === id && s.how === "phone");
+    await sendTimeAgain(ctx, press, { id, jobUuid: job.jobUuid }, shown ? { id, jobUuid: job.jobUuid, inAt: shown.from, outAt: shown.until } : null);
+  }
+  return { ok: true, state, said: `Added ${job.number ?? job.where}.` };
+}
+
+/** Whether `from`..`until` runs over any of the stints (an open one runs to `now`). */
+export function overlapsAny(stints: readonly { checked_in_at: string; checked_out_at: string | null }[], from: string, until: string, now: number): boolean {
+  const f = Date.parse(from);
+  const u = Date.parse(until);
+  return stints.some((s) => Date.parse(s.checked_in_at) < u && (s.checked_out_at ? Date.parse(s.checked_out_at) : now) > f);
+}
+
+/** The office's stops with `from`..`until` taken out of them: a stop it covers goes, one it cuts through is two. */
+export function cutOffice(office: readonly DayStop[], from: string, until: string): DayStop[] {
+  const f = Date.parse(from);
+  const u = Date.parse(until);
+  const out: DayStop[] = [];
+  for (const o of office) {
+    const start = Date.parse(o.from);
+    const end = o.until === null ? null : Date.parse(o.until);
+    if ((end !== null && end <= f) || start >= u) {
+      out.push(o);
+      continue;
+    }
+    if (start < f) out.push({ from: o.from, until: from });
+    if (end === null || end > u) out.push({ from: until, until: o.until });
+  }
+  return out;
+}
+
+/* WHICH JOB? for Add a job: before anything's typed, your jobs of the last
+   two weeks, latest first; typed, any job by number or street, finished ones
+   too (1352 was Completed). Number and street only, as the day's own rows. */
+export async function dayJobs(ctx: MobileCtx, typed: string, now: number = Date.now()): Promise<{ jobUuid: string; number: string | null; where: string; street: string; city: string | null; status: string | null }[]> {
+  type Row = { uuid: string; generated_job_id: string | null; job_address: string | null; geo_city: string | null; status: string | null };
+  const shape = (r: Row) => {
+    const street = streetLine(r.job_address);
+    const city = r.geo_city?.trim() || null;
+    return { jobUuid: r.uuid, number: r.generated_job_id, where: [street, city].filter(Boolean).join(", "), street, city, status: r.status };
+  };
+  const cols = "uuid, generated_job_id, job_address, geo_city, status";
+  const q = typed.trim().replace(/[%_,()*\\]/g, " ").replace(/\s+/g, " ").slice(0, 60);
+  if (q.length >= 2) {
+    const [byNumber, byStreet] = await Promise.all([
+      /^\d+$/.test(q) ? supabaseAdmin.from("sm8_jobs").select(cols).eq("org_id", ctx.orgId).eq("active", 1).eq("generated_job_id", q).limit(1) : Promise.resolve({ data: [] }),
+      supabaseAdmin.from("sm8_jobs").select(cols).eq("org_id", ctx.orgId).eq("active", 1).in("status", ["Work Order", "Quote", "Completed"]).ilike("job_address", `%${q}%`).order("edit_date", { ascending: false }).limit(8),
+    ]);
+    const seen = new Set<string>();
+    return [...((byNumber.data ?? []) as Row[]), ...((byStreet.data ?? []) as Row[])].filter((r) => !seen.has(r.uuid.toLowerCase()) && !!seen.add(r.uuid.toLowerCase())).slice(0, 8).map(shape);
+  }
+  const { data: ins } = await supabaseAdmin
+    .from("job_check_ins")
+    .select("sm8_job_uuid, checked_in_at")
+    .eq("org_id", ctx.orgId)
+    .eq("user_id", ctx.userId)
+    .gte("checked_in_at", new Date(now - 14 * 86_400_000).toISOString())
+    .order("checked_in_at", { ascending: false })
+    .limit(200);
+  const order = [...new Set(((ins ?? []) as { sm8_job_uuid: string }[]).map((r) => r.sm8_job_uuid.toLowerCase()))].slice(0, 8);
+  if (!order.length) return [];
+  const spell = [...new Set(order.flatMap((u) => [u, u.toUpperCase()]))];
+  const { data: js } = await supabaseAdmin.from("sm8_jobs").select(cols).eq("org_id", ctx.orgId).in("uuid", spell);
+  const by = new Map(((js ?? []) as Row[]).map((r) => [r.uuid.toLowerCase(), r]));
+  return order.flatMap((u) => (by.has(u) ? [shape(by.get(u)!)] : []));
 }
 
 /** Today's day, once it's off: the one changes after Clock off are made to. */

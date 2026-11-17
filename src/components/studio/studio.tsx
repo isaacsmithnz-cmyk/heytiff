@@ -81,7 +81,7 @@ import { claimZone, newSystem, toggleZone, zoneIdsOf } from "@/lib/studio/zones"
 import { doneBlockers, systemFindings } from "@/lib/studio/verdict";
 import { SystemsPanel } from "./systems-panel";
 import { canLeaveOut, leaveOut, putBack } from "@/lib/studio/left-out";
-import { addQuotedOption, canAdd, quotedOptions, type QuotedLine } from "@/lib/studio/from-quote";
+import { addQuotedOption, canAddQuoted, quotedOptions, type QuotedLine } from "@/lib/studio/from-quote";
 import { SystemScreen, SystemsList } from "./systems-stack";
 import { AirPanel, type AirShow } from "./air-panel";
 import { airRows, airTags } from "@/lib/studio/air-view";
@@ -1668,7 +1668,7 @@ function Editor({
     const shown = all.some((o) => o.accepted) ? all.filter((o) => o.accepted) : all;
     return shown.filter(
       (o) =>
-        canAdd(o) &&
+        canAddQuoted(o) &&
         !doc.systems.some((sys) => sys.name === o.name && hasAllocations(sys) && allocationsOf(sys).some((a) => a.role === "odu" && a.model === o.outdoor?.model)),
     );
   }, [doc, pack, quotedRead, quoteJob]);

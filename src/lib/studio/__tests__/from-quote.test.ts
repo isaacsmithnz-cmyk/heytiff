@@ -3,7 +3,7 @@ import { join } from "path";
 import { PACK_SECTIONS, type DataPack, type PackMeta } from "../packs/schema";
 import { assemblePack, type PackSource } from "../packs/loader";
 import { createDesign, type DesignDocument, type DesignObject } from "../document";
-import { addQuotedOption, canAdd, modelForCode, quotedOptions, type QuotedLine } from "../from-quote";
+import { addQuotedOption, canAddQuoted, modelForCode, quotedOptions, type QuotedLine } from "../from-quote";
 import { allocationsOf } from "../builder";
 
 const SEED_DIR = join(__dirname, "../../../../data/packs/mitsubishi-electric@2026.1");
@@ -26,7 +26,7 @@ const room = (id: string, name: string, x: number): DesignObject =>
     systemId: null,
     geometry: { kind: "polygon", points: [{ x, y: 0 }, { x: x + 300, y: 0 }, { x: x + 300, y: 300 }, { x, y: 300 }] },
     props: { name },
-  }) as DesignObject;
+  }) as unknown as DesignObject;
 
 /* 3516's plan and quote, 17 November 2026 */
 function waitara(): DesignDocument {
@@ -79,7 +79,7 @@ describe("From the quote", () => {
   test("Add to design makes the multi on the quoted outdoor, named as the quote names it", () => {
     const d = waitara();
     const [one] = quotedOptions(d, pack, QUOTE, [0]);
-    expect(canAdd(one)).toBe(true);
+    expect(canAddQuoted(one)).toBe(true);
     const out = addQuotedOption(d, pack, "worst-of-both", one);
     const sys = out.doc.systems.find((s) => s.id === out.systemId)!;
     expect(sys.name).toBe("Option 1");

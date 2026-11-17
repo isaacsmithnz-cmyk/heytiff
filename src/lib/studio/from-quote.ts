@@ -128,13 +128,13 @@ export function quotedOptions(
 }
 
 /** Can this option be made: an outdoor the book has, and a head with a model and a room. */
-export const canAdd = (o: QuotedOption): boolean =>
+export const canAddQuoted = (o: QuotedOption): boolean =>
   !!o.outdoor?.model && o.kind != null && o.heads.some((h) => h.model && h.roomId);
 
 /** The option as a system: a split for one head, a multi for more, named
     as the quote names it. Heads with no room or no model are left off. */
 export function addQuotedOption(doc: DesignDocument, pack: DataPack, basis: SizingBasis, o: QuotedOption): { doc: DesignDocument; systemId: string | null } {
-  if (!canAdd(o)) return { doc, systemId: null };
+  if (!canAddQuoted(o)) return { doc, systemId: null };
   const heads = o.heads.filter((h) => h.model && h.roomId);
   let d = doc;
   let systemId: string | null = null;

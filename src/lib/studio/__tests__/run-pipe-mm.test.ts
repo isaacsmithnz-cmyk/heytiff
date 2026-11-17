@@ -18,7 +18,7 @@ function loadPack(): DataPack {
 const pack = loadPack();
 
 const unit = (id: string, model: string, role: "idu" | "odu"): DesignObject =>
-  ({ id, type: "unit", floorId: "gf", systemId: "s1", geometry: { kind: "point", at: { x: 0, y: 0 } }, props: { model, role } }) as DesignObject;
+  ({ id, type: "unit", floorId: "gf", systemId: "s1", geometry: { kind: "point", at: { x: 0, y: 0 } }, props: { model, role } }) as unknown as DesignObject;
 const run = (id: string, to: string, props: Record<string, unknown> = {}): DesignObject =>
   ({
     id,
@@ -27,7 +27,7 @@ const run = (id: string, to: string, props: Record<string, unknown> = {}): Desig
     systemId: "s1",
     geometry: { kind: "polyline", points: [{ x: 0, y: 0 }, { x: 100, y: 0 }] },
     props: { startAttach: { kind: "unit", id: "odu" }, endAttach: { kind: "unit", id: to }, ...props },
-  }) as DesignObject;
+  }) as unknown as DesignObject;
 
 /* 3516's multi: an MXZ-4F71VGD with the living room's AP50 and a bedroom's AP25 */
 function multi(): DesignDocument {

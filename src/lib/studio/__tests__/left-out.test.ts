@@ -10,7 +10,7 @@ const room = (id: string, name: string, extra: Record<string, unknown> = {}): De
     systemId: null,
     geometry: { kind: "polygon", points: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }] },
     props: { name, ...extra },
-  }) as DesignObject;
+  }) as unknown as DesignObject;
 
 /* 3516 as he had it: four rooms on a multi, a robe and the laundry not air conditioned */
 function waitara(): DesignDocument {

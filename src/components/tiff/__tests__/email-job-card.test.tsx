@@ -83,11 +83,12 @@ beforeEach(() => {
   readEmailJob.mockResolvedValue(view());
 });
 
-it("shows what Tiff read: the client already here, a new site for them, the scope, the files and what wasn't kept", async () => {
+it("shows what Tiff read: the client already here, the site, the scope, the files and what wasn't kept", async () => {
   await draw();
   expect(screen.getByRole("heading", { name: "New job" })).toBeInTheDocument();
   expect(screen.getByText(/already a client/)).toBeInTheDocument();
-  expect(screen.getByText(/a new site for them/)).toBeInTheDocument();
+  /* a builder's job goes on the builder: no new site (3533, 17 November 2026) */
+  expect(screen.queryByText(/a new site/)).toBeNull();
   expect(screen.getByText("Matt Glass, 0412 345 678, matt@truecut.example")).toBeInTheDocument();
   expect(screen.getByText("Saturday 7 November")).toBeInTheDocument();
   expect(screen.getByText("Extend it to the attic")).toBeInTheDocument();

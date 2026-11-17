@@ -162,7 +162,7 @@ export function tiffSays(p: EmailProposal | null, failed: string | null): string
   }
   if (p.aboutJob && !p.isJob) return `${p.summary} It's about a job already under way, but none of yours matched its number, site or client. Find the job and add it there, or make a new one from New › Job.`.replace(/\s+/g, " ").trim();
   if (!p.isJob) return `This doesn't read as a request for work${p.notJobWhy ? ` (${p.notJobWhy.replace(/\.$/, "")})` : ""}, so I haven't proposed a job. Make one from New › Job if it is.`;
-  const known = p.clientMatch ? `${p.clientMatch.name} is already a client${p.siteMatch ? "" : p.clientMatch.builder ? "; the site is new for them" : ""}.` : `${p.client || "They"} aren't a client yet; Create job adds them.`;
+  const known = p.clientMatch ? `${p.clientMatch.name} is already a client.` : `${p.client || "They"} aren't a client yet; Create job adds them.`;
   const due = p.due ? ` It's due ${dueWords(p.due)}.` : "";
   return `${p.summary}${due} ${known} Here's the job I'd make, with the scope as they wrote it.`.replace(/\s+/g, " ").trim();
 }

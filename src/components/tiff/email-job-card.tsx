@@ -360,7 +360,6 @@ export function EmailJobFacts({ job }: { job: EmailJob }) {
         {contact && <Row k="Contact">{contact}</Row>}
         <Row k="Site">
           {p.site || "Not given"}
-          {p.site && p.clientMatch?.builder && !p.siteMatch && <span className="cv-job-q">, a new site for them</span>}
         </Row>
         <Row k="Came in by">Email</Row>
         {p.due && <Row k="Quote due">{dueWords(p.due)}</Row>}

@@ -9,7 +9,7 @@
    make the booking"). */
 
 
-import { placeDays } from "../free-days-plan";
+import { dayFull, placeDays } from "../free-days-plan";
 
 const MOSMAN = "job-3469";
 const CREMORNE = "job-3375";
@@ -127,4 +127,25 @@ test("a day off the roster is still listed, as ServiceM8 still books it; a slive
     job: null,
   });
   expect(days[0]).toMatchObject({ work: false, free: [], freeMin: 0 });
+});
+
+describe("how full a day is across the crew", () => {
+  const day = (o: { work?: boolean; freeMin: number; openMin: number; off?: string | null }) =>
+    ({ day: FRI, work: o.work ?? true, normal: { start: at(FRI, "07:00"), end: at(FRI, "15:00") }, bookings: [], free: [], freeMin: o.freeMin, openMin: o.openMin, off: o.off ?? null, suburbs: [] });
+
+  test("is what the people who work it have booked or off, of what's left of their days", () => {
+    // one free all day, one half booked, one on leave: 8 h + 4 h free of 24 h
+    expect(dayFull([day({ freeMin: 480, openMin: 480 }), day({ freeMin: 240, openMin: 480 }), day({ freeMin: 0, openMin: 480, off: "Annual Leave" })])).toBe(0.5);
+  });
+
+  test("leaves out someone off the roster, and is nothing where nobody works it", () => {
+    expect(dayFull([day({ freeMin: 480, openMin: 480 }), day({ work: false, freeMin: 0, openMin: 480 })])).toBe(0);
+    expect(dayFull([day({ work: false, freeMin: 0, openMin: 480 }), undefined])).toBeNull();
+  });
+
+  test("counts only what's left of today", () => {
+    const { days } = placeDays({ days: [FRI], normal, workDays: [4], bookings: [], jobs, away: noneOff, now: at(FRI, "13:00"), minutes: null, job: null });
+    expect(days[0]).toMatchObject({ openMin: 120, freeMin: 120 });
+    expect(dayFull(days)).toBe(0);
+  });
 });

@@ -47,17 +47,10 @@ export async function crewNotBooked(
   tenant: () => Promise<string | null>
 ): Promise<{ free: CrewFree[]; off: CrewOff[]; later: CrewLater[] }> {
   const none = { free: [], off: [], later: [] };
-  const [{ data: crewRows, error: crewError }, { data: staffRows, error: staffError }] = await Promise.all([
-    supabaseAdmin.from("schedule_capacity_staff").select("sm8_staff_uuid, daily_minutes").eq("org_id", orgId).eq("included", true),
-    supabaseAdmin.from("sm8_staff").select("uuid, first, last, active").eq("org_id", orgId).eq("active", 1),
-  ]);
-  if (crewError || staffError) return none;
-  const dayOf = new Map(((crewRows ?? []) as { sm8_staff_uuid: string; daily_minutes: number | null }[]).map((r) => [low(r.sm8_staff_uuid), r.daily_minutes ?? 0]));
-  const people = ((staffRows ?? []) as { uuid: string; first: string | null; last: string | null }[])
-    .filter((s) => dayOf.has(low(s.uuid)))
-    .map((s) => ({ uuid: s.uuid, name: [s.first, s.last].filter(Boolean).join(" ").trim() }))
-    .filter((s) => s.name !== "");
-  if (people.length === 0) return none;
+  const crew = await crewOf(orgId);
+  if (!crew || crew.length === 0) return none;
+  const dayOf = new Map(crew.map((p) => [low(p.uuid), p.dailyMinutes]));
+  const people = crew.map((p) => ({ uuid: p.uuid, name: p.name }));
 
   const away = new Map<string, NonNullable<SchedulePayload["away"]>[number]>();
   for (const a of day.away ?? []) if (!away.has(low(a.staffUuid))) away.set(low(a.staffUuid), a);
@@ -109,6 +102,22 @@ export async function crewNotBooked(
   return { free, off, later };
 }
 
+/** The crew: Schedule capacity's people, active in ServiceM8, by name, with
+    their day's minutes there. Null where it couldn't be read. */
+export async function crewOf(orgId: string): Promise<{ uuid: string; name: string; dailyMinutes: number }[] | null> {
+  const [{ data: crewRows, error: crewError }, { data: staffRows, error: staffError }] = await Promise.all([
+    supabaseAdmin.from("schedule_capacity_staff").select("sm8_staff_uuid, daily_minutes").eq("org_id", orgId).eq("included", true),
+    supabaseAdmin.from("sm8_staff").select("uuid, first, last, active").eq("org_id", orgId).eq("active", 1),
+  ]);
+  if (crewError || staffError) return null;
+  const dayOf = new Map(((crewRows ?? []) as { sm8_staff_uuid: string; daily_minutes: number | null }[]).map((r) => [low(r.sm8_staff_uuid), r.daily_minutes ?? 0]));
+  return ((staffRows ?? []) as { uuid: string; first: string | null; last: string | null }[])
+    .filter((s) => dayOf.has(low(s.uuid)))
+    .map((s) => ({ uuid: s.uuid, name: [s.first, s.last].filter(Boolean).join(" ").trim(), dailyMinutes: dayOf.get(low(s.uuid)) ?? 0 }))
+    .filter((s) => s.name !== "")
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
 /** Minutes booked, overlaps counted once. */
 function bookedMinutes(spans: { start: string; end: string }[]): number {
   const min = (stamp: string) => Number(stamp.slice(11, 13)) * 60 + Number(stamp.slice(14, 16));
@@ -125,7 +134,7 @@ function bookedMinutes(spans: { start: string; end: string }[]): number {
 
 /** Each person's job title on their HeyTiff card, by lower-case ServiceM8
     uuid, where they are linked and it says one. */
-async function titlesOf(orgId: string, tenantId: string | null, uuids: readonly string[]): Promise<Map<string, string>> {
+export async function titlesOf(orgId: string, tenantId: string | null, uuids: readonly string[]): Promise<Map<string, string>> {
   const out = new Map<string, string>();
   if (!tenantId || uuids.length === 0) return out;
   const wanted = new Set(uuids.map(low));

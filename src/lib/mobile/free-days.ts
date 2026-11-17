@@ -48,20 +48,37 @@ export async function readFreeDays(
   ask: { staff: string; skip: string | null; job: string | null; minutes: number | null; from: string; count: number },
   now: number = Date.now()
 ): Promise<FreeDays | null> {
+  const many = await readDaysOf(ctx, { ...ask, staff: [ask.staff], skip: ask.skip ? [ask.skip] : [] }, now);
+  return many ? many.get(low(ask.staff)) ?? null : null;
+}
+
+/** Each of `staff`'s days from `from`, for `count` days, with the bookings in
+    `skip` left out, by lower-case uuid: Book a visit's whole crew in one read
+    (Isaac, 17 November 2026: "Once you've selected the date, it will tell you
+    who's free on that day"). */
+export async function readDaysOf(
+  ctx: MobileCtx,
+  ask: { staff: readonly string[]; skip: readonly string[]; job: string | null; minutes: number | null; from: string; count: number },
+  now: number = Date.now()
+): Promise<Map<string, FreeDays> | null> {
   const orgId = ctx.orgId;
+  const out = new Map<string, FreeDays>();
+  if (ask.staff.length === 0) return out;
   const count = Math.max(1, Math.min(MOST_DAYS, Math.floor(ask.count)));
   const last = plusDays(ask.from, count - 1);
   const floor = `${ask.from} 00:00:00`;
   const ceil = `${plusDays(last, 1)} 00:00:00`;
+  const who = new Set(ask.staff.map(low));
+  const skip = new Set(ask.skip.map(low));
 
   const [acts, zone, state, pay, availability] = await Promise.all([
     supabaseAdmin
       .from("sm8_job_activities")
-      .select("uuid, job_uuid, start_date, end_date")
+      .select("uuid, job_uuid, staff_uuid, start_date, end_date")
       .eq("org_id", orgId)
       .eq("active", 1)
       .eq("activity_was_scheduled", 1)
-      .in("staff_uuid", spellings([ask.staff]))
+      .in("staff_uuid", spellings(ask.staff))
       .gte("start_date", floor)
       .lt("start_date", ceil)
       .order("start_date", { ascending: true }),
@@ -71,52 +88,64 @@ export async function readFreeDays(
     readAvailabilitySpan(orgId, ask.from, last),
   ]);
   if (acts.error) return null;
-  type Act = { uuid: string; job_uuid: string | null; start_date: string | null; end_date: string | null };
-  const mirrored = ((acts.data ?? []) as Act[]).filter((a): a is Act & { job_uuid: string; start_date: string; end_date: string } => !!a.job_uuid && !!a.start_date && !!a.end_date);
+  type Act = { uuid: string; job_uuid: string | null; staff_uuid: string | null; start_date: string | null; end_date: string | null };
+  const mirrored = ((acts.data ?? []) as Act[]).filter(
+    (a): a is Act & { job_uuid: string; staff_uuid: string; start_date: string; end_date: string } => !!a.job_uuid && !!a.staff_uuid && !!a.start_date && !!a.end_date
+  );
 
   /* our bookings over the mirror, as the Schedule draws them */
   const over = await readBookingsOver(orgId, { uuids: mirrored.map((a) => a.uuid), from: ask.from, to: plusDays(last, 1), rows: false }, now).catch(() => null);
   const bookings = mirrored
     .filter((a) => !over?.gone.has(low(a.uuid)))
-    .map((a) => ({ activity: a.uuid, jobUuid: a.job_uuid, start: a.start_date, end: a.end_date }));
+    .map((a) => ({ activity: a.uuid, jobUuid: a.job_uuid, staffUuid: a.staff_uuid, start: a.start_date, end: a.end_date }));
   for (const s of over?.sentNotMirrored ?? []) {
-    if (low(s.staffUuid) !== low(ask.staff) || s.start < floor || s.start >= ceil || over?.gone.has(low(s.uuid))) continue;
+    if (!who.has(low(s.staffUuid)) || s.start < floor || s.start >= ceil || over?.gone.has(low(s.uuid))) continue;
     if (bookings.some((b) => low(b.activity) === low(s.uuid))) continue;
-    bookings.push({ activity: s.uuid, jobUuid: s.jobUuid, start: s.start, end: s.end });
+    bookings.push({ activity: s.uuid, jobUuid: s.jobUuid, staffUuid: s.staffUuid, start: s.start, end: s.end });
   }
-  const theirs = bookings.filter((b) => !ask.skip || low(b.activity) !== low(ask.skip));
+  const kept = bookings.filter((b) => !skip.has(low(b.activity)));
 
-  /* their normal day: their own, or the workspace's */
+  /* each one's normal day: their own, or the workspace's */
   const links = state?.tenantId ? await listSm8StaffLinks(orgId, state.tenantId).catch(() => []) : [];
-  const card = links.find((l) => low(l.remoteId) === low(ask.staff))?.staffProfileId ?? null;
-  const own = card ? await shiftDefaultsFor(orgId, [card]).catch(() => null) : null;
-  const hours = normalHours(pay.settings, card ? own?.hours.get(card) ?? null : null);
-  const startMin = parseClock(hours.start) ?? 7 * 60;
-  const endMin = parseClock(hours.end) ?? 15 * 60 + 30;
-  const workDays = (card ? own?.workDays.get(card) : undefined) ?? pay.settings.workDays;
+  const cardOf = new Map(links.filter((l) => who.has(low(l.remoteId))).map((l) => [low(l.remoteId), l.staffProfileId]));
+  const cards = [...new Set(cardOf.values())];
+  const own = cards.length > 0 ? await shiftDefaultsFor(orgId, cards).catch(() => null) : null;
 
-  const jobs = await jobsOf(orgId, [...theirs.map((b) => b.jobUuid), ...(ask.job ? [ask.job] : [])]);
+  const jobs = await jobsOf(orgId, [...kept.map((b) => b.jobUuid), ...(ask.job ? [ask.job] : [])]);
   const nowWall = zone.zone ? localNow(zone.zone, now) : null;
+  const days = Array.from({ length: count }, (_, i) => plusDays(ask.from, i));
+  const onDay = new Map(days.map((day) => [day, availability ? availabilityOnDay(availability, day) : { away: [], closed: [] }]));
 
-  return placeDays({
-    days: Array.from({ length: count }, (_, i) => plusDays(ask.from, i)),
-    normal: { startMin, endMin: Math.max(endMin, startMin + GAP_MIN) },
-    workDays,
-    bookings: theirs,
-    jobs,
-    away: (day) => {
-      const on = availability ? availabilityOnDay(availability, day) : { away: [], closed: [] };
-      return {
-        spans: [
-          ...on.away.filter((a) => low(a.staffUuid) === low(ask.staff)).map((a) => ({ ...awaySpanOnDay(a, day), word: awayWord(a) })),
-          ...on.closed.map((c) => ({ ...awaySpanOnDay(c, day), word: c.name ?? (c.kind === "holiday" ? "Public holiday" : "Closed") })),
-        ],
-      };
-    },
-    now: nowWall,
-    minutes: ask.minutes,
-    job: ask.job,
-  });
+  for (const staff of ask.staff) {
+    const card = cardOf.get(low(staff)) ?? null;
+    const hours = normalHours(pay.settings, card ? own?.hours.get(card) ?? null : null);
+    const startMin = parseClock(hours.start) ?? 7 * 60;
+    const endMin = parseClock(hours.end) ?? 15 * 60 + 30;
+    const workDays = (card ? own?.workDays.get(card) : undefined) ?? pay.settings.workDays;
+    out.set(
+      low(staff),
+      placeDays({
+        days,
+        normal: { startMin, endMin: Math.max(endMin, startMin + GAP_MIN) },
+        workDays,
+        bookings: kept.filter((b) => low(b.staffUuid) === low(staff)),
+        jobs,
+        away: (day) => {
+          const on = onDay.get(day) ?? { away: [], closed: [] };
+          return {
+            spans: [
+              ...on.away.filter((a) => low(a.staffUuid) === low(staff)).map((a) => ({ ...awaySpanOnDay(a, day), word: awayWord(a) })),
+              ...on.closed.map((c) => ({ ...awaySpanOnDay(c, day), word: c.name ?? (c.kind === "holiday" ? "Public holiday" : "Closed") })),
+            ],
+          };
+        },
+        now: nowWall,
+        minutes: ask.minutes,
+        job: ask.job,
+      })
+    );
+  }
+  return out;
 }
 
 /** Each job's number, suburb and colour. */

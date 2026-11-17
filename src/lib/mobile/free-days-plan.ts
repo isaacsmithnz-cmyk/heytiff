@@ -22,6 +22,8 @@ export type FreeDay = {
   /** the gaps in the normal day, `GAP_MIN` or more */
   free: FreeGap[];
   freeMin: number;
+  /** how much of the normal day is still ahead: all of it, or today's from now */
+  openMin: number;
   /** what takes the whole day: their time off's word, or the holiday's */
   off: string | null;
   suburbs: string[];
@@ -104,6 +106,7 @@ export function placeDays(input: {
       bookings,
       free,
       freeMin: free.reduce((n, g) => n + minOf(g.end) - minOf(g.start), 0),
+      openMin: Math.max(0, hi - lo),
       off: whole?.word ?? null,
       suburbs: [...new Set(bookings.map((b) => b.suburb).filter(Boolean))],
     });
@@ -123,4 +126,20 @@ export function placeDays(input: {
     }
   }
   return { days, near };
+}
+
+/** How full a day is across the crew, 0 to 1: of the normal days still ahead
+    on it, how much is booked or off. Only the people who work that day
+    count; null where nobody does, or none of it is left (Isaac, 17 November
+    2026: "When selecting the date, it can probably tell you how full it is,
+    just so you can get a quick idea"). */
+export function dayFull(days: readonly (FreeDay | undefined)[]): number | null {
+  let open = 0;
+  let free = 0;
+  for (const d of days) {
+    if (!d || !d.work || d.openMin <= 0) continue;
+    open += d.openMin;
+    free += d.off ? 0 : Math.min(d.freeMin, d.openMin);
+  }
+  return open > 0 ? Math.round((1 - free / open) * 100) / 100 : null;
 }

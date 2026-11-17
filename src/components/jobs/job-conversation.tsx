@@ -193,6 +193,7 @@ const LANE_ICON: Record<PlanRowView["lane"], string> = {
   visits: "calendar",
   costs: "receipt",
   variations: "file",
+  skills: "check",
 };
 
 export function JobConversation({

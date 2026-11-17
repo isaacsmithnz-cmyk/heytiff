@@ -70,9 +70,9 @@ describe("the schema", () => {
     for (const schema of [NOTE_SCHEMA, TIFF_NOTE_SCHEMA]) {
       const lane = (schema.properties as Record<string, unknown>).variations as { type: string; items: { properties: Record<string, { type: string }>; required: string[] } };
       expect(lane.type).toBe("array");
-      expect(Object.keys(lane.items.properties)).toEqual(["what"]);
+      expect(Object.keys(lane.items.properties)).toEqual(["what", "lines"]);
       expect(lane.items.properties.what.type).toBe("string");
-      expect(lane.items.required).toEqual(["what"]);
+      expect(lane.items.required).toEqual(["what", "lines"]);
       expect(schema.required).toContain("variations");
     }
     expect(JSON.stringify(TIFF_NOTE_SCHEMA)).not.toMatch(/"null"|nullable|anyOf/);
@@ -83,11 +83,11 @@ describe("the prompt rule", () => {
   const head = systemBlocks(ctx)[0]!.text;
   const rule = head.slice(head.indexOf("- variations:"), head.indexOf("- bring_items:"));
 
-  it("is in the cached head, said once, short: 133 characters, about 45 tokens", () => {
+  it("is in the cached head, said once, short: 180 characters, about 60 tokens", () => {
     expect(head).toContain("- variations: the client wants the accepted quote changed, 'add a");
     expect(head).toContain("Not also a task.");
     expect(head.match(/- variations:/g)).toHaveLength(1);
-    expect(rule.length).toBe(133);
+    expect(rule.length).toBe(180);
   });
 
   it("names nobody and no day: the head is the same bytes for every note", () => {

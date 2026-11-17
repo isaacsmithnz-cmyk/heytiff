@@ -3,8 +3,9 @@ import { isRemindKind, type RemindKind } from "@/lib/dashboard/reminders";
 import type { NoteProposal, ProposedTask, Severity } from "./note-brain";
 import { isVisitPart, visitDay, visitMinutes, visitStart, type ProposedVisit } from "./note-visit";
 import { costFields, costRowText, type ProposedCost } from "./note-cost";
-import { variationFields, type ProposedVariation } from "./note-variation";
+import { variationFields, variationRowText, type ProposedVariation } from "./note-variation";
 import { movesOfProposal } from "./note-move";
+import { skillRowLine, skillsOf, type ProposedSkill } from "./note-skills";
 
 /* FROM A PROPOSAL TO WHAT GETS FILED — pure, and on both sides of the wire.
 
@@ -55,6 +56,9 @@ export type Draft = {
   issueEntries: { on: boolean; summary: string; equipmentRef: string }[];
   /** LEARN — "Worth teaching everyone". Ticked rows publish to the KB. */
   kbEntries: { on: boolean; title: string; body: string }[];
+  /** Tiff's skills (note-skills). Not filed by `toConfirmed`: `fileNote`
+      does each through the app's own action for it (note-skills-file). */
+  skills: (ProposedSkill & { on: boolean })[];
 };
 
 export function toDraft(p: NoteProposal): Draft {
@@ -93,6 +97,7 @@ export function toDraft(p: NoteProposal): Draft {
       equipmentRef: e.equipmentHint,
     })),
     kbEntries: p.kbEntries.map((k) => ({ on: true, title: k.title, body: k.body })),
+    skills: (p.skills ?? []).map((s) => ({ ...s, on: true })),
   };
 }
 
@@ -174,6 +179,7 @@ export const PLAN_LANES = [
   "progressBullets",
   "commissioningEntries",
   "kbEntries",
+  "skills",
 ] as const;
 export type PlanLane = (typeof PLAN_LANES)[number];
 
@@ -192,13 +198,14 @@ export function planRows(p: NoteProposal): PlanRow[] {
   add("tasks", p.tasks.map((t) => t.title));
   add("visits", p.visits.map((v) => v.work));
   add("costs", p.costs.map(costRowText));
-  add("variations", p.variations.map((v) => v.what));
+  add("variations", p.variations.map(variationRowText));
   add("flags", p.flags.map((f) => f.message));
   add("issueEntries", p.issueEntries.map((e) => e.body));
   add("bringItems", p.bringItems);
   add("progressBullets", p.progressBullets);
   add("commissioningEntries", p.commissioningEntries.map((e) => e.body));
   add("kbEntries", p.kbEntries.map((k) => k.title));
+  add("skills", (p.skills ?? []).map(skillRowLine));
   return rows;
 }
 
@@ -226,6 +233,7 @@ export function withoutRows(d: Draft, keys: readonly string[]): Draft {
     commissioningEntries: d.commissioningEntries.map((r) => ({ ...r })),
     issueEntries: d.issueEntries.map((r) => ({ ...r })),
     kbEntries: d.kbEntries.map((r) => ({ ...r })),
+    skills: d.skills.map((r) => ({ ...r })),
   };
   for (const key of keys) {
     if (typeof key !== "string") continue;
@@ -305,7 +313,7 @@ export function storedProposal(raw: unknown): NoteProposal | null {
   });
 
   /* and for variations: words to change, or none */
-  const variations = list<ProposedVariation>(r.variations, (v) => variationFields(v as { what: unknown }));
+  const variations = list<ProposedVariation>(r.variations, (v) => variationFields(v as { what: unknown; lines?: unknown }));
 
   return {
     tasks,
@@ -330,6 +338,7 @@ export function storedProposal(raw: unknown): NoteProposal | null {
     ),
     plainNote: str(r.plainNote),
     jobNote: str(r.jobNote),
+    ...(skillsOf(r.skills).length ? { skills: skillsOf(r.skills) } : {}),
     say: str(r.say),
     clarify: c && str(c.question).trim() ? { question: str(c.question), options: strs(c.options) } : null,
   };

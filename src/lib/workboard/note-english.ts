@@ -33,6 +33,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { checkEnglish } from "@/lib/lang/english";
 import { RECORD_IN_ENGLISH, RECORD_LANGUAGE } from "@/lib/lang/policy";
 import type { NoteProposal } from "./note-brain";
+import type { ProposedSkill } from "./note-skills";
 
 /* Opus 5 at LOW effort, the same lever as keyword tagging and query prep:
    the judgement is shallow ("say this in English"), it runs rarely, and a
@@ -67,6 +68,53 @@ const SYSTEM = [
 
 /* ── the fields (pure) ────────────────────────────────────────────────── */
 
+/** The words in a skill the team reads (note-skills). */
+function skillWords(k: ProposedSkill): string[] {
+  switch (k.kind) {
+    case "used":
+    case "photo_request":
+    case "stock_taken":
+      return [k.what];
+    case "new_job":
+      return [k.work];
+    case "block_out":
+      return [k.what];
+    case "leave":
+      return [k.why];
+    case "vehicle_issue":
+      return [k.problem];
+    case "site_note":
+      return [k.text];
+    case "quote_add":
+      return [k.what, ...k.lines.map((l) => l.what)];
+    default:
+      return [];
+  }
+}
+
+function skillTranslated(k: ProposedSkill, s: (v: string) => string): ProposedSkill {
+  switch (k.kind) {
+    case "used":
+    case "photo_request":
+    case "stock_taken":
+      return { ...k, what: s(k.what) };
+    case "new_job":
+      return { ...k, work: s(k.work) };
+    case "block_out":
+      return { ...k, what: s(k.what) };
+    case "leave":
+      return { ...k, why: s(k.why) };
+    case "vehicle_issue":
+      return { ...k, problem: s(k.problem) };
+    case "site_note":
+      return { ...k, text: s(k.text) };
+    case "quote_add":
+      return { ...k, what: s(k.what), lines: k.lines.map((l) => ({ ...l, what: s(l.what) })) };
+    default:
+      return k;
+  }
+}
+
 /** Every string in a proposal that the whole crew will read.
 
     `assigneeHint` and `equipmentHint` are deliberately absent: one is a
@@ -79,13 +127,15 @@ export function recordStrings(p: NoteProposal): string[] {
   /* what a cost was for; the supplier is a name, kept as said */
   for (const c of p.costs) out.push(c.whatFor);
   /* what the client wants changed: the variation's words on the quote */
-  for (const v of p.variations) out.push(v.what);
+  for (const v of p.variations) out.push(v.what, ...(v.lines ?? []).map((l) => l.what));
   out.push(...p.bringItems);
   for (const f of p.flags) out.push(f.message);
   out.push(...p.progressBullets);
   for (const e of p.commissioningEntries) out.push(e.body);
   for (const e of p.issueEntries) out.push(e.body);
   for (const k of p.kbEntries) out.push(k.title, k.body);
+  /* a skill's words that the team reads; names, numbers and places stay */
+  for (const k of p.skills ?? []) out.push(...skillWords(k));
   out.push(p.plainNote, p.jobNote);
   if (p.clarify) out.push(p.clarify.question, ...p.clarify.options);
   return out.filter((s) => s.trim() !== "");
@@ -120,13 +170,14 @@ export function withTranslations(
     })),
     visits: p.visits.map((v) => ({ ...v, work: s(v.work) })),
     costs: p.costs.map((c) => ({ ...c, whatFor: s(c.whatFor) })),
-    variations: p.variations.map((v) => ({ ...v, what: s(v.what) })),
+    variations: p.variations.map((v) => ({ ...v, what: s(v.what), ...(v.lines ? { lines: v.lines.map((l) => ({ ...l, what: s(l.what) })) } : {}) })),
     bringItems: p.bringItems.map(s),
     flags: p.flags.map((f) => ({ ...f, message: s(f.message) })),
     progressBullets: p.progressBullets.map(s),
     commissioningEntries: p.commissioningEntries.map((e) => ({ ...e, body: s(e.body) })),
     issueEntries: p.issueEntries.map((e) => ({ ...e, body: s(e.body) })),
     kbEntries: p.kbEntries.map((k) => ({ ...k, title: s(k.title), body: s(k.body) })),
+    ...(p.skills ? { skills: p.skills.map((k) => skillTranslated(k, s)) } : {}),
     plainNote: s(p.plainNote),
     jobNote: s(p.jobNote),
     clarify: p.clarify

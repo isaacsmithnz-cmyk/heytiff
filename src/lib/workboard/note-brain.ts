@@ -52,6 +52,7 @@ import { COSTS_MAX, COST_CATEGORIES, GST_BASES, costFields, costRowLine, type Pr
 import { PAID_WITH } from "@/lib/expenses/claim";
 import { VARIATIONS_MAX, variationFields, variationRowLine, type ProposedVariation } from "./note-variation";
 import { MOVES_MAX, moveFields, type ProposedMove } from "./note-move";
+import { LINES_SCHEMA, SKILL_KINDS, SKILL_RULES, SKILL_TOOLS, skillWho, skillsOf, type ProposedSkill } from "./note-skills";
 import type { EarlierTurn, TiffRoom, Turn } from "./note-turns";
 import { looksLikeName } from "@/lib/staff/aliases";
 import { logUsage } from "@/lib/tiff/usage";
@@ -192,6 +193,11 @@ export type NoteProposal = {
       the KB on tick — never automatically. "Got the E6 clear by powering
       the outdoor board separately" is a kb_entry; "cleared the E6" is not. */
   kbEntries: ProposedKbEntry[];
+  /** Tiff's skills (note-skills, Isaac, 17 November 2026): materials used,
+      time on the job, a status, a new job, a block, a photo, leave, fuel, a
+      vehicle problem, a site note, a contact, stock, quote lines, a swap.
+      Absent on every proposal stored before them. */
+  skills?: ProposedSkill[];
   plainNote: string;
   /** THE NOTE ITSELF, tidied (Isaac, 26 October 2026): the whole of what was
       said, as the job's diary keeps it and ServiceM8 gets it, one note for
@@ -383,8 +389,8 @@ export const NOTE_SCHEMA = {
       type: "array",
       items: {
         type: "object",
-        properties: { what: str },
-        required: ["what"],
+        properties: { what: str, lines: LINES_SCHEMA },
+        required: ["what", "lines"],
         additionalProperties: false,
       },
     },
@@ -524,6 +530,11 @@ export function noteTools(speak: boolean): Anthropic.Beta.BetaTool[] {
       description,
       input_schema: items(NOTE_SCHEMA.properties[name]),
     })),
+    ...SKILL_KINDS.map((name) => ({
+      name,
+      description: SKILL_TOOLS[name].description,
+      input_schema: items({ type: "array", items: SKILL_TOOLS[name].item }),
+    })),
     { name: "plain_note", description: "A remark that is genuinely just a remark.", input_schema: words },
     { name: "job_note", description: "The whole note again, tidied into the note the job keeps.", input_schema: words },
     {
@@ -547,9 +558,14 @@ export function noteTools(speak: boolean): Anthropic.Beta.BetaTool[] {
 export function rawFromCalls(calls: readonly { name: string; input: unknown }[]): Record<string, unknown> {
   const raw: Record<string, unknown> = {};
   const lanes = new Set<string>(LANE_TOOLS.map(([name]) => name));
+  const skills = new Set<string>(SKILL_KINDS);
   for (const { name, input } of calls) {
     const i = (input && typeof input === "object" ? input : {}) as Record<string, unknown>;
-    if (lanes.has(name)) {
+    if (skills.has(name)) {
+      /* a skill is one lane of its own, each item marked with its kind */
+      const got = (Array.isArray(i.items) ? i.items : []).map((x) => ({ ...(x && typeof x === "object" ? x : {}), kind: name }));
+      raw.skills = [...((raw.skills as unknown[]) ?? []), ...got];
+    } else if (lanes.has(name)) {
       const got = Array.isArray(i.items) ? i.items : [];
       raw[name] = [...((raw[name] as unknown[]) ?? []), ...got];
     } else if (name === "plain_note" || name === "job_note" || name === "say") {
@@ -861,7 +877,8 @@ const ROUTER_RULES = [
   "  `gst_basis` plus for 'plus GST'; `day` only if said; `payer_hint`",
   "  only when someone else paid. A cost is not also a task.",
   "- variations: the client wants the accepted quote changed, 'add a",
-  "  return grille in Bed 2'. `what` in a few words. Not also a task.",
+  "  return grille in Bed 2'. `what` in a few words, `lines` any labour or",
+  "  materials said for it. Not also a task.",
   "- bring_items: something to physically bring next visit.",
   "- flags: a problem that should be visible on the board until handled.",
   "  urgent = someone is blocked or it is unsafe; warn = needs attention;",
@@ -905,6 +922,10 @@ const ROUTER_RULES = [
   "  something of as their ServiceM8 handle from the list, when they have",
   "  one (@davidhann); anyone else by name. Add nothing that wasn't said:",
   "  no greeting, no sign-off, no summary of what you filed.",
+  "",
+  "Tiff's skills, each a tool of its own, called only when the note asks",
+  "for it; one is never also a task, a cost or a progress bullet:",
+  SKILL_RULES,
   "",
   "Each of these is a tool of the same name. Call a lane's tool once, with",
   "every item for it, and call none for a lane the note doesn't need: no",
@@ -1403,6 +1424,20 @@ export function shapeProposal(raw: unknown, ctx: NoteContext, said = ""): NotePr
     kbEntries.push({ title: clean(row.title, TITLE_MAX) || body.slice(0, 80), body });
   }
 
+  /* SKILLS (note-skills), each checked by its own rules; the person one is
+     for resolved like a task's, the speaker when none is named, and two
+     people by one name asked about the same way. */
+  const skills: ProposedSkill[] = [];
+  for (const sk of skillsOf(r.skills)) {
+    const hint = skillWho(sk);
+    const match = hint ? resolveAssignee(hint, ctx.staff, ctx.author?.id) : null;
+    if (match?.kind === "ambiguous" && !clarify) {
+      clarify = { question: `Which ${hint} did you mean?`, options: shortWhoLabels(match.names) };
+      escalated = true;
+    }
+    skills.push({ ...sk, whoId: match ? (match.kind === "one" ? match.id : null) : (ctx.author?.id ?? null) });
+  }
+
   /* Tiff's line ends with the question when she has one to ask. When the
      shaper asked it, the model's line was written for a plan the app has just
      stopped ("I'll make a task for Leo" over a Leo nobody is), and in the
@@ -1431,6 +1466,7 @@ export function shapeProposal(raw: unknown, ctx: NoteContext, said = ""): NotePr
     commissioningEntries: entries("commissioning_entries", "body"),
     issueEntries: entries("issue_entries", "summary"),
     kbEntries,
+    ...(skills.length ? { skills } : {}),
     plainNote: clean(r.plain_note, BODY_MAX),
     jobNote: clean(r.job_note, 4000),
     say,
@@ -1453,6 +1489,7 @@ export function isEmptyProposal(p: NoteProposal): boolean {
     p.commissioningEntries.length === 0 &&
     p.issueEntries.length === 0 &&
     p.kbEntries.length === 0 &&
+    (p.skills ?? []).length === 0 &&
     !p.clarify
   );
 }
@@ -1555,6 +1592,11 @@ export function rowLine(row: PlanRow, p: NoteProposal, staff: readonly NoteStaff
       return `Commissioning: ${row.text}`;
     case "kbEntries":
       return `For the library: ${row.text}`;
+    case "skills": {
+      const sk = p.skills?.[row.index];
+      const who = sk?.whoId ? staff.find((s) => s.id === sk.whoId)?.fullName : "";
+      return `${row.text}${who ? ` (for ${who})` : ""}`;
+    }
   }
 }
 

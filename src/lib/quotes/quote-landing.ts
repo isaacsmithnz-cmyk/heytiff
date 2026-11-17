@@ -143,7 +143,7 @@ export function landingKind(f: Pick<QuoteFacts, "lines" | "talked" | "drafted" |
     scope as far as it's laid out. */
 export function progressState(f: QuoteFacts, when: LandingWhen): LandingState {
   if (f.sent && !f.sent.trial) return { tone: "look", word: "Waiting for the client", rest: `, sent ${dayOf(when, f.sent.at)}` };
-  if (f.approved) return { tone: "good", word: f.version > 1 ? `Version ${f.version} approved` : "Approved", rest: f.sent?.trial ? ", trial run to ServiceM8" : "" };
+  if (f.approved) return { tone: "good", word: f.version > 1 ? `Version ${f.version} ready to send` : "Ready to send", rest: f.sent?.trial ? ", trial run to ServiceM8" : "" };
   if (f.toConfirm > 0) return { tone: "look", word: `Scope, ${f.toConfirm} to settle`, rest: "" };
   if (f.lines > 0) return { tone: "info", word: `Scope, ${f.lines} ${f.lines === 1 ? "line" : "lines"}`, rest: "" };
   return { tone: "info", word: f.talked ? "Brief, with Tiff" : "Drafted", rest: "" };
@@ -166,7 +166,7 @@ export function whoWords(who: QuoteLanding["who"], talked: boolean, when: Landin
 
 /** An accepted quote's own line: "Accepted Wed 22 Oct, version 2". */
 export function acceptedState(f: Pick<QuoteFacts, "version">, l: Pick<QuoteLanding, "acceptedAt">, when: LandingWhen): LandingState {
-  return { tone: "good", word: "Accepted", rest: `${l.acceptedAt ? ` ${dayOf(when, l.acceptedAt)}` : ""}, version ${f.version}` };
+  return { tone: "good", word: "Customer accepted", rest: `${l.acceptedAt ? ` ${dayOf(when, l.acceptedAt)}` : ""}, version ${f.version}` };
 }
 
 /** One row under an accepted quote: a variation or a version. */
@@ -202,7 +202,7 @@ export function acceptedRows(f: Pick<QuoteFacts, "version">, l: QuoteLanding, wh
   const current: LandingRow = {
     key: `version-${f.version}`,
     title: `Version ${f.version}`,
-    state: { tone: "good", word: "Accepted", rest: l.acceptedAt ? ` ${dayOf(when, l.acceptedAt)}` : "" },
+    state: { tone: "good", word: "Customer accepted", rest: l.acceptedAt ? ` ${dayOf(when, l.acceptedAt)}` : "" },
     who: l.approvedBy,
     cents: l.totalCents,
     signed: false,

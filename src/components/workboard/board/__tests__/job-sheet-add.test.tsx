@@ -311,9 +311,8 @@ describe("the job's Add", () => {
     const menu = await addMenu();
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(`/api/workboard/quote-status?job=${JOB}`));
     await userEvent.click(within(menu).getByRole("menuitem", { name: "Add quote" }));
-    expect(push).not.toHaveBeenCalled();
-    expect(jobTab("Price")).toHaveAttribute("aria-selected", "true");
-    expect(await screen.findByRole("button", { name: /New quote/, pressed: true })).toBeInTheDocument();
+    /* the quote in a tab of its own, at the reply box (the Price overhaul, 18 November 2026) */
+    await waitFor(() => expect(push).toHaveBeenCalledWith(`/dashboard/jobs/${JOB}/quote?start=1`));
   });
 
   it("opens Price when where the quote stands couldn't be read, and Price says so", async () => {

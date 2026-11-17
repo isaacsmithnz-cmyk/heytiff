@@ -1,27 +1,16 @@
-import { notFound, redirect } from "next/navigation";
-import { can } from "@/lib/permissions-server";
-import { quoteHref } from "@/lib/shell/links";
+import { renderJobPage } from "../job-page-server";
 
-/* THE QUOTE'S OLD PAGE (/dashboard/jobs/<id>/quote, 24 October to 15
-   November 2026). The quote and the job's Price tab are one page now (the
-   job page plan's build 10), so an old link lands there, asking what it
-   asked: `?start=1` the quote with its reply box ready for the brief,
-   `?option=N` that option, `?update=1` Update quote. The Workboard is its
-   gate, as the job page's; the job page resolves the job inside the
-   caller's org. */
+/* THE QUOTE IN A TAB OF ITS OWN (/dashboard/jobs/<id>/quote): the job's
+   page with the quote open, Build, Breakdown and Proposal, the total beside
+   them (job-page-server.tsx). `?start=1` opens with the reply box ready for
+   the brief, `?option=N` on that option, `?update=1` on Update quote. It
+   was this address's from 24 October to 15 November 2026, then landed on
+   the job's Price tab until the quote took a tab again on 18 November. The
+   Workboard is its gate, as the job page's. */
 
-export default async function JobQuotePage({
-  params,
-  searchParams,
-}: {
+export default async function JobQuotePage(props: {
   params: Promise<{ id: string }>;
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  if (!(await can("workboard"))) redirect("/dashboard");
-  const [{ id }, sp] = await Promise.all([params, searchParams]);
-  const job = id.trim().slice(0, 80);
-  if (!job) notFound();
-  const raw = typeof sp.option === "string" ? Number(sp.option) : NaN;
-  const option = Number.isInteger(raw) && raw >= 0 && raw <= 19 ? raw : null;
-  redirect(quoteHref(job, { start: sp.start === "1", option, update: sp.update === "1" }));
+  return renderJobPage({ ...props, doc: "quote" });
 }

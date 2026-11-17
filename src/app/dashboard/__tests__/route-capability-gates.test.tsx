@@ -24,6 +24,9 @@ jest.mock("next/navigation", () => ({
 /* the leaves' bodies are client components with suites of their own — the
    gate is what's under test, so they render to nothing here */
 jest.mock("@/components/toolbox/tool-page", () => ({ ToolPage: () => null }));
+/* the quote's tab is the job's page with the quote open: what it renders is the job page's to test */
+const mockRenderJobPage = jest.fn(async (props: { doc?: string }) => ({ jobPage: props.doc ?? null }));
+jest.mock("../jobs/[id]/job-page-server", () => ({ renderJobPage: (props: { doc?: string }) => mockRenderJobPage(props) }));
 jest.mock("@/components/toolbox/heat-load", () => ({ HeatLoadCalculator: () => null }));
 jest.mock("@/components/toolbox/running-pressures", () => ({ RunningPressures: () => null }));
 jest.mock("@/components/toolbox/fault-finder", () => ({ FaultFinder: () => null }));
@@ -266,28 +269,17 @@ describe("the knowledge base hands the client what this viewer may do", () => {
   });
 });
 
-/* THE QUOTE'S OLD PAGE lands on the job's Price tab, where the quote and
-   its page are one (the job page plan's build 10, 15 November 2026), asking
-   what it asked; without the Workboard, nobody. */
-describe("the quote's old page", () => {
+/* THE QUOTE IN A TAB OF ITS OWN (the Price overhaul, 18 November 2026): its
+   address is the job's page with the quote open, asking what it asked
+   (?start=1, ?option=N, ?update=1, read by the job's page); the job page's
+   gate, the Workboard, is its gate. */
+describe("the quote's own tab", () => {
   const open = (q: Record<string, string> = {}) => JobQuotePage({ params: Promise.resolve({ id: "x-1" }), searchParams: Promise.resolve(q) });
 
-  it("lands on the job's Price tab", async () => {
-    (can as jest.Mock).mockImplementation(async (cap: string) => cap === "workboard");
-    await expect(open()).rejects.toThrow("REDIRECT:/dashboard/jobs/x-1?tab=price");
-  });
-
-  /* the job card's Create a quote linked ?start=1 (the chat-first page, 2026-10-13) */
-  it("keeps the start, the option and Update quote it asked for", async () => {
-    (can as jest.Mock).mockImplementation(async () => true);
-    await expect(open({ start: "1" })).rejects.toThrow("REDIRECT:/dashboard/jobs/x-1?tab=price&start=1");
-    await expect(open({ option: "2", update: "1" })).rejects.toThrow("REDIRECT:/dashboard/jobs/x-1?tab=price&option=2&update=1");
-  });
-
-  it("sends someone without the Workboard away", async () => {
-    (can as jest.Mock).mockImplementation(async () => false);
-    await expect(open()).rejects.toThrow("REDIRECT:/dashboard");
-    expect(can).toHaveBeenCalledWith("workboard");
+  it("is the job's page with the quote open", async () => {
+    mockRenderJobPage.mockClear();
+    await expect(open({ start: "1" })).resolves.toEqual({ jobPage: "quote" });
+    expect(mockRenderJobPage).toHaveBeenCalledWith(expect.objectContaining({ doc: "quote" }));
   });
 });
 
@@ -306,12 +298,12 @@ describe("retired → the v2 home", () => {
     [
       "workboard/quotes/[id]?start=1",
       () => OldQuotePage({ params: Promise.resolve({ id: "j-1" }), searchParams: Promise.resolve({ start: "1" }) }),
-      "/dashboard/jobs/j-1?tab=price&start=1",
+      "/dashboard/jobs/j-1/quote?start=1",
     ],
     [
       "workboard/quotes/[id]?option=2",
       () => OldQuotePage({ params: Promise.resolve({ id: "j-1" }), searchParams: Promise.resolve({ option: "2" }) }),
-      "/dashboard/jobs/j-1?tab=price&option=2",
+      "/dashboard/jobs/j-1/quote?option=2",
     ],
     /* the field tools are the Library's Toolbox shelf */
     ["toolbox", ToolboxPage, "/dashboard/tiff/library?view=toolbox"],

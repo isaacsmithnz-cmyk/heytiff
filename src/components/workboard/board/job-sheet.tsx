@@ -1,6 +1,6 @@
 "use client";
 
-import { projectHref } from "@/lib/shell/links";
+import { jobPageHref, projectHref } from "@/lib/shell/links";
 import { Fragment, Suspense, lazy, useEffect, useEffectEvent, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
@@ -11,6 +11,7 @@ import type { MenuItem } from "@/components/parts/menu";
 import { quoteStarted, type QuoteFacts } from "@/lib/quotes/quote-card";
 import type { PriceAsk } from "@/lib/jobs/job-prices";
 import { JobPriceTab } from "@/components/jobs/job-price-tab";
+import { JobDocHead, type DocStage } from "@/components/jobs/job-doc-head";
 import {
   createProjectFromJob,
   readJobFiles,
@@ -281,6 +282,9 @@ export type JobSheetPage = {
       old page, a claim's own number): the quote started, an option, Update
       quote, an invoice. Bumped `n` asks again. */
   price?: PriceAsk | null;
+  /** The quote open in a tab of its own (/dashboard/jobs/<id>/quote): the
+      job's head and sections give way to the quote's (job-doc-head.tsx). */
+  doc?: "quote" | null;
 };
 
 /** WHAT THE PAGE ALREADY READ, on the server and all at once, so the card
@@ -1544,6 +1548,8 @@ export function JobSheet({
      buttons fell under a 790 screen on a job with a description (the walk
      of 15 November 2026, 3408) */
   const [priceRef, priceH] = useFitHeight<HTMLDivElement>();
+  /* the quote in its own tab: where it's up to and its name, for the head */
+  const [docStage, setDocStage] = useState<(DocStage & { title: string | null }) | null>(null);
   /* STOCK'S WORD FOR EACH UNIT AND CONTROL, read once On site is opened
      (/api/stock/job, what the Overview's Equipment block read) */
   const [stock, setStock] = useState<EquipmentRow[] | null>(null);
@@ -1870,6 +1876,8 @@ export function JobSheet({
           claims={family?.claims ?? []}
           materials={materials}
           ask={priceAsk}
+          doc={page.doc ?? null}
+          onDocStage={setDocStage}
           onOpenPaper={(item) =>
             setViewer(media?.documents.some((d) => d.remoteId === item.remoteId) ? { kind: "paper", id: item.remoteId } : { kind: "page", item })
           }
@@ -2384,6 +2392,31 @@ export function JobSheet({
     } else if (key === "agreement") onCreateAgreement(row, detail);
     else page.onAction(key);
   };
+  /* THE QUOTE IN A TAB OF ITS OWN: its head, then the quote, fitted to the screen */
+  if (page.doc)
+    return (
+      <>
+        <div className="wb2-sheet jc jp-sheet jp-doc">
+          <JobDocHead
+            jobHref={jobPageHref(cardId ?? row.id, "price")}
+            number={cardNumber}
+            client={detail?.clientName?.trim() || row.clientName?.trim() || jobPlateName(detail, row)}
+            site={detail ? (detail.address ?? "").split(/\r?\n/)[0]?.trim() || detail.geoLine?.trim() || null : (row.suburb ?? null)}
+            what={docStage?.title ?? null}
+            hue={jobHue(categoryColour, status)}
+            stage={docStage}
+            actions={[{ key: "link", label: "Copy the link" }, ...(sm8Href ? [{ key: "sm8", label: "Open in ServiceM8" }] : [])]}
+            onAction={(key) => {
+              if (key === "sm8" && sm8Href) window.open(sm8Href, "_blank", "noopener,noreferrer");
+              else page.onAction(key);
+            }}
+          />
+          {err && <div className="wb2-sherr">{err}</div>}
+          {facePrice}
+        </div>
+        {hydrated && createPortal(dialogs, document.body)}
+      </>
+    );
   return (
     <>
       <div className="wb2-sheet jc jp-sheet">

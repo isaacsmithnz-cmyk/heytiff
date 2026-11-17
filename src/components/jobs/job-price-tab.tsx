@@ -1,6 +1,7 @@
 "use client";
 
-import { Suspense, lazy, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Suspense, lazy, useEffect, useEffectEvent, useMemo, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { readClaim, readJobBookedVisits } from "@/app/actions/workboard";
 import type { BookedVisitRead } from "@/lib/jobs/built-from-server";
 import { Button } from "@/components/parts/button";
@@ -10,10 +11,14 @@ import { Empty, Loading, Wrong } from "@/components/parts/states";
 import { Waiting } from "@/components/ui/orb";
 import { JobQuoteSend, sendVariation } from "@/components/workboard/board/job-quote-send";
 import { useQuotePrice } from "@/components/workboard/quote/quote-parts";
-import { QuoteLinesFace } from "@/components/workboard/quote/quote-lines-face";
+import { QuoteLinesFace, useQuoteLines, type QuoteStage } from "@/components/workboard/quote/quote-lines-face";
+import { LinesProposalPaper } from "@/components/workboard/quote/lines-proposal-paper";
+import { openInTab } from "@/components/shell/open-tabs";
+import type { DocStage } from "./job-doc-head";
 import type { Sm8Quote } from "@/components/workboard/quote/sm8-quote-of";
 import { fmtAuTime, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { sm8JobUrl } from "@/lib/integrations/sm8-links";
+import { quoteHref } from "@/lib/shell/links";
 import { firstCard, invoicePaperOf, priceCards, quoteBegun, type PriceAsk, type PriceCard, type QuoteRead } from "@/lib/jobs/job-prices";
 import { proposalTitle } from "@/lib/quotes/proposal";
 import type { QuoteFacts } from "@/lib/quotes/quote-card";
@@ -74,6 +79,8 @@ export function JobPriceTab({
   claims,
   materials,
   ask,
+  doc = null,
+  onDocStage,
   onOpenPaper,
   onToast,
 }: {
@@ -94,6 +101,11 @@ export function JobPriceTab({
   materials: readonly JobMaterialLine[];
   /** what a door asked the tab to open on */
   ask: PriceAsk | null;
+  /** the quote in a tab of its own: the quote alone, Build, Breakdown and
+      Proposal, with no cards over it */
+  doc?: "quote" | null;
+  /** where the quote's up to and its name, for the head of its tab */
+  onDocStage?: (stage: (DocStage & { title: string | null }) | null) => void;
   onOpenPaper: (item: JobMediaItem) => void;
   onToast: (message: string, undo?: () => void) => void;
 }) {
@@ -151,11 +163,52 @@ export function JobPriceTab({
   const want = picked?.startsWith("invoice:") ? firstCard(cards, picked.slice("invoice:".length)) : picked;
   const shown = shownCards.find((c) => c.key === want) ?? cards.find((c) => c.key === firstCard(cards, null)) ?? null;
 
-  const newQuote = () => {
-    setStarting(true);
-    setPicked("quote");
+  /* New quote and Update quote open the quote in its own tab, the reply
+     box ready for the brief; and so does a door that asks the Price tab for
+     the quote (Add › Quote, a variation's Open, Since the quote's Update quote) */
+  const router = useRouter();
+  const openQuote = (opts: { start?: boolean; option?: number | null; update?: boolean }) => {
+    const href = quoteHref(job, opts);
+    openInTab(href, `${window.location.pathname}${window.location.search}`);
+    router.push(href);
   };
+  const newQuote = () => openQuote({ start: true });
+  const quoteAsk = !doc && ask && (ask.start || ask.option != null || ask.update) ? ask : null;
+  /* once per ask */
+  const openAsked = useEffectEvent(() => {
+    if (quoteAsk) openQuote({ start: quoteAsk.start, option: quoteAsk.option, update: quoteAsk.update });
+  });
+  const askN = quoteAsk?.n ?? null;
+  useEffect(() => {
+    if (askN != null) openAsked();
+  }, [askN]);
   const offerNew = ready && quote !== undefined && !quoteBegun(quote) && !starting && !cards.some((c) => c.kind === "sm8-quote");
+
+  /* THE QUOTE IN ITS OWN TAB: the quote alone, under its head */
+  if (doc === "quote")
+    return (
+      <div className="jpr jpr-doc">
+        {!ready || quote === undefined ? (
+          <Loading what="Reading the quote" />
+        ) : (
+          <PriceQuote
+            key={`quote-${ask?.n ?? 0}`}
+            job={job}
+            detail={detail}
+            sm8={sm8}
+            moneyVisible={moneyVisible}
+            financials={financials}
+            start={starting && !quoteBegun(quote)}
+            option={ask?.option ?? null}
+            update={!!ask?.update}
+            onOpenPaper={onOpenPaper}
+            onToast={onToast}
+            onChanged={() => setReads((n) => n + 1)}
+            onStage={(st) => onDocStage?.(st ? docStageOf(st) : null)}
+          />
+        )}
+      </div>
+    );
 
   /* said whatever else is up: ServiceM8's quote or an invoice may still be */
   const unread =
@@ -185,22 +238,7 @@ export function JobPriceTab({
       />
     );
   else if (shown.kind === "quote")
-    body = (
-      <PriceQuote
-        key={`quote-${ask?.n ?? 0}`}
-        job={job}
-        detail={detail}
-        sm8={sm8}
-        moneyVisible={moneyVisible}
-        financials={financials}
-        start={starting && !quoteBegun(quote)}
-        option={ask?.option ?? null}
-        update={!!ask?.update}
-        onOpenPaper={onOpenPaper}
-        onToast={onToast}
-        onChanged={() => setReads((n) => n + 1)}
-      />
-    );
+    body = <QuotePreview job={job} detail={detail} money={financials} starting={starting && !quoteBegun(quote)} />;
   else if (shown.key === "new-invoice")
     body = (
       <Suspense fallback={<Loading what="Working out the invoice" />}>
@@ -288,6 +326,7 @@ function PriceQuote({
   onOpenPaper,
   onToast,
   onChanged,
+  onStage,
 }: {
   job: string;
   detail: MirrorJobDetail | null;
@@ -301,6 +340,8 @@ function PriceQuote({
   onToast: (message: string, undo?: () => void) => void;
   /** the quote moved: the cards read where it stands again */
   onChanged: () => void;
+  /** where it's up to, for the head of its tab */
+  onStage?: (stage: QuoteStage | null) => void;
 }) {
   /* on its lines: undefined while a quote on the old builder is switched,
      false when that failed */
@@ -370,7 +411,69 @@ function PriceQuote({
         sendVariation={(o) => sendVariation(job, o)}
         jobStatus={detail?.status ?? null}
         update={update}
+        onStage={onStage}
       />
+    </div>
+  );
+}
+
+/** The quote's state word in its tab's head (rule 17): what's left to settle
+    needs a look, ready, sent and the customer's yes are good, a draft is
+    for your information; Undo rides with the customer's yes. */
+const docStageOf = (st: QuoteStage): DocStage & { title: string | null } => ({
+  word: st.word,
+  tone: st.settle ? "look" : st.good ? "good" : "info",
+  undo: st.undo ?? null,
+  title: st.title ?? null,
+});
+
+/* THE QUOTE ON THE PRICE TAB (the Price overhaul, 18 November 2026): its
+   paper as the customer gets it, read only, and Open quote, which opens it
+   in a tab of its own to change. A tech, who never sees the quote's money,
+   has no paper (the paper is the money's), only Open quote. */
+function QuotePreview({ job, detail, money, starting }: { job: string; detail: MirrorJobDetail | null; money: boolean; starting: boolean }) {
+  const { view } = useQuoteLines(job, money);
+  const price = useQuotePrice(job, money, view ? "preview" : null);
+  const address = detail?.address ?? detail?.geoLine ?? null;
+  const href = quoteHref(job, { start: starting });
+  const lines = (view?.lines ?? []).filter((l) => !(view?.variations ?? []).some((v) => v.option === l.optionIndex));
+  return (
+    <div className="jpr-body jpr-body--one">
+      <div className="jpr-main">
+        <div className="jpr-mainhead">
+          <h2 className="qc-vt">{view?.proposal?.title || proposalTitle(address)}</h2>
+          <Button kind="main" href={href} onClick={() => openInTab(href, `${window.location.pathname}${window.location.search}`)}>
+            Open quote
+          </Button>
+        </div>
+        <div className="jpr-left">
+          {!money ? (
+            <p className="jpr-none">Open the quote to see its work and talk it through with Tiff.</p>
+          ) : !view ? (
+            <Loading what="Reading the quote" />
+          ) : lines.length === 0 ? (
+            <p className="jpr-none">Nothing on the quote yet. Open it to build it with Tiff.</p>
+          ) : (
+            <div className="lp-desk lp-ro">
+              <LinesProposalPaper
+                {...{ title: proposalTitle(address) }}
+                proposal={view.proposal ?? null}
+                lines={lines}
+                price={price}
+                optionNames={view.optionNames ?? []}
+                noteLibrary={view.noteLibrary ?? []}
+                paymentTerms={view.paymentTerms ?? null}
+                client={detail?.clientName ?? null}
+                site={address}
+                jobNumber={detail?.jobNumber ?? null}
+                preparedBy={view.names[view.me ?? ""] ?? null}
+                busy
+                onSave={() => undefined}
+              />
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

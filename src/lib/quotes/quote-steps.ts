@@ -54,9 +54,10 @@ const LABELS: Record<StepKey, string> = {
   questions: "Scope",
   design: "Design",
   buildup: "Priced",
-  approved: "Approved",
+  /* the phone's words (the Price overhaul, 18 November 2026) */
+  approved: "Ready to send",
   sent: "Sent",
-  accepted: "Accepted",
+  accepted: "Customer accepted",
 };
 
 /** The Design step: Design while it's drawn or still to do, No design once
@@ -122,7 +123,7 @@ export function linesSteps(input: {
     built,
     /* version 2 on, the version it's at (quote-versions.ts) */
     input.approved
-      ? step("approved", "done", (input.version ?? 1) > 1 ? `Version ${input.version} approved` : day(input.approvedAt) || "Approved")
+      ? step("approved", "done", (input.version ?? 1) > 1 ? `Version ${input.version} ready` : day(input.approvedAt) || "Marked ready")
       : step("approved", "todo", (input.version ?? 1) > 1 ? `Version ${input.version}` : ""),
     input.sent ? step("sent", "done", input.sent.trial ? "Trial run" : day(input.sent.at) || "To ServiceM8") : step("sent", "todo", ""),
     input.accepted?.length ? step("accepted", "done", acceptedWords(input.accepted)) : step("accepted", "todo", ""),

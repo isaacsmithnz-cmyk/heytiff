@@ -50,16 +50,16 @@ describe("a quote built on its kept lines", () => {
       approvedAt: "2026-10-17T01:00:00Z",
       sent: { trial: false, at: "2026-10-18T02:00:00Z" },
     });
-    expect(steps.map((s) => s.label)).toEqual(["Brief", "Scope", "Priced", "Approved", "Sent", "Accepted"]);
+    expect(steps.map((s) => s.label)).toEqual(["Brief", "Scope", "Priced", "Ready to send", "Sent", "Customer accepted"]);
     expect(steps[3]).toMatchObject({ state: "done", words: "17 Oct" });
     expect(steps[4]).toMatchObject({ state: "done", words: "18 Oct" });
   });
   it("says the version it's at from version 2 on (quote-versions.ts)", () => {
     const at = (version: number, approved: boolean) => linesSteps({ lines: 3, unknown: 0, price: { kind: "priced", left: 0 }, approved, version })[3];
-    expect(at(1, true)).toMatchObject({ key: "approved", state: "done", words: "Approved" });
+    expect(at(1, true)).toMatchObject({ key: "approved", state: "done", words: "Marked ready" });
     expect(at(1, false)).toMatchObject({ state: "todo", words: "" });
     expect(at(2, false)).toMatchObject({ state: "todo", words: "Version 2" });
-    expect(at(2, true)).toMatchObject({ state: "done", words: "Version 2 approved" });
+    expect(at(2, true)).toMatchObject({ state: "done", words: "Version 2 ready" });
   });
 });
 
@@ -68,7 +68,7 @@ describe("a quote built on its kept lines", () => {
 describe("the Design step", () => {
   const at = (design: "drawn" | "skipped" | "open" | null) => linesSteps({ lines: 3, unknown: 0, price: { kind: "priced", left: 0 }, design });
   it("sits between Scope and Priced for someone with the Studio", () => {
-    expect(at("open").map((s) => s.label)).toEqual(["Brief", "Scope", "Design", "Priced", "Approved", "Sent", "Accepted"]);
+    expect(at("open").map((s) => s.label)).toEqual(["Brief", "Scope", "Design", "Priced", "Ready to send", "Sent", "Customer accepted"]);
   });
   it("isn't on the line at all without the Studio", () => {
     expect(at(null).map((s) => s.key)).not.toContain("design");

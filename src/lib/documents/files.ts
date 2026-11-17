@@ -182,10 +182,34 @@ export function isVideoMime(mimeType: string): boolean {
   return mimeType.toLowerCase() in VIDEO_TYPES;
 }
 
-/** Decide whether a file may be stored, before any slot is handed out. A job's photos may be a video too (`video`). */
-export function checkUpload(file: { name: string; type: string; size: number }, opts: { video?: boolean } = {}): UploadCheck {
-  const ext = ALLOWED_TYPES[file.type.toLowerCase()] ?? (opts.video ? VIDEO_TYPES[file.type.toLowerCase()] : undefined);
-  if (!ext) return { ok: false, error: "That file type isn't allowed — photos and PDFs only." };
+/** A job's own files from the phone's Add, Upload a file (Isaac, 17 November 2026: "I don't want to just lock things to
+    PDFs"): the office files a job's paperwork comes as, besides photos and PDFs. Only a job's document may be one. The
+    bucket allows the same (docs/migrations/documents_bucket_office.sql); ServiceM8 reads a file's type off its name,
+    so each keeps its own extension. */
+export const FILE_TYPES: Readonly<Record<string, string>> = {
+  "application/msword": "doc",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+  "application/vnd.ms-excel": "xls",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+  "application/vnd.ms-powerpoint": "ppt",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation": "pptx",
+  "application/rtf": "rtf",
+  "text/csv": "csv",
+  "text/plain": "txt",
+};
+
+export function isFileType(mimeType: string): boolean {
+  const t = mimeType.toLowerCase();
+  return t === "application/pdf" || t in FILE_TYPES;
+}
+
+/** Decide whether a file may be stored, before any slot is handed out. A job's photos may be a video too (`video`);
+    a job's document may be an office file (`files`). */
+export function checkUpload(file: { name: string; type: string; size: number }, opts: { video?: boolean; files?: boolean } = {}): UploadCheck {
+  const type = file.type.toLowerCase();
+  const ext = ALLOWED_TYPES[type] ?? (opts.video ? VIDEO_TYPES[type] : undefined) ?? (opts.files ? FILE_TYPES[type] : undefined);
+  if (!ext)
+    return { ok: false, error: opts.files ? "That kind of file can't go on a job: photos, PDFs, Word, Excel, PowerPoint and text files can." : "That file type isn't allowed — photos and PDFs only." };
   if (file.size <= 0) return { ok: false, error: "That file is empty." };
   if (file.size > MAX_BYTES)
     return { ok: false, error: `That file is too big — ${fmtBytes(MAX_BYTES)} is the limit.` };

@@ -9,7 +9,7 @@ import { sendJobPhotoAs } from "@/app/actions/job-sm8";
 import { sendHold, sendLine, sendRefusal, type SendLine } from "@/lib/integrations/sm8-write-plan";
 import { staffProfileIdFor } from "@/lib/fleet/query";
 import { landSlot, openSlot } from "@/lib/documents/upload-slots";
-import { isImage, isVideoMime } from "@/lib/documents/files";
+import { isFileType, isImage, isVideoMime } from "@/lib/documents/files";
 import type { MobileCtx } from "./auth";
 
 /* PHOTOS FROM THE PHONE, onto the job you're looking at (Isaac, 27 October
@@ -70,7 +70,7 @@ export async function beginJobPhoto(
   return { ok: true, value: { documentId: slot.documentId, uploadUrl: slot.signedUrl } };
 }
 
-/** A slot for one PDF on this job, from Tiff's box: filed with the job's documents, as the job card's Documents face files one. */
+/** A slot for one PDF, or another of the job's files, on this job, from Tiff's box or the phone's Add: filed with the job's documents, as the job card's Documents face files one. */
 export async function beginJobPdf(
   ctx: MobileCtx,
   jobId: string,
@@ -83,7 +83,8 @@ export async function beginJobPdf(
   const fileName = typeof file.fileName === "string" ? file.fileName : "";
   const mimeType = typeof file.mimeType === "string" ? file.mimeType : "";
   const sizeBytes = typeof file.sizeBytes === "number" ? file.sizeBytes : 0;
-  if (mimeType.toLowerCase() !== "application/pdf") return { ok: false, error: "That isn't a PDF.", status: 400 };
+  /* a PDF, or another of the job's files: Word, Excel and the like (Isaac, 17 November 2026: "upload file") */
+  if (!isFileType(mimeType)) return { ok: false, error: "That kind of file can't go on a job: photos, PDFs, Word, Excel, PowerPoint and text files can.", status: 400 };
   const slot = await openSlot(ctx.orgId, staffId, "job_document", { fileName, mimeType, sizeBytes }, job);
   if (!slot.ok) return { ok: false, error: slot.error, status: 400 };
   return { ok: true, value: { documentId: slot.documentId, uploadUrl: slot.signedUrl } };

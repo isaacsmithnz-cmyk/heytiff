@@ -289,7 +289,7 @@ describe("readMirrorJobDetail, where the deployment doesn't book (D-14)", () => 
     expect(fake.log.map((s) => `${s.table} ${s.columns}`)).toEqual([
       "sm8_jobs uuid, generated_job_id, status, company_uuid, job_address, geo_city, geo_state, geo_postcode, category_uuid, queue_uuid, queue_expiry_date, queue_assigned_staff_uuid, job_description, work_done_description, purchase_order_number, date, quote_date, work_order_date, completion_date, quote_sent_on:quote_sent_stamp, total_invoice_amount, invoice_sent, invoice_date, quote_sent, quote_sent_stamp, payment_received, payment_received_stamp",
       "sm8_job_activities uuid, start_date, end_date, staff_uuid, activity_was_scheduled",
-      "sm8_job_contacts first, last, type, mobile, phone, email",
+      "sm8_job_contacts uuid, first, last, type, mobile, phone, email",
       "sm8_job_checklists name, item_type, section_name, sort_order, completed_timestamp, completed_by_staff_uuid",
       /* the check-ins pressed on the card; none here, so no read of who */
       "check_in_fixes sm8_activity_uuid, ends_at",

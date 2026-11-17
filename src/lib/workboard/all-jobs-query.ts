@@ -544,6 +544,8 @@ export type MirrorJobDetail = {
   queue: { name: string; expiry: string | null; staffName: string | null } | null;
   checklist: JobChecklistItem[];
   contacts: {
+    /** The contact's ServiceM8 uuid, so the phone can change or remove them. */
+    id: string;
     name: string;
     type: string | null;
     /** The number to ring first — the mobile when there is one. */
@@ -947,7 +949,7 @@ export async function readMirrorJobDetail(
       .order("start_date", { ascending: true }),
     supabaseAdmin
       .from("sm8_job_contacts")
-      .select("first, last, type, mobile, phone, email")
+      .select("uuid, first, last, type, mobile, phone, email")
       .eq("org_id", orgId)
       .eq("active", 1)
       .eq("job_uuid", remoteId),
@@ -1236,6 +1238,7 @@ export async function readMirrorJobDetail(
         };
       }),
     contacts: ((contactRows ?? []) as {
+      uuid: string;
       first: string | null;
       last: string | null;
       type: string | null;
@@ -1247,6 +1250,7 @@ export async function readMirrorJobDetail(
         const mobile = c.mobile?.trim() || null;
         const landline = c.phone?.trim() || null;
         return {
+          id: c.uuid,
           name: [c.first, c.last].filter(Boolean).join(" ").trim(),
           type: c.type,
           phone: mobile || landline,

@@ -50,3 +50,32 @@ describe("a customer save's changes", () => {
     expect(holds({ type: "JOB" }, { type: "BILLING" })).toBe(false);
   });
 });
+
+describe("the job's site address (bug 26)", () => {
+  const sited: CustomerForm = { ...base, siteAddress: "Cliff Rd, Watsons Bay" };
+
+  it("goes as job_address, on the job's one row", () => {
+    const r = customerChanges(sited, { ...sited, siteAddress: "6/40 Raglan St, Mosman NSW 2088" });
+    expect(r.ok && r.changes.map((c) => [c.object, c.op, c.uuid, c.fields, c.label])).toEqual([["job", "update", J, { job_address: "6/40 Raglan St, Mosman NSW 2088" }, "Site address changed"]]);
+  });
+
+  it("goes with the billing address as one change to the job, when both move", () => {
+    const r = customerChanges(sited, { ...sited, siteAddress: "6/40 Raglan St, Mosman", billingAddress: "6/40 Raglan St, Mosman" });
+    expect(r.ok && r.changes.map((c) => [c.object, c.fields, c.label])).toEqual([["job", { billing_address: "6/40 Raglan St, Mosman", job_address: "6/40 Raglan St, Mosman" }, "Site and billing addresses changed"]]);
+  });
+
+  it("is left alone when the form doesn't carry it, or the job's couldn't be known", () => {
+    expect(customerChanges(sited, { ...sited, siteAddress: undefined })).toEqual({ ok: true, changes: [] });
+    expect(customerChanges(base, { ...base, siteAddress: "6/40 Raglan St" })).toEqual({ ok: true, changes: [] });
+    expect(customerChanges({ ...sited, siteAddress: null }, { ...sited, siteAddress: "6/40 Raglan St" })).toEqual({ ok: true, changes: [] });
+  });
+
+  it("can't be emptied, and spaces round it are no change", () => {
+    expect(customerChanges(sited, { ...sited, siteAddress: "  " })).toEqual({ ok: false, error: "The site needs an address." });
+    expect(customerChanges(sited, { ...sited, siteAddress: " Cliff Rd, Watsons Bay " })).toEqual({ ok: true, changes: [] });
+  });
+
+  it("is a field the sender may send for a job, beside the billing address and never the status", () => {
+    expect(allowedFields("job", { job_address: "x", billing_address: "y", status: "Completed", job_description: "z" })).toEqual({ billing_address: "y", job_address: "x" });
+  });
+});

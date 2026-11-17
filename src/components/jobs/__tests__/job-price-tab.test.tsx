@@ -125,15 +125,28 @@ const draw = (over: Partial<ComponentProps<typeof JobPriceTab>> = {}) =>
       {...over}
     />
   );
-const prices = () => within(screen.getByRole("group", { name: "The job's prices" }));
+/* QUOTES AND INVOICES: every price on the job as a row (the Price overhaul, C) */
+const prices = () => within(screen.getByRole("list", { name: "The job's prices" }));
+/** the row whose words match, found once the list is up */
+const findRow = async (words: RegExp) => {
+  await screen.findByRole("list", { name: "The job's prices" });
+  return waitFor(() => {
+    const hit = prices().getAllByRole("listitem").find((li) => words.test(li.textContent ?? ""));
+    if (!hit) throw new Error(`no row ${words}`);
+    return hit;
+  });
+};
+const pick = async (words: RegExp) => userEvent.click(within(await findRow(words)).getByRole("button"));
 
 it("lays the job's prices across the top, the quote's paper under them with Open quote, the invoice beside it", async () => {
   draw();
-  const quote = await prices().findByRole("button", { name: /^Quote/ });
-  expect(quote).toHaveAttribute("aria-pressed", "true");
-  expect(quote).toHaveTextContent("Return visit$775.00 ex GST");
+  const quote = await findRow(/Return visit/);
+  expect(quote).toHaveAttribute("aria-current", "true");
+  expect(quote).toHaveTextContent("Quote, $775.00 ex GST");
   /* owed said one way, as Billing's row says it */
-  expect(prices().getByRole("button", { name: /^Invoice #3408/ })).toHaveTextContent("$350 ex GSTAwaiting");
+  const invoice = await findRow(/Invoice #3408/);
+  expect(invoice).toHaveTextContent("Invoice #3408, $350 ex GST");
+  expect(invoice).toHaveTextContent("Awaiting");
   /* the paper as the customer gets it, read only; the quote opens in a tab of its own (the Price overhaul, 18 November 2026) */
   expect(await screen.findByText("The proposal’s paper")).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "Open quote" })).toHaveAttribute("href", `/dashboard/jobs/${JOB}/quote`);
@@ -148,8 +161,8 @@ it("in the quote's own tab, is the quote alone, with no prices over it", async (
 
 it("opens an invoice on its paper, with its figure and word down the right", async () => {
   draw();
-  await userEvent.click(await prices().findByRole("button", { name: /^Invoice #3408/ }));
-  expect(prices().getByRole("button", { name: /^Invoice #3408/ })).toHaveAttribute("aria-pressed", "true");
+  await pick(/Invoice #3408/);
+  expect(await findRow(/Invoice #3408/)).toHaveAttribute("aria-current", "true");
   expect(await screen.findByLabelText("Invoice #3408", { selector: "iframe" })).toHaveAttribute("src", "https://files.example/3408.pdf#toolbar=0&navpanes=0&view=FitH");
   const rail = within(screen.getByRole("complementary", { name: "Invoice #3408" }));
   expect(rail.getByText("$350")).toBeInTheDocument();
@@ -171,7 +184,7 @@ it("says what the job's invoice was built from: the visits oldest first, the wor
       workDone: "Cleaned the existing filters and serviced the outdoor unit. Checked the drains.",
     } as unknown as ComponentProps<typeof JobPriceTab>["detail"],
   });
-  await userEvent.click(await prices().findByRole("button", { name: /^Invoice #3408/ }));
+  await pick(/Invoice #3408/);
   const built = within(await screen.findByRole("region", { name: "Built from" }));
   expect(built.getAllByRole("listitem").map((li) => li.textContent)).toEqual([
     "Visit, Wed 14 OctIsaac Smith, Luke Brown, 1h 30m",
@@ -184,7 +197,7 @@ it("says what the job's invoice was built from: the visits oldest first, the wor
 it("counts a past booking nobody checked in on that the booking's own read says was a visit, as booked", async () => {
   readJobBookedVisits.mockResolvedValueOnce([{ day: "2026-10-14", who: "Isaac Smith", minutes: 60 }]);
   draw();
-  await userEvent.click(await prices().findByRole("button", { name: /^Invoice #3408/ }));
+  await pick(/Invoice #3408/);
   const built = within(await screen.findByRole("region", { name: "Built from" }));
   expect(await built.findByText("Isaac Smith, booked 1h")).toBeInTheDocument();
   expect(built.getByText("Visit, Wed 14 Oct")).toBeInTheDocument();
@@ -193,7 +206,7 @@ it("counts a past booking nobody checked in on that the booking's own read says 
 
 it("says so when the job's invoice has no visits and no work done", async () => {
   draw();
-  await userEvent.click(await prices().findByRole("button", { name: /^Invoice #3408/ }));
+  await pick(/Invoice #3408/);
   const built = within(await screen.findByRole("region", { name: "Built from" }));
   expect(await built.findByText("3 things")).toBeInTheDocument();
   expect(built.getByText("No time on site recorded")).toBeInTheDocument();
@@ -223,20 +236,20 @@ it("in an invoice's own tab, lays Breakdown and Invoice across it, and tells the
 
 it("on the Price tab, offers to open an invoice in its own tab", async () => {
   draw();
-  await userEvent.click(await prices().findByRole("button", { name: /^Invoice #3408/ }));
+  await pick(/Invoice #3408/);
   expect(await screen.findByRole("link", { name: "Open invoice" })).toHaveAttribute("href", `/dashboard/jobs/${JOB}/invoice/${JOB}`);
 });
 
 it("opens on the invoice a door asked for", async () => {
   draw({ ask: { invoice: JOB.toUpperCase(), n: 1 } });
-  expect(await prices().findByRole("button", { name: /^Invoice #3408/, pressed: true })).toBeInTheDocument();
+  expect(await findRow(/Invoice #3408/)).toHaveAttribute("aria-current", "true");
 });
 
 it("shows a tech no invoice, and reads no price without the money grants", async () => {
   draw({ moneyVisible: false, financials: false, billing: null });
   expect(await screen.findByText("Open the quote to see its work and talk it through with Tiff.")).toBeInTheDocument();
   expect(screen.queryByText("The proposal’s paper")).toBeNull();
-  expect(prices().queryByRole("button", { name: /^Invoice/ })).toBeNull();
+  expect(prices().queryAllByRole("listitem").filter((li) => /Invoice/.test(li.textContent ?? ""))).toHaveLength(0);
   expect(readClaim).not.toHaveBeenCalled();
   expect(fetchMock.mock.calls.some((c) => String(c[0]).startsWith("/api/workboard/quote-price"))).toBe(false);
 });
@@ -261,6 +274,16 @@ it("opens the quote's own tab on what a door asked: the start, an option, Update
   await waitFor(() => expect(push).toHaveBeenLastCalledWith(`/dashboard/jobs/${JOB}/quote?option=2&update=1`));
 });
 
+/* the list's foot says what can be made now (decision 8): a variation once
+   the customer has accepted, never a second quote */
+it("offers Add a variation under the list once the quote's accepted, and opens it in the quote's tab", async () => {
+  status = { ok: true, facts: facts({ accepted: [0] }), landing };
+  draw();
+  await userEvent.click(await screen.findByRole("button", { name: "Add a variation" }));
+  expect(push).toHaveBeenCalledWith(`/dashboard/jobs/${JOB}/quote?update=1`);
+  expect(screen.queryByRole("button", { name: "New quote" })).toBeNull();
+});
+
 it("hands the quote in its own tab what the address asked: the start, an option, Update quote", async () => {
   status = { ok: true, facts: facts({ lines: 0, talked: false }), landing: null };
   const { unmount } = draw({ doc: "quote", ask: { start: true, n: 1 } });
@@ -277,7 +300,7 @@ it("stands ServiceM8's own quote in for one never built here, with Update quote 
   status = { ok: true, facts: facts({ lines: 0, talked: false }), landing: null };
   const paper = { remoteId: "q", name: "Quote #3408", fileType: ".pdf", kind: "document" as const, origin: "Quote", takenAt: null, url: "https://files.example/q.pdf", width: null, height: null, fromClaim: null };
   draw({ sm8: { papers: [paper], sentOn: "2026-11-11", value: "$775 ex GST" }, billing: null, claims: [] });
-  expect(await prices().findByRole("button", { name: /^Quote, in ServiceM8/, pressed: true })).toBeInTheDocument();
+  expect(await findRow(/Quote, in ServiceM8/)).toHaveAttribute("aria-current", "true");
   expect(screen.getByLabelText("Quote #3408")).toHaveAttribute("src", "https://files.example/q.pdf#toolbar=0&navpanes=0&view=FitH");
   expect(screen.getByText("Typed in ServiceM8, so there’s no chat with Tiff behind it.")).toBeInTheDocument();
   const update = screen.getByRole("button", { name: "Update quote" });
@@ -311,7 +334,7 @@ it("says when where the quote stands wasn't read, and reads it again", async () 
   expect(await screen.findByText("The quote wasn't read")).toBeInTheDocument();
   status = { ok: true, facts: facts(), landing };
   await userEvent.click(screen.getByRole("button", { name: "Read the quote again" }));
-  await waitFor(() => expect(prices().getByRole("button", { name: /^Quote/ })).toBeInTheDocument());
+  expect(await findRow(/Return visit/)).toBeInTheDocument();
 });
 
 describe("New invoice", () => {
@@ -324,7 +347,7 @@ describe("New invoice", () => {
   it("offers the hours and what was used, each ticked, and puts only the ticked on the job, by a press", async () => {
     draw({ billing: null, claims: [] });
     await userEvent.click(await screen.findByRole("button", { name: "New invoice" }));
-    expect(prices().getByRole("button", { name: /New invoice/, pressed: true })).toBeInTheDocument();
+    expect(await findRow(/New invoice/)).toHaveAttribute("aria-current", "true");
     const rail = within(await screen.findByRole("complementary", { name: "New invoice" }));
     expect(await screen.findByText("Labour, Wed 11 Nov")).toBeInTheDocument();
     /* 3.5 h at $140, and the filter at the book's cost and markup */

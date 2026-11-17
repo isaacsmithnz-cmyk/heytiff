@@ -85,7 +85,9 @@ export type NewJobInitial = {
   mobile: string;
   email: string;
   description: string;
-  via: "email";
+  /** how the work came: an email (Tiff's email card), or an existing
+      customer (a job's Quote it as a new job) */
+  via: "email" | "an existing customer";
 };
 
 export function NewJobForm({ onClose, initial, onMade }: { onClose: () => void; initial?: NewJobInitial; onMade?: (jobUuid: string) => void }) {

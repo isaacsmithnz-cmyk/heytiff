@@ -7,7 +7,8 @@ import { readClaim, readJobBookedVisits } from "@/app/actions/workboard";
 import type { BookedVisitRead } from "@/lib/jobs/built-from-server";
 import { Button } from "@/components/parts/button";
 import { Fade } from "@/components/parts/fade";
-import { StateWord } from "@/components/parts/state";
+import { StateWord, stateTone } from "@/components/parts/state";
+import { Row, RowList } from "@/components/parts/row";
 import { Empty, Loading, Wrong } from "@/components/parts/states";
 import { Waiting } from "@/components/ui/orb";
 import { JobQuoteSend, sendVariation } from "@/components/workboard/board/job-quote-send";
@@ -185,6 +186,8 @@ export function JobPriceTab({
     if (askN != null) openAsked();
   }, [askN]);
   const offerNew = ready && quote !== undefined && !quoteBegun(quote) && !starting && !cards.some((c) => c.kind === "sm8-quote");
+  /* the customer took the quote: more work is a variation on it (rule 54) */
+  const accepted = ready && !!quote && quote.facts.accepted.length > 0;
 
   /* THE QUOTE IN ITS OWN TAB: the quote alone, under its head */
   if (doc === "quote")
@@ -290,19 +293,38 @@ export function JobPriceTab({
     );
 
   return (
-    <div className="jpr">
+    <div className="jpr jpr--list">
+      {/* QUOTES AND INVOICES (the Price overhaul, 18 November 2026, C: "Lose
+          the cards row, definitely"): every price on the job as a row, as
+          Billing's are, the one chosen filled, and what's chosen beside the
+          list as the customer sees it; under the list what can be made now:
+          New quote while the job has none, Add a variation once it's
+          accepted, New invoice for whoever sees money (decision 8) */}
       {(shownCards.length > 0 || offerNew || offerInvoice) && (
-        <div className="jpr-cards" role="group" aria-label="The job's prices">
-          {shownCards.map((c) => (
-            <CardButton key={c.key} card={c} on={shown?.key === c.key} onPick={() => setPicked(c.key)} />
-          ))}
-          {((offerNew && shownCards.length > 0) || (offerInvoice && !invoicing)) && (
-            <div className="jpr-new">
+        <section className="jpr-list" aria-label="Quotes and invoices">
+          <h2 className="jpr-listname">Quotes and invoices</h2>
+          <RowList label="The job's prices">
+            {shownCards.map((c) => (
+              <Row
+                key={c.key}
+                name={c.name}
+                line={[c.label, c.figure].filter(Boolean).join(", ")}
+                dot={c.state ? stateTone(c.state.tone) : undefined}
+                end={c.state ? <StateWord tone={c.state.tone}>{c.state.word}</StateWord> : undefined}
+                on={shown?.key === c.key}
+                onClick={() => setPicked(c.key)}
+              />
+            ))}
+          </RowList>
+          {((offerNew && shownCards.length > 0) || accepted || (offerInvoice && !invoicing)) && (
+            <div className="jpr-listfoot">
+              {/* with nothing on the job, New quote is the empty page's own */}
               {offerNew && shownCards.length > 0 && (
                 <Button kind="quote" onClick={newQuote}>
                   New quote
                 </Button>
               )}
+              {accepted && <Button onClick={() => openQuote({ update: true })}>Add a variation</Button>}
               {offerInvoice && !invoicing && (
                 <Button
                   onClick={() => {
@@ -315,28 +337,13 @@ export function JobPriceTab({
               )}
             </div>
           )}
-        </div>
+        </section>
       )}
-      {shown && unread}
-      <div className="jpr-open">{body}</div>
+      <div className="jpr-open">
+        {shown && unread}
+        {body}
+      </div>
     </div>
-  );
-}
-
-function CardButton({ card, on, onPick }: { card: PriceCard; on: boolean; onPick: () => void }) {
-  return (
-    <button type="button" className={on ? "jpr-card on" : "jpr-card"} aria-pressed={on} onClick={onPick}>
-      <span className="jpr-label">{card.label}</span>
-      <span className="jpr-name">
-        <Fade>{card.name}</Fade>
-      </span>
-      {card.figure && <b className="jpr-fig">{card.figure}</b>}
-      {card.state && (
-        <span className="jpr-state">
-          <StateWord tone={card.state.tone}>{card.state.word}</StateWord>
-        </span>
-      )}
-    </button>
   );
 }
 

@@ -347,8 +347,10 @@ export function QuoteLinesFace({
   };
   /* from the job's Since the quote: once, as soon as there's something to update */
   const opened = useRef(false);
-  const openUpdate = useEffectEvent(updateFromScope);
-  const updateReady = update && !!view && after && added.length > 0;
+  /* or from the Price tab's Add a variation on an accepted quote, with
+     nothing landed since: the variation's box, empty (decision 8) */
+  const openUpdate = useEffectEvent(() => (added.length > 0 ? updateFromScope() : setUpdating("")));
+  const updateReady = update && !!view && ((after && added.length > 0) || (view.accepted ?? []).length > 0);
   useEffect(() => {
     if (!updateReady || opened.current) return;
     opened.current = true;

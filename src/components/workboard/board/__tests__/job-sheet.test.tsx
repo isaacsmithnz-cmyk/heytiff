@@ -925,7 +925,7 @@ it("puts a day's photos in the conversation and sends the reader to the Photos s
     const ev = (await convo().findAllByText("Invoice #2380A"))[0]!.closest(".jc-event") as HTMLElement;
     await userEvent.click(within(ev).getByRole("button", { name: "Open" }));
     expect(jobTab("Price")).toHaveAttribute("aria-selected", "true");
-    expect(await screen.findByRole("button", { name: /Invoice #2380A/, pressed: true })).toBeInTheDocument();
+    expect(await screen.findByRole("listitem", { current: true })).toHaveTextContent("Invoice #2380A");
   });
 
 });
@@ -1924,7 +1924,8 @@ describe("an invoice, opened on Price", () => {
     });
     const p = await openProgress();
     expect(screen.queryByRole("dialog")).toBeNull();
-    const chosen = await p.findByRole("button", { name: /Invoice #3237B/, pressed: true });
+    const chosen = await p.findByRole("listitem", { current: true });
+    expect(chosen).toHaveTextContent("Invoice #3237B");
     expect(chosen).toHaveTextContent("Progress, 30%");
     expect(chosen).toHaveTextContent("$5,910 ex GST");
     expect(chosen).toHaveTextContent("25 days overdue");

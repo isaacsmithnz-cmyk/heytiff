@@ -293,7 +293,8 @@ describe("the job's Add", () => {
     /* the quote and its page are one: Price, opened in place (build 10) */
     expect(push).not.toHaveBeenCalled();
     expect(jobTab("Price")).toHaveAttribute("aria-selected", "true");
-    expect(await screen.findByRole("button", { name: /^Quote/, pressed: true })).toBeInTheDocument();
+    /* the quote's row chosen in the list (the Price overhaul, C) */
+    expect(await screen.findByRole("listitem", { current: true })).toHaveTextContent("Quote");
   });
 
   it("reads where the quote stands once, from the Quote section's own route", async () => {

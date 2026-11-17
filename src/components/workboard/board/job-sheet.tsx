@@ -268,6 +268,10 @@ export function jobPlateName(detail: Pick<MirrorJobDetail, "address" | "geoLine"
   return line || detail.geoLine?.trim() || "Unnamed client";
 }
 
+/* New job, for Quote it as a new job, loaded when it's first asked for: its
+   make is a server action of its own */
+const NewJobForm = lazy(() => import("@/components/making/new-job-form").then((m) => ({ default: m.NewJobForm })));
+
 export type JobSheetPage = {
   section: JobSection;
   onSection: (section: JobSection) => void;
@@ -1550,6 +1554,8 @@ export function JobSheet({
      buttons fell under a 790 screen on a job with a description (the walk
      of 15 November 2026, 3408) */
   const [priceRef, priceH] = useFitHeight<HTMLDivElement>();
+  /* Quote it as a new job, its New job form up */
+  const [newJob, setNewJob] = useState(false);
   /* the quote in its own tab: where it's up to and its name, for the head */
   const [docStage, setDocStage] = useState<(DocStage & { title: string | null; label?: string | null }) | null>(null);
   const docLabel = page.doc === "invoice" ? (docStage?.label ?? null) : null;
@@ -2065,6 +2071,30 @@ export function JobSheet({
   /* The dialogs over the job, in a portal of their own. */
   const dialogs = (
     <>
+      {/* QUOTE IT AS A NEW JOB (decision 8): New job, its client and site
+          this job's, for the separate work's own quote */}
+      {newJob && (
+        <Suspense fallback={null}>
+          <NewJobForm
+            onClose={() => setNewJob(false)}
+            initial={{
+              pressId: mintPressId(),
+              clientName: detail?.clientName ?? row.clientName ?? "",
+              address: (detail?.address ?? "")
+                .split(/\r?\n/)
+                .map((l) => l.trim())
+                .filter(Boolean)
+                .join(", "),
+              first: "",
+              last: "",
+              mobile: "",
+              email: "",
+              description: "",
+              via: "an existing customer",
+            }}
+          />
+        </Suspense>
+      )}
       {/* BOOK IN, the Visit form (two-way phase 3): Add › Visit, the Visits
           section's Book in, a line's Look again and Book again, and a door
           that came to book. The job is this one, clearable; a visit booked
@@ -2384,6 +2414,9 @@ export function JobSheet({
       : []),
     ...(manage
       ? [
+          /* separate work for the same client and site is a job of its own,
+             with its own quote, as ServiceM8 has it (decision 8) */
+          { key: "quote-new-job", label: "Quote it as a new job", disabled: busy },
           { key: "project", label: "Create a project from this job", disabled: busy },
           { key: "agreement", label: "Create a maintenance agreement", disabled: busy },
         ]
@@ -2397,6 +2430,7 @@ export function JobSheet({
       setName(row.clientName ?? "");
       setNaming(true);
     } else if (key === "agreement") onCreateAgreement(row, detail);
+    else if (key === "quote-new-job") setNewJob(true);
     else page.onAction(key);
   };
   /* THE QUOTE IN A TAB OF ITS OWN: its head, then the quote, fitted to the screen */

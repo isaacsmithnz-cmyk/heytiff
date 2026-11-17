@@ -317,6 +317,7 @@ describe("the job's page head", () => {
       "Add certificate",
       "Pin the job",
       "Copy the link",
+      "Quote it as a new job",
       "Create a project from this job",
       "Create a maintenance agreement",
       "Open in ServiceM8",

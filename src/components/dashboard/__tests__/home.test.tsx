@@ -7,6 +7,7 @@ import { TiffContext, type TiffApi } from "@/components/tiff/modal/tiff-context"
 import { WindowsContext, type WindowsApi } from "@/components/records/records-context";
 import { TODO_HOME_CAP, type TodoRow } from "@/lib/dashboard/todo";
 import type { TodayRow, TodayView } from "@/lib/dashboard/home-today";
+import type { TeamDay, TeamJob } from "@/lib/dashboard/team-day";
 
 /* HOME, v2, on screen: Tiff's mark over her box, Today, and To do, with
    each To do row's one button doing its thing. The rows themselves are
@@ -132,17 +133,55 @@ const ROWS: TodoRow[] = [
   link("notice:n1", "Toolbox talk", "Open", "/dashboard/notices", { source: "notice", tone: "info" }),
 ];
 
-const draw = (view: TodayView = today(), rows: TodoRow[] = ROWS, feed: FeedItem[] = []) =>
+const draw = (view: TodayView = today(), rows: TodoRow[] = ROWS, feed: FeedItem[] = [], team: TeamDay | null = null) =>
   render(
     <WindowsContext.Provider value={windows}>
       <TiffContext.Provider value={tiff}>
-        <HomeScreen today={view} todo={rows} feed={feed} voice />
+        <HomeScreen
+          today={view}
+          todo={rows}
+          feed={feed}
+          team={team}
+          days={team ? [{ day: team.day, label: "Today" }, { day: "2026-11-18", label: "Wed 18" }] : []}
+          voice
+        />
       </TiffContext.Provider>
     </WindowsContext.Provider>,
   );
 
 const section = (name: string) => screen.getByRole("heading", { name }).closest("section")!;
 const rowOf = (name: string) => screen.getByText(name).closest("li")!;
+/* the Activity feed is a tab of Home's card now, found by its panel */
+const feedPanel = () => document.getElementById("hm-panel-feed")!;
+const tj = (over: Partial<TeamJob> = {}): TeamJob => ({
+  id: "j-3479",
+  number: "3479",
+  client: "Dan Brad",
+  suburb: "Glebe",
+  kind: "Install",
+  hue: "purple",
+  people: ["Ryan", "Sam"],
+  mine: false,
+  startMin: 420,
+  time: "7:00",
+  state: { tone: "good", word: "On site" },
+  done: false,
+  at: { lat: -33.88, lng: 151.186 },
+  here: ["Ryan", "Sam"],
+  href: "/dashboard/jobs/j-3479",
+  ...over,
+});
+const TEAM: TeamDay = {
+  day: "2026-11-17",
+  today: true,
+  linked: true,
+  free: ["Nathan", "Mia"],
+  jobs: [
+    tj(),
+    tj({ id: "j-3432", number: "3432", client: "Sutcliffe, Will", suburb: "Paddington", hue: "orange", people: ["Daniel"], state: { tone: "good", word: "Done" }, done: true, here: [], at: { lat: -33.884, lng: 151.227 }, href: "/dashboard/jobs/j-3432" }),
+    tj({ id: "j-2359", number: "2359", client: "Dryridge Estate", suburb: "Megalong Valley", kind: "Service call", hue: "pink", people: ["you"], mine: true, startMin: 720, time: "12:00", state: { tone: "info", word: "Booked" }, here: [], at: { lat: -33.726, lng: 150.238 }, href: "/dashboard/jobs/j-2359" }),
+  ],
+};
 
 afterEach(cleanup);
 beforeEach(() => {
@@ -189,7 +228,7 @@ describe("the box", () => {
     const chat = screen.getByRole("region", { name: "Talking to Tiff" });
     expect(chat).toHaveTextContent("Finished the Rifkin install");
     expect(open).not.toHaveBeenCalled();
-    expect(screen.queryByRole("heading", { name: "Today" })).toBeNull();
+    expect(screen.queryByRole("tab", { name: "Activity feed" })).toBeNull();
   });
 
   it("(F) Back to Home brings the box and the columns back, the box empty", async () => {
@@ -197,72 +236,126 @@ describe("the box", () => {
     await userEvent.type(screen.getByRole("textbox", { name: "What's happening on site?" }), "Two filters for 3342{Enter}");
     expect(screen.getByRole("region", { name: "Talking to Tiff" })).toHaveTextContent("Two filters for 3342");
     await userEvent.click(screen.getByRole("button", { name: "Back to Home" }));
-    expect(screen.getByRole("heading", { name: "Today" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Activity feed" })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "What's happening on site?" })).toHaveValue("");
   });
 });
 
-/* Isaac, 17 November 2026, the first-look fixes: two cards, as a job's
-   Overview: Today, your day, and the Activity feed with To do in it */
-describe("the two cards", () => {
+/* Isaac, 17 November 2026: one card with two tabs, Schedule and the
+   Activity feed, each tab's controls on the line under them; the Schedule
+   the team's day by default, You for your own */
+describe("the card's two tabs", () => {
   const timesheets: FeedItem = { key: "timesheets", filter: "approvals", who: { name: "Timesheets", sm8: false }, what: "3 to approve", said: null, yours: null, when: "", at: "2026-10-20 13:00:00", unread: false, act: { kind: "link", label: "Review", href: "/dashboard/team?view=timesheets" }, reply: null, open: { href: "/dashboard/team?view=timesheets" } };
 
-  it("(F) puts To do in the Activity feed, what's due today among it, and only your day under Today", () => {
+  it("(F) opens on Schedule, with the Activity feed beside it as a tab, and keeps the one you leave it on", async () => {
+    draw(today(), [], [], TEAM);
+    const tabs = within(screen.getByRole("tablist", { name: "Home" })).getAllByRole("tab").map((t) => t.textContent);
+    expect(tabs).toEqual(["Schedule", "Activity feed"]);
+    expect(within(screen.getByRole("tablist", { name: "Day" })).getAllByRole("tab").map((t) => t.textContent)).toEqual(["Today", "Wed 18"]);
+    expect(screen.getByRole("tab", { name: "Schedule" })).toHaveAttribute("aria-selected", "true");
+    expect(document.getElementById("hm-panel-schedule")).not.toBeNull();
+    await userEvent.click(screen.getByRole("tab", { name: "Activity feed" }));
+    expect(feedPanel()).not.toBeNull();
+    expect(document.getElementById("hm-panel-schedule")).toBeNull();
+    cleanup();
+    draw(today(), [], [], TEAM);
+    expect(screen.getByRole("tab", { name: "Activity feed" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("(F) is the Activity feed alone for someone who may not see the crew's bookings", () => {
+    draw(today(), []);
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Activity feed"]);
+    expect(screen.queryByRole("heading", { name: "Today" })).toBeNull();
+  });
+
+  it("(F) puts To do in the Activity feed, what's due today among it", () => {
     draw(today(), [link("chip:rego", "Hilux, XQG41B", "Renew", "/r", { col: "today", tone: "wrong" }), link("k1", "Price the Truecut quote", "Open", "/q")], [timesheets]);
-    const feed = section("Activity feed");
+    const feed = feedPanel();
     expect(within(feed).getByRole("heading", { name: "To do" })).toBeInTheDocument();
     expect(within(feed).getByText("Hilux, XQG41B")).toBeInTheDocument();
     expect(within(feed).getByText("Price the Truecut quote")).toBeInTheDocument();
     expect(within(feed).getByText("Timesheets")).toBeInTheDocument();
-    expect(within(section("Today")).queryByText("Hilux, XQG41B")).toBeNull();
   });
 
-  it("(F) heads each card with its glyph and its colour", () => {
-    draw();
-    for (const [name, hue] of [["Today", "purple"], ["Activity feed", "green"]] as const) {
-      const head = screen.getByRole("heading", { name }).parentElement!;
-      expect(head).toHaveClass(`hm-head--${hue}`);
+  it("(F) offers the views All, To do, To you, Jobs and Approvals on the line under the tabs; To do shows only what waits", async () => {
+    draw(today(), [link("k1", "Price the Truecut quote", "Open", "/q")], [timesheets]);
+    const tray = within(feedPanel().querySelector(".hm-sub") as HTMLElement).getByRole("radiogroup", { name: "Show" });
+    expect(within(tray).getAllByRole("radio").map((r) => r.textContent)).toEqual(["All", "To do", "To you", "Jobs", "Approvals"]);
+    await userEvent.click(within(tray).getByRole("radio", { name: "To do" }));
+    expect(within(feedPanel()).getByText("Price the Truecut quote")).toBeInTheDocument();
+    expect(within(feedPanel()).queryByText("Timesheets")).toBeNull();
+  });
+
+  it("(F) lists the team's jobs today: the number in its colour, the client, the suburb and who's on it, the start and where it's up to; a done one grey", () => {
+    draw(today(), [], [], TEAM);
+    const panel = document.getElementById("hm-panel-schedule")!;
+    expect(within(panel).getByText("Nathan and Mia are free all day.")).toBeInTheDocument();
+    const rows = within(panel).getByRole("list", { name: "Jobs today" });
+    const glebe = within(rows).getByRole("link", { name: /Dan Brad/ });
+    expect(glebe).toHaveAttribute("href", "/dashboard/jobs/j-3479");
+    expect(glebe.closest("li")).toHaveClass("hm-jc--purple");
+    expect(glebe.querySelector(".hm-jc-n")).toHaveTextContent("3479");
+    expect(glebe).toHaveTextContent("Glebe, with Ryan and Sam");
+    expect(glebe).toHaveTextContent("7:00");
+    expect(glebe).toHaveTextContent("On site");
+    const done = within(rows).getByRole("link", { name: /Sutcliffe/ }).closest("li")!;
+    expect(done).toHaveClass("hm-jc--grey");
+    expect(done).toHaveClass("hm-sd-item--done");
+    expect(within(rows).getAllByRole("listitem")).toHaveLength(3);
+  });
+
+  it("(F) puts the jobs on the map: a pin for each still to do, a dot for a done one, who's there beside theirs, and a far one on the edge", () => {
+    draw(today(), [], [], TEAM);
+    const map = screen.getByRole("group", { name: "Map of the day's jobs" });
+    expect(within(map).getByRole("link", { name: "3479, Dan Brad" })).toHaveAttribute("href", "/dashboard/jobs/j-3479");
+    expect(within(map).getByLabelText("Ryan, Sam on site")).toHaveTextContent("2");
+    expect(map.querySelectorAll(".hm-map-dot")).toHaveLength(1);
+    const far = within(map).getByRole("button", { name: /2359/ });
+    expect(far).toHaveTextContent("Megalong Valley");
+    expect(far).toHaveTextContent(/km/);
+    expect(within(map).getByRole("button", { name: "Show all" })).toBeInTheDocument();
+    expect(within(map).getByRole("button", { name: "Zoom in" })).toBeInTheDocument();
+  });
+
+  it("(F) narrows to your own jobs on You, and keeps it", async () => {
+    draw(today(), [], [], TEAM);
+    const tray = screen.getByRole("radiogroup", { name: "Whose day" });
+    expect(within(tray).getByRole("radio", { name: "Team" })).toHaveAttribute("aria-checked", "true");
+    await userEvent.click(within(tray).getByRole("radio", { name: "You" }));
+    const rows = screen.getByRole("list", { name: "Jobs today" });
+    expect(within(rows).getAllByRole("listitem")).toHaveLength(1);
+    expect(within(rows).getByRole("link", { name: /Dryridge Estate/ })).toHaveTextContent("Service call, Megalong Valley");
+    expect(screen.queryByText("Nathan and Mia are free all day.")).toBeNull();
+    cleanup();
+    draw(today(), [], [], TEAM);
+    expect(screen.getByRole("radio", { name: "You" })).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("(F) reads another day when it's pressed, in the same place", async () => {
+    const wed: TeamDay = { ...TEAM, day: "2026-11-18", today: false, free: [], jobs: [tj({ id: "j-3095", number: "3095", client: "Kogan, Daniel", suburb: "Randwick", people: ["Alex", "Callum"], state: null, here: [], href: "/dashboard/jobs/j-3095" })] };
+    const fetchMock = jest.fn(async () => ({ ok: true, json: async () => wed }));
+    const was = global.fetch;
+    global.fetch = fetchMock as unknown as typeof fetch;
+    try {
+      draw(today(), [], [], TEAM);
+      await userEvent.click(screen.getByRole("tab", { name: "Wed 18" }));
+      expect(fetchMock).toHaveBeenCalledWith("/api/home/team-day?day=2026-11-18", { cache: "no-store" });
+      const rows = await screen.findByRole("list", { name: "Jobs on Wed 18" });
+      const row = within(rows).getByRole("link", { name: /Kogan/ });
+      expect(row).toHaveTextContent("Randwick, with Alex and Callum");
+      expect(row).toHaveTextContent("Install");
+    } finally {
+      global.fetch = was;
     }
   });
 
-  it("sets Today on the left and the Activity feed beside it, and no third column", () => {
-    draw();
-    const names = [...document.querySelectorAll(".hm-cols > .hm-sec")].map((s) => s.querySelector("h2")?.textContent);
-    expect(names).toEqual(["Today", "Activity feed"]);
-  });
-
-  it("(F) offers the views All, To do, To you, Jobs and Approvals on the feed's head; To do shows only what waits", async () => {
-    draw(today(), [link("k1", "Price the Truecut quote", "Open", "/q")], [timesheets]);
-    const head = screen.getByRole("heading", { name: "Activity feed" }).parentElement!;
-    const tray = within(head).getByRole("radiogroup", { name: "Show" });
-    expect(within(tray).getAllByRole("radio").map((r) => r.textContent)).toEqual(["All", "To do", "To you", "Jobs", "Approvals"]);
-    await userEvent.click(within(tray).getByRole("radio", { name: "To do" }));
-    expect(within(section("Activity feed")).getByText("Price the Truecut quote")).toBeInTheDocument();
-    expect(within(section("Activity feed")).queryByText("Timesheets")).toBeNull();
-  });
-
-  it("(F) draws your bookings as the Schedule's cards: the number in its colour, the client, the line, the time; a done one grey", () => {
-    const card = (over: Partial<TodayRow>) => job({ card: { number: "2380", client: "Kingsford Bakery", line: "Kingsford, Service", done: true }, ...over });
-    draw(
-      today({
-        rows: [
-          card({}),
-          card({ key: "job:a2", hue: "purple", time: "9:00 to 11:30", state: { tone: "good", word: "On now" }, href: "/dashboard/jobs/j-3342", card: { number: "3342", client: "Rifkin, Julian", line: "Bellevue Hill, Installation, with Lyle", done: false } }),
-        ],
-      }),
-      [],
-    );
-    const live = screen.getByRole("link", { name: /3342/ });
-    expect(live).toHaveAttribute("href", "/dashboard/jobs/j-3342");
-    expect(live.closest("li")).toHaveClass("hm-jc--purple");
-    expect(live.querySelector(".hm-jc-n")).toHaveTextContent("3342");
-    expect(live).toHaveTextContent("Rifkin, Julian");
-    expect(live).toHaveTextContent("Bellevue Hill, Installation, with Lyle");
-    expect(live).toHaveTextContent("9:00 to 11:30");
-    expect(live).toHaveTextContent("On now");
-    const done = screen.getByRole("link", { name: /2380/ }).closest("li")!;
-    expect(done).toHaveClass("hm-jc--grey");
-    expect(done).toHaveClass("hm-jc--done");
+  it("(F) says whose birthday it is over today's jobs, and nothing when nobody shares one", () => {
+    draw(today({ birthdays: ["It’s Oleksii’s birthday", "Leo turns 30 today"] }), [], [], TEAM);
+    const list = screen.getByRole("list", { name: "Birthdays" });
+    expect(within(list).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["It’s Oleksii’s birthday", "Leo turns 30 today"]);
+    cleanup();
+    draw(today(), [], [], TEAM);
+    expect(screen.queryByRole("list", { name: "Birthdays" })).toBeNull();
   });
 
   it("(F) says each day once over its items, and only the time on an item", () => {
@@ -274,7 +367,7 @@ describe("the two cards", () => {
         </TiffContext.Provider>
       </WindowsContext.Provider>,
     );
-    const feed = section("Activity feed");
+    const feed = feedPanel();
     expect(within(feed).getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual(["Today", "Yesterday", "Thu 12 Nov"]);
     const yesterday = within(feed).getByRole("list", { name: "Activity feed, Yesterday" });
     expect(within(yesterday).getByText("3:00 pm")).toBeInTheDocument();
@@ -283,50 +376,7 @@ describe("the two cards", () => {
 
   it("says nothing is new in the Activity feed when nothing is", () => {
     draw(today(), []);
-    expect(within(section("Activity feed")).getByText("Nothing new")).toBeInTheDocument();
-  });
-});
-
-/* THE DAY'S EVENTS AND BIRTHDAYS on Today (Isaac, 6 November 2026, the
-   events and birthdays mock), as the phone's Today has them */
-describe("Today's events and birthdays", () => {
-  const party: TodayRow = {
-    key: "event:n1",
-    kind: "event",
-    time: "6:30",
-    hue: null,
-    name: "Christmas party",
-    line: "Watermans, Barangaroo",
-    state: { tone: "look", word: "Are you coming?" },
-    href: "/dashboard/team?view=notices#notice-n1",
-    taskId: null,
-  };
-
-  it("(F) draws an event as a row among the day's, a calendar for its tick, opening its notice, asking in orange", () => {
-    draw(today({ rows: [job(), party] }), []);
-    const row = rowOf("Christmas party");
-    expect(within(row).getByText("6:30")).toBeInTheDocument();
-    expect(within(row).getByText("Watermans, Barangaroo")).toBeInTheDocument();
-    expect(within(row).getByRole("link", { name: "Christmas party" })).toHaveAttribute("href", "/dashboard/team?view=notices#notice-n1");
-    expect(within(row).queryByRole("checkbox")).toBeNull();
-    expect(row.querySelector(".hm-lead svg")).not.toBeNull();
-    expect(within(row).getByText("Are you coming?").closest(".pt-state")).toHaveClass("pt-state--look");
-  });
-
-  it("(F) still says nothing is booked on a day with only an event, and draws the event under it", () => {
-    draw(today({ rows: [party] }), []);
-    const today_ = section("Today");
-    expect(within(today_).getByText("Nothing booked for you today")).toBeInTheDocument();
-    expect(within(today_).getByRole("link", { name: "Christmas party" })).toBeInTheDocument();
-  });
-
-  it("(F) says whose birthday it is under Today's head, and nothing when nobody shares one", () => {
-    draw(today({ birthdays: ["It’s Oleksii’s birthday", "Leo turns 30 today"] }), []);
-    const list = within(section("Today")).getByRole("list", { name: "Birthdays" });
-    expect(within(list).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["It’s Oleksii’s birthday", "Leo turns 30 today"]);
-    cleanup();
-    draw(today(), []);
-    expect(within(section("Today")).queryByRole("list", { name: "Birthdays" })).toBeNull();
+    expect(within(feedPanel()).getByText("Nothing new")).toBeInTheDocument();
   });
 });
 
@@ -459,7 +509,7 @@ describe("To do", () => {
   it("says nothing is waiting, with no button, when nothing is", async () => {
     draw(today(), []);
     await userEvent.click(screen.getByRole("radio", { name: "To do" }));
-    expect(within(section("Activity feed")).getByText("Nothing is waiting on you")).toBeInTheDocument();
+    expect(within(feedPanel()).getByText("Nothing is waiting on you")).toBeInTheDocument();
   });
 
   it("(F) Show all's page is every row, under its own title", () => {

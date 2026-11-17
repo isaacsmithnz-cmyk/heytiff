@@ -1,24 +1,19 @@
 "use client";
 
 import { useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CvBox } from "@/components/conversations/box";
 import { appendSpoken, useDictation } from "@/components/notes/dictation";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
 import { useTiff } from "@/components/tiff/modal/tiff-context";
 import { TiffInline } from "@/components/tiff/modal/tiff-inline";
-import { Button, LinkButton } from "@/components/parts/button";
-import { Row } from "@/components/parts/row";
-import { Fade } from "@/components/parts/fade";
-import { Empty } from "@/components/parts/states";
-import { StateWord } from "@/components/parts/state";
-import { Tick } from "@/components/parts/tick";
-import type { TodayRow, TodayView } from "@/lib/dashboard/home-today";
-import { Icon } from "@/components/shell/icon";
+import { SectionTabs } from "@/components/parts/tabs";
+import type { TodayView } from "@/lib/dashboard/home-today";
+import type { HomeDay, TeamDay } from "@/lib/dashboard/team-day";
 import type { TodoRow } from "@/lib/dashboard/todo";
-import { ColumnHead, HomeReplyContext, useTaskTick } from "./home-todo";
+import { HomeReplyContext } from "./home-todo";
 import { HomeFeed } from "./home-feed";
+import { HomeSchedule, useKept } from "./home-schedule";
 import { TaskForm } from "@/components/making/task-form";
 import type { FeedItem } from "@/lib/dashboard/your-feed";
 
@@ -35,137 +30,21 @@ import type { FeedItem } from "@/lib/dashboard/your-feed";
    Send starts the conversation ON THE PAGE (../tiff/modal/tiff-inline):
    it takes Home's place, and Back to Home brings the columns back.
 
-   TWO CARDS UNDER IT, AS A JOB'S OVERVIEW HAS (Isaac, 17 November 2026,
-   "Make home todo part of activity feed like the job card", "Today should
-   be just your day", then "Make all fixes";
-   https://claude.ai/artifact/7ijojbkVbMJUGasurPCvVF). TODAY, the narrow one:
-   your own bookings as the Schedule's cards (rule 19), your timed tasks and
-   the day's events, with the Schedule a link away. THE ACTIVITY FEED, the
-   wide one (./home-feed): To do first, what waits on you, the reminders due
-   today among it, then what came in, by day. Before, To do stood as a third
-   column and today's reminders sat under Today (20 October to 17 November).
+   ONE CARD UNDER IT, WITH TWO TABS (Isaac, 17 November 2026: "let's make
+   it so we've got schedule and activity feed as two separate tabs", then
+   "Build it" to https://claude.ai/artifact/7ijojbkVbMJUGasurPCvVF).
+   SCHEDULE (./home-schedule): the team's day by default, since the one at
+   the desk is usually the one running it, with You for your own; the days
+   along the top; the jobs listed beside a map of where they are. THE
+   ACTIVITY FEED (./home-feed), the card's full width: To do first, what
+   waits on you, then what came in, by day. Each tab's controls sit on the
+   line under the tabs, and Home keeps the tab you left it on. Before, two
+   cards: Today, your own day, beside the feed (17 November, the morning),
+   and three columns before that (20 October to 17 November).
 
    A TASK THE ADDRESS NAMES (`?task=`, the bell's door for a Done that
    didn't reach ServiceM8) opens its own form over Home; closing it takes
    the task off the address. The old desk is gone (24 October 2026). */
-
-/** A booking as the Schedule's card: the number in its colour's box, the
-    client over the suburb, the kind and who else is going, and the time on
-    the right with where it's up to under it. A done one goes grey. */
-function TodayCard({ row }: { row: TodayRow }) {
-  const card = row.card!;
-  const inner = (
-    <>
-      <span className="hm-jc-n">{card.number}</span>
-      <span className="hm-jc-t">
-        <Fade className="hm-jc-client">{card.client}</Fade>
-        {card.line && <Fade className="hm-jc-line">{card.line}</Fade>}
-      </span>
-      <span className="hm-jc-end">
-        <span className="hm-jc-time">{row.time}</span>
-        {row.state && <StateWord tone={row.state.tone}>{row.state.word}</StateWord>}
-      </span>
-    </>
-  );
-  return (
-    <li className={`hm-jc hm-jc--${card.done ? "grey" : (row.hue ?? "grey")}${card.done ? " hm-jc--done" : ""}`}>
-      {row.href ? (
-        <Link href={row.href} className="hm-jc-hit">
-          {inner}
-        </Link>
-      ) : (
-        <span className="hm-jc-hit">{inner}</span>
-      )}
-    </li>
-  );
-}
-
-function TodayRows({ rows, tick }: { rows: readonly TodayRow[]; tick: (key: string, taskId: string) => Promise<void> | void }) {
-  return (
-    <ul className="pt-rows hm-day" aria-label="Today">
-      {rows.map((row) =>
-        row.card ? (
-          <TodayCard key={row.key} row={row} />
-        ) : (
-          <Row
-            key={row.key}
-            lead={
-              <span className="hm-lead">
-                <span className="hm-time">{row.time}</span>
-                {row.taskId && (
-                  <Tick
-                    className="hm-tick"
-                    label={<span className="sr-only">Done, {row.name}</span>}
-                    onChange={(on) => {
-                      if (on && row.taskId) void tick(row.key, row.taskId);
-                    }}
-                  />
-                )}
-                {/* an event: a calendar where a task's tick goes, as the
-                    phone's card has one where a job's number goes */}
-                {row.kind === "event" && <Icon name="calendar" size={16} />}
-              </span>
-            }
-            dot={row.hue ?? undefined}
-            lines={3}
-            name={row.name}
-            line={row.line || undefined}
-            href={row.href ?? undefined}
-            end={row.state ? <StateWord tone={row.state.tone}>{row.state.word}</StateWord> : undefined}
-          />
-        ),
-      )}
-    </ul>
-  );
-}
-
-function HomeToday({ view }: { view: TodayView }) {
-  const { gone, tick } = useTaskTick();
-  const rows = view.rows.filter((r) => !gone.has(r.key));
-  /* the day's events (Isaac, 6 November 2026, the events and birthdays
-     mock) go in among its bookings by their time; a day with nothing
-     booked still says so, and its events follow */
-  const booked = rows.filter((r) => r.kind !== "event");
-  const events = rows.filter((r) => r.kind === "event");
-  const birthdays = view.birthdays ?? [];
-  return (
-    <section className="hm-sec" aria-labelledby="hm-today">
-      {/* no summary beside the title (Isaac, 20 October: "not needed"); the
-          v2 Schedule a link away, never the old desk or the Workboard */}
-      <ColumnHead id="hm-today" name="Today" icon="calendar" hue="purple">
-        {view.schedule && (
-          <span className="hm-headlinks">
-            <LinkButton href="/dashboard/schedule">Schedule</LinkButton>
-          </span>
-        )}
-      </ColumnHead>
-      {/* whose birthday it is, under Today, as the phone has it: only those
-          who ticked Share my birthday, and an age only with Share my age */}
-      {birthdays.length > 0 && (
-        <ul className="hm-bdays" aria-label="Birthdays">
-          {birthdays.map((words, i) => (
-            <li key={`${words}-${i}`} className="hm-bday">
-              <Icon name="star" size={16} />
-              <span>{words}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-      {booked.length === 0 ? (
-        <>
-          <Empty
-            what={view.empty.what}
-            line={view.empty.line ?? undefined}
-            action={view.empty.action ? <Button href={view.empty.action.href}>{view.empty.action.label}</Button> : null}
-          />
-          {events.length > 0 && <TodayRows rows={events} tick={tick} />}
-        </>
-      ) : (
-        <TodayRows rows={rows} tick={tick} />
-      )}
-    </section>
-  );
-}
 
 /** Home's box: the words, the microphone that records in the box, and Send,
     which starts the conversation on this page. */
@@ -206,11 +85,15 @@ function HomeBox({ voice, onStart }: { voice: boolean; onStart: (words: string) 
   );
 }
 
+type HomeTab = "schedule" | "feed";
+
 export function HomeScreen({
   today,
   todo,
   feed = [],
   day,
+  team = null,
+  days = [],
   replyTo = null,
   openTask = null,
   voice = false,
@@ -220,6 +103,11 @@ export function HomeScreen({
   feed?: readonly FeedItem[];
   /** the account's day, YYYY-MM-DD: the feed's days count from it */
   day?: string;
+  /** Home's Schedule: the team's day today; null without `workboard`, which
+      leaves the feed alone */
+  team?: TeamDay | null;
+  /** the days along the Schedule's top: today and the next working days */
+  days?: readonly HomeDay[];
   /** a mention To do's Reply named (`?reply=`): its box opens in Your feed */
   replyTo?: string | null;
   /** a task the address names (`?task=`): its form opens over Home */
@@ -236,6 +124,13 @@ export function HomeScreen({
   /* THE CONVERSATION TAKES THE PAGE once you have said something (Isaac, 20
      October, the board's frame 2); Back to Home brings the columns back. */
   const [chat, setChat] = useState<{ words: string; n: number } | null>(null);
+  const [kept, setTab] = useKept<HomeTab>("heytiff.home.tab.v1", ["schedule", "feed"], "schedule");
+  /* a mention's Reply opens on the feed, where its box is */
+  const tab: HomeTab = !team || asked ? "feed" : kept;
+  const tabs = [
+    ...(team ? [{ key: "schedule", label: "Schedule" }] : []),
+    { key: "feed", label: "Activity feed" },
+  ];
   if (chat)
     return (
       <div className="page in">
@@ -253,13 +148,34 @@ export function HomeScreen({
           <TiffGlyph size={96} alive working={tiff.isOpen} label="Tiff" />
           <HomeBox voice={voice} onStart={(words) => setChat((was) => ({ words, n: (was?.n ?? 0) + 1 }))} />
         </div>
-        {/* two cards, as a job's Overview (Isaac, 17 November 2026): Today,
-            narrow, your day; the Activity feed, wide, To do first in it */}
+        {/* one card, two tabs (Isaac, 17 November 2026): Schedule, the
+            team's day on a map; the Activity feed, To do first in it */}
         <HomeReplyContext.Provider value={(id) => setAsked((a) => ({ id, n: (a?.n ?? 0) + 1 }))}>
-          <div className="hm-cols">
-            <HomeToday view={today} />
-            <HomeFeed items={feed} todo={todo} today={day} replyTo={asked?.id ?? null} asked={asked?.n ?? 0} />
-          </div>
+          <section className="hm-card" aria-label="Today">
+            <div className="hm-card-tabs">
+              <SectionTabs
+                items={tabs}
+                current={tab}
+                onGo={(k) => {
+                  if (k === "schedule") setAsked(null);
+                  setTab(k as HomeTab);
+                }}
+                ariaLabel="Home"
+                idPrefix="hm-tab"
+                panelPrefix="hm-panel"
+              />
+            </div>
+            {tab === "schedule" && team ? (
+              <HomeSchedule
+                first={team}
+                days={days.length ? days : [{ day: team.day, label: "Today" }]}
+                birthdays={today.birthdays}
+                unlinked={today.empty}
+              />
+            ) : (
+              <HomeFeed items={feed} todo={todo} today={day} replyTo={asked?.id ?? null} asked={asked?.n ?? 0} tabbed />
+            )}
+          </section>
         </HomeReplyContext.Provider>
         {addressed && (
           <TaskForm

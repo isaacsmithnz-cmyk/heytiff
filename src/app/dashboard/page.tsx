@@ -1,6 +1,7 @@
 import { HomeScreen } from "@/components/dashboard/home";
 import { NoteScopeScreen } from "@/components/notes/note-context";
 import { homeView } from "@/lib/dashboard/home-view";
+import { homeDays } from "@/lib/dashboard/team-day";
 import { loadDashboard } from "@/lib/dashboard/page-data";
 import { redirectIfSetupPending } from "@/lib/org/setup-gate";
 import { redirectIfOnboardingPending } from "@/lib/staff/onboarding-gate";
@@ -42,6 +43,8 @@ export default async function DashboardHomePage({
         todo={view.todo}
         feed={view.feed}
         day={view.day}
+        team={data.team}
+        days={data.team ? homeDays(data.team.day) : []}
         /* To do's Reply on a mention names its note: the box opens in Your feed */
         replyTo={typeof reply === "string" && /^[0-9a-f-]{36}$/i.test(reply) ? reply : null}
         openTask={typeof task === "string" && UUID.test(task) ? task : null}

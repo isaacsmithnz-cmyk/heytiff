@@ -44,6 +44,9 @@ export type SchedulePayload = {
       them: `AllJobsMirrorJob` is the one row shape every sheet opens on, and
       a street line is only what Home's day panel says under Where. */
   addresses: Record<string, string>;
+  /** job uuid → where it is, for the day's jobs ServiceM8 has placed;
+      absent where none is. Home's map pins the day's jobs by it. */
+  places?: Record<string, { lat: number; lng: number }>;
   /** The viewer may Clear a leftover booking here: bookings are offered and
       they may press (two-way phase 3). Set by `scheduleDay` for its viewer,
       and only when true; absent everywhere else. */
@@ -280,7 +283,7 @@ export async function loadScheduleDay(
           .from("sm8_jobs")
           .select(
             "uuid, generated_job_id, status, company_uuid, geo_city, job_address, category_uuid, " +
-              "job_description, date, quote_date, completion_date"
+              "job_description, date, quote_date, completion_date, lat, lng"
           )
           .eq("org_id", orgId)
           .eq("active", 1)
@@ -309,6 +312,8 @@ export async function loadScheduleDay(
     date: string | null;
     quote_date: string | null;
     completion_date: string | null;
+    lat: number | null;
+    lng: number | null;
   }[];
 
   /* A LEFTOVER IS DECIDED HERE, on the server's clock and the account's
@@ -394,12 +399,22 @@ export async function loadScheduleDay(
     if (line) addresses[j.uuid] = line;
   }
 
+  /* Where each job is, from ServiceM8's own geocode (the sync keeps a
+     position only where ServiceM8 says it is good): Home's map pins them.
+     Present only where one job has one, as `addresses` leaves a job out. */
+  const places: Record<string, { lat: number; lng: number }> = {};
+  for (const j of jobs) {
+    const lat = Number(j.lat), lng = Number(j.lng);
+    if (j.lat !== null && j.lng !== null && Number.isFinite(lat) && Number.isFinite(lng) && (lat !== 0 || lng !== 0)) places[j.uuid] = { lat, lng };
+  }
+
   return {
     dayISO,
     activities,
     staff,
     onSite,
     addresses,
+    ...(Object.keys(places).length ? { places } : {}),
     ...offFields,
     jobs: jobs.map((j) => ({
       remoteId: j.uuid,

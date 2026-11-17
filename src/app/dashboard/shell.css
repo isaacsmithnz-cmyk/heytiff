@@ -6820,6 +6820,67 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .hm-jc-time { font-size:13px; line-height:18px; font-weight:600; font-variant-numeric:tabular-nums; }
 .fg .hm-jc-end .pt-state { font-size:13px; line-height:18px; }
 .fg .hm-jc-end .pt-state .pt-dot { display:none; }
+/* ONE CARD, TWO TABS (Isaac, 17 November 2026: "schedule and activity feed
+   as two separate tabs", then "Build it" to
+   https://claude.ai/artifact/7ijojbkVbMJUGasurPCvVF): the white card lifted
+   off the page, as Home's cards were; the tabs are a record's section tabs
+   (rule 31), the one you're on in its colour's word value on 2px of ink.
+   Each tab's controls on the line under them, and both tabs the same
+   height, so changing tab doesn't move the page. */
+.fg .hm-card { display:flex; flex-direction:column; min-width:0; padding:0 16px 16px; border-radius:var(--r-card); background:var(--paper); box-shadow:var(--shadow-card); }
+.fg .hm-card-tabs .pt-stabs .pt-stab { height:48px; font-size:16px; line-height:24px; font-weight:600; }
+.fg .hm-card-tabs #hm-tab-schedule[aria-selected="true"] { color:var(--purple-w); }
+.fg .hm-card-tabs #hm-tab-feed[aria-selected="true"] { color:var(--green-w); }
+.fg .hm-sub { display:flex; align-items:center; gap:16px; min-width:0; padding:12px 0; }
+.fg .hm-sub-end { margin-left:auto; }
+.fg .hm-feed--tab { height:424px; overflow-y:auto; }
+.fg .hm-feed--tab > .hm-sub { position:sticky; top:0; z-index:1; background:var(--paper); }
+/* SCHEDULE: the day's jobs on the left, one row each, as tall as the map
+   beside them and scrolling inside; the map 640 at most */
+.fg .hm-sd { display:grid; grid-template-columns:minmax(320px,1fr) minmax(0,640px); gap:16px; align-items:start; }
+.fg .hm-sd--nomap { grid-template-columns:minmax(0,1fr); }
+.fg .hm-sd-list { display:flex; flex-direction:column; min-width:0; height:368px; overflow-y:auto; }
+.fg .hm-sd-note { margin:0; padding:0 0 8px; font-size:13px; line-height:18px; color:var(--q); }
+.fg .hm-sd-list .hm-bdays { padding:0 0 8px; }
+.fg .hm-sd-rows { display:flex; flex-direction:column; margin:0; padding:0; list-style:none; }
+.fg .hm-sd-item { list-style:none; }
+.fg .hm-sd-item + .hm-sd-item { border-top:1px solid var(--line); }
+.fg .hm-sd-row { display:flex; align-items:center; gap:12px; min-width:0; padding:8px; border-radius:var(--r-button); color:var(--ink); text-decoration:none; transition:background-color var(--t-fast) var(--ease); }
+.fg .hm-sd-row:hover, .fg .hm-sd-item--hot .hm-sd-row { background:var(--tint); }
+.fg .hm-sd-row:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .hm-sd-item--done .hm-jc-client { color:var(--q); font-weight:500; }
+.fg .hm-sd-kind { font-size:13px; line-height:18px; color:var(--q); }
+/* THE MAP: Google's picture of the view, the page's own pins over it. A job
+   still to do in its colour with its number, a done one a grey dot, who's
+   clocked on beside it in ink, a job off the map a chip on the edge facing
+   it. Drag to move; + and − to zoom; Show all fits every job. */
+.fg .hm-map { min-width:0; }
+.fg .hm-map-view { position:relative; overflow:hidden; border-radius:var(--r-button); background:var(--tint); touch-action:none; cursor:grab; user-select:none; }
+.fg .hm-map-view:active { cursor:grabbing; }
+.fg .hm-map-img { position:absolute; left:0; top:0; max-width:none; transform-origin:50% 50%; pointer-events:none; }
+.fg .hm-map-img--none { visibility:hidden; }
+.fg .hm-map-dot { position:absolute; width:12px; height:12px; margin:-6px 0 0 -6px; border-radius:50%; background:var(--q); box-shadow:0 0 0 2px var(--paper); pointer-events:none; }
+.fg .hm-map-at { position:absolute; width:0; height:0; }
+.fg .hm-map-pin { position:absolute; left:0; bottom:8px; transform:translateX(-50%); display:flex; align-items:center; justify-content:center; min-width:48px; height:24px; padding:0 8px; border-radius:var(--r-control); background:var(--hm-c, var(--q)); color:var(--hm-on, var(--white)); font-size:12px; line-height:16px; font-weight:700; font-variant-numeric:tabular-nums; text-decoration:none; box-shadow:0 0 0 2px var(--paper); transition:background-color var(--t-fast) var(--ease); }
+.fg .hm-map-pin::after { content:""; position:absolute; left:50%; bottom:-4px; width:8px; height:8px; margin-left:-4px; background:inherit; transform:rotate(45deg); }
+.fg .hm-map-pin--hot, .fg .hm-map-pin:hover { z-index:2; background:var(--ink); color:var(--white); }
+.fg .hm-map-pin:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .hm-map-here { position:absolute; left:32px; bottom:8px; display:flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:var(--ink); color:var(--white); font-size:12px; line-height:16px; font-weight:700; box-shadow:0 0 0 2px var(--paper); }
+.fg .hm-map-count { position:absolute; display:flex; align-items:center; justify-content:center; width:32px; height:32px; margin:-16px 0 0 -16px; padding:0; border:0; border-radius:50%; background:var(--ink); color:var(--white); font-size:13px; line-height:18px; font-weight:700; cursor:pointer; box-shadow:0 0 0 2px var(--paper); }
+.fg .hm-map-count:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .hm-map-edge { position:absolute; display:flex; align-items:center; gap:8px; height:32px; padding:0 12px 0 4px; border:1px solid var(--line); border-radius:var(--r-button); background:var(--paper); color:var(--ink); font-size:13px; line-height:18px; font-weight:600; white-space:nowrap; cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
+.fg .hm-map-edge:hover { background:var(--hov); }
+.fg .hm-map-edge:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .hm-map-edge--left, .fg .hm-map-edge--right { transform:translateY(-50%); }
+.fg .hm-map-edge--top, .fg .hm-map-edge--bottom { transform:translateX(-50%); }
+.fg .hm-map-edge-n { display:flex; align-items:center; justify-content:center; min-width:40px; height:24px; padding:0 4px; border-radius:var(--r-control); background:var(--hm-c, var(--q)); color:var(--hm-on, var(--white)); font-size:12px; line-height:16px; font-weight:700; }
+.fg .hm-map-edge-km { font-weight:500; color:var(--q); }
+.fg .hm-map-ctl { position:absolute; top:12px; right:12px; z-index:2; display:flex; flex-direction:column; align-items:flex-end; gap:8px; }
+.fg .hm-map-zoom { display:flex; flex-direction:column; overflow:hidden; border:1px solid var(--line); border-radius:var(--r-button); background:var(--paper); }
+.fg .hm-map-zoom button { width:32px; height:32px; padding:0; border:0; background:var(--paper); color:var(--ink); font-size:16px; line-height:24px; font-weight:600; cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
+.fg .hm-map-zoom button + button { border-top:1px solid var(--line); }
+.fg .hm-map-zoom button:hover { background:var(--hov); }
+.fg .hm-map-zoom button:focus-visible { outline:none; box-shadow:var(--ring); }
 .fg .hm-jc--done .hm-jc-client { font-weight:500; color:var(--q); }
 /* a column's head: a solid block of its colour, its glyph in ink on it */
 .fg .hm-blk { display:inline-flex; align-items:center; justify-content:center; flex:none; width:32px; height:32px; border-radius:var(--r-button); color:var(--ink); }

@@ -131,6 +131,7 @@ jest.mock("@/lib/integrations/links", () => ({ sm8StaffLinkMap: (orgId: string) 
 /* Your next booked day, when today has nothing on (./next-day). */
 const NEXT = { dayISO: "2026-09-28", blocks: [], jobs: [], where: {}, crew: {} };
 const loadNextDay = jest.fn(async (..._a: unknown[]) => NEXT);
+jest.mock("../team-day-query", () => ({ teamDayFor: jest.fn(async () => null) }));
 jest.mock("../next-day", () => ({ loadNextDay: (...a: unknown[]) => loadNextDay(...a) }));
 jest.mock("@/lib/integrations/sm8-writes", () => ({ sm8QueueStuck: jest.fn(async () => null) }));
 jest.mock("@/lib/integrations/sm8-freshness", () => ({ freshenSm8AfterResponse: jest.fn() }));
@@ -491,7 +492,7 @@ describe("what the old Home alone read", () => {
     expect(readTaskDoneLines).not.toHaveBeenCalled();
     expect(jobCandidates).not.toHaveBeenCalled();
     expect(Object.keys(data).sort()).toEqual(
-      ["assignable", "canManage", "chips", "day", "desk", "events", "issues", "journal", "rail", "tasks", "today", "todo", "viewerStaffId"],
+      ["assignable", "canManage", "chips", "day", "desk", "events", "issues", "journal", "rail", "tasks", "team", "today", "todo", "viewerStaffId"],
     );
     expect(Object.keys(data.tasks).sort()).toEqual(["mine", "team"]);
     expect(data.desk?.calendar).toBe(CAL);

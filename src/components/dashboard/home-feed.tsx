@@ -348,6 +348,7 @@ export function HomeFeed({
   asked: pressed = 0,
   all = false,
   headingLevel = 2,
+  tabbed = false,
 }: {
   items: readonly FeedItem[];
   /** Home's To do, the first of the feed (Show all's page has its own) */
@@ -361,6 +362,10 @@ export function HomeFeed({
       FEED_HOME_CAP, and the one To do's Reply named wherever it falls. */
   all?: boolean;
   headingLevel?: 1 | 2;
+  /** Home's Activity feed tab (Isaac, 17 November 2026, the two tabs): no
+      card and no name of its own, the tab is both; its views on the line
+      under the tabs, and its rows the card's full width. */
+  tabbed?: boolean;
 }) {
   const router = useRouter();
   /* a task's own form over Home: one the item is, or a field issue's to make */
@@ -424,23 +429,35 @@ export function HomeFeed({
   );
   return (
     <section
-      className={todo ? "hm-sec hm-feed hm-feed--home" : "hm-sec hm-feed"}
-      aria-labelledby="hm-feed"
+      className={
+        tabbed
+          ? "hm-tabpanel hm-feed hm-feed--home hm-feed--tab"
+          : todo
+            ? "hm-sec hm-feed hm-feed--home"
+            : "hm-sec hm-feed"
+      }
+      {...(tabbed
+        ? { id: "hm-panel-feed", role: "tabpanel", "aria-labelledby": "hm-tab-feed" }
+        : { "aria-labelledby": "hm-feed" })}
     >
-      <ColumnHead
-        id="hm-feed"
-        name={name}
-        icon="chat"
-        hue="green"
-        level={headingLevel}
-      >
-        {todo ? <div className="hm-headtray">{tray}</div> : null}
-        {!todo && more && (
-          <LinkButton href="/dashboard/feed" className="hm-headlink">
-            Show all
-          </LinkButton>
-        )}
-      </ColumnHead>
+      {tabbed ? (
+        <div className="hm-sub">{tray}</div>
+      ) : (
+        <ColumnHead
+          id="hm-feed"
+          name={name}
+          icon="chat"
+          hue="green"
+          level={headingLevel}
+        >
+          {todo ? <div className="hm-headtray">{tray}</div> : null}
+          {!todo && more && (
+            <LinkButton href="/dashboard/feed" className="hm-headlink">
+              Show all
+            </LinkButton>
+          )}
+        </ColumnHead>
+      )}
       {!todo && <div className="hm-feed-filter">{tray}</div>}
       {waiting.length > 0 && (
         <div className="hm-group">

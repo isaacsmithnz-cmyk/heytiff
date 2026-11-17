@@ -81,6 +81,7 @@ import { claimZone, newSystem, toggleZone, zoneIdsOf } from "@/lib/studio/zones"
 import { doneBlockers, systemFindings } from "@/lib/studio/verdict";
 import { SystemsPanel } from "./systems-panel";
 import { canLeaveOut, leaveOut, putBack } from "@/lib/studio/left-out";
+import { addQuotedOption, canAdd, quotedOptions, type QuotedLine } from "@/lib/studio/from-quote";
 import { SystemScreen, SystemsList } from "./systems-stack";
 import { AirPanel, type AirShow } from "./air-panel";
 import { airRows, airTags } from "@/lib/studio/air-view";
@@ -97,7 +98,7 @@ import { measuredForJob, setupNeeds, shareAcrossSet } from "@/lib/studio/plan-se
 import { InstallQuestions } from "./install-questions";
 import { isAirCapable, moduleFor } from "@/lib/studio/modules";
 import { SystemBuilder, ZoneStanding } from "./system-builder";
-import { deleteZone, releaseSystem, releaseZones, moveZone, removeZone } from "@/lib/studio/builder";
+import { allocationsOf, deleteZone, hasAllocations, releaseSystem, releaseZones, moveZone, removeZone } from "@/lib/studio/builder";
 import { roomAtPoint, roomCoverage, roomsServedBy, systemPairKw } from "@/lib/studio/coverage";
 import { nextMoveZones, type NextMove } from "@/lib/studio/next-move";
 import { StudioHelp } from "./studio-help";
@@ -1640,6 +1641,38 @@ function Editor({
     };
   }, [packLoader]);
 
+  /* From the quote (from-quote.ts): the units the job's quote names, read
+     once a design has its job; not where the pack is a test's */
+  const quoteJob = doc.jobLink?.remoteId ?? null;
+  const [quotedRead, setQuotedRead] = useState<{ job: string; lines: QuotedLine[]; accepted: number[]; names: Record<number, string> } | null>(null);
+  useEffect(() => {
+    if (!quoteJob || packLoader) return;
+    let on = true;
+    studioActions()
+      .then((a) => a.readQuotedUnits(quoteJob))
+      .then((r) => {
+        if (on) setQuotedRead({ job: quoteJob, ...r });
+      })
+      .catch(() => {
+        /* no quote to offer: the panel is as it was */
+      });
+    return () => {
+      on = false;
+    };
+  }, [quoteJob, packLoader]);
+  const quoted = useMemo(() => {
+    if (!pack || !quotedRead || quotedRead.job !== quoteJob) return [];
+    const all = quotedOptions(doc, pack, quotedRead.lines, quotedRead.accepted, quotedRead.names);
+    /* the accepted ones where one is marked, else every option; one already
+       in the design (a system of its name on its outdoor) is said no more */
+    const shown = all.some((o) => o.accepted) ? all.filter((o) => o.accepted) : all;
+    return shown.filter(
+      (o) =>
+        canAdd(o) &&
+        !doc.systems.some((sys) => sys.name === o.name && hasAllocations(sys) && allocationsOf(sys).some((a) => a.role === "odu" && a.model === o.outdoor?.model)),
+    );
+  }, [doc, pack, quotedRead, quoteJob]);
+
   /* arm (or null-disarm) unit placement — armed by dragging a unit card */
   const armPlace = useCallback((p: PlacingUnit | null) => {
     setPlacing(p);
@@ -2573,6 +2606,11 @@ function Editor({
               onAddVariant={onAddVariant}
               onSwitchVariant={onSwitchVariant}
               onRenameVariant={onRenameVariant}
+              quoted={quoted}
+              onAddQuoted={(o) => {
+                if (!pack) return;
+                mutate((d) => addQuotedOption(d, pack, d.settings.sizingBasis, o).doc);
+              }}
               onLeaveOut={(ids) => mutate((d) => leaveOut(d, ids))}
               onPutBack={(ids) => mutate((d) => putBack(d, ids))}
             />

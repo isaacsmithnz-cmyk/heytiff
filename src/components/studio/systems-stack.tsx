@@ -10,6 +10,7 @@
 import { useState } from "react";
 import type { DesignDocument } from "@/lib/studio/document";
 import { canLeaveOut, leftOutRooms } from "@/lib/studio/left-out";
+import type { QuotedOption } from "@/lib/studio/from-quote";
 import type { DataPack } from "@/lib/studio/packs/schema";
 import type { SizingBasis } from "@/lib/studio/loads";
 import { allocationsOf, hasAllocations, trayItems } from "@/lib/studio/builder";
@@ -46,6 +47,8 @@ export function SystemsList({
   onRenameVariant,
   onLeaveOut,
   onPutBack,
+  quoted = [],
+  onAddQuoted,
 }: {
   doc: DesignDocument;
   pack: DataPack | null;
@@ -53,6 +56,9 @@ export function SystemsList({
   next: { label: string } | null;
   onNext: () => void;
   onOpen: (id: string) => void;
+  /** the job's quote's options not in the design yet (from-quote.ts) */
+  quoted?: QuotedOption[];
+  onAddQuoted?: (o: QuotedOption) => void;
   /** these rooms off the design, kept (left-out.ts) */
   onLeaveOut: (ids: string[]) => void;
   onPutBack: (ids: string[]) => void;
@@ -88,6 +94,32 @@ export function SystemsList({
           </button>
         }
       />
+      {quoted.length > 0 && onAddQuoted && (
+        <>
+          <StackSection>From the quote</StackSection>
+          {quoted.map((o) => (
+            <StackGroup key={o.index}>
+              <StackRow
+                name={o.accepted ? `${o.name}, accepted` : o.name}
+                sub={[pack ? brandName(pack, pack.meta.brand) : "", o.kind].filter(Boolean).join(" ")}
+              >
+                <button type="button" className="ds-stack-small" onClick={() => onAddQuoted(o)}>
+                  Add to design
+                </button>
+              </StackRow>
+              {o.outdoor && <StackRow name="Outdoor" value={o.outdoor.model ?? o.outdoor.code} />}
+              {o.heads.map((h, i) => (
+                <StackRow
+                  key={i}
+                  name={h.roomName ?? h.room}
+                  value={h.roomId ? (h.model ?? h.code) : "No room on the plan"}
+                  tone={h.roomId && h.model ? undefined : "look"}
+                />
+              ))}
+            </StackGroup>
+          ))}
+        </>
+      )}
       {doc.systems.length > 0 && (
         <StackGroup>
           {doc.systems.map((sys) => {

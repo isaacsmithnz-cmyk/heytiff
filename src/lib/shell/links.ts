@@ -49,6 +49,10 @@ export const quoteHref = (job: string, opts: { start?: boolean; option?: number 
   return `/dashboard/jobs/${encodeURIComponent(job)}/quote${q ? `?${q}` : ""}`;
 };
 
+/** One of a job's invoices, in a tab of its own (the Price overhaul, 18
+    November 2026, decision 6): the claim is ServiceM8's uuid for it. */
+export const invoiceHref = (job: string, claim: string) => `/dashboard/jobs/${encodeURIComponent(job)}/invoice/${encodeURIComponent(claim)}`;
+
 /** A design opens in the Studio. */
 export const designHref = (id: string) => `/dashboard/studio?design=${encodeURIComponent(id)}`;
 

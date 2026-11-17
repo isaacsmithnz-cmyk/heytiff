@@ -112,6 +112,7 @@ import WorkboardPage from "../workboard/page";
 import WorkboardProjectsPage from "../workboard/projects/page";
 import ProjectPage from "../jobs/projects/[id]/page";
 import JobQuotePage from "../jobs/[id]/quote/page";
+import JobInvoicePage from "../jobs/[id]/invoice/[claim]/page";
 import OldProjectPage from "../workboard/projects/[id]/page";
 import OldQuotePage from "../workboard/quotes/[id]/page";
 import ToolboxPage from "../toolbox/page";
@@ -280,6 +281,13 @@ describe("the quote's own tab", () => {
     mockRenderJobPage.mockClear();
     await expect(open({ start: "1" })).resolves.toEqual({ jobPage: "quote" });
     expect(mockRenderJobPage).toHaveBeenCalledWith(expect.objectContaining({ doc: "quote" }));
+  });
+
+  /* an invoice takes the quote's shape, in a tab of its own (decision 6) */
+  it("has an invoice's own tab beside it, the job's page with that invoice open", async () => {
+    mockRenderJobPage.mockClear();
+    await expect(JobInvoicePage({ params: Promise.resolve({ id: "x-1", claim: "c-2" }), searchParams: Promise.resolve({}) })).resolves.toEqual({ jobPage: "invoice" });
+    expect(mockRenderJobPage).toHaveBeenCalledWith(expect.objectContaining({ doc: "invoice", claim: "c-2" }));
   });
 });
 

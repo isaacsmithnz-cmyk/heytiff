@@ -200,6 +200,33 @@ it("says so when the job's invoice has no visits and no work done", async () => 
   expect(built.getByText("Nothing written")).toBeInTheDocument();
 });
 
+/* AN INVOICE IN A TAB OF ITS OWN (the Price overhaul, decision 6: "1", the
+   quote's shape): Breakdown and Invoice across the page, the rest of the
+   job's billing beside it, ServiceM8's green to open it there, and the head
+   told its word, its name and its number */
+it("in an invoice's own tab, lays Breakdown and Invoice across it, and tells the head where it's up to", async () => {
+  const onDocStage = jest.fn();
+  draw({ doc: "invoice", ask: { invoice: JOB, n: 1 }, onDocStage });
+  const tabs = await screen.findByRole("tablist", { name: "The invoice" });
+  expect(within(tabs).getAllByRole("tab").map((t) => t.textContent)).toEqual(["Breakdown", "Invoice"]);
+  expect(within(tabs).getByRole("tab", { name: "Invoice" })).toHaveAttribute("aria-selected", "true");
+  expect(await screen.findByLabelText("Invoice #3408", { selector: "iframe" })).toBeInTheDocument();
+  expect(screen.queryByRole("group", { name: "The job's prices" })).toBeNull();
+  const rail = within(screen.getByRole("complementary", { name: "Invoice #3408" }));
+  expect(rail.getByRole("region", { name: "Of the job" })).toHaveTextContent("Invoice");
+  expect(rail.getByRole("link", { name: "Open in ServiceM8" })).toHaveClass("pt-btn--sm8");
+  expect(rail.queryByRole("link", { name: "Open invoice" })).toBeNull();
+  await waitFor(() => expect(onDocStage).toHaveBeenLastCalledWith(expect.objectContaining({ word: "Awaiting", tone: "look", label: "Invoice #3408" })));
+  await userEvent.click(within(tabs).getByRole("tab", { name: "Breakdown" }));
+  expect(await screen.findByText("Initial Service of Systems")).toBeInTheDocument();
+});
+
+it("on the Price tab, offers to open an invoice in its own tab", async () => {
+  draw();
+  await userEvent.click(await prices().findByRole("button", { name: /^Invoice #3408/ }));
+  expect(await screen.findByRole("link", { name: "Open invoice" })).toHaveAttribute("href", `/dashboard/jobs/${JOB}/invoice/${JOB}`);
+});
+
 it("opens on the invoice a door asked for", async () => {
   draw({ ask: { invoice: JOB.toUpperCase(), n: 1 } });
   expect(await prices().findByRole("button", { name: /^Invoice #3408/, pressed: true })).toBeInTheDocument();

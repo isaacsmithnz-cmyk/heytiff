@@ -2,7 +2,7 @@ import "server-only";
 
 import { addLog, editLog, type LogEdit } from "@/app/actions/fleet";
 import { todayInAu } from "@/lib/au-dates";
-import { fmtCost, fmtKm, type VehicleLog } from "@/components/fleet/logic";
+import { fmtCost, fmtKm, type VehicleLog, type VehicleWithFacts } from "@/components/fleet/logic";
 import { choicesOf, type VehicleChoice } from "@/lib/mobile/vehicle-choices";
 import { getOwnVehicle, listLogs, listVehiclePicker, staffProfileIdFor } from "@/lib/fleet/query";
 import {
@@ -16,6 +16,7 @@ import {
   serviceRows,
   statusWord,
   vehicleTitle,
+  type Driver,
   type FactRow,
   type Word,
 } from "@/lib/fleet/vehicle-page";
@@ -105,6 +106,36 @@ export function entryOf(l: VehicleLog, me: string | null): PhoneEntry {
   };
 }
 
+export type PhoneVehicleBody = NonNullable<PhoneVehicle["vehicle"]>;
+
+/** One vehicle as the phone's vehicle page draws it: Your vehicle's, and
+    (lib/mobile/vehicles) any one of the fleet for whoever holds the
+    register. `me` is whose entries are theirs to correct; null corrects none. */
+export function phoneVehicleOf(
+  v: VehicleWithFacts,
+  logs: readonly VehicleLog[],
+  o: { today: string; warnDays: number; driver: Driver; me: string | null },
+): PhoneVehicleBody {
+  const fuel = v.motorised ? lastFuel(logs) : null;
+  return {
+    id: v.id,
+    title: vehicleTitle(v),
+    plate: v.plate || null,
+    plateState: v.plateState ?? null,
+    head: headFacts(v, o.driver),
+    status: statusWord(v.status),
+    offroad: v.status === "offroad",
+    motorised: v.motorised,
+    odometer: v.odometer,
+    service: serviceRows(v, logs, o.today, o.warnDays),
+    /* the driver reads the renewals; the register renews them */
+    renewals: renewalRows(v, [], o.today, o.warnDays).map((r) => ({ label: r.label, date: r.date, word: r.word ?? null })),
+    lastFuel: fuel ? { when: fuel.when, line: fuel.line } : null,
+    issues: issueGroups(logs).open.map((l) => ({ id: l.id, name: issueName(l), line: issueLine(l) })),
+    entries: [...logs].sort((a, b) => a.ago - b.ago).map((l) => entryOf(l, o.me)),
+  };
+}
+
 export async function readPhoneVehicle(ctx: MobileCtx): Promise<PhoneVehicle> {
   const staffId = await staffProfileIdFor(ctx.orgId, ctx.userId);
   const [own, picker, { warnDays }] = await Promise.all([
@@ -115,27 +146,9 @@ export async function readPhoneVehicle(ctx: MobileCtx): Promise<PhoneVehicle> {
   const vehicles = choicesOf(picker, own?.id ?? null);
   if (!own) return { vehicle: null, vehicles, canFile: !!staffId };
 
-  const today = todayInAu();
   const logs = await listLogs(ctx.orgId, { vehicleId: own.id });
-  const fuel = own.motorised ? lastFuel(logs) : null;
   return {
-    vehicle: {
-      id: own.id,
-      title: vehicleTitle(own),
-      plate: own.plate || null,
-      plateState: own.plateState ?? null,
-      head: headFacts(own, "you"),
-      status: statusWord(own.status),
-      offroad: own.status === "offroad",
-      motorised: own.motorised,
-      odometer: own.odometer,
-      service: serviceRows(own, logs, today, warnDays),
-      /* the driver reads the renewals; the register renews them */
-      renewals: renewalRows(own, [], today, warnDays).map((r) => ({ label: r.label, date: r.date, word: r.word ?? null })),
-      lastFuel: fuel ? { when: fuel.when, line: fuel.line } : null,
-      issues: issueGroups(logs).open.map((l) => ({ id: l.id, name: issueName(l), line: issueLine(l) })),
-      entries: [...logs].sort((a, b) => a.ago - b.ago).map((l) => entryOf(l, staffId)),
-    },
+    vehicle: phoneVehicleOf(own, logs, { today: todayInAu(), warnDays, driver: "you", me: staffId }),
     vehicles,
     canFile: !!staffId,
   };

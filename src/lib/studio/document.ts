@@ -278,6 +278,9 @@ export interface DesignDocument {
   /** Tiff's reading of the plans (reading.ts), kept once for every screen.
       Absent = never read: every design before 20 October, every blank one. */
   reading?: PlanReading | null;
+  /** rooms left out of the design (left-out.ts): off the plan, the lists
+      and the loads, kept as they were to put back. Absent = none. */
+  leftOut?: DesignObject[];
 }
 
 import type { PlanReading } from "./reading";

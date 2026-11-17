@@ -80,6 +80,7 @@ import { GRILLE_SIZES, clampSupply, grilleMount, grilleSize, grilleSplit, grille
 import { claimZone, newSystem, toggleZone, zoneIdsOf } from "@/lib/studio/zones";
 import { doneBlockers, systemFindings } from "@/lib/studio/verdict";
 import { SystemsPanel } from "./systems-panel";
+import { canLeaveOut, leaveOut, putBack } from "@/lib/studio/left-out";
 import { SystemScreen, SystemsList } from "./systems-stack";
 import { AirPanel, type AirShow } from "./air-panel";
 import { airRows, airTags } from "@/lib/studio/air-view";
@@ -2572,6 +2573,8 @@ function Editor({
               onAddVariant={onAddVariant}
               onSwitchVariant={onSwitchVariant}
               onRenameVariant={onRenameVariant}
+              onLeaveOut={(ids) => mutate((d) => leaveOut(d, ids))}
+              onPutBack={(ids) => mutate((d) => putBack(d, ids))}
             />
           ) : (
           <SystemsPanel
@@ -4039,6 +4042,15 @@ function RoomScreen({
         onSelect(null);
         mutate((d) => deleteZone(d, pack, id));
       }}
+      onLeaveOut={
+        canLeaveOut(doc, room.id)
+          ? () => {
+              const id = room.id;
+              onSelect(null);
+              mutate((d) => leaveOut(d, [id]));
+            }
+          : undefined
+      }
     />
   );
 }

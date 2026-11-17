@@ -185,3 +185,48 @@ describe("a scale measured in a design made from a job's plan", () => {
     expect(measuredForJob(cutler(), scaled(cutler(), "l1", 21.3))).toEqual([]);
   });
 });
+
+describe("the sizes written in its rooms", () => {
+  /* 3516's plan, 17 November 2026: a sales floor plan, no scale printed, no
+     dimension lines, but "4.1m x 3.0m" written in its rooms; the job's Plans
+     scale it off those, and the design has to as well */
+  const room = (name: string, x: number, y: number, w: number, h: number, written: string) => ({
+    name,
+    named: true,
+    kind: "room" as const,
+    outline: [
+      { x, y },
+      { x: x + w, y },
+      { x: x + w, y: y + h },
+      { x, y: y + h },
+    ],
+    written,
+    existing: false,
+    openTo: "",
+    stair: "",
+  });
+  const waitara = (spaces: ReturnType<typeof room>[]): DesignDocument => {
+    const d = createDesign({ name: "12/8-10 Park Ave", mode: "plan" });
+    return {
+      ...d,
+      floors: [{ id: "gf", name: "Ground floor", level: 0, scaleMmPerUnit: null, northDeg: null, northPos: null, plans: [{ ...sheet("gf", 1, 1200, 900), pageNumber: null }] }],
+      planImport: { sources: [{ ref: "org/o/waitara.png", kind: "image" }], placed: { 0: "org/o/gf.png" }, chosen: [0], names: {} },
+      reading: {
+        at: "2026-11-17T00:00:00Z",
+        model: "test",
+        floors: { gf: [{ sheetId: "sht_gf", spaces, openings: [], marks: [], furniture: [], checklist: [], flags: [], planUp: "" }] },
+        failed: [],
+      },
+    } as DesignDocument;
+  };
+
+  test("offers the scale they give, 15 mm a pixel off two rooms", () => {
+    /* 4.5 x 3.0 m over 300 x 200 px, 3.0 x 3.0 m over 200 x 200 px */
+    const d = waitara([room("Bed 1", 0, 0, 300, 200, "4.5m x 3.0m"), room("Bed 2", 400, 0, 200, 200, "3.0 x 3.0")]);
+    expect(proposedScale(d, "gf")).toEqual({ kind: "measured", from: "the sizes written in 2 of its rooms", sure: true, mmPerUnit: 15 });
+  });
+
+  test("one room's size alone offers nothing", () => {
+    expect(proposedScale(waitara([room("Bed 1", 0, 0, 300, 200, "4.5m x 3.0m")]), "gf")).toBeNull();
+  });
+});

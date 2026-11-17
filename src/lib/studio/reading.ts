@@ -276,6 +276,34 @@ export function parseWritten(text: string): [number, number] | null {
   return a >= b ? [a, b] : [b, a];
 }
 
+const boxOf = (outline: readonly ReadPoint[]) => {
+  const xs = outline.map((p) => p.x);
+  const ys = outline.map((p) => p.y);
+  return { w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
+};
+
+/** The scale the rooms' own written sizes give: each room's written sides
+    over its outline's box, the middle of them. Two rooms at least, so one
+    table's size written in a room can't set the scale. */
+export function scaleFromWritten(spaces: readonly ReadSpace[]): { mmPerPx: number; rooms: number } | null {
+  const each: number[] = [];
+  for (const s of spaces) {
+    const w = parseWritten(s.written);
+    if (!w || s.outline.length < 3) continue;
+    const b = boxOf(s.outline);
+    const [long, short] = b.w >= b.h ? [b.w, b.h] : [b.h, b.w];
+    if (short <= 0) continue;
+    const byLong = (w[0] * 1000) / long;
+    const byShort = (w[1] * 1000) / short;
+    /* the written size is the room's only when both sides give the same scale */
+    if (Math.abs(byLong - byShort) > Math.min(byLong, byShort) * 0.2) continue;
+    each.push((byLong + byShort) / 2);
+  }
+  if (each.length < 2) return null;
+  each.sort((a, b) => a - b);
+  return { mmPerPx: each[Math.floor((each.length - 1) / 2)], rooms: each.length };
+}
+
 /**
  * Does a size written in a room agree with the room as drawn? A written
  * size counts only when it does: "2.4 x 0.9m" in a 43 m² living room is the

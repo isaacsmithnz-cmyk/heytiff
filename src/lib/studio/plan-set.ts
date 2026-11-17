@@ -12,6 +12,7 @@
    Pure: the Studio's set-up panel and its mutate wrapper call these. */
 
 import type { DesignDocument, Floor, Point } from "./document";
+import { scaleFromWritten } from "./reading";
 
 /** ISO A paper, long side by short side, mm */
 export const PAPER_MM = {
@@ -121,7 +122,8 @@ export type ScaleProposal =
 
 /** The scale to offer a floor, off its page: the printed one first, since
     it is the drawing's own word; Tiff's measured one where it prints none
-    or its raster isn't the paper's shape (3517's plan, 13 November 2026). */
+    or its raster isn't the paper's shape (3517's plan, 13 November 2026);
+    else the one the sizes written in its rooms give. */
 export function proposedScale(doc: DesignDocument, floorId: string): ScaleProposal | null {
   const f = doc.floors.find((x) => x.id === floorId);
   const s = f && firstSheet(f);
@@ -131,7 +133,14 @@ export function proposedScale(doc: DesignDocument, floorId: string): ScalePropos
   if (scale && printed) return { kind: "printed", scale, mmPerUnit: printed };
   const m = pageOf(doc, s.imageRef);
   const read = m != null ? doc.planImport?.measured?.[m] : undefined;
-  return read && read.mmPerPx > 0 ? { kind: "measured", from: read.from, sure: read.sure, mmPerUnit: read.mmPerPx } : null;
+  if (read && read.mmPerPx > 0) return { kind: "measured", from: read.from, sure: read.sure, mmPerUnit: read.mmPerPx };
+  /* no printed scale and no dimension lines, as a sales floor plan: the
+     sizes written in its rooms, as the job's own Plans scale it (pageScale,
+     lib/jobs/plans.ts; 3516's plan, 17 November 2026: "why his plans arent
+     scaled?") */
+  const spaces = (doc.reading?.floors[floorId] ?? []).filter((r) => r.sheetId === s.id).flatMap((r) => r.spaces);
+  const written = scaleFromWritten(spaces);
+  return written ? { kind: "measured", from: `the sizes written in ${written.rooms} of its rooms`, sure: true, mmPerUnit: written.mmPerPx } : null;
 }
 
 /** Floors drawn from the same set as `floorId`: each one's first sheet is a

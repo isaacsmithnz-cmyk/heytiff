@@ -107,7 +107,7 @@ describe("say", () => {
        said only that `say` follows the speaker (2026-09-26). */
     const block = sayBlock();
     expect(block).toContain(
-      `clarify_question and clarify_options are records like every other field:\nwrite them in ${RECORD_LANGUAGE}, whatever language the note was spoken\nin. Only \`say\` follows the language they spoke.`,
+      `clarify's question and options are records like every other field:\nwrite them in ${RECORD_LANGUAGE}, whatever language the note was spoken\nin. Only \`say\` follows the language they spoke.`,
     );
     // and the question Tiff says is said in theirs
     expect(block).toMatch(/end it\s+with the question, asked in their language/);
@@ -198,7 +198,7 @@ describe("a task with nobody on it", () => {
   });
 
   it("asks the model to raise a name nobody answers to itself, on the modal's notes only", () => {
-    expect(whoBlock(modal)).toMatch(/none of the people above, set\s+clarify_needed/);
+    expect(whoBlock(modal)).toMatch(/none of the people above, call\s+clarify/);
     expect(whoBlock(ctx)).not.toMatch(/none of the people above/);
   });
 });

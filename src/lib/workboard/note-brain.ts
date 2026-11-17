@@ -1378,6 +1378,9 @@ function reasonFor(err: unknown): string {
   return FAILED;
 }
 
+/** The API's refusal of a schema too big to compile, before any reading. */
+const tooBigAGrammar = (err: unknown) => err instanceof Anthropic.BadRequestError && /grammar is too large/i.test(err.message);
+
 /* ── A REPLY ROUTES THE WHOLE NOTE AGAIN ─────────────────────────────────
 
    The old clarify box sent one answer to one question and told the model
@@ -1546,6 +1549,17 @@ export async function readNote(
      go before the note is filed as said. A refusal isn't tried again, and
      the API's own errors were already tried again by the SDK. */
   let last: NoteBrainResult = { ok: false, error: FAILED };
+  /* THE SCHEMA OPUS 5.5 WON'T TAKE. Tiff's schema (TIFF_NOTE_SCHEMA, the
+     lanes and her `say`) compiles to a grammar just past Opus 5.5's limit,
+     and the API refuses the request before reading a word: "The compiled
+     grammar is too large". Every note read with `speak` failed so since the
+     moves lane came in (13 November 2026), and was filed as said: bug 9,
+     found by reading Isaac's 3054 note again on 17 November. Any one field
+     less fits, so this is the edge, not one field too many. Every lane is
+     used, so none is cut here: on that refusal the read goes to the
+     refusal fallback's model, which takes the whole schema, and the logs
+     say so each time. */
+  let model: string = MODEL;
   for (let attempt = 1; attempt <= 2; attempt++) {
     const started = Date.now();
     const failed = (why: string, error: string): NoteBrainResult => {
@@ -1554,10 +1568,9 @@ export async function readNote(
     };
     try {
       const response = await client.beta.messages.create({
-        model: MODEL,
+        model,
         max_tokens: MAX_TOKENS,
-        betas: [FALLBACK_BETA],
-        fallbacks: FALLBACKS,
+        ...(model === MODEL ? { betas: [FALLBACK_BETA], fallbacks: FALLBACKS } : {}),
         // A real cost/quality/LATENCY lever here — see DEFAULT_EFFORT.
         output_config: {
           effort: DEFAULT_EFFORT,
@@ -1569,7 +1582,7 @@ export async function readNote(
         messages: [{ role: "user", content }],
       });
       /* `cache(r=...)` on this line is the proof the split above is paying. */
-      logUsage("note", MODEL, response.usage);
+      logUsage("note", model, response.usage);
 
       /* A refusal is a content outcome, not an error: check it before reading
          content, which is empty or partial in that case. For this feature the
@@ -1603,6 +1616,10 @@ export async function readNote(
       const name = err instanceof Error ? err.name : typeof err;
       last = failed(`${name}${status}: ${err instanceof Error ? err.message.slice(0, 300) : String(err).slice(0, 300)}`, reasonFor(err));
       /* the API's own errors were already tried again by the SDK */
+      if (model === MODEL && tooBigAGrammar(err)) {
+        model = FALLBACKS[0]!.model;
+        continue;
+      }
       if (err instanceof Anthropic.APIError) return last;
     }
   }

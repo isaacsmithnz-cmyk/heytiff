@@ -368,6 +368,14 @@ describe("tasks to plan", () => {
     expect(await screen.findByText("1 of 4 done")).toBeInTheDocument();
   });
 
+  it("says No tasks over the box on a job with none, never a heading over a box alone (N7)", async () => {
+    answering({ tasks: [], updates: [] });
+    mount();
+    const box = within(await screen.findByRole("region", { name: "Tasks" }));
+    expect(box.getByText("No tasks.")).toBeInTheDocument();
+    expect(box.getByRole("textbox", { name: "Add a task" })).toBeInTheDocument();
+  });
+
   it("leaves someone who doesn't run the board the list to read, and nothing to plan with", async () => {
     answering({ manage: false });
     mount();

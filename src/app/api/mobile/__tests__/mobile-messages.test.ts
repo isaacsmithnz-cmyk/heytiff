@@ -10,7 +10,7 @@
 
 import type { CustomerItem } from "@/lib/jobs/customer-messages";
 import type { JobMediaItem } from "@/lib/workboard/job-media";
-import { fileDoors, phoneMessages } from "@/lib/mobile/job-messages";
+import { fileDoors, phoneMessages, shortBusinessName } from "@/lib/mobile/job-messages";
 
 const bubble = (key: string, side: "them" | "us", name: string | null, words: string, time: string, files: { id: string; name: string | null; type: string | null }[] = []) => ({
   kind: "bubble" as const,
@@ -94,7 +94,12 @@ describe("a job's messages on the phone", () => {
   });
 
   it("has nothing for a job with no messages", () => {
-    expect(phoneMessages([], { today: null, doors: new Map() })).toEqual({ latest: null, items: [] });
+    expect(phoneMessages([], { today: null, doors: new Map() })).toEqual({ latest: null, items: [], flow: [] });
+  });
+
+  it("keeps the old rows for a phone that hasn't updated, with who sent each send, how and its plain words", () => {
+    const send = phoneMessages(items, { today: null, doors: new Map() }).items.find((i) => i.kind === "send");
+    expect(send).toMatchObject({ words: "Booking for Tue 27 Oct, 7:30 am texted", reply: "Jay: YES", who: null, via: "text", plain: "Booking for Tue 27 Oct, 7:30 am texted" });
   });
 
   it("opens a file only where the job's read holds it, by its uuid in any case", () => {
@@ -110,5 +115,124 @@ describe("a job's messages on the phone", () => {
     const invoice = media([{ remoteId: "inv-1", url: "https://signed/invoice", origin: "Invoice", kind: "doc" as JobMediaItem["kind"] }]);
     expect(fileDoors(invoice, false).get("inv-1")).toBeUndefined();
     expect(fileDoors(invoice, true).get("inv-1")).toBe("https://signed/invoice");
+  });
+});
+
+/* BUG 20 (Isaac, 17 November 2026: "This looks pretty messy", then "Yes, all
+   of it" to the tidied board): one conversation, a heading for each day,
+   everything the business sent a green bubble with who sent it and how, the
+   customer's answers grey, the time or Seen under the last of a run. Drawn
+   on 2359's messages: Isaac's booking and Simon's Yes, Luke's brochures,
+   Leonardo on the way, and Luke's invoice emailed, then emailed and texted. */
+describe("a job's messages as one conversation", () => {
+  const send = (over: Partial<Extract<CustomerItem, { kind: "send" }>> & { key: string; at: string }): CustomerItem => ({
+    kind: "send",
+    day: over.at.slice(0, 10),
+    sort: "other",
+    icon: "message",
+    words: "",
+    detail: null,
+    opening: null,
+    line: "",
+    reply: null,
+    seen: null,
+    files: [],
+    amountCents: null,
+    refs: [],
+    ...over,
+  });
+  const invoiceFile = { id: "INV-2359", name: "Invoice 2359", type: ".pdf" };
+  const booking = send({
+    key: "send:book",
+    at: "2026-01-29 09:02:00",
+    sort: "booking",
+    words: "Booking for Wed 4 Feb, 7:00 am texted",
+    reply: "Simon: Yes",
+    who: "Isaac",
+    via: "text",
+    plain: "Booking for Wed 4 Feb, 7:00 am",
+    time: "9:02 am",
+    answer: { who: "Simon", words: "Yes", time: "9:40 am", at: "2026-01-29 09:40:00" },
+  });
+  const brochures: CustomerItem = {
+    kind: "thread",
+    key: "thread:2026-01-29",
+    day: "2026-01-29",
+    at: "2026-01-29 11:14:00",
+    icon: "message",
+    title: "Text with Simon",
+    subject: null,
+    lines: [{ ...bubble("msg:b", "us", "Luke", "brochures", "11:14 am"), who: "Luke", at: "2026-01-29 11:14:00", via: "text" }],
+  };
+  const way = send({ key: "send:way", at: "2026-02-04 06:41:00", sort: "way", icon: "car", words: "On the way texted", detail: "Leonardo", who: "Leonardo", via: "text", plain: "On the way", time: "6:41 am" });
+  const emailed = send({ key: "send:inv1", at: "2026-02-06 10:00:00", sort: "invoice", icon: "mail", words: "Invoice emailed", seen: "Seen 2:23 pm", files: [invoiceFile], who: "Luke", via: "email", plain: "Invoice", time: "10:00 am" });
+  const both = send({ key: "send:inv2", at: "2026-02-14 10:00:00", sort: "invoice", icon: "mail", words: "Invoice sent", detail: "by email and text", seen: "Seen 2:01 pm", who: "Luke", via: "both", plain: "Invoice", time: "10:00 am" });
+  const all = [both, way, emailed, brochures, booking];
+  const doors = new Map([[invoiceFile.id.toLowerCase(), "https://signed/invoice"]]);
+  const flow = phoneMessages(all, { today: null, doors }).flow;
+  const said = (f: (typeof flow)[number]) => (f.kind === "day" ? `## ${f.label}` : `${f.side} ${f.name ?? "-"} [${f.via ?? ""}] ${f.words} (${f.under ?? ""})`);
+
+  it("runs oldest first under a heading for each day: the business's sends green with who and how, the customer's answers grey", () => {
+    expect(flow.map(said)).toEqual([
+      "## Thu 29 Jan",
+      "us Isaac [text] Booking for Wed 4 Feb, 7:00 am (9:02 am)",
+      "them Simon [] Yes (9:40 am)",
+      "us Luke [text] brochures (11:14 am)",
+      "## Wed 4 Feb",
+      "us Leonardo [text] On the way (6:41 am)",
+      "## Fri 6 Feb",
+      "us Luke [email] Invoice (Seen 2:23 pm)",
+      "## Sat 14 Feb",
+      "us Luke [both] Invoice (Seen 2:01 pm)",
+    ]);
+  });
+
+  it("opens a send's file from under its bubble", () => {
+    const inv = flow.find((f) => f.kind === "bubble" && f.key === "send:inv1");
+    expect(inv?.kind === "bubble" ? inv.files : null).toEqual([{ ...invoiceFile, url: "https://signed/invoice" }]);
+  });
+
+  it("says a run's name over its first bubble and its time under its last, and lays a send inside a thread among its bubbles by the clock", () => {
+    const thread: CustomerItem = {
+      kind: "thread",
+      key: "thread:2026-01-30",
+      day: "2026-01-30",
+      at: "2026-01-30 10:20:00",
+      icon: "message",
+      title: "Text with Simon",
+      subject: null,
+      lines: [
+        { ...bubble("msg:1", "them", "Simon", "Can you come Friday?", "10:00 am"), who: "Simon", at: "2026-01-30 10:00:00" },
+        { ...bubble("msg:2", "us", "Luke", "Friday works", "10:05 am"), who: "Luke", at: "2026-01-30 10:05:00", via: "text" },
+        { ...bubble("msg:3", "us", null, "I'll send the booking", "10:06 am"), who: "Luke", at: "2026-01-30 10:06:00", via: "text" },
+        {
+          kind: "line",
+          key: "send:fri",
+          words: "Booking for Fri 6 Feb, 7:00 am texted",
+          reply: null,
+          send: send({ key: "send:fri", at: "2026-01-30 10:20:00", sort: "booking", who: "Luke", via: "text", plain: "Booking for Fri 6 Feb, 7:00 am", time: "10:20 am" }) as Extract<CustomerItem, { kind: "send" }>,
+        },
+      ],
+    };
+    expect(phoneMessages([thread], { today: null, doors: new Map() }).flow.map(said)).toEqual([
+      "## Fri 30 Jan",
+      "them Simon [] Can you come Friday? (10:00 am)",
+      "us Luke [text] Friday works ()",
+      "us - [text] I'll send the booking ()",
+      "us - [text] Booking for Fri 6 Feb, 7:00 am (10:20 am)",
+    ]);
+  });
+
+  it("reads a feed from before the bubbles: the send's words as they were and the answer read off its row", () => {
+    const old = phoneMessages(items, { today: null, doors: new Map() }).flow;
+    expect(old.filter((f) => f.kind === "bubble").map(said).slice(-2)).toEqual(["us - [text] Booking for Tue 27 Oct, 7:30 am texted (12:56 pm)", "them Jay [] YES ()"]);
+  });
+
+  it("calls a business by its short name", () => {
+    expect(shortBusinessName("Diamond Air Solutions Pty LTD")).toBe("Diamond Air");
+    expect(shortBusinessName("JT Construct Pty. Ltd.")).toBe("JT Construct");
+    expect(shortBusinessName("Acme Air")).toBe("Acme Air");
+    expect(shortBusinessName("Plumbing Services")).toBe("Plumbing Services");
+    expect(shortBusinessName("  ")).toBeNull();
   });
 });

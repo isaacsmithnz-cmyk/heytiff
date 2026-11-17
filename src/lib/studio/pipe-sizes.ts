@@ -7,7 +7,9 @@
    Pure: the sized tree (vrf-tree.ts) already knows each section's sizes and,
    since this file, which drawn runs make it up. */
 
-import type { DesignDocument, DesignSystem } from "./document";
+import type { DesignDocument, DesignObject, DesignSystem } from "./document";
+import { attachOf } from "./graph";
+import { pairPipeSizes } from "./components";
 import type { DataPack } from "./packs/schema";
 import { headSection, systemVrfTree, type SizedFitting, type SizedSection, type SizedTree } from "./vrf-tree";
 
@@ -145,4 +147,31 @@ export function setRunSizes(
       return { ...o, props };
     }),
   };
+}
+
+/** the pipe a drawn refrigerant run is, mm, where it isn't a VRF section:
+    the size set on it, else the head at one of its ends (a split's pairing,
+    a multi head's own connection), else the system's pairing. A multi's
+    runs wear their size's colour as a VRF's do (Isaac, 17 November 2026,
+    the options mock's items 3 and 4: green pipes on a green fill were lost). */
+export function runPipeMm(
+  doc: DesignDocument,
+  pack: DataPack | null,
+  run: DesignObject
+): { liquidMm: number; gasMm: number } | null {
+  const liquid = Number(run.props.liquidMm) || 0;
+  const gas = Number(run.props.gasMm) || 0;
+  if (liquid && gas) return { liquidMm: liquid, gasMm: gas };
+  const sys = doc.systems.find((s) => s.id === run.systemId);
+  if (!pack || !sys) return null;
+  const odu = doc.objects.find((o) => o.type === "unit" && o.systemId === sys.id && o.props.role === "odu");
+  const oduModel = odu ? String(odu.props.model ?? "") || null : null;
+  for (const end of [attachOf(run.props.startAttach), attachOf(run.props.endAttach)]) {
+    if (end?.kind !== "unit") continue;
+    const u = doc.objects.find((o) => o.id === end.id && o.type === "unit");
+    if (!u || u.props.role === "odu" || !u.props.model) continue;
+    const size = headPipeMm(pack, sys, { id: u.id, model: String(u.props.model) }, oduModel);
+    if (size) return size;
+  }
+  return pairPipeSizes(doc, pack, sys);
 }

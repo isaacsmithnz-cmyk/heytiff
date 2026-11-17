@@ -86,7 +86,7 @@ import {
 } from "@/lib/studio/joints";
 import { pipeRefusal } from "@/lib/studio/pipe-rules";
 import { strayFittingIds } from "@/lib/studio/verdict";
-import { pairSize, sizeTone, vrfPipeViews, type FittingView } from "@/lib/studio/pipe-sizes";
+import { pairSize, runPipeMm, sizeTone, vrfPipeViews, type FittingView } from "@/lib/studio/pipe-sizes";
 import { footprintBox, layoutPlanLabels, roomLabelFixed, roomLabelOffset, runLabelStyle, type PlanLabels } from "@/lib/studio/plan-labels";
 import { airSolids, figureBox, noteSolids, paperLayout } from "@/lib/studio/paper-labels";
 import { ductFaceSpot, offsetPoint } from "@/lib/studio/duct-face";
@@ -224,7 +224,7 @@ import { NoteToken } from "@/components/notes/note-token";
 function zoneFill(hex: string): string {
   const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex.trim());
   if (!m) return "rgba(120, 130, 145, 0.12)";
-  return `rgba(${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}, 0.13)`;
+  return `rgba(${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}, 0.06)`;
 }
 
 /** where a zone's corner dots sit */
@@ -1202,7 +1202,14 @@ export function StudioCanvas({
       v.byRun.forEach((sec, id) => byRun.set(id, sec));
       v.fittings.forEach((f, id) => fittings.set(id, f));
     }
-    return { byRun, fittings };
+    /* a split's or a multi's runs, sized off the head at their end */
+    const tone = new Map<string, number>();
+    for (const o of doc.objects) {
+      if (o.type !== "pipe-run" || byRun.has(o.id)) continue;
+      const size = runPipeMm(doc, pack ?? null, o);
+      if (size) tone.set(o.id, sizeTone(size.gasMm));
+    }
+    return { byRun, fittings, tone };
   }, [doc, pack]);
   /* joints that branch nothing and boxes with no pipe on, drawn in the bad
      colour so they are found (verdict.ts strayFittingIds) */
@@ -4545,7 +4552,7 @@ export function StudioCanvas({
     if (sized) {
       tag = pairSize(sized.liquidMm, sized.gasMm, pipeUnits);
     } else if (r.type === "pipe-run") {
-      const auto = runSizes?.get(r.systemId ?? "") ?? null;
+      const auto = runPipeMm(doc, pack ?? null, r) ?? runSizes?.get(r.systemId ?? "") ?? null;
       const liq = Number(r.props.liquidMm) || auto?.liquidMm || null;
       const gas = Number(r.props.gasMm) || auto?.gasMm || null;
       tag = liq && gas ? `Ø${liq}/${gas}` : null;
@@ -5517,7 +5524,9 @@ export function StudioCanvas({
               ? "var(--bad-t)"
               : sized
                 ? `var(--pipe-${sizeTone(sized.gasMm)})`
-                : (sysColour.get(r.systemId ?? "") ?? "#888");
+                : pipeView.tone.has(r.id)
+                  ? `var(--pipe-${pipeView.tone.get(r.id)})`
+                  : (sysColour.get(r.systemId ?? "") ?? "#888");
             const curved = isCurvedRun(r);
             const legs = straightLegsOf(r.props);
             const cls =

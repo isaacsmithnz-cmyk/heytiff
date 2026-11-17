@@ -210,3 +210,32 @@ describe("a read that fails", () => {
     said.mockRestore();
   });
 });
+
+/* Bug 9's cause (17 November 2026): Opus 5.5 refuses Tiff's schema as a
+   grammar too large to compile. The read goes to the fallback's model,
+   which takes it, and says so in the logs. */
+describe("a schema the model won't compile", () => {
+  it("is read on the fallback's model instead", async () => {
+    const said = jest.spyOn(console, "error").mockImplementation(() => {});
+    globalThis.fetch = (async (_url: string | URL | Request, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? "{}"));
+      sent.push(body);
+      if (body.model === "claude-opus-5-5") {
+        return new Response(
+          JSON.stringify({ type: "error", error: { type: "invalid_request_error", message: "The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools." } }),
+          { status: 400, headers: { "content-type": "application/json" } },
+        );
+      }
+      return new Response(
+        JSON.stringify({ id: "m", type: "message", role: "assistant", model: body.model, content: [{ type: "text", text: JSON.stringify({ ...lanes, say: "" }) }], stop_reason: "end_turn", stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    }) as typeof fetch;
+    const read = await readNote("tell Lyle to order the grilles", modal);
+    expect(read.ok).toBe(true);
+    expect(sent.map((b) => b.model)).toEqual(["claude-opus-5-5", "claude-opus-4-8"]);
+    expect(sent[1]!.fallbacks).toBeUndefined();
+    expect(String(said.mock.calls[0]?.[0])).toMatch(/grammar is too large/);
+    said.mockRestore();
+  });
+});

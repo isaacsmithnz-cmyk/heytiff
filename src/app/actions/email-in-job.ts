@@ -25,8 +25,9 @@ export async function readEmailJob(id: string): Promise<EmailJobView | null> {
 }
 
 /** What the card's Create job sends: the client Tiff matched (a builder's job
-    on a site of theirs, or a new one), else a new client; the site she read;
-    the scope as written; the contact. */
+    on a site of theirs where it is one, else on the builder), else a new
+    client; the site she read as the job's address; the scope as written;
+    the contact. */
 export async function createJobFromEmail(id: string): Promise<MadeAnswer> {
   const { orgId, userId } = await requireOrg("tiff");
   const row = await readEmailRow(orgId, id);
@@ -43,10 +44,12 @@ export async function createJobFromEmail(id: string): Promise<MadeAnswer> {
   const theirSite = p.siteMatch && p.clientMatch && (p.siteMatch.uuid === p.clientMatch.uuid || p.siteMatch.parentName === p.clientMatch.name) ? p.siteMatch : null;
   const client = theirSite
     ? { kind: "existing" as const, uuid: theirSite.uuid }
-    : p.clientMatch
-      ? p.clientMatch.builder
-        ? { kind: "site" as const, parentUuid: p.clientMatch.uuid, address: p.site }
-        : { kind: "existing" as const, uuid: p.clientMatch.uuid }
+    : /* a builder's new job goes on the builder, its address on the job, as
+         every other job of theirs is: never a new site named by its address
+         (3533 on JT Construct, Isaac, 17 November 2026: "I think Tiff just
+         made the job wrong") */
+      p.clientMatch
+      ? { kind: "existing" as const, uuid: p.clientMatch.uuid }
       : { kind: "new" as const, name: p.client, address: p.site };
   const c = p.contact;
   const contact = c.first || c.last || c.mobile || c.phone || c.email ? { first: c.first, last: c.last, mobile: c.mobile, phone: c.phone, email: c.email } : null;

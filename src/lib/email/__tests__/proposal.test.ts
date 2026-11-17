@@ -75,7 +75,7 @@ describe("what Tiff says over the card", () => {
   it("says a client already here, and a new site for a builder", () => {
     const words = tiffSays(p({ clientMatch: { uuid: "c1", name: "Truecut Building", builder: true } }), null);
     expect(words).toContain("It's due Saturday 7 November.");
-    expect(words).toContain("Truecut Building is already a client; the site is new for them.");
+    expect(words).toContain("Truecut Building is already a client.");
   });
 
   it("says a new client is added, an email that isn't work, and one she couldn't read", () => {

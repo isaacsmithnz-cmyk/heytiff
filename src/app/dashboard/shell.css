@@ -459,6 +459,13 @@
 .fg .fr-tab button:focus-visible, .fg .fr-head button.fr-newtab:focus-visible { outline:none; box-shadow:var(--ring); }
 .fg .fr-head button.fr-newtab { display:flex; align-items:center; gap:8px; flex:0 0 auto; height:32px; padding:0 8px; font-size:14px; font-weight:500; color:var(--q); border-radius:var(--r-button); transition:color var(--t-fast) ease-out; }
 .fg .fr-head button.fr-newtab:hover { color:var(--ink); }
+/* the bug, at the right end (components/shell/report-bug): past a thin line, so it never reads as a tab */
+.fg .fr-headbar { flex:0 0 1px; width:1px; height:24px; margin:0 -8px; background:var(--edge); }
+.fr-bug { display:flex; align-items:center; justify-content:center; flex:0 0 auto; width:36px; height:36px; border-radius:50%; color:var(--ink); background:var(--white); transition:background-color var(--t-fast) ease-out; }
+.fr-bug:hover { background:var(--soft); }
+.fr-bug:focus-visible { outline:none; box-shadow:var(--ring); }
+/* the same bug over a pop-up's scrim, drawn on <body> where the top bar's one is */
+.fr-bugover, .fr-bugover:hover { position:fixed; z-index:var(--z-toast); background:var(--white); }
 
 /* ===== HeyTiff · Staff Profile — edit profile, in the app design language ===== */
 

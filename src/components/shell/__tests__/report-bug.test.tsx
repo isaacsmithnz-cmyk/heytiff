@@ -1,23 +1,14 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { Sidebar, type ShellUser } from "../sidebar";
-import { CommandPaletteProvider } from "../command-palette-context";
+import { useState } from "react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { namePage } from "../page-names";
-import { bugUnder, pictureIn, screenshotKeys } from "../report-bug";
-import { resolve } from "@/lib/permissions";
+import { BugButton, bugUnder, pictureIn, screenshotKeys } from "../report-bug";
+import { Dialog } from "@/components/parts/dialog";
 
-/* Report bug on the website (components/shell/report-bug): Your name, Report
-   bug; the page draws its own picture and the dialog shows it; Add a
+/* Report bug on the website (components/shell/report-bug): the bug in the
+   top bar, pressable over a pop-up too; the page draws its own picture and the dialog shows it; Add a
    screenshot puts the dialog away and says the keys, and a pasted picture
    brings it back in place of the page's; Report bug saves it, and the toast
    says its number, with Undo. */
-
-jest.mock("next/navigation", () => ({
-  usePathname: () => "/dashboard/jobs/abc",
-  useRouter: () => ({ push: jest.fn() }),
-}));
-jest.mock("@/components/making/task-form", () => ({ TaskForm: () => null }));
-jest.mock("@/components/making/note-form", () => ({ NoteForm: () => null }));
-jest.mock("@/components/making/new-job-form", () => ({ NewJobForm: () => null }));
 
 const drawn = new Blob(["the page"], { type: "image/png" });
 const domToBlob = jest.fn(async () => drawn);
@@ -36,8 +27,6 @@ const fetchMock = jest.fn(async (url: string, init?: RequestInit) => {
   const body = method === "POST" ? { number: 13, uploadUrl: "https://store/x", path: "bugs/org1/0013.png", token: "t" } : { number: 13 };
   return { ok: true, json: async () => body } as Response;
 });
-
-const owner: ShellUser = { name: "Isaac Smith", initials: "IS", roleLabel: "Owner", role: "owner", caps: [...resolve("owner")] };
 
 let urls = 0;
 beforeAll(() => {
@@ -58,14 +47,24 @@ beforeEach(() => {
 afterEach(cleanup);
 
 async function openReportBug() {
-  render(
-    <CommandPaletteProvider>
-      <Sidebar user={owner} />
-    </CommandPaletteProvider>,
-  );
-  act(() => screen.getByRole("button", { name: /Isaac Smith/ }).click());
-  fireEvent.click(screen.getByRole("menuitem", { name: "Report bug" }));
+  render(<BugButton />);
+  fireEvent.click(screen.getByRole("button", { name: "Report bug" }));
   return screen.findByRole("dialog", { name: "Report bug" });
+}
+
+/** A page with a pop-up open over it, the PDF that wouldn't show. */
+function PopUpPage() {
+  const [open, setOpen] = useState(true);
+  return (
+    <>
+      <header>
+        <BugButton />
+      </header>
+      <Dialog open={open} heading="Quote 3054.pdf" onClose={() => setOpen(false)}>
+        <p>Couldn&apos;t show this file</p>
+      </Dialog>
+    </>
+  );
 }
 
 function paste(file: File) {
@@ -114,7 +113,7 @@ describe("Report bug", () => {
     paste(mine);
     await screen.findByRole("dialog", { name: "Report bug" });
     fireEvent.change(screen.getByLabelText("What's wrong?"), { target: { value: "The supplied scope shows twice" } });
-    fireEvent.click(screen.getByRole("button", { name: "Report bug" }));
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Report bug" })).getByRole("button", { name: "Report bug" }));
 
     expect(await screen.findByText("Bug 13 saved")).toBeInTheDocument();
     expect(screen.queryByRole("dialog", { name: "Report bug" })).toBeNull();
@@ -131,6 +130,29 @@ describe("Report bug", () => {
     expect(screen.queryByRole("dialog", { name: "Report bug" })).toBeNull();
     expect(upload).not.toHaveBeenCalled();
     expect(calls).toContainEqual({ url: "/api/bugs/13", method: "DELETE", body: undefined });
+  });
+});
+
+describe("over a pop-up", () => {
+  it("rises over the scrim, opens Report bug on top, and leaves the pop-up open", async () => {
+    render(<PopUpPage />);
+    const raised = document.body.querySelector<HTMLButtonElement>(":scope > .fr-bugover");
+    expect(raised).not.toBeNull();
+    fireEvent.mouseDown(raised!);
+    fireEvent.click(raised!);
+    const dialog = await screen.findByRole("dialog", { name: "Report bug" });
+    expect(dialog).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Quote 3054.pdf" })).toBeInTheDocument();
+    // not raised twice while Report bug is open
+    expect(document.body.querySelector(".fr-bugover")).toBeNull();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(screen.getByRole("dialog", { name: "Quote 3054.pdf" })).toBeInTheDocument();
+    expect(document.body.querySelector(":scope > .fr-bugover")).not.toBeNull();
+  });
+
+  it("isn't raised while nothing is open", () => {
+    render(<BugButton />);
+    expect(document.body.querySelector(".fr-bugover")).toBeNull();
   });
 });
 

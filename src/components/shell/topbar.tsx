@@ -11,6 +11,7 @@ import { useCommandPalette } from "./command-palette-context";
 import { arrive, choose, closeTab, newTab, subscribeTabs, tabsServerSnapshot, tabsSnapshot } from "./open-tabs";
 import { pageName, pageNamesServerSnapshot, pageNamesSnapshot, subscribePageNames, type PageName } from "./page-names";
 import { Dot, type Hue } from "@/components/parts/state";
+import { BugButton } from "./report-bug";
 
 /* What a tab is called, and its glyph: the name the page gave itself
    (page-names.ts: a job's page says "3209 Richards" and its colour), or
@@ -41,7 +42,8 @@ export function tabName(
 }
 
 /* THE HEADER (rule 2): the date and the time together on the left of every
-   page, open tabs on the right, and nothing else. Tiff isn't here (Isaac,
+   page, open tabs on the right, and the bug at the right end, for
+   reporting one (components/shell/report-bug). Tiff isn't here (Isaac,
    18 October: "Home page will do it all"): her box is on Home, and sheets
    and boxes carry their own button. The bell has gone too (decision 25):
    what it carried is Home's To do, and its count sits on Home in the
@@ -111,6 +113,8 @@ export function Topbar({ today, tz = null }: { today: string; tz?: string | null
           New tab
         </button>
       </div>
+      <span className="fr-headbar" aria-hidden="true" />
+      <BugButton />
     </header>
   );
 }

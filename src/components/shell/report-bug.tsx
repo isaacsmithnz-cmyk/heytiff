@@ -1,17 +1,28 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type MouseEvent as ReactMouseEvent, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { Dialog } from "@/components/parts/dialog";
 import { Button } from "@/components/parts/button";
 import { Field, TextArea } from "@/components/parts/field";
-import { useToast } from "@/components/parts/toast";
+import { ToastProvider, useToast } from "@/components/parts/toast";
+import { overlayOpen, subscribeOverlays } from "@/components/overlay/use-overlay";
+import { Icon } from "./icon";
 import { pageName, pageNamesSnapshot } from "./page-names";
 
 /* REPORT BUG, ON THE WEBSITE (Isaac, 17 November 2026: "Yes, build it" to
-   https://claude.ai/artifact/V6XVjpPn7qFmdt3JVxELhL). The phone's bug, in
-   Your name, for the owner alone; lib/mobile/bugs says what a bug is and
-   where it's kept.
+   https://claude.ai/artifact/V6XVjpPn7qFmdt3JVxELhL). The phone's bug;
+   lib/mobile/bugs says what a bug is and where it's kept.
+
+   It's the bug at the right end of the top bar, for everyone in the
+   workspace, and it stays pressable while a pop-up is open (Isaac, 18
+   November 2026: one of the team couldn't open a PDF and couldn't report
+   it either, since Report bug was the owner's alone, in Your name, under
+   the pop-up; "I need everyone to be able to report bugs", to
+   https://claude.ai/artifact/GhKLyBaFsZafrc2bWj4QgM). The top bar is
+   inside the frame and a pop-up's scrim is over all of it, so while one is
+   open a second bug is drawn on <body>, over the scrim, where the first
+   one is.
 
    Report bug closes the menu and the page draws its own picture, as it was,
    and the dialog shows that picture, so you see exactly what goes with the
@@ -100,7 +111,7 @@ type Shot = { blob: Blob; url: string };
 type Stage = "drawing" | "open" | "aside" | "saving";
 
 /** Report bug: `begin` from the menu, and `view`, the dialog and the bar, drawn beside it. */
-export function useReportBug(): { begin: () => void; view: ReactNode } {
+export function useReportBug(): { begin: () => void; view: ReactNode; active: boolean } {
   const toast = useToast();
   const [stage, setStage] = useState<Stage | null>(null);
   const [held, setHeld] = useState<Held | null>(null);
@@ -321,5 +332,66 @@ export function useReportBug(): { begin: () => void; view: ReactNode } {
     </>
   );
 
-  return { begin: () => void begin(), view };
+  return { begin: () => void begin(), view, active: stage !== null };
+}
+
+const noOverlays = () => false;
+
+/** The bug in the top bar, with its own toasts for "Bug 13 saved" and Undo. */
+export function BugButton() {
+  return (
+    <ToastProvider>
+      <BugButtonInside />
+    </ToastProvider>
+  );
+}
+
+function BugButtonInside() {
+  const bug = useReportBug();
+  const spot = useRef<HTMLButtonElement>(null);
+  const covered = useSyncExternalStore(subscribeOverlays, overlayOpen, noOverlays);
+  return (
+    <>
+      <button ref={spot} type="button" className="fr-bug" aria-label="Report bug" onClick={bug.begin}>
+        <Icon name="bug" size={20} />
+      </button>
+      {covered && !bug.active && <BugOver spot={spot} onPress={bug.begin} />}
+      {bug.view}
+    </>
+  );
+}
+
+/** Put the raised bug exactly over the one in the top bar. */
+function placeOver(el: HTMLElement, spot: HTMLElement) {
+  const r = spot.getBoundingClientRect();
+  el.style.left = `${r.left}px`;
+  el.style.top = `${r.top}px`;
+}
+
+/** The bug over a pop-up's scrim, where the top bar's one is under it. */
+function BugOver({ spot, onPress }: { spot: RefObject<HTMLButtonElement | null>; onPress: () => void }) {
+  const self = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const move = () => {
+      if (self.current && spot.current) placeOver(self.current, spot.current);
+    };
+    window.addEventListener("resize", move);
+    return () => window.removeEventListener("resize", move);
+  }, [spot]);
+  const mount = (el: HTMLButtonElement | null) => {
+    self.current = el;
+    if (el && spot.current) placeOver(el, spot.current);
+  };
+  /* a press here isn't a press on the scrim, which would close the pop-up */
+  const keep = (e: ReactMouseEvent) => e.stopPropagation();
+  const press = (e: ReactMouseEvent) => {
+    e.stopPropagation();
+    onPress();
+  };
+  return createPortal(
+    <button ref={mount} type="button" className="fr-bug fr-bugover" aria-label="Report bug" onMouseDown={keep} onClick={press}>
+      <Icon name="bug" size={20} />
+    </button>,
+    document.body,
+  );
 }

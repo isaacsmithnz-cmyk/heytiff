@@ -5938,6 +5938,9 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jd-stage { flex:none; display:inline-flex; align-items:center; gap:8px; font-size:13px; line-height:18px; }
 .fg .jpr-doc { flex:1; min-height:0; display:flex; flex-direction:column; }
 .fg .jpr-quote .qc-views--tabs { position:relative; margin:0 0 16px; padding:0; border-bottom:0; }
+/* an invoice in its own tab: Breakdown and Invoice across the page, as the quote's (decision 6) */
+.fg .jpr-doctabs { position:relative; flex:none; margin:0 0 16px; padding:0; border-bottom:0; }
+.fg .jpr-amt--q { font-weight:500; color:var(--q); }
 .fg .qc-gst { position:absolute; right:0; bottom:8px; font-size:13px; line-height:18px; color:var(--q); }
 .fg .qc-body--full { grid-template-columns:minmax(0, 1fr); }
 /* the quote's paper on the Price tab, read only: Open quote changes it */

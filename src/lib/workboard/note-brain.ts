@@ -261,8 +261,8 @@ export type NoteContext = {
       the caller turns it on, and every read the app makes now does. */
   askWho?: boolean;
   /** TIFF SPEAKS BACK. The Tiff modal shows her own line above the plan, so
-      for its notes the router is told about `say` (`sayBlock`) and held to a
-      schema that has it (`TIFF_NOTE_SCHEMA`). The old review card showed no
+      for its notes the router is told about `say` (`sayBlock`) and given a
+      tool for it (`noteTools`). The old review card showed no
       line, and a prompt that asks for one changes what it routes: with it,
       the card asked questions it never used to and asked them in the
       speaker's language (a real-notes check, 2026-09-26). So its notes were
@@ -284,7 +284,7 @@ export type NoteBrainResult =
   | { ok: true; proposal: NoteProposal }
   | { ok: false; error: string };
 
-/* ── the schema the API is constrained to ─────────────────────────────── */
+/* ── the lanes' schema: each lane's tool holds its part (`noteTools`) ── */
 
 /* Structured outputs forbid recursion and length/numeric constraints, and
    require additionalProperties:false plus every property listed in
@@ -470,6 +470,99 @@ export const TIFF_NOTE_SCHEMA = {
   required: Object.keys(TIFF_PROPERTIES) as (keyof typeof TIFF_PROPERTIES)[],
 };
 
+/* ── THE LANES AS TOOLS ───────────────────────────────────────────────────
+
+   ONE SMALL TOOL PER LANE (Isaac, 17 November 2026: "Do option 1"). The
+   note used to come back as one form, every lane required on every note,
+   and the form grew with each lane until Opus 5.5 refused to compile it
+   (bug 9, the moves lane of 13 November). Now each lane is a tool of the
+   same name, called once with all its items, and a lane a note doesn't need
+   is a call not made: "pipes are done" calls job_note and progress_bullets,
+   and nothing pays for the other dozen.
+
+   THE SCHEMA STAYS THE ONE TRUTH: every tool's items are the lane's own
+   schema from NOTE_SCHEMA, and the calls are put back together into the
+   form's shape (`rawFromCalls`) for `shapeProposal`, which has read every
+   note since the router began and is not touched.
+
+   NOT STRICT. Strict tools compile into one grammar between them, the same
+   limit the form hit, and `shapeProposal` already reads every field as
+   untrusted: a title it can't use drops the task, a severity it doesn't
+   know is `info`, a date that isn't one is "". */
+
+const items = (schema: unknown) => ({
+  type: "object" as const,
+  properties: { items: schema },
+  required: ["items"],
+  additionalProperties: false,
+});
+const words = { type: "object" as const, properties: { text: str }, required: ["text"], additionalProperties: false };
+
+/** What each lane's tool says it is: a line, the rules say the rest. */
+const LANE_TOOLS = [
+  ["tasks", "Tasks someone must do later, all of them in one call."],
+  ["visits", "Visits to book on the job."],
+  ["moves", "Bookings already made, moved to another time."],
+  ["costs", "Money spent for the job."],
+  ["variations", "Changes the client wants to the accepted quote."],
+  ["bring_items", "Things to physically bring next visit."],
+  ["flags", "Problems to keep visible on the board until handled."],
+  ["progress_bullets", "What was done or found today."],
+  ["commissioning_entries", "Readings and settings a commissioning sheet would record."],
+  ["issue_entries", "Faults still there, or that keep coming back."],
+  ["kb_entries", "Know-how worth teaching the whole team. Sparingly."],
+] as const;
+
+/** The tools a note is read with: the lanes, the two notes, the question,
+    and Tiff's own line when she speaks back. The same bytes for every note
+    of a kind, since tools are the front of the cached prefix. Exported for
+    the test that holds every lane of the schema to a tool. */
+export function noteTools(speak: boolean): Anthropic.Beta.BetaTool[] {
+  return [
+    ...LANE_TOOLS.map(([name, description]) => ({
+      name,
+      description,
+      input_schema: items(NOTE_SCHEMA.properties[name]),
+    })),
+    { name: "plain_note", description: "A remark that is genuinely just a remark.", input_schema: words },
+    { name: "job_note", description: "The whole note again, tidied into the note the job keeps.", input_schema: words },
+    {
+      name: "clarify",
+      description: "The one question you must ask before the note can be routed, with its concrete options.",
+      input_schema: {
+        type: "object",
+        properties: { question: str, options: strArray },
+        required: ["question", "options"],
+        additionalProperties: false,
+      },
+    },
+    ...(speak ? [{ name: "say", description: "What you tell the person, in one or two short sentences.", input_schema: words }] : []),
+  ];
+}
+
+/** The calls put back into the form's shape for `shapeProposal`: a lane
+    called twice keeps both lots, a note or a line called twice keeps the
+    last, and a question is `clarify_needed`. A call to no tool here is
+    dropped. */
+export function rawFromCalls(calls: readonly { name: string; input: unknown }[]): Record<string, unknown> {
+  const raw: Record<string, unknown> = {};
+  const lanes = new Set<string>(LANE_TOOLS.map(([name]) => name));
+  for (const { name, input } of calls) {
+    const i = (input && typeof input === "object" ? input : {}) as Record<string, unknown>;
+    if (lanes.has(name)) {
+      const got = Array.isArray(i.items) ? i.items : [];
+      raw[name] = [...((raw[name] as unknown[]) ?? []), ...got];
+    } else if (name === "plain_note" || name === "job_note" || name === "say") {
+      if (typeof i.text === "string" && i.text.trim()) raw[name] = i.text;
+    } else if (name === "clarify") {
+      raw.clarify_needed = true;
+      raw.clarify_question = i.question;
+      raw.clarify_options = i.options;
+    }
+  }
+  return raw;
+}
+
 /* ── the instruction ──────────────────────────────────────────────────── */
 
 /** The ServiceM8 handles a job note may mention, one line; "" with none,
@@ -608,10 +701,10 @@ export function whoBlock(ctx: NoteContext): string {
       ? [
           "Every task is filed the moment nothing is left to ask, so a task with",
           "nobody on it cannot wait for a dropdown. When the note gives a task to",
-          "nobody and nothing in it says who, set clarify_needed and ask who",
+          "nobody and nothing in it says who, call clarify and ask who",
           "should do it, offering `Me` and the people the note names. When it",
-          "gives a task to a name that is none of the people above, set",
-          "clarify_needed and ask who they meant, offering `Me` and the people",
+          "gives a task to a name that is none of the people above, call",
+          "clarify and ask who they meant, offering `Me` and the people",
           "above whose names are closest.",
         ].join("\n")
       : "",
@@ -644,11 +737,11 @@ export function sayBlock(): string {
     `was spoken in — ${RECORD_LANGUAGE} unless the note itself is clearly in`,
     "another language; a note of codes, model numbers and names is English.",
     "One or two short sentences, first names only, plain words: what you are",
-    "about to file, for whom and when. When clarify_needed is true, end it",
+    "about to file, for whom and when. When you call clarify, end it",
     "with the question, asked in their language. Never say anything is done,",
     "saved or sent — nothing is, until they have seen it.",
     "",
-    "clarify_question and clarify_options are records like every other field:",
+    "clarify's question and options are records like every other field:",
     `write them in ${RECORD_LANGUAGE}, whatever language the note was spoken`,
     "in. Only `say` follows the language they spoke.",
   ].join("\n");
@@ -797,8 +890,8 @@ const ROUTER_RULES = [
   "  without a question mark: 'feet spacing for PUMY 140', 'clearance for",
   "  an SP140', 'breaker size for a 7.1', 'E6 on a Mitsubishi' — and a",
   "  model code given back because Tiff asked for it while looking",
-  "  something up, are answered from the Library, never filed. Leave every",
-  "  lane empty, plain_note and job_note too.",
+  "  something up, are answered from the Library, never filed. Call no",
+  "  tool, not plain_note or job_note either.",
   "- job_note: ALWAYS the whole note again, tidied into the note the job",
   "  keeps, the one the office and ServiceM8 read. A first line of who and",
   "  when ('Isaac, 8:45 to 2:45 · 4 photos') stays exactly as it is, on its",
@@ -813,8 +906,11 @@ const ROUTER_RULES = [
   "  one (@davidhann); anyone else by name. Add nothing that wasn't said:",
   "  no greeting, no sign-off, no summary of what you filed.",
   "",
-  "One note can produce several of these at once. Produce nothing for the",
-  "parts of the note that do not call for it: empty arrays are correct.",
+  "Each of these is a tool of the same name. Call a lane's tool once, with",
+  "every item for it, and call none for a lane the note doesn't need: no",
+  "call is correct. One note can call several at once; make all the calls",
+  "together in one turn, since nothing comes back from them that you need.",
+  "Write no other text.",
   "",
 ].join("\n");
 
@@ -825,10 +921,10 @@ function noteFacts(ctx: NoteContext): string {
   return [
     whoBlock(ctx),
     "",
-    "Set clarify_needed only when you genuinely cannot route the note without",
+    "Call clarify only when you genuinely cannot route the note without",
     "an answer — an ambiguous person, an unclear target, or a sentence that",
     "could be a task or a remark. Ask ONE short question and offer the",
-    "concrete options. When clarify_needed is true, still fill in whatever",
+    "concrete options. When you call clarify, still file whatever",
     "you are confident about; do not blank the rest.",
     "",
     /* The modal's lines, each only when its caller sent it: a line that is
@@ -1549,17 +1645,13 @@ export async function readNote(
      go before the note is filed as said. A refusal isn't tried again, and
      the API's own errors were already tried again by the SDK. */
   let last: NoteBrainResult = { ok: false, error: FAILED };
-  /* THE SCHEMA OPUS 5.5 WON'T TAKE. Tiff's schema (TIFF_NOTE_SCHEMA, the
-     lanes and her `say`) compiles to a grammar just past Opus 5.5's limit,
-     and the API refuses the request before reading a word: "The compiled
-     grammar is too large". Every note read with `speak` failed so since the
-     moves lane came in (13 November 2026), and was filed as said: bug 9,
-     found by reading Isaac's 3054 note again on 17 November. Any one field
-     less fits, so this is the edge, not one field too many. Every lane is
-     used, so none is cut here: on that refusal the read goes to the
-     refusal fallback's model, which takes the whole schema, and the logs
-     say so each time. */
+  /* THE SCHEMA OPUS 5.5 WOULDN'T TAKE (bug 9, 17 November 2026): the old
+     form compiled to a grammar past Opus 5.5's limit, and every note was
+     filed as said. The lanes are tools now (`noteTools`), not strict, so
+     nothing compiles; should the API ever say it again, the read goes to
+     the refusal fallback's model, as it did while the form was the way. */
   let model: string = MODEL;
+  const tools = noteTools(!!ctx.speak);
   for (let attempt = 1; attempt <= 2; attempt++) {
     const started = Date.now();
     const failed = (why: string, error: string): NoteBrainResult => {
@@ -1572,44 +1664,39 @@ export async function readNote(
         max_tokens: MAX_TOKENS,
         ...(model === MODEL ? { betas: [FALLBACK_BETA], fallbacks: FALLBACKS } : {}),
         // A real cost/quality/LATENCY lever here — see DEFAULT_EFFORT.
-        output_config: {
-          effort: DEFAULT_EFFORT,
-          /* `say` only when Tiff speaks back: a read without it is held to
-             the old review card's schema, as it always was. */
-          format: { type: "json_schema", schema: ctx.speak ? TIFF_NOTE_SCHEMA : NOTE_SCHEMA },
-        },
+        output_config: { effort: DEFAULT_EFFORT },
         system: systemBlocks(ctx),
+        tools,
         messages: [{ role: "user", content }],
       });
       /* `cache(r=...)` on this line is the proof the split above is paying. */
       logUsage("note", model, response.usage);
 
       /* A refusal is a content outcome, not an error: check it before reading
-         content, which is empty or partial in that case. For this feature the
-         right answer is simply to keep the note as written. */
+         content. For this feature the right answer is simply to keep the note
+         as written. */
       if (response.stop_reason === "refusal") return failed(`refused (${response.model})`, FAILED);
-
-      const block = response.content.find((b) => b.type === "text");
-      if (!block || block.type !== "text") {
-        last = failed(`no text came back, stop_reason ${response.stop_reason} (${response.model})`, FAILED);
+      if (response.stop_reason === "max_tokens") {
+        last = failed(`it ran out of room before it finished (${response.model})`, FAILED);
         continue;
       }
+
+      /* ONE TURN. The rules ask for every call at once, and it makes them at
+         once: read on Opus 5.5 (17 November 2026), a wrap-up's six lanes all
+         came in the first turn, and the turn after they were answered was a
+         sentence and nothing else, a second and a cent on every note for words
+         nobody reads. So the calls are answered by nobody and the read ends
+         here. A lookup calls nothing, and is an empty plan. */
+      const calls = response.content.flatMap((b) => (b.type === "tool_use" ? [{ name: b.name, input: b.input }] : []));
 
       /* THE LAST READING BEFORE THE CARD. The prompt above tells the router to
          write every record in English, and it does — but an instruction is not
          an enforced check, and the failure it guards against is silent and
          weeks late. `englishProposal` re-reads what came back, repairs what
          isn't, and returns the proposal untouched on any failure of its own. */
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(block.text);
-      } catch {
-        last = failed(`its answer wasn't whole JSON, stop_reason ${response.stop_reason}, ${block.text.length} chars (${response.model})`, FAILED);
-        continue;
-      }
       return {
         ok: true,
-        proposal: await englishProposal(shapeProposal(parsed, ctx, said)),
+        proposal: await englishProposal(shapeProposal(rawFromCalls(calls), ctx, said)),
       };
     } catch (err) {
       const status = err instanceof Anthropic.APIError ? ` ${err.status ?? "no status"}` : "";

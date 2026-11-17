@@ -12,12 +12,17 @@
    read the app makes turns it on; the option stays the router's, and so
    does what it means.
 
+   Since 17 November 2026 (Isaac: "Do option 1") the lanes are tools, one
+   each, and a note calls only the ones it needs: the form they replaced
+   grew past what Opus 5.5 would compile (bug 9).
+
    Run against the network rather than the SDK (the house rule: no test mocks
    `@anthropic-ai/sdk`): `fetch` is replaced and each request body read. */
 
 import {
   NOTE_SCHEMA,
-  TIFF_NOTE_SCHEMA,
+  noteTools,
+  rawFromCalls,
   readNote,
   sayBlock,
   systemBlocks,
@@ -46,15 +51,34 @@ type Body = {
   fallbacks?: { model: string }[];
   system: { type: "text"; text: string; cache_control?: { type: "ephemeral"; ttl?: string } }[];
   messages: { role: string; content: string }[];
-  output_config: { format: { type: string; schema: unknown } };
+  tools: { name: string; input_schema: unknown; strict?: boolean }[];
+  output_config: { effort: string; format?: unknown };
 };
 
 const sent: Body[] = [];
 const realFetch = globalThis.fetch;
 const realKey = process.env.ANTHROPIC_API_KEY;
-/** What the next request is answered with: the model's JSON, or a refusal
-    of the request when null. */
-let reply: Record<string, unknown> | null = null;
+type Call = { name: string; input: unknown };
+/** What the next request is answered with: the tools the model called, or
+    a refusal of the request when null. */
+let reply: Call[] | null = null;
+
+const answer = (model: string, calls: readonly Call[], stop = calls.length ? "tool_use" : "end_turn") =>
+  new Response(
+    JSON.stringify({
+      id: "msg_1",
+      type: "message",
+      role: "assistant",
+      model,
+      content: calls.length
+        ? calls.map((c, i) => ({ type: "tool_use", id: `toolu_${i}`, name: c.name, input: c.input }))
+        : [{ type: "text", text: "That's a lookup, not a note." }],
+      stop_reason: stop,
+      stop_sequence: null,
+      usage: { input_tokens: 1, output_tokens: 1 },
+    }),
+    { status: 200, headers: { "content-type": "application/json" } },
+  );
 
 beforeEach(() => {
   sent.length = 0;
@@ -68,19 +92,7 @@ beforeEach(() => {
         { status: 400, headers: { "content-type": "application/json" } },
       );
     }
-    return new Response(
-      JSON.stringify({
-        id: "msg_1",
-        type: "message",
-        role: "assistant",
-        model: "claude-opus-5",
-        content: [{ type: "text", text: JSON.stringify(reply) }],
-        stop_reason: "end_turn",
-        stop_sequence: null,
-        usage: { input_tokens: 1, output_tokens: 1 },
-      }),
-      { status: 200, headers: { "content-type": "application/json" } },
-    );
+    return answer("claude-opus-5-5", reply);
   }) as typeof fetch;
 });
 
@@ -90,24 +102,13 @@ afterAll(() => {
   else process.env.ANTHROPIC_API_KEY = realKey;
 });
 
-const lanes = {
-  tasks: [
-    { title: "Order the grilles", detail: "", assignee_hint: "Lyle", due_hint: "", due_date: "", remind_time: "", remind_kind: "at" },
-  ],
-  bring_items: [],
-  flags: [],
-  progress_bullets: [],
-  commissioning_entries: [],
-  issue_entries: [],
-  kb_entries: [],
-  plain_note: "",
-  clarify_needed: false,
-  clarify_question: "",
-  clarify_options: [],
+const grilles: Call = {
+  name: "tasks",
+  input: { items: [{ title: "Order the grilles", detail: "", assignee_hint: "Lyle", due_hint: "", due_date: "", remind_time: "", remind_kind: "at" }] },
 };
 
 describe("a read without `speak`", () => {
-  it("asks for no `say`: the card's prompt and the schema without it", async () => {
+  it("asks for no `say`: the card's prompt and the tools without it", async () => {
     await readNote("  tell Lyle to order the grilles  ", card);
     expect(sent).toHaveLength(1);
     const body = sent[0];
@@ -116,8 +117,9 @@ describe("a read without `speak`", () => {
     expect(system).toBe(systemPrompt(card));
     expect(system).not.toContain(sayBlock());
     expect(system).not.toMatch(/`say`/);
-    expect(body.output_config.format).toEqual({ type: "json_schema", schema: NOTE_SCHEMA });
-    expect(JSON.stringify(body.output_config.format.schema)).not.toContain('"say"');
+    expect(body.tools).toEqual(noteTools(false));
+    expect(body.tools.map((t) => t.name)).not.toContain("say");
+    expect(body.output_config).toEqual({ effort: "low" });
     expect(body.messages).toEqual([{ role: "user", content: "Note:\ntell Lyle to order the grilles" }]);
   });
 
@@ -130,28 +132,94 @@ describe("a read without `speak`", () => {
   });
 
   it("comes back with no line from Tiff, even when the app asks which Lyle", async () => {
-    reply = lanes;
+    reply = [grilles];
     const read = await readNote("tell Lyle to order the grilles", card);
     expect(read.ok).toBe(true);
     if (!read.ok) return;
+    expect(read.proposal.tasks.map((t) => t.title)).toEqual(["Order the grilles"]);
     expect(read.proposal.clarify?.question).toBe("Which Lyle did you mean?");
     expect(read.proposal.say).toBe("");
   });
 });
 
 describe("the Tiff modal's read", () => {
-  it("asks for `say`: the block in the prompt and the schema with it", async () => {
+  it("asks for `say`: the block in the prompt and a tool for it", async () => {
     await readNote("tell Lyle to order the grilles", modal);
     const body = sent[0];
     expect(body.system).toEqual(systemBlocks(modal));
     expect(body.system.map((b) => b.text).join("")).toContain(sayBlock());
-    expect(body.output_config.format).toEqual({ type: "json_schema", schema: TIFF_NOTE_SCHEMA });
+    expect(body.tools).toEqual(noteTools(true));
+    expect(body.tools.at(-1)?.name).toBe("say");
   });
 
   it("reads back only the question the app had to ask, not a line written without it", async () => {
-    reply = { ...lanes, say: "A task to order the grilles." };
+    reply = [grilles, { name: "say", input: { text: "A task to order the grilles." } }];
     const read = await readNote("tell Lyle to order the grilles", modal);
     expect(read.ok && read.proposal.say).toBe("Which Lyle did you mean?");
+  });
+
+  it("files what it said, every lane in one turn", async () => {
+    reply = [
+      { name: "progress_bullets", input: { items: ["Pipes done."] } },
+      { name: "flags", input: { items: [{ message: "Bed 2 hatch cracked", severity: "warn" }] } },
+      { name: "job_note", input: { text: "Pipes are done. Bed 2 hatch is cracked." } },
+      { name: "say", input: { text: "I'll log the pipes and flag the hatch." } },
+    ];
+    const read = await readNote("pipes are done, bed 2 hatch is cracked", modal);
+    expect(sent).toHaveLength(1);
+    expect(read.ok).toBe(true);
+    if (!read.ok) return;
+    expect(read.proposal).toMatchObject({
+      progressBullets: ["Pipes done."],
+      flags: [{ message: "Bed 2 hatch cracked", severity: "warn" }],
+      jobNote: "Pipes are done. Bed 2 hatch is cracked.",
+      say: "I'll log the pipes and flag the hatch.",
+      tasks: [],
+      clarify: null,
+    });
+  });
+
+  it("files nothing for a lookup, which calls no tool", async () => {
+    reply = [];
+    const read = await readNote("feet spacing for a PUMY 140", modal);
+    expect(read.ok && read.proposal).toMatchObject({ jobNote: "", plainNote: "", tasks: [], say: "" });
+  });
+});
+
+/* Every lane the model may fill reaches it as a tool holding the lane's own
+   schema, and comes back into the lane it left. */
+describe("the lanes as tools", () => {
+  it("has a tool for every lane of the schema, and none strict", () => {
+    const tools = noteTools(true);
+    const names = tools.map((t) => t.name);
+    const lanes = Object.fromEntries(Object.entries(NOTE_SCHEMA.properties).filter(([k]) => !k.startsWith("clarify_")));
+    for (const [lane, schema] of Object.entries(lanes)) {
+      expect(names).toContain(lane);
+      const tool = tools.find((t) => t.name === lane)!;
+      if (lane === "plain_note" || lane === "job_note") continue;
+      expect((tool.input_schema as { properties: { items: unknown } }).properties.items).toBe(schema);
+    }
+    expect(names).toEqual(expect.arrayContaining(["clarify", "say"]));
+    expect(tools.some((t) => "strict" in t)).toBe(false);
+  });
+
+  it("puts the calls back into the form's shape", () => {
+    expect(
+      rawFromCalls([
+        { name: "bring_items", input: { items: ["ladder"] } },
+        { name: "bring_items", input: { items: ["coil"] } },
+        { name: "job_note", input: { text: "first" } },
+        { name: "job_note", input: { text: "second" } },
+        { name: "clarify", input: { question: "Which Lyle?", options: ["Lyle Nguyen", "Lyle Tran"] } },
+        { name: "made_up", input: { items: ["x"] } },
+      ]),
+    ).toEqual({
+      bring_items: ["ladder", "coil"],
+      job_note: "second",
+      clarify_needed: true,
+      clarify_question: "Which Lyle?",
+      clarify_options: ["Lyle Nguyen", "Lyle Tran"],
+    });
   });
 });
 
@@ -178,9 +246,9 @@ describe("the cached head of the router's prompt", () => {
   });
 });
 
-/* Bug 9 (Isaac, 17 November 2026: "She didn't sort out my note"): an answer
-   that isn't whole JSON gets a second read, and every failure says why in
-   the logs. */
+/* Bug 9 (Isaac, 17 November 2026: "She didn't sort out my note"): a read
+   that didn't finish gets a second go, and every failure says why in the
+   logs. */
 describe("a read that fails", () => {
   it("is tried once more, and says why each time", async () => {
     const said = jest.spyOn(console, "error").mockImplementation(() => {});
@@ -188,16 +256,12 @@ describe("a read that fails", () => {
     globalThis.fetch = (async (_url: string | URL | Request, init?: RequestInit) => {
       sent.push(JSON.parse(String(init?.body ?? "{}")));
       calls++;
-      const text = calls === 1 ? '{"tasks": [' : JSON.stringify(lanes);
-      return new Response(
-        JSON.stringify({ id: "msg_1", type: "message", role: "assistant", model: "claude-opus-5-5", content: [{ type: "text", text }], stop_reason: "end_turn", stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } }),
-        { status: 200, headers: { "content-type": "application/json" } },
-      );
+      return calls === 1 ? answer("claude-opus-5-5", [grilles], "max_tokens") : answer("claude-opus-5-5", [grilles]);
     }) as typeof fetch;
     const read = await readNote("tell Lyle to order the grilles", card);
     expect(read.ok).toBe(true);
     expect(sent).toHaveLength(2);
-    expect(said.mock.calls.map((c) => String(c[0]))).toEqual([expect.stringMatching(/^\[note-read\] attempt 1 failed .*wasn't whole JSON/)]);
+    expect(said.mock.calls.map((c) => String(c[0]))).toEqual([expect.stringMatching(/^\[note-read\] attempt 1 failed .*ran out of room/)]);
     said.mockRestore();
   });
 
@@ -211,10 +275,10 @@ describe("a read that fails", () => {
   });
 });
 
-/* Bug 9's cause (17 November 2026): Opus 5.5 refuses Tiff's schema as a
-   grammar too large to compile. The read goes to the fallback's model,
-   which takes it, and says so in the logs. */
-describe("a schema the model won't compile", () => {
+/* Bug 9's cause (17 November 2026): Opus 5.5 refused the old form as a
+   grammar too large to compile. The tools compile nothing, but should the
+   API ever say it again the read goes to the fallback's model, and says so. */
+describe("a request the model won't compile", () => {
   it("is read on the fallback's model instead", async () => {
     const said = jest.spyOn(console, "error").mockImplementation(() => {});
     globalThis.fetch = (async (_url: string | URL | Request, init?: RequestInit) => {
@@ -226,10 +290,7 @@ describe("a schema the model won't compile", () => {
           { status: 400, headers: { "content-type": "application/json" } },
         );
       }
-      return new Response(
-        JSON.stringify({ id: "m", type: "message", role: "assistant", model: body.model, content: [{ type: "text", text: JSON.stringify({ ...lanes, say: "" }) }], stop_reason: "end_turn", stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } }),
-        { status: 200, headers: { "content-type": "application/json" } },
-      );
+      return answer(body.model, [grilles]);
     }) as typeof fetch;
     const read = await readNote("tell Lyle to order the grilles", modal);
     expect(read.ok).toBe(true);

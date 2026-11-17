@@ -111,7 +111,7 @@ type Shot = { blob: Blob; url: string };
 type Stage = "drawing" | "open" | "aside" | "saving";
 
 /** Report bug: `begin` from the menu, and `view`, the dialog and the bar, drawn beside it. */
-export function useReportBug(): { begin: () => void; view: ReactNode } {
+export function useReportBug(): { begin: () => void; view: ReactNode; active: boolean } {
   const toast = useToast();
   const [stage, setStage] = useState<Stage | null>(null);
   const [held, setHeld] = useState<Held | null>(null);

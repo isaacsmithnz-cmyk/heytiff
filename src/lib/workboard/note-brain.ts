@@ -1538,43 +1538,73 @@ export async function readNote(
       .map((t) => t.text),
   ].join("\n");
 
-  try {
-    const response = await client.beta.messages.create({
-      model: MODEL,
-      max_tokens: MAX_TOKENS,
-      betas: [FALLBACK_BETA],
-      fallbacks: FALLBACKS,
-      // A real cost/quality/LATENCY lever here — see DEFAULT_EFFORT.
-      output_config: {
-        effort: DEFAULT_EFFORT,
-        /* `say` only when Tiff speaks back: a read without it is held to
-           the old review card's schema, as it always was. */
-        format: { type: "json_schema", schema: ctx.speak ? TIFF_NOTE_SCHEMA : NOTE_SCHEMA },
-      },
-      system: systemBlocks(ctx),
-      messages: [{ role: "user", content }],
-    });
-    /* `cache(r=...)` on this line is the proof the split above is paying. */
-    logUsage("note", MODEL, response.usage);
-
-    /* A refusal is a content outcome, not an error: check it before reading
-       content, which is empty or partial in that case. For this feature the
-       right answer is simply to keep the note as written. */
-    if (response.stop_reason === "refusal") return { ok: false, error: FAILED };
-
-    const block = response.content.find((b) => b.type === "text");
-    if (!block || block.type !== "text") return { ok: false, error: FAILED };
-
-    /* THE LAST READING BEFORE THE CARD. The prompt above tells the router to
-       write every record in English, and it does — but an instruction is not
-       an enforced check, and the failure it guards against is silent and
-       weeks late. `englishProposal` re-reads what came back, repairs what
-       isn't, and returns the proposal untouched on any failure of its own. */
-    return {
-      ok: true,
-      proposal: await englishProposal(shapeProposal(JSON.parse(block.text), ctx, said)),
+  /* WHY A READ FAILED IS WRITTEN DOWN, AND A FAILED READ IS TRIED ONCE MORE
+     (Isaac, 17 November 2026, bug 9: "She didn't sort out my note. What's
+     going on there?" — a wrap-up note on 3054 came back filed as said, and
+     nothing anywhere said why). Every way this can fail now leaves a
+     `[note-read]` line in the logs, and the first failure gets a second
+     go before the note is filed as said. A refusal isn't tried again, and
+     the API's own errors were already tried again by the SDK. */
+  let last: NoteBrainResult = { ok: false, error: FAILED };
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const started = Date.now();
+    const failed = (why: string, error: string): NoteBrainResult => {
+      console.error(`[note-read] attempt ${attempt} failed after ${Date.now() - started} ms: ${why} (${text.length} chars${follow ? ", a reply" : ""})`);
+      return { ok: false, error };
     };
-  } catch (err) {
-    return { ok: false, error: reasonFor(err) };
+    try {
+      const response = await client.beta.messages.create({
+        model: MODEL,
+        max_tokens: MAX_TOKENS,
+        betas: [FALLBACK_BETA],
+        fallbacks: FALLBACKS,
+        // A real cost/quality/LATENCY lever here — see DEFAULT_EFFORT.
+        output_config: {
+          effort: DEFAULT_EFFORT,
+          /* `say` only when Tiff speaks back: a read without it is held to
+             the old review card's schema, as it always was. */
+          format: { type: "json_schema", schema: ctx.speak ? TIFF_NOTE_SCHEMA : NOTE_SCHEMA },
+        },
+        system: systemBlocks(ctx),
+        messages: [{ role: "user", content }],
+      });
+      /* `cache(r=...)` on this line is the proof the split above is paying. */
+      logUsage("note", MODEL, response.usage);
+
+      /* A refusal is a content outcome, not an error: check it before reading
+         content, which is empty or partial in that case. For this feature the
+         right answer is simply to keep the note as written. */
+      if (response.stop_reason === "refusal") return failed(`refused (${response.model})`, FAILED);
+
+      const block = response.content.find((b) => b.type === "text");
+      if (!block || block.type !== "text") {
+        last = failed(`no text came back, stop_reason ${response.stop_reason} (${response.model})`, FAILED);
+        continue;
+      }
+
+      /* THE LAST READING BEFORE THE CARD. The prompt above tells the router to
+         write every record in English, and it does — but an instruction is not
+         an enforced check, and the failure it guards against is silent and
+         weeks late. `englishProposal` re-reads what came back, repairs what
+         isn't, and returns the proposal untouched on any failure of its own. */
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(block.text);
+      } catch {
+        last = failed(`its answer wasn't whole JSON, stop_reason ${response.stop_reason}, ${block.text.length} chars (${response.model})`, FAILED);
+        continue;
+      }
+      return {
+        ok: true,
+        proposal: await englishProposal(shapeProposal(parsed, ctx, said)),
+      };
+    } catch (err) {
+      const status = err instanceof Anthropic.APIError ? ` ${err.status ?? "no status"}` : "";
+      const name = err instanceof Error ? err.name : typeof err;
+      last = failed(`${name}${status}: ${err instanceof Error ? err.message.slice(0, 300) : String(err).slice(0, 300)}`, reasonFor(err));
+      /* the API's own errors were already tried again by the SDK */
+      if (err instanceof Anthropic.APIError) return last;
+    }
   }
+  return last;
 }

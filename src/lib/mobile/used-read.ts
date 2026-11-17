@@ -3,6 +3,7 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { SONNET_FALLBACK } from "@/lib/tiff/sonnet-fallback";
 import { searchWords } from "@/lib/quotes/price-book";
+import { supabaseAdmin } from "@/lib/supabase-server";
 import { matchingItems, readPreferred, readSameDecisions, type BookItem } from "@/lib/quotes/price-book-server";
 import { foundOf, rankCandidates, UNITS, type Candidate, type Found, type BookPick, type Thing } from "./used-plan";
 
@@ -36,6 +37,9 @@ const THINGS_SYSTEM = [
   "  it, the most telling first: a size as written in catalogues ('3/8',",
   "  '20mm'), a product word ('coil', 'trunking', 'bracket'). Lower case",
   "",
+  "Two things said together are two things ('the indoor and outdoor unit' is",
+  "an indoor unit and an outdoor unit).",
+  "",
   "Only what was said: no thing they didn't name, no labour, no tools.",
   "Nothing said that is a material gives an empty list.",
 ].join("\n");
@@ -66,6 +70,12 @@ const THINGS_SCHEMA = {
 const PICK_SYSTEM = [
   "A tradesperson said what they used on a job. Each thing comes with the",
   "items from their business's price book that a search found, numbered.",
+  "When the job was quoted, the items on its quote come first, once, at the",
+  "top, numbered from 0, and every thing may be one of them: what was quoted",
+  "is most likely what was used. Pick a quote item when it is the thing,",
+  "even where the words are looser than its name ('the indoor unit' is the",
+  "quote's indoor unit, 'pipe' is its pair coil, 'zone motors' its motor",
+  "dampers), before any item found for the thing.",
   "",
   "For each thing, in order:",
   "- pick: the number of the item it is, when one is clearly it: the same",
@@ -144,26 +154,65 @@ async function candidatesFor(orgId: string, t: Thing, confirmed: [string, string
   return [];
 }
 
-/** The things said, each found in the book, picked or with its choices; null when the words couldn't be read. */
-export async function readUsedWords(orgId: string, words: string): Promise<Found[] | null> {
+/* WHAT THE JOB WAS QUOTED FOR, LOOKED AT FIRST (Isaac, 17 November 2026,
+   bug 12: "Not looking at quote for units, pipe etc"). 3054's wrap-up said
+   the indoor and outdoor unit, 10 metres of pipe, 8-inch zone motors and
+   8-inch duct, every one of them on its quote, and the read went to the
+   price book alone and asked Which one? of the units. The job's quoted
+   items, each once (every option, every version: whichever was taken, it is
+   one of these), are offered for every thing before the book's. A line with
+   no code is a note on the quote, not an item. */
+async function quoteCandidates(orgId: string, jobUuid: string): Promise<Candidate[]> {
+  const { data } = await supabaseAdmin
+    .from("quote_lines")
+    .select("supplier_key, code, name, kind, unit")
+    .eq("org_id", orgId)
+    .eq("sm8_job_uuid", jobUuid)
+    .in("kind", ["material", "unit"])
+    .order("position");
+  const byCode = new Map<string, Candidate>();
+  for (const r of (data ?? []) as { supplier_key: string | null; code: string | null; name: string | null; kind: string; unit: string | null }[]) {
+    const code = r.code?.trim();
+    const name = r.name?.trim();
+    if (!code || !name || byCode.has(code)) continue;
+    /* a unit's line is named for its place ("Indoor unit"): its model goes with it */
+    byCode.set(code, { supplierKey: r.supplier_key ?? "", code, name: r.kind === "unit" && !name.includes(code) ? `${name} ${code}` : name, uom: r.unit, timesBought: null, preferred: false });
+  }
+  return [...byCode.values()].slice(0, 60);
+}
+
+const lineOf = (c: Candidate, n: number) => `  ${n}. ${c.name} (${c.code}${c.uom ? `, sold by ${c.uom}` : ""}${c.timesBought ? `, bought ${c.timesBought} times` : ""})`;
+
+/** The things said, each found in the job's quote or the book, picked or with its choices; null when the words couldn't be read. */
+export async function readUsedWords(orgId: string, words: string, jobUuid?: string): Promise<Found[] | null> {
   if (!process.env.ANTHROPIC_API_KEY) return null;
   try {
     const read = await ask<{ things?: Thing[] }>(THINGS_SYSTEM, THINGS_SCHEMA, words.slice(0, 2000), 3000);
     if (!read || !Array.isArray(read.things)) return null;
     const things = read.things.filter((t) => t && typeof t.name === "string" && t.name.trim()).slice(0, MOST_THINGS);
     if (!things.length) return [];
-    const [same, preferred] = await Promise.all([readSameDecisions(orgId).catch(() => ({ confirmed: [] as [string, string][] })), readPreferred(orgId).catch(() => new Set<string>())]);
-    const candidates = await Promise.all(things.map((t) => candidatesFor(orgId, { ...t, search: Array.isArray(t.search) ? t.search.filter((s) => typeof s === "string") : [] }, same.confirmed, preferred)));
+    const [same, preferred, quoted] = await Promise.all([
+      readSameDecisions(orgId).catch(() => ({ confirmed: [] as [string, string][] })),
+      readPreferred(orgId).catch(() => new Set<string>()),
+      jobUuid ? quoteCandidates(orgId, jobUuid).catch(() => [] as Candidate[]) : Promise.resolve([] as Candidate[]),
+    ]);
+    const found = await Promise.all(things.map((t) => candidatesFor(orgId, { ...t, search: Array.isArray(t.search) ? t.search.filter((s) => typeof s === "string") : [] }, same.confirmed, preferred)));
+    /* the quote's items, then the thing's own, as one numbering: the quote's
+       listed once at the top, each thing's numbered on from them */
+    const fromQuote = new Set(quoted.map((q) => q.code));
+    const own = found.map((list) => list.filter((c) => !fromQuote.has(c.code)));
+    const candidates = own.map((list) => [...quoted, ...list]);
     let picks: BookPick[] = [];
     if (candidates.some((c) => c.length)) {
-      const content = things
-        .map((t, i) => {
-          const list = candidates[i]!.length
-            ? candidates[i]!.map((c, n) => `  ${n}. ${c.name} (${c.code}${c.uom ? `, sold by ${c.uom}` : ""}${c.timesBought ? `, bought ${c.timesBought} times` : ""})`).join("\n")
-            : "  (nothing found)";
-          return `Thing ${i + 1}: "${t.said}"${t.qty ? `, ${t.qty}${t.unit ? ` ${t.unit}` : ""}` : ""}\n${list}`;
-        })
-        .join("\n\n");
+      const top = quoted.length ? `This job's quote:\n${quoted.map((c, n) => lineOf(c, n)).join("\n")}\n\n` : "";
+      const content =
+        top +
+        things
+          .map((t, i) => {
+            const list = own[i]!.length ? own[i]!.map((c, n) => lineOf(c, quoted.length + n)).join("\n") : quoted.length ? "  (nothing else found)" : "  (nothing found)";
+            return `Thing ${i + 1}: "${t.said}"${t.qty ? `, ${t.qty}${t.unit ? ` ${t.unit}` : ""}` : ""}\n${list}`;
+          })
+          .join("\n\n");
       const answered = await ask<{ picks?: BookPick[] }>(PICK_SYSTEM, PICK_SCHEMA, content, 3000);
       picks = Array.isArray(answered?.picks) ? answered!.picks : [];
     }

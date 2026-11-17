@@ -14,6 +14,8 @@ export const CUSTOMER_WORDS = {
     contactRemove: "Contact {name} removed",
     client: "{name}'s name or address changed",
     billing: "Billing address changed",
+    site: "Site address changed",
+    siteAndBilling: "Site and billing addresses changed",
   },
   /* A row's reason, stored filled. */
   row: {

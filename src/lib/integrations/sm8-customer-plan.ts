@@ -7,14 +7,18 @@
      jobcontact  a person on the job, with their role: added (under a uuid
                  chosen when the row was queued), changed, or removed
      company     the client's (or site's) name and address, changed
-     job         the job's billing address, changed
+     job         the job's billing address and its site address
+                 (job_address), changed
 
    Paths, fields and scopes read off ServiceM8's reference on 2026-10-03:
    jobcontact.json and jobcontact/{uuid}.json (manage_job_contacts; DELETE
    sets active to 0), company/{uuid}.json (manage_customers; `name`
    required on an update), job/{uuid}.json (manage_jobs; `status` required
    on an update, so the sender reads it live and sends it back unchanged).
-   Updates change only the fields sent.
+   Updates change only the fields sent. `job_address` is the same field a
+   new job is made with (sm8-job-plan's jobBody); the site was never changed
+   after that until the phone's Contact sheet (Isaac, 17 November 2026, bug
+   26: "Contact and address should be editable").
 
    ONE ROW PER RECORD PER SAVE (sm8_writes' dedupe_key):
    customer:<the dialog's press id>:<object>:<record uuid>. */
@@ -40,7 +44,7 @@ export const CONTACT_ROLES = [
 export const CUSTOMER_FIELDS: Record<CustomerObject, readonly string[]> = {
   jobcontact: ["first", "last", "mobile", "phone", "email", "type"],
   company: ["name", "address"],
-  job: ["billing_address"],
+  job: ["billing_address", "job_address"],
 };
 
 export const customerSubject = (pressId: string, object: CustomerObject, uuid: string) => `customer:${pressId}:${object}:${uuid.toLowerCase()}`;
@@ -48,12 +52,15 @@ export const customerSubject = (pressId: string, object: CustomerObject, uuid: s
 export type FormContact = { uuid: string | null; first: string; last: string; mobile: string; phone: string; email: string; type: string };
 
 /** What the dialog holds: the job, its client or site, the billing address
-    and the job's contacts. */
+    and the job's contacts, and the job's site address. A billing address
+    or site address that is null (or, for the site, left out) isn't
+    changed. */
 export type CustomerForm = {
   jobUuid: string;
   company: { uuid: string; name: string; address: string } | null;
   billingAddress: string | null;
   contacts: FormContact[];
+  siteAddress?: string | null;
 };
 
 export type CustomerChange = {
@@ -67,10 +74,11 @@ export type CustomerChange = {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const MAX: Record<string, number> = { first: 60, last: 60, mobile: 40, phone: 40, email: 200, type: 40, name: 100, address: 500, billing_address: 500 };
+const MAX: Record<string, number> = { first: 60, last: 60, mobile: 40, phone: 40, email: 200, type: 40, name: 100, address: 500, billing_address: 500, job_address: 500 };
 
+const ADDRESSES = new Set(["address", "billing_address", "job_address"]);
 const clean = (k: string, v: string) => {
-  const t = k === "address" || k === "billing_address" ? v.replace(/\r\n/g, "\n").trim() : v.replace(/\s+/g, " ").trim();
+  const t = ADDRESSES.has(k) ? v.replace(/\r\n/g, "\n").trim() : v.replace(/\s+/g, " ").trim();
   return t.slice(0, MAX[k] ?? 200);
 };
 
@@ -93,9 +101,20 @@ export function customerChanges(before: CustomerForm, after: CustomerForm): { ok
     if (Object.keys(fields).length > 0) changes.push({ object: "company", op: "update", uuid: after.company.uuid, fields, label: fill(CUSTOMER_WORDS.label.client, name) });
   }
 
+  /* the job's two addresses: one row, as they are one record */
+  const job: Record<string, string> = {};
   const billing = clean("billing_address", after.billingAddress ?? "");
-  if (after.billingAddress !== null && billing !== clean("billing_address", before.billingAddress ?? "")) {
-    changes.push({ object: "job", op: "update", uuid: after.jobUuid, fields: { billing_address: billing }, label: CUSTOMER_WORDS.label.billing });
+  if (after.billingAddress !== null && billing !== clean("billing_address", before.billingAddress ?? "")) job.billing_address = billing;
+  if (typeof after.siteAddress === "string" && typeof before.siteAddress === "string") {
+    const site = clean("job_address", after.siteAddress);
+    if (site !== clean("job_address", before.siteAddress)) {
+      if (!site) return { ok: false, error: "The site needs an address." };
+      job.job_address = site;
+    }
+  }
+  if (Object.keys(job).length > 0) {
+    const label = job.job_address !== undefined ? (job.billing_address !== undefined ? CUSTOMER_WORDS.label.siteAndBilling : CUSTOMER_WORDS.label.site) : CUSTOMER_WORDS.label.billing;
+    changes.push({ object: "job", op: "update", uuid: after.jobUuid, fields: job, label });
   }
 
   const was = new Map(before.contacts.filter((c) => c.uuid).map((c) => [c.uuid!.toLowerCase(), c]));

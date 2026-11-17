@@ -365,6 +365,7 @@ const detail = (over: Partial<MirrorJobDetail> = {}): MirrorJobDetail => ({
   ],
   contacts: [
     {
+      id: "9e9e9e9e-0000-4000-8000-000000000001",
       name: "Josh",
       type: "Property Manager",
       phone: "0426 719 412",
@@ -667,8 +668,9 @@ describe("the customer, on Overview", () => {
       card(
         detail({
           contacts: [
-            { name: "Josh", type: "JOB", phone: "0426 719 412", altPhone: null, email: null },
+            { id: "9e9e9e9e-0000-4000-8000-000000000002", name: "Josh", type: "JOB", phone: "0426 719 412", altPhone: null, email: null },
             {
+              id: "9e9e9e9e-0000-4000-8000-000000000003",
               name: "Karen",
               type: "JOB",
               phone: "0412 345 678 / 9999 a/h",
@@ -1663,7 +1665,7 @@ describe("Billing, ex GST", () => {
 
   it("drops what moved elsewhere: bill to, the lines, what's been paid, the terms key and the captions", async () => {
     readMirrorJob.mockResolvedValueOnce(
-      card(detail({ contacts: [{ name: "Accounts", type: "BILLING", phone: null, altPhone: null, email: "accounts@lsdb.com.au" }] }))
+      card(detail({ contacts: [{ id: "9e9e9e9e-0000-4000-8000-000000000004", name: "Accounts", type: "BILLING", phone: null, altPhone: null, email: "accounts@lsdb.com.au" }] }))
     );
     readJobRecord.mockResolvedValueOnce(
       record({

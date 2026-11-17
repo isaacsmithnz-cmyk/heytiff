@@ -7,7 +7,8 @@ import { Dialog } from "@/components/parts/dialog";
 import { Field, TextArea, TextInput } from "@/components/parts/field";
 import { mintPressId } from "@/lib/workboard/press-id";
 import { CONTACT_ROLES, CUSTOMER_WORDS, type CustomerForm, type FormContact } from "@/lib/integrations/sm8-customer-plan";
-import { readCustomerForEdit, saveCustomer, type CustomerSaveAnswer } from "@/app/actions/job-customer";
+import { readCustomerForEdit, saveCustomer } from "@/app/actions/job-customer";
+import type { CustomerSaveAnswer } from "@/lib/integrations/sm8-customer-edit";
 
 /* EDIT CUSTOMER — a dialog over the job page (Isaac, 2026-10-02: "editing
    the customer… pop-up modal… ServiceM8's job contact page… same

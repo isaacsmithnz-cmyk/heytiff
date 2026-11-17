@@ -356,8 +356,9 @@ here rather than in the table below, each with his words and the day.
     who's clocked on to a job sits beside its pin in ink, a count where
     more than one is. It opens fitted to the day's jobs less any more than
     30 km from the rest, which waits as a chip on the edge facing it with
-    how far it is; pressing the chip goes there, Show all fits everything,
-    + and − zoom, and the map drags. Jobs too close to read join into one
+    how far it is from the map's middle; pressing the chip goes there, Show
+    all fits everything, + closes in on the jobs on the map (or all of
+    them, where none is), − goes out, and the map drags. Jobs too close to read join into one
     black count; pressing it zooms in. Hovering a row lifts its pin. Someone
     clocked on to a job sits beside its pin; where the business has its
     team's location on (Settings, Business, off by default, with the notice

@@ -53,6 +53,23 @@ export function zoomed(view: MapView, by: number): MapView {
   return { ...view, zoom: Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, view.zoom + by)) };
 }
 
+/** + on the map: in toward the jobs. The middle of the jobs on the map
+    comes to the map's middle as it closes in, or, where none is on it, the
+    middle of them all (Isaac's walk, 17 November 2026: after Show all
+    fitted Megalong Valley in, the map's own middle was past Penrith, and
+    two presses of + left him in the mountains with no job in sight). −
+    goes out about the map's middle, which loses nothing. */
+export function zoomedToward(view: MapView, by: number, points: readonly LatLng[], w: number, h: number): MapView {
+  const next = zoomed(view, by);
+  if (by <= 0 || next.zoom === view.zoom || points.length === 0) return next;
+  const on = points.filter((p) => {
+    const q = pixelOf(view, p, w, h);
+    return q.x >= 0 && q.x <= w && q.y >= 0 && q.y <= h;
+  });
+  const mid = middleOf(on.length > 0 ? on : points)!;
+  return { lat: round(mid.lat), lng: round(mid.lng), zoom: next.zoom };
+}
+
 const round = (n: number) => Math.round(n * 1e5) / 1e5;
 
 /** Kilometres between two points, as the crow flies. */

@@ -16,10 +16,10 @@ import {
   fitView,
   grouped,
   kmBetween,
-  middleOf,
   panned,
   pixelOf,
   zoomed,
+  zoomedToward,
   type LatLng,
   type MapView,
 } from "@/lib/dashboard/day-map";
@@ -144,7 +144,6 @@ function DayMap({ jobs, whereNow = [], hot, onHot }: { jobs: readonly TeamJob[];
   const placed = jobs.filter((j): j is TeamJob & { at: LatLng } => j.at !== null);
   const far = farOnes(placed.map((j) => j.at));
   const near = placed.filter((_, i) => !far[i]);
-  const middle = middleOf(near.map((j) => j.at)) ?? middleOf(placed.map((j) => j.at));
   const [view, setView] = useState<MapView>(() => fitView(near.map((j) => j.at), w, h));
   /* the picture shown, and the view it is of: a new one replaces it once
      it has loaded, so the map never blinks to blank */
@@ -303,7 +302,8 @@ function DayMap({ jobs, whereNow = [], hot, onHot }: { jobs: readonly TeamJob[];
           const p = chipAt(edge, along, edge === "left" || edge === "right" ? h : w);
           const style =
             edge === "left" ? { left: 8, top: p } : edge === "right" ? { right: 8, top: p } : edge === "top" ? { top: 8, left: p } : { bottom: 8, left: p };
-          const km = middle ? Math.round(kmBetween(j.at, middle)) : null;
+          /* how far it is from what's on the map: its middle */
+          const km = Math.round(kmBetween(j.at, view));
           return (
             <button
               key={j.id}
@@ -314,7 +314,7 @@ function DayMap({ jobs, whereNow = [], hot, onHot }: { jobs: readonly TeamJob[];
             >
               <span className="hm-map-edge-n">{j.number ?? "Job"}</span>
               <span>{j.suburb ?? j.client}</span>
-              {km !== null && km > 0 && <span className="hm-map-edge-km">{km} km</span>}
+              {km > 0 && <span className="hm-map-edge-km">{km} km</span>}
             </button>
           );
         })}
@@ -323,7 +323,7 @@ function DayMap({ jobs, whereNow = [], hot, onHot }: { jobs: readonly TeamJob[];
             Show all
           </Button>
           <span className="hm-map-zoom">
-            <button type="button" aria-label="Zoom in" onClick={() => setView((v) => zoomed(v, 1))}>
+            <button type="button" aria-label="Zoom in" onClick={() => setView((v) => zoomedToward(v, 1, placed.map((j) => j.at), w, h))}>
               +
             </button>
             <button type="button" aria-label="Zoom out" onClick={() => setView((v) => zoomed(v, -1))}>

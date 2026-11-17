@@ -1,5 +1,5 @@
 import { freeLine, homeDays, teamDayOf, teamLine } from "../team-day";
-import { edgeOf, farOnes, fitView, grouped, panned, pixelOf, type LatLng } from "../day-map";
+import { edgeOf, farOnes, fitView, grouped, panned, pixelOf, zoomedToward, type LatLng } from "../day-map";
 import type { ScheduleBlock, ScheduleLane } from "@/lib/workboard/schedule";
 
 /* HOME'S SCHEDULE, the pure half: a day's jobs, each once, from the
@@ -161,6 +161,29 @@ describe("the map's geometry", () => {
     const after = pixelOf(panned(v, 100, -40), glebe, 640, 360);
     expect(Math.round(after.x - before.x)).toBe(100);
     expect(Math.round(after.y - before.y)).toBe(-40);
+  });
+
+  it("(F) closes in on the jobs: after Show all, + keeps the day's jobs on the map, never the empty country in its middle", () => {
+    const all = [glebe, coogee, cremorne, megalong];
+    let v = fitView(all, 640, 368);
+    for (let i = 0; i < 2; i++) v = zoomedToward(v, 1, all, 640, 368);
+    for (const p of [glebe, coogee, cremorne]) {
+      const at = pixelOf(v, p, 640, 368);
+      expect(at.x).toBeGreaterThanOrEqual(0);
+      expect(at.x).toBeLessThanOrEqual(640);
+      expect(at.y).toBeGreaterThanOrEqual(0);
+      expect(at.y).toBeLessThanOrEqual(368);
+    }
+  });
+
+  it("closes in on all the jobs when none is on the map, and goes out where it is", () => {
+    const away = { lat: -34.5, lng: 150.0, zoom: 11 };
+    const v = zoomedToward(away, 1, [glebe, coogee, cremorne], 640, 368);
+    expect(v.zoom).toBe(12);
+    const at = pixelOf(v, coogee, 640, 368);
+    expect(at.x).toBeGreaterThan(0);
+    expect(at.x).toBeLessThan(640);
+    expect(zoomedToward(away, -1, [glebe], 640, 368)).toEqual({ ...away, zoom: 10 });
   });
 
   it("joins jobs too close to read into one", () => {

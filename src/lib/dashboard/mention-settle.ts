@@ -564,6 +564,8 @@ export async function settleMentionAsks(
         created_by: r.staffId,
         due_date: res.read.dueDate,
         status: "open",
+        /* the job the note is on, so the task opens it (Isaac, 17 November 2026, bug 7) */
+        sm8_job_uuid: c.jobUuid,
       })
       .select("id")
       .single();

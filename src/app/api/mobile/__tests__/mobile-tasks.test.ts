@@ -17,15 +17,36 @@ jest.mock("@/lib/mobile/token", () => ({
 
 type Row = { user_id: string; org_id: string; role: string | null; permissions: unknown };
 let members: Row[] = [];
+/* each task's job: "b" was made on 3516, "a" read by Tiff from a note on 2041 */
+const TABLES: Record<string, Record<string, unknown>[]> = {
+  tasks: [
+    { id: "a", sm8_job_uuid: null },
+    { id: "b", sm8_job_uuid: "job-3516" },
+  ],
+  mention_asks: [{ task_id: "a", sm8_job_uuid: "job-2041", sm8_note_uuid: "note-9" }],
+  sm8_jobs: [
+    { uuid: "job-3516", generated_job_id: "3516", geo_city: "Waitara" },
+    { uuid: "job-2041", generated_job_id: "2041", geo_city: "Wollstonecraft" },
+  ],
+};
 jest.mock("@/lib/supabase-server", () => ({
   supabaseAdmin: {
-    from: () => {
+    from: (table: string) => {
       const f: Record<string, unknown> = {};
+      const within: Record<string, unknown[]> = {};
       const q = {
         select: () => q,
         eq: (c: string, v: unknown) => ((f[c] = v), q),
+        in: (c: string, v: unknown[]) => ((within[c] = v), q),
         order: () => q,
-        then: (res: (v: unknown) => unknown) => res({ data: members.filter((m) => m.user_id === f.user_id), error: null }),
+        then: (res: (v: unknown) => unknown) =>
+          res({
+            data:
+              table in TABLES
+                ? TABLES[table]!.filter((r) => Object.entries(within).every(([c, v]) => v.includes(r[c])))
+                : members.filter((m) => m.user_id === f.user_id),
+            error: null,
+          }),
       };
       return q;
     },
@@ -109,6 +130,9 @@ test("your open tasks, in Home's order, with who gave each one where it wasn't y
   expect(body.tasks.map((t: { id: string }) => t.id)).toEqual(["b", "a"]);
   expect(body.tasks[0]).toMatchObject({ from: "Luke Ingold", own: false, dueDate: "2026-10-07" });
   expect(body.tasks[1]).toMatchObject({ from: null, own: true });
+  /* each opens its job: the one it was made on, or the one of the note Tiff read it from, at that note */
+  expect(body.tasks[0].job).toEqual({ uuid: "job-3516", label: "3516 Waitara", note: null });
+  expect(body.tasks[1].job).toEqual({ uuid: "job-2041", label: "2041 Wollstonecraft", note: "note-9" });
   /* no staff card, no tasks */
   expect((await (await GET(req("tasks", "auth0|nocard"))).json()).tasks).toEqual([]);
 });

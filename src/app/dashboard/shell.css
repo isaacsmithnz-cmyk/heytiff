@@ -5940,7 +5940,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .qc-body--full { grid-template-columns:minmax(0, 1fr); }
 /* the quote's paper on the Price tab, read only: Open quote changes it */
 .fg .lp-ro .lp-edit { display:none; }
-.fg .jpr-body--one { grid-template-columns:minmax(0, 1fr); }
+.fg .jpr-body.jpr-body--one { grid-template-columns:minmax(0, 1fr); }
 .fg .jpr-mainhead { flex:none; display:flex; align-items:center; gap:16px; margin:0 -16px 12px; padding:0 16px 12px; border-bottom:1px solid var(--line); }
 /* ServiceM8's quote and an invoice: the paper or the lines on the left,
    the rail on the right */

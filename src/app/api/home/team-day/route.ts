@@ -35,6 +35,7 @@ export async function GET(req: Request) {
     today: day === today,
     nowMin: day === today ? nowMinInZone(vendor.tz) : null,
     mine,
+    userId,
   });
   return Response.json(team, { headers: { "cache-control": "no-store" } });
 }

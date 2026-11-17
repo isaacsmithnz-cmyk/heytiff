@@ -9,7 +9,7 @@ import { StateWord } from "@/components/parts/state";
 import { Tray, ViewTabs } from "@/components/parts/tabs";
 import { Icon } from "@/components/shell/icon";
 import type { TodayView } from "@/lib/dashboard/home-today";
-import { freeLine, teamLine, type HomeDay, type TeamDay, type TeamJob } from "@/lib/dashboard/team-day";
+import { freeLine, teamLine, type HomeDay, type LivePerson, type TeamDay, type TeamJob } from "@/lib/dashboard/team-day";
 import {
   edgeOf,
   farOnes,
@@ -129,7 +129,7 @@ const herePeople = (here: readonly string[]) => (here.length > 1 ? String(here.l
     facing it, with how far it is. Drag to move it, + and − to zoom, Show
     all to fit every job. Jobs too close to read join into one count;
     pressing it zooms in. */
-function DayMap({ jobs, hot, onHot }: { jobs: readonly TeamJob[]; hot: string | null; onHot: (id: string | null) => void }) {
+function DayMap({ jobs, whereNow = [], hot, onHot }: { jobs: readonly TeamJob[]; whereNow?: readonly LivePerson[]; hot: string | null; onHot: (id: string | null) => void }) {
   const box = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(MAP_MAX_W);
   const h = MAP_H;
@@ -240,6 +240,24 @@ function DayMap({ jobs, hot, onHot }: { jobs: readonly TeamJob[]; hot: string | 
           height={h}
           style={{ transform: `translate(${c.x - w / 2}px, ${c.y - h / 2}px) scale(${k})` }}
         />
+        {/* where the team is now, as their phones said, where the business has it on */}
+        {whereNow
+          .filter((p) => inside(at(p.at)))
+          .map((p) => {
+            const q = at(p.at);
+            const who = p.name === "you" ? "You" : p.name;
+            return (
+              <span
+                key={`live:${p.name}`}
+                className={p.name === "you" ? "hm-map-person hm-map-person--you" : "hm-map-person"}
+                style={{ left: q.x, top: q.y }}
+                role="img"
+                aria-label={`${who}, ${p.mins < 1 ? "now" : `${p.mins} min ago`}`}
+              >
+                {who.charAt(0).toUpperCase()}
+              </span>
+            );
+          })}
         {dots.map((j) => {
           const p = at(j.at);
           return <span key={j.id} className="hm-map-dot" style={{ left: p.x, top: p.y }} aria-hidden="true" />;
@@ -400,7 +418,15 @@ export function HomeSchedule({
           )}
           {list}
         </div>
-        {mapped && <DayMap key={`${day}:${people}`} jobs={jobs} hot={hot} onHot={setHot} />}
+        {mapped && (
+          <DayMap
+            key={`${day}:${people}`}
+            jobs={jobs}
+            whereNow={team?.today ? (people === "you" ? team.live.filter((p) => p.name === "you") : team.live) : []}
+            hot={hot}
+            onHot={setHot}
+          />
+        )}
       </div>
     </div>
   );

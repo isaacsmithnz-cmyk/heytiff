@@ -93,6 +93,25 @@ describe("teamDayOf", () => {
   });
 });
 
+describe("where the team is now", () => {
+  const lanes = [
+    lane("s-alex", "Alex Morozoff", [block({ onSite: true })]),
+    lane("s-leo", "Leo Watanabe", [block({ key: "act-2", onSite: true })]),
+  ];
+  const live = [{ name: "Alex Morozoff", sm8: "S-ALEX", at: { lat: -33.9, lng: 151.2 }, mins: 2 }];
+
+  it("(F) shows someone where their phone says, and not beside the job as well", () => {
+    const day = teamDayOf({ lanes }, { dayISO: "2026-11-17", today: true, nowMin: 600, mine: null, live });
+    expect(day.live).toEqual([{ name: "Alex", at: { lat: -33.9, lng: 151.2 }, mins: 2 }]);
+    expect(day.jobs[0]!.here).toEqual(["Leo"]);
+  });
+
+  it("(F) says nothing of where anyone is on a day ahead", () => {
+    const day = teamDayOf({ lanes }, { dayISO: "2026-11-18", today: false, nowMin: 600, mine: null, live });
+    expect(day.live).toEqual([]);
+  });
+});
+
 describe("homeDays", () => {
   it("(F) is today, then the next four working days by name and date", () => {
     expect(homeDays("2026-11-19")).toEqual([

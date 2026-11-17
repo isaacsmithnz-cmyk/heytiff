@@ -58,6 +58,7 @@ const ORG: OrgSettings = {
   payment_terms_days: 14,
   expiry_warn_days: 30,
   expiry_email: true,
+  live_location: false,
   email: "office@smithair.com.au",
   phone: "(03) 9000 0000",
   website: "smithair.com.au",
@@ -168,7 +169,7 @@ const group = (title: string) =>
   screen.getByRole("heading", { level: 2, name: title }).closest(".st2-group") as HTMLElement;
 
 describe("the business page", () => {
-  it("is six titled groups, in the order a customer meets them", () => {
+  it("is seven titled groups, in the order a customer meets them", () => {
     setup();
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Business");
     expect(screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual([
@@ -177,6 +178,7 @@ describe("the business page", () => {
       "Contact",
       "Licences and insurance",
       "Payments and reminders",
+      "Team's location",
       "Account",
     ]);
   });
@@ -325,6 +327,16 @@ describe("payments and reminders", () => {
     const { actions } = setup();
     await user.click(screen.getByRole("switch", { name: "Morning email" }));
     expect(actions.onSave).toHaveBeenCalledWith("preferences", { expiry_email: "No" });
+  });
+
+  it("(F) keeps the team off Home's map until the owner turns it on, saying the notice the law asks for", async () => {
+    const user = userEvent.setup();
+    const { actions } = setup();
+    const on = screen.getByRole("switch", { name: "Show the team on Home's map" });
+    expect(on).toHaveAttribute("aria-checked", "false");
+    expect(screen.getByText(/14 days under the Workplace Surveillance Act 2005/)).toBeInTheDocument();
+    await user.click(on);
+    expect(actions.onSave).toHaveBeenCalledWith("preferences", { live_location: "Yes" });
   });
 
   it("puts the old value back when the toast's Undo is pressed", async () => {

@@ -176,6 +176,7 @@ const TEAM: TeamDay = {
   today: true,
   linked: true,
   free: ["Nathan", "Mia"],
+  live: [{ name: "Josh", at: { lat: -33.882, lng: 151.2 }, mins: 3 }],
   jobs: [
     tj(),
     tj({ id: "j-3432", number: "3432", client: "Sutcliffe, Will", suburb: "Paddington", hue: "orange", people: ["Daniel"], state: { tone: "good", word: "Done" }, done: true, here: [], at: { lat: -33.884, lng: 151.227 }, href: "/dashboard/jobs/j-3432" }),
@@ -313,6 +314,7 @@ describe("the card's two tabs", () => {
     const far = within(map).getByRole("button", { name: /2359/ });
     expect(far).toHaveTextContent("Megalong Valley");
     expect(far).toHaveTextContent(/km/);
+    expect(within(map).getByRole("img", { name: "Josh, 3 min ago" })).toHaveTextContent("J");
     expect(within(map).getByRole("button", { name: "Show all" })).toBeInTheDocument();
     expect(within(map).getByRole("button", { name: "Zoom in" })).toBeInTheDocument();
   });
@@ -326,6 +328,7 @@ describe("the card's two tabs", () => {
     expect(within(rows).getAllByRole("listitem")).toHaveLength(1);
     expect(within(rows).getByRole("link", { name: /Dryridge Estate/ })).toHaveTextContent("Service call, Megalong Valley");
     expect(screen.queryByText("Nathan and Mia are free all day.")).toBeNull();
+    expect(screen.queryByRole("img", { name: /Josh/ })).toBeNull();
     cleanup();
     draw(today(), [], [], TEAM);
     expect(screen.getByRole("radio", { name: "You" })).toHaveAttribute("aria-checked", "true");

@@ -114,6 +114,7 @@ export function BusinessScreen({
         actions={actions}
       />
       <PaymentsGroup org={org} actions={actions} />
+      <LocationGroup org={org} actions={actions} />
       {account && <AccountGroup account={account} candidates={ownerCandidates} onTransfer={actions.onTransferOwnership} />}
     </>
   );
@@ -432,6 +433,39 @@ function PaymentsGroup({ org, actions }: { org: OrgSettings; actions: OrgActions
           disabled={pending === "expiry_email"}
           onChange={(on) =>
             void write("expiry_email", on ? "Yes" : "No", org.expiry_email ? "Yes" : "No", on ? "Morning email on" : "Morning email off")
+          }
+        />
+      </Setting>
+      {error && <Wrong>{error}</Wrong>}
+    </Group>
+  );
+}
+
+/* THE TEAM'S LOCATION ON HOME'S MAP (Isaac, 17 November 2026: "add it, i
+   will give notice. we will just have a disclaimer if future businesses
+   want to activate"). Off until the owner turns it on; the notice under it
+   is the law's, said where the switch is, not a hint. */
+function LocationGroup({ org, actions }: { org: OrgSettings; actions: OrgActions }) {
+  const { write, error, pending } = useSelfSave((fields) => actions.onSave("preferences", fields));
+  return (
+    <Group heading="Team's location">
+      <Setting
+        name="Show the team on Home's map"
+        line={
+          <>
+            While someone is clocked on, their phone sends where they are every two minutes, and Home&apos;s map shows them there.
+            Only the last place is kept, and it is gone when they clock off. Their phone shows that location is on the whole time.
+            Before you turn this on, give your team written notice: in New South Wales, 14 days under the Workplace Surveillance
+            Act 2005. Other states have their own rules.
+          </>
+        }
+      >
+        <Switch
+          label={<span className="sr-only">Show the team on Home&apos;s map</span>}
+          checked={!!org.live_location}
+          disabled={pending === "live_location"}
+          onChange={(on) =>
+            void write("live_location", on ? "Yes" : "No", org.live_location ? "Yes" : "No", on ? "The team shows on Home's map" : "The team is off Home's map")
           }
         />
       </Setting>

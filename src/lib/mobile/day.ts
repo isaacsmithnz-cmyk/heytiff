@@ -19,6 +19,7 @@ import { jobsOf, sendTime, sendTimeAgain, staffUuidOf, wallMinute, type ClockJob
 import { actAsPhoneUser, type MobileCtx } from "./auth";
 import { readCheckInFixes, withFix } from "@/lib/workboard/check-in-fixes";
 import { joinDay, type Away } from "./day-join";
+import { forgetPosition } from "./where";
 
 export { AWAY_KEPT_MS, joinDay, type Away } from "./day-join";
 
@@ -853,6 +854,8 @@ export async function clockOffDay(ctx: MobileCtx, press: Sm8Press | null, at: un
   const office = leaveOffice(day.office ?? [], t);
   const { error } = await supabaseAdmin.from("staff_days").update({ off_at: t, office }).eq("org_id", ctx.orgId).eq("id", day.id).is("off_at", null);
   if (error) return { ok: false, error: DAY_WORDS.notOn, status: 409 };
+  /* where you were, for the office's map, goes with the day (./where) */
+  await forgetPosition(ctx.orgId, ctx.userId).catch(() => undefined);
 
   const closed: DayRow = { ...day, off_at: t, office };
   const nowIso = new Date(now).toISOString();

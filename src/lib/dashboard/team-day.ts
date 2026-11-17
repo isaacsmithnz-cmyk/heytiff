@@ -50,6 +50,16 @@ export type TeamJob = {
   href: string;
 };
 
+/** Someone clocked on whose phone said where they are (lib/mobile/where),
+    where the business has its team's location on. Today only. */
+export type LivePerson = {
+  /** First name, or "you". */
+  name: string;
+  at: { lat: number; lng: number };
+  /** How many minutes ago the phone said so. */
+  mins: number;
+};
+
 export type TeamDay = {
   /** YYYY-MM-DD */
   day: string;
@@ -62,6 +72,8 @@ export type TeamDay = {
   free: string[];
   /** The viewer's ServiceM8 person is known: You can narrow to them. */
   linked: boolean;
+  /** Where the team is now, for the map; empty where the business has it off. */
+  live: LivePerson[];
 };
 
 const first = (name: string): string => name.trim().split(/\s+/)[0] ?? "";
@@ -85,12 +97,16 @@ export function teamDayOf(
     mine: string | null;
     places?: Readonly<Record<string, { lat: number; lng: number }>>;
     free?: readonly string[];
+    /** Where the team is now, each with their ServiceM8 person where known:
+        someone the map shows where they are isn't drawn beside a job too. */
+    live?: readonly (LivePerson & { sm8: string | null })[];
   },
 ): TeamDay {
   type Acc = TeamJob & { endMin: number; open: boolean; gone: boolean; lost: boolean; stale: boolean };
   const by = new Map<string, Acc>();
   const low = (u: string | null) => (u ?? "").toLowerCase();
   const now = opts.today ? opts.nowMin : null;
+  const placed = new Set((opts.today ? (opts.live ?? []) : []).map((p) => low(p.sm8)).filter(Boolean));
   for (const lane of day?.lanes ?? []) {
     const who = lane.staffUuid ? (opts.mine && low(lane.staffUuid) === low(opts.mine) ? "you" : first(lane.name)) : null;
     for (const b of lane.blocks) {
@@ -127,7 +143,7 @@ export function teamDayOf(
       if (who === "you") j.mine = true;
       if (b.closure !== "done") j.open = true;
       if (b.closure === "stale") j.stale = true;
-      if (now !== null && b.onSite && who && !j.here.includes(who)) j.here.push(who);
+      if (now !== null && b.onSite && who && !j.here.includes(who) && !placed.has(low(lane.staffUuid))) j.here.push(who);
     }
   }
   const jobs = [...by.values()]
@@ -155,6 +171,7 @@ export function teamDayOf(
     jobs,
     free: (opts.free ?? []).map(first).filter(Boolean),
     linked: opts.mine !== null,
+    live: opts.today ? (opts.live ?? []).map(({ name, at, mins }) => ({ name: first(name), at, mins })) : [],
   };
 }
 

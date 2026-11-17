@@ -7,8 +7,9 @@ import { todayInAu } from "@/lib/au-dates";
    finish you're thinking of), and Clock on, Arrived, Left, At the office,
    a job's time changed or taken off, a job the phone missed added, and Clock off (POST). The token check comes first and the press is minted from
    it alone; every rule is lib/mobile/day's. Your own day needs no grant
-   beyond being a member. The phone says when you arrive and leave; it never
-   sends where you are. */
+   beyond being a member. The phone says when you arrive and leave here;
+   where you are goes to /api/mobile/where, and only where the business has
+   its team's location on. */
 
 const no = (status: number, error: string) => Response.json({ error }, { status, headers: { "cache-control": "no-store" } });
 

@@ -6866,6 +6866,10 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .hm-map-pin--hot, .fg .hm-map-pin:hover { z-index:2; background:var(--ink); color:var(--white); }
 .fg .hm-map-pin:focus-visible { outline:none; box-shadow:var(--ring); }
 .fg .hm-map-here { position:absolute; left:32px; bottom:8px; display:flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:var(--ink); color:var(--white); font-size:12px; line-height:16px; font-weight:700; box-shadow:0 0 0 2px var(--paper); }
+/* someone where their phone says they are: a disc in ink with their first
+   letter, you in the press blue */
+.fg .hm-map-person { position:absolute; display:flex; align-items:center; justify-content:center; width:24px; height:24px; margin:-12px 0 0 -12px; border-radius:50%; background:var(--ink); color:var(--white); font-size:12px; line-height:16px; font-weight:700; box-shadow:0 0 0 2px var(--paper); pointer-events:none; }
+.fg .hm-map-person--you { background:var(--press); }
 .fg .hm-map-count { position:absolute; display:flex; align-items:center; justify-content:center; width:32px; height:32px; margin:-16px 0 0 -16px; padding:0; border:0; border-radius:50%; background:var(--ink); color:var(--white); font-size:13px; line-height:18px; font-weight:700; cursor:pointer; box-shadow:0 0 0 2px var(--paper); }
 .fg .hm-map-count:focus-visible { outline:none; box-shadow:var(--ring); }
 .fg .hm-map-edge { position:absolute; display:flex; align-items:center; gap:8px; height:32px; padding:0 12px 0 4px; border:1px solid var(--line); border-radius:var(--r-button); background:var(--paper); color:var(--ink); font-size:13px; line-height:18px; font-weight:600; white-space:nowrap; cursor:pointer; transition:background-color var(--t-fast) var(--ease); }

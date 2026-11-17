@@ -5891,19 +5891,14 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    right with its buttons pinned at the foot, as the quote page had them */
 .fg .jp-price { display:flex; flex-direction:column; height:var(--fit-h, auto); min-height:0; }
 .fg .jpr { flex:1; min-height:0; display:flex; flex-direction:column; gap:16px; }
-.fg .jpr-cards { flex:none; display:flex; flex-wrap:wrap; align-items:stretch; gap:8px; }
-.fg .jpr-card { display:flex; flex-direction:column; align-items:flex-start; gap:2px; width:240px; min-width:0; padding:12px 16px;
-  border:1px solid var(--line); border-radius:var(--r-card); background:var(--white); font:inherit; color:var(--ink); text-align:start; cursor:pointer;
-  transition:background-color var(--t-fast) var(--ease); }
-.fg .jpr-card:hover { background:var(--hov); }
-.fg .jpr-card.on { background:var(--sel); }
-.fg .jpr-card:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
-.fg .jpr-label { font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
-.fg .jpr-name { width:100%; min-width:0; font-size:14px; line-height:20px; font-weight:600; }
-.fg .jpr-fig { font-size:14px; line-height:20px; font-weight:600; font-variant-numeric:tabular-nums; }
-.fg .jpr-state { font-size:13px; line-height:18px; }
-/* New invoice at the row's right end, level with the cards' tops (the Price mock, 16 November 2026) */
-.fg .jpr-new { display:flex; align-items:flex-start; gap:8px; margin-left:auto; }
+/* QUOTES AND INVOICES, a list beside what's chosen (the Price overhaul, 18
+   November 2026, C): Billing's rows on a white card 400 wide, the one
+   chosen filled; under them New quote, Add a variation, New invoice */
+.fg .jpr--list { flex-direction:row; align-items:stretch; }
+.fg .jpr-list { flex:none; width:400px; min-height:0; display:flex; flex-direction:column; padding:12px 16px 16px; overflow:auto; border-radius:var(--r-card); background:var(--paper); box-shadow:var(--shadow-card); }
+.fg .jpr-listname { margin:0 0 8px; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+.fg .jpr-listfoot { margin-top:auto; padding-top:16px; display:flex; flex-wrap:wrap; gap:8px; }
+.fg .jpr--list > .jpr-open { flex:1; min-width:0; }
 .fg .jpr-open { flex:1; min-height:0; display:flex; flex-direction:column; }
 /* the quote: the quote page's body, in the tab's own frame */
 .fg .jpr-quote { flex:1; min-height:0; display:flex; flex-direction:column; }

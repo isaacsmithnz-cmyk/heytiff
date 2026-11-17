@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, lazy, useEffect, useEffectEvent, useMemo, useState, type ReactNode } from "react";
+import { SectionTabs } from "@/components/parts/tabs";
 import { useRouter } from "next/navigation";
 import { readClaim, readJobBookedVisits } from "@/app/actions/workboard";
 import type { BookedVisitRead } from "@/lib/jobs/built-from-server";
@@ -18,7 +19,7 @@ import type { DocStage } from "./job-doc-head";
 import type { Sm8Quote } from "@/components/workboard/quote/sm8-quote-of";
 import { fmtAuTime, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { sm8JobUrl } from "@/lib/integrations/sm8-links";
-import { quoteHref } from "@/lib/shell/links";
+import { invoiceHref, quoteHref } from "@/lib/shell/links";
 import { firstCard, invoicePaperOf, priceCards, quoteBegun, type PriceAsk, type PriceCard, type QuoteRead } from "@/lib/jobs/job-prices";
 import { proposalTitle } from "@/lib/quotes/proposal";
 import type { QuoteFacts } from "@/lib/quotes/quote-card";
@@ -103,9 +104,10 @@ export function JobPriceTab({
   ask: PriceAsk | null;
   /** the quote in a tab of its own: the quote alone, Build, Breakdown and
       Proposal, with no cards over it */
-  doc?: "quote" | null;
-  /** where the quote's up to and its name, for the head of its tab */
-  onDocStage?: (stage: (DocStage & { title: string | null }) | null) => void;
+  doc?: "quote" | "invoice" | null;
+  /** where the quote's or the invoice's up to, its name, and an invoice's own
+      name for its tab, for the head of its tab */
+  onDocStage?: (stage: (DocStage & { title: string | null; label?: string | null }) | null) => void;
   onOpenPaper: (item: JobMediaItem) => void;
   onToast: (message: string, undo?: () => void) => void;
 }) {
@@ -209,6 +211,32 @@ export function JobPriceTab({
         )}
       </div>
     );
+
+  /* AN INVOICE IN ITS OWN TAB (decision 6): the invoice alone, under its head */
+  if (doc === "invoice") {
+    const card = cards.find((c) => c.kind === "invoice" && c.claimId?.toLowerCase() === (ask?.invoice ?? "").toLowerCase()) ?? null;
+    return (
+      <div className="jpr jpr-doc">
+        {!ready || !billing ? (
+          <Loading what="Reading the invoice" />
+        ) : !card ? (
+          <Wrong word="That invoice isn't on this job" means="It may have been taken off in ServiceM8." />
+        ) : (
+          <PriceInvoice
+            key={card.key}
+            job={job}
+            card={card}
+            claim={claims.find((c) => c.remoteId === card.claimId) ?? null}
+            row={billing.rows.find((r) => r.claimId === card.claimId) ?? null}
+            staged={!!billing.staged}
+            detail={detail}
+            onOpenPaper={onOpenPaper}
+            doc={{ claims, billing, quoteFigure: cards.find((c) => c.kind !== "invoice")?.figure ?? null, onStage: onDocStage }}
+          />
+        )}
+      </div>
+    );
+  }
 
   /* said whatever else is up: ServiceM8's quote or an invoice may still be */
   const unread =
@@ -468,6 +496,7 @@ function QuotePreview({ job, detail, money, starting }: { job: string; detail: M
                 jobNumber={detail?.jobNumber ?? null}
                 preparedBy={view.names[view.me ?? ""] ?? null}
                 busy
+                readOnly
                 onSave={() => undefined}
               />
             </div>
@@ -546,6 +575,7 @@ function PriceInvoice({
   staged,
   detail,
   onOpenPaper,
+  doc = null,
 }: {
   job: string;
   card: PriceCard;
@@ -554,8 +584,22 @@ function PriceInvoice({
   staged: boolean;
   detail: MirrorJobDetail | null;
   onOpenPaper: (item: JobMediaItem) => void;
+  /** in a tab of its own (decision 6): its two tabs across the page, the
+      head told where it's up to, and the rest of the job's billing beside it */
+  doc?: {
+    claims: readonly FamilyClaim[];
+    billing: BillingView;
+    quoteFigure: string | null;
+    onStage?: (stage: (DocStage & { title: string | null; label?: string | null }) | null) => void;
+  } | null;
 }) {
   const [view, setView] = useState<View>("preview");
+  /* the head of its tab: its word in its colour, its name, its number */
+  const tellHead = useEffectEvent(() => doc?.onStage?.(row ? { word: row.word, tone: row.tone, title: card.name, label: card.label } : { word: "Not read yet", tone: "info", title: card.name, label: card.label }));
+  const headKey = `${row?.word ?? ""}|${row?.tone ?? ""}|${card.name}|${card.label}`;
+  useEffect(() => {
+    if (doc) tellHead();
+  }, [headKey, doc]);
   /* keyed by the invoice, so another is a fresh read */
   const [read, setRead] = useState<ClaimDetailRead | null | undefined>(undefined);
   const id = card.claimId ?? "";
@@ -591,10 +635,28 @@ function PriceInvoice({
 
   const paper = read ? invoicePaperOf(read.media.documents) : null;
   const href = sm8JobUrl(claim?.remoteId ?? job);
+  const tabs = doc ? (
+    /* the quote's shape: Breakdown, its lines, and Invoice, the page as the customer has it (decision 6) */
+    <div className="qc-views qc-views--tabs jpr-doctabs">
+      <SectionTabs
+        items={[
+          { key: "lines", label: "Breakdown" },
+          { key: "preview", label: "Invoice" },
+        ]}
+        current={view}
+        ariaLabel="The invoice"
+        idPrefix="jpr-tab"
+        onGo={(k) => setView(k === "lines" ? "lines" : "preview")}
+      />
+      <span className="qc-gst">All ex GST</span>
+    </div>
+  ) : null;
   return (
+    <>
+    {tabs}
     <div className="jpr-body">
       <div className="jpr-main">
-        <Views value={view} onChange={setView} />
+        {!doc && <Views value={view} onChange={setView} />}
         <div className="jpr-left">
           {read === undefined ? (
             <Loading what="Reading the invoice" />
@@ -635,6 +697,32 @@ function PriceInvoice({
               </ul>
             </section>
           )}
+          {/* OF THE JOB, in its own tab: the quote and every invoice on the
+              job, this one in ink, the rest in grey (decision 6) */}
+          {doc && (
+            <section className="jpr-grp" aria-label="Of the job">
+              <h3>Of the job</h3>
+              <ul className="jpr-lines">
+                {doc.quoteFigure && (
+                  <li>
+                    <span className="jpr-line">
+                      <em>Quote</em>
+                    </span>
+                    <span className="jpr-amt jpr-amt--q">{doc.quoteFigure}</span>
+                  </li>
+                )}
+                {doc.billing.rows.map((b) => (
+                  <li key={b.claimId ?? b.name} aria-current={b.claimId === card.claimId ? "true" : undefined}>
+                    <span className="jpr-line">
+                      {b.claimId === card.claimId ? <b>{b.name}</b> : <em>{b.name}</em>}
+                      <em>{b.word}</em>
+                    </span>
+                    <span className={b.claimId === card.claimId ? "jpr-amt" : "jpr-amt jpr-amt--q"}>{b.cents != null ? fmtAud(b.cents) : "–"}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
           {/* what's written on a claim of its own; a job's one invoice is
               the job itself, whose notes are the job's, not the invoice's
               (the walk of 15 November 2026, 3408) */}
@@ -657,19 +745,31 @@ function PriceInvoice({
           )}
         </div>
         <div className="jpr-dock">
+          {!doc && card.claimId && (
+            /* in a tab of its own, Breakdown and Invoice (decision 6) */
+            <Button
+              kind="main"
+              href={invoiceHref(job, card.claimId)}
+              onClick={() => openInTab(invoiceHref(job, card.claimId!), `${window.location.pathname}${window.location.search}`)}
+            >
+              Open invoice
+            </Button>
+          )}
           {paper?.url && (
             <Button kind="second" onClick={() => onOpenPaper(paper)}>
               Open the PDF
             </Button>
           )}
           {href && (
-            <Button kind="quiet" href={href} target="_blank" rel="noreferrer">
+            /* ServiceM8's own green, ink on it, where it goes there (rule 25b) */
+            <Button kind={doc ? "sm8" : "quiet"} href={href} target="_blank" rel="noreferrer">
               Open in ServiceM8
             </Button>
           )}
         </div>
       </aside>
     </div>
+    </>
   );
 }
 

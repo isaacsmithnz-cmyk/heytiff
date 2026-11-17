@@ -1,6 +1,6 @@
 import { VISIT_STAGES, type Visit, type VisitStage } from "./buildup";
 import { MAX_OPTIONS as MAX_LINE_OPTIONS, type QuoteLine } from "./lines";
-import { proposalOf, type LinesProposal } from "./lines-proposal";
+import { blocksChanged, proposalOf, type LinesProposal } from "./lines-proposal";
 import type { UnitSpecs } from "./lookups";
 import { normaliseDraft, type ProposalDraft, type UnitLine, type UnitRole } from "./proposal";
 import { roomIn } from "./unit-name";
@@ -249,13 +249,18 @@ export function withVariationMark(b: ByHand, option: number, mark: "approvedAt" 
 /** The proposal's words changed: a patch over what's there (blocks left
     out stay as they were), stamped now, so an approval given before it no
     longer stands. */
-export function withProposal(b: ByHand, patch: unknown, now: string, options: number): ByHand {
+export function withProposal(b: ByHand, patch: unknown, now: string, options: number, person = false): ByHand {
   const was = b.proposal ?? proposalOf({});
   const p = patch && typeof patch === "object" ? (patch as Record<string, unknown>) : {};
-  const merged = proposalOf({ ...was, ...p, updatedAt: now, approvedAt: was.approvedAt, approvedBy: was.approvedBy });
+  const merged = proposalOf({ ...was, ...p, updatedAt: now, approvedAt: was.approvedAt, approvedBy: was.approvedBy, typed: was.typed });
   /* one set of words an option the quote has, never more or fewer */
   const opts = Array.from({ length: Math.max(1, options) }, (_, i) => merged.options[i] ?? { summary: "", areas: [], included: [] });
-  return { ...b, proposal: { ...merged, options: opts } };
+  const next = { ...merged, options: opts };
+  /* whose words they are now: a person's typing makes a block theirs; Tiff
+     writing over one makes it hers again (decision 5, 18 November 2026) */
+  const changed = blocksChanged(was, next);
+  const typed = person ? [...new Set([...was.typed, ...changed])] : was.typed.filter((k) => !changed.includes(k));
+  return { ...b, proposal: { ...next, typed } };
 }
 
 /** The proposal approved by a person, now: one never written is approved

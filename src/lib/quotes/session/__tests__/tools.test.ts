@@ -209,11 +209,31 @@ describe("her tools, run", () => {
       "org-1",
       "job-1",
       { options: [{ summary: "A wall split in the living room.", areas: [{ name: "Living", items: ["Unit above the window"] }], included: ["Commissioning"] }] },
-      "tiff"
+      "tiff",
+      false
     );
     expect(await run("write_proposal", { option: 3, summary: "x" })).toMatchObject({ ok: false, error: "The quote has 1 option; there's no option 4." });
     expect(await run("write_proposal", { summary: "x" })).toMatchObject({ ok: false });
     expect(await run("write_proposal", {})).toMatchObject({ ok: false });
+  });
+
+  /* A PERSON'S OWN WORDS STAND (the Price overhaul, decision 5, 18 November
+     2026: "1"): a block they typed is refused with their words, and written
+     over only with replace_typed, which she then says */
+  it("keeps the words a person typed unless she says the change asked for is in them", async () => {
+    const typed = { supplier: null, proposal: { options: [{ summary: "Our words", areas: [], included: [] }], typed: ["summary-0"] } };
+    const { readByHand } = jest.requireMock("../../lines-job-server") as { readByHand: jest.Mock };
+    readByHand.mockResolvedValueOnce(typed).mockResolvedValueOnce(typed);
+    saveProposal.mockClear();
+    const refused = await run("write_proposal", { option: 0, summary: "Her words" });
+    expect(refused).toMatchObject({ ok: false });
+    expect(JSON.stringify(refused)).toContain("A person typed option 1's summary");
+    expect(JSON.stringify(refused)).toContain("Our words");
+    expect(saveProposal).not.toHaveBeenCalled();
+    readByHand.mockResolvedValueOnce(typed).mockResolvedValueOnce(typed);
+    const over = await run("write_proposal", { option: 0, summary: "Her words", replace_typed: true });
+    expect(over).toMatchObject({ ok: true, said: "option 1, over what a person typed in option 1's summary" });
+    expect(saveProposal).toHaveBeenCalled();
   });
 
   it("adds book items at the book's price, labour at the hour, and refuses a code the book hasn't got", async () => {

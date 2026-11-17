@@ -9,7 +9,7 @@ import { customerEditOffered } from "@/app/actions/job-customer";
 import type { JobCardFirst } from "@/components/workboard/board/job-sheet";
 import { resolveJobCard } from "@/lib/workboard/all-jobs-query";
 import { parseSection } from "@/lib/jobs/job-sections";
-import { jobPageHref, quoteHref } from "@/lib/shell/links";
+import { invoiceHref, jobPageHref, quoteHref } from "@/lib/shell/links";
 import { JobPage, type JobDoc } from "@/components/jobs/job-page";
 
 /* ONE JOB, A PAGE OF ITS OWN (v2, step 5, "Jobs and a job"), inside the
@@ -43,11 +43,15 @@ export async function renderJobPage({
   params,
   searchParams,
   doc = null,
+  claim = null,
 }: {
   params: Promise<{ id: string }>;
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
-  /** the quote open in a tab of its own (/dashboard/jobs/<id>/quote) */
+  /** the quote open in a tab of its own (/dashboard/jobs/<id>/quote), or an
+      invoice (/dashboard/jobs/<id>/invoice/<claim>) */
   doc?: JobDoc | null;
+  /** the invoice's claim, ServiceM8's uuid, when `doc` is an invoice */
+  claim?: string | null;
 }) {
   if (!(await can("workboard"))) redirect("/dashboard");
   const session = await auth0.getSession();
@@ -66,11 +70,13 @@ export async function renderJobPage({
     can("financials"),
     searchParams,
   ]);
+  /* an invoice is the money's: without it, the job's page */
+  if (doc === "invoice" && !moneyVisible) redirect(jobPageHref(job));
   const section = doc ? "price" : parseSection(search.tab, moneyVisible, studio);
   /* a claim's own number opens its invoice on Price, an invoice's one home
      (build 10), for whoever sees money */
   if (target.parentRemoteId !== job)
-    redirect(doc ? quoteHref(target.parentRemoteId) : moneyVisible ? `${jobPageHref(target.parentRemoteId, "price")}&invoice=${encodeURIComponent(job)}` : jobPageHref(target.parentRemoteId, section));
+    redirect(doc === "quote" ? quoteHref(target.parentRemoteId) : doc === "invoice" ? invoiceHref(target.parentRemoteId, job) : moneyVisible ? `${jobPageHref(target.parentRemoteId, "price")}&invoice=${encodeURIComponent(job)}` : jobPageHref(target.parentRemoteId, section));
 
   /* the row the card opens on, read inside this org's mirror: null for a
      job it doesn't hold. AND WHAT THE CARD READS FIRST, beside it: the
@@ -101,7 +107,7 @@ export async function renderJobPage({
      and a claim's own number (?invoice=): the quote and its page are one */
   const raw = typeof search.option === "string" ? Number(search.option) : NaN;
   const option = Number.isInteger(raw) && raw >= 0 && raw <= 19 ? raw : null;
-  const invoice = !doc && typeof search.invoice === "string" && moneyVisible ? search.invoice.trim().slice(0, 80) || null : null;
+  const invoice = doc === "invoice" ? (claim?.trim().slice(0, 80) || null) : !doc && typeof search.invoice === "string" && moneyVisible ? search.invoice.trim().slice(0, 80) || null : null;
   const price =
     section === "price" && (search.start === "1" || search.update === "1" || option !== null || invoice)
       ? { start: search.start === "1", option, update: search.update === "1", invoice }

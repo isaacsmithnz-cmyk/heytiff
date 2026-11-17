@@ -3814,6 +3814,15 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 /* the proposal for a quote built on its lines (slice 7.1, mock-up screen 7):
    a sheet of paper on the desk, option by option, price last; the
    business's colour on its headings where it has one */
+/* THE PROPOSAL TYPED ON (the Price overhaul, 18 November 2026: "like a
+   Word document"): each block is its own box, found by its pointer, lit
+   while you type in it; an empty one says so in grey; a bar over the page
+   says it saved itself */
+.fg .lp-typed { margin:0; min-height:1.55em; border-radius:var(--r-control); outline:none; cursor:text; }
+.fg .lp-typed:focus { background:var(--sel); }
+.fg .lp-typed:focus-visible { box-shadow:var(--ring); }
+.fg .lp-typed:empty::before { content:attr(data-empty); color:var(--q); }
+.fg .qc-fmt { flex:none; display:flex; align-items:center; justify-content:flex-end; min-height:40px; padding:0 16px; font-size:13px; line-height:18px; }
 .fg .lp-desk { margin:0 -24px -32px; padding:24px 24px 48px; background:var(--bg); }
 .fg .lp-paper { max-width:800px; margin:0 auto; padding:48px; display:flex; flex-direction:column; gap:24px; background:var(--paper); border:1px solid var(--hd-edge); border-radius:var(--r-control); font-size:13px; line-height:1.55; color:var(--hd-ink); }
 .fg .lp-lh { display:flex; justify-content:space-between; align-items:flex-start; gap:24px; padding-bottom:16px; border-bottom:2px solid var(--doc-ink, var(--hd-ink)); }
@@ -5929,6 +5938,9 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jd-stage { flex:none; display:inline-flex; align-items:center; gap:8px; font-size:13px; line-height:18px; }
 .fg .jpr-doc { flex:1; min-height:0; display:flex; flex-direction:column; }
 .fg .jpr-quote .qc-views--tabs { position:relative; margin:0 0 16px; padding:0; border-bottom:0; }
+/* an invoice in its own tab: Breakdown and Invoice across the page, as the quote's (decision 6) */
+.fg .jpr-doctabs { position:relative; flex:none; margin:0 0 16px; padding:0; border-bottom:0; }
+.fg .jpr-amt--q { font-weight:500; color:var(--q); }
 .fg .qc-gst { position:absolute; right:0; bottom:8px; font-size:13px; line-height:18px; color:var(--q); }
 .fg .qc-body--full { grid-template-columns:minmax(0, 1fr); }
 /* the quote's paper on the Price tab, read only: Open quote changes it */

@@ -52,7 +52,7 @@ export function dbStore(orgId: string, jobUuid: string, origin: string | null = 
     },
     proposal: () => (jobUuid ? readByHand(orgId, jobUuid).then((b) => b.proposal) : Promise.resolve(null)),
     writeProposal: async (patch) => {
-      const res = await saveProposal(orgId, jobUuid, patch, TIFF);
+      const res = await saveProposal(orgId, jobUuid, patch, TIFF, false);
       return res.ok ? { ok: true } : res;
     },
     compareWith: (lineId, code) => addCompared(orgId, jobUuid, lineId, code, TIFF),

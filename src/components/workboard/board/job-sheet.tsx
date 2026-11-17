@@ -284,7 +284,9 @@ export type JobSheetPage = {
   price?: PriceAsk | null;
   /** The quote open in a tab of its own (/dashboard/jobs/<id>/quote): the
       job's head and sections give way to the quote's (job-doc-head.tsx). */
-  doc?: "quote" | null;
+  doc?: "quote" | "invoice" | null;
+  /** an invoice's own name for its tab, once it's read ("Invoice #2845A") */
+  onDocLabel?: (label: string | null) => void;
 };
 
 /** WHAT THE PAGE ALREADY READ, on the server and all at once, so the card
@@ -1549,7 +1551,12 @@ export function JobSheet({
      of 15 November 2026, 3408) */
   const [priceRef, priceH] = useFitHeight<HTMLDivElement>();
   /* the quote in its own tab: where it's up to and its name, for the head */
-  const [docStage, setDocStage] = useState<(DocStage & { title: string | null }) | null>(null);
+  const [docStage, setDocStage] = useState<(DocStage & { title: string | null; label?: string | null }) | null>(null);
+  const docLabel = page.doc === "invoice" ? (docStage?.label ?? null) : null;
+  const tellDocLabel = useEffectEvent(() => page.onDocLabel?.(docLabel));
+  useEffect(() => {
+    tellDocLabel();
+  }, [docLabel]);
   /* STOCK'S WORD FOR EACH UNIT AND CONTROL, read once On site is opened
      (/api/stock/job, what the Overview's Equipment block read) */
   const [stock, setStock] = useState<EquipmentRow[] | null>(null);

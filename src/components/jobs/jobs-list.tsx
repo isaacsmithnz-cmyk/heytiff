@@ -5,7 +5,6 @@ import { Button } from "@/components/parts/button";
 import { Chooser, type ChooserOption } from "@/components/parts/chooser";
 import { Empty } from "@/components/parts/states";
 import { Fade } from "@/components/parts/fade";
-import { Initials } from "@/components/parts/initials";
 import { SearchField } from "@/components/parts/search-field";
 import { StateWord } from "@/components/parts/state";
 import { ViewTabs } from "@/components/parts/tabs";
@@ -41,7 +40,22 @@ import {
 
 const PANEL = "jl-panel";
 
+/* A ROW READS LIKE THE JOB'S OWN PAGE (Isaac, 17 November 2026, the
+   first-look fixes, https://claude.ai/artifact/7ijojbkVbMJUGasurPCvVF: "the
+   job card changes to match are good"). The coloured outline went: the
+   number sits in the 40-high square of its colour that heads a job's page,
+   the client beside it and the kind and the suburb on one line under, so a
+   row is two lines, not three. Who went as a column of initials: whoever is
+   on it is said by first name under Next. */
+const firstNames = (names: readonly string[]): string => {
+  const first = names.map((n) => n.trim().split(/\s+/)[0]).filter(Boolean);
+  if (first.length <= 1) return first[0] ?? "";
+  return `${first.slice(0, -1).join(", ")} and ${first[first.length - 1]}`;
+};
+
 function JobRow({ row, money }: { row: JobsListRow; money: boolean }) {
+  const crew = firstNames(row.who);
+  const line = [row.kind, row.site].filter(Boolean).join(", ");
   return (
     <li>
       <RecordLink href={row.href} className="jl-row">
@@ -55,8 +69,7 @@ function JobRow({ row, money }: { row: JobsListRow; money: boolean }) {
             )}
             <span className="jl-cb">
               <Fade className="jl-name">{row.client}</Fade>
-              {row.site && <Fade className="jl-sub">{row.site}</Fade>}
-              <Fade className="jl-kindw">{row.kind}</Fade>
+              {line && <Fade className="jl-sub">{line}</Fade>}
             </span>
           </span>
         </span>
@@ -64,18 +77,8 @@ function JobRow({ row, money }: { row: JobsListRow; money: boolean }) {
           <StateWord tone={row.tone}>{row.state}</StateWord>
         </span>
         <span className="jl-cell jl-next">
-          <Fade>{row.next}</Fade>
-        </span>
-        <span className="jl-cell jl-who">
-          {row.who.length > 0 ? (
-            <span className="jl-discs">
-              {row.who.map((n) => (
-                <Initials key={n} name={n} size={24} />
-              ))}
-            </span>
-          ) : (
-            <span className="jl-sub">Nobody yet</span>
-          )}
+          <Fade className="jl-when">{row.next}</Fade>
+          {crew && <Fade className="jl-sub">{crew}</Fade>}
         </span>
         {money && <span className="jl-cell jl-value">{row.valueCents !== null ? fmtAud(row.valueCents) : ""}</span>}
       </RecordLink>
@@ -241,7 +244,6 @@ export function JobsList({ data, initial }: { data: JobsListData; initial: ListS
               <span className="jl-cell">Job</span>
               <span className="jl-cell">Where it&apos;s up to</span>
               <span className="jl-cell">Next</span>
-              <span className="jl-cell">Who</span>
               {money && <span className="jl-cell jl-value">Value</span>}
             </div>
             <ul className="jl-rows" aria-label={`${viewLabel}, ${shown.length} ${shown.length === 1 ? "job" : "jobs"}`}>

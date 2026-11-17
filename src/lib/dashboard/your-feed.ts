@@ -1,4 +1,6 @@
+import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { jobPageHref } from "@/lib/shell/links";
+import { plusDays } from "@/lib/workboard/dates";
 import { stampWhen } from "./diary-conversation";
 import type { DiaryConversation, DiaryFeed } from "./diary-feed";
 import type { FeedEvent } from "./feed-events";
@@ -209,6 +211,35 @@ export function yourFeed(input: {
   /* newest first; what waits now sits at now, and to you leads a tie */
   const rank = { you: 0, approvals: 1, jobs: 2 } as const;
   return items.sort((a, b) => (a.at !== b.at ? (a.at < b.at ? 1 : -1) : rank[a.filter] - rank[b.filter]));
+}
+
+/* BY DAY, AS A JOB'S FEED IS (Isaac, 17 November 2026, the first-look fixes,
+   https://claude.ai/artifact/7ijojbkVbMJUGasurPCvVF): Home's Activity feed
+   says the day once, over its items (Today, Yesterday, Thu 12 Nov), and each
+   item only its time. Items keep their order; a day is the run of them that
+   falls on it, by the account's clock (`at`). */
+export type FeedDay = { key: string; label: string; items: FeedItem[] };
+
+/** "9:10 am" out of "Mon 19 Oct, 9:10 am"; "" for what waits now. */
+export const feedTime = (when: string): string => {
+  const i = when.lastIndexOf(", ");
+  return i < 0 ? when : when.slice(i + 2);
+};
+
+export function feedDays(items: readonly FeedItem[], today: string): FeedDay[] {
+  const yesterday = plusDays(today, -1);
+  const days: FeedDay[] = [];
+  for (const item of items) {
+    const day = /^\d{4}-\d{2}-\d{2}/.test(item.at) ? item.at.slice(0, 10) : today;
+    const last = days[days.length - 1];
+    if (last && last.key.startsWith(`${day}#`)) {
+      last.items.push(item);
+      continue;
+    }
+    const label = day >= today ? "Today" : day === yesterday ? "Yesterday" : fmtAuWeekdayDayMonth(day) || day;
+    days.push({ key: `${day}#${days.length}`, label, items: [item] });
+  }
+  return days;
 }
 
 export const inFilter = (items: readonly FeedItem[], f: FeedFilter) => (f === "all" ? items : items.filter((i) => i.filter === f));

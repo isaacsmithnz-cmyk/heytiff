@@ -5833,9 +5833,22 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jp-onsite { display:grid; grid-template-columns:minmax(0,1fr) 520px; gap:16px; align-items:start; }
 .fg .jp-onsite > .wb2-jcface { min-width:0; }
 .fg .jp-onsite .jv { grid-template-columns:minmax(0,1fr); gap:16px; }
-.fg .jp-onsite .jv-main, .fg .jp-onsite .jm { padding:16px; border:1px solid var(--edge); border-radius:var(--r-card); background:var(--paper); }
+.fg .jp-onsite .jv-main, .fg .jp-onsite .jm { padding:16px; border-radius:var(--r-card); background:var(--paper); box-shadow:var(--shadow-card); }
 .fg .jp-onsite .jv-main, .fg .jp-onsite .jm { height:var(--fit-h, auto); overflow:auto; }
 .fg .jv-title { margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+/* EVERY TAB'S CARDS ARE LIFTED (Isaac, 17 November 2026, the first-look
+   fixes, https://claude.ai/artifact/7ijojbkVbMJUGasurPCvVF): On site's and
+   Files' cards are white on the page's grey with no hairline, as Overview's,
+   Scope's and Billing's are, and every card on a job's page names itself in
+   its hue's word value with its glyph beside (face-title.tsx). Off the job's
+   page a face keeps its ink name and no glyph. */
+.fg .jt-ic { display:none; }
+.fg .jp-fit .jt { display:flex; align-items:center; gap:8px; }
+.fg .jp-fit .jt-ic { display:inline-flex; flex:none; }
+.fg .jp-fit .jt--purple { color:var(--purple-w); }
+.fg .jp-fit .jt--green { color:var(--green-w); }
+.fg .jp-fit .jt--yellow { color:var(--yellow-w); }
+.fg .jp-fit .jt--pink { color:var(--pink-w); }
 /* in On site's 400 column the shelves stand in one column, each a group under its hairline, no card in a card */
 .fg .jp-onsite .jm-shelves { display:flex; flex-direction:column; gap:16px; columns:auto; }
 .fg .jp-onsite .jm-box { margin:0; padding:0; border:0; border-radius:0; background:none; }
@@ -5847,7 +5860,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    documents and then the designs in a 400 column, fitted to the screen, each
    a flat card in the hairline, scrolling inside itself */
 .fg .jp-files { display:grid; grid-template-columns:minmax(0,1fr) 400px; gap:16px; align-items:start; }
-.fg .jp-files > .wb2-jcface, .fg .jp-files-side > .wb2-jcface { min-width:0; padding:16px; border:1px solid var(--edge); border-radius:var(--r-card); background:var(--paper); overflow:auto; }
+.fg .jp-files > .wb2-jcface, .fg .jp-files-side > .wb2-jcface { min-width:0; padding:16px; border-radius:var(--r-card); background:var(--paper); box-shadow:var(--shadow-card); overflow:auto; }
 .fg .jp-files > .wb2-jcface { height:var(--fit-h, auto); }
 .fg .jp-files-side { display:flex; flex-direction:column; gap:16px; min-width:0; height:var(--fit-h, auto); }
 .fg .jp-files-side > .wb2-jcface { flex:0 1 auto; min-height:0; }
@@ -6508,8 +6521,8 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jl-pick .pt-chooser.jl-pick-ch { width:auto; min-width:176px; padding-left:48px; }
 .fg .jl-note { margin:0; font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
 /* the table: a grid per row, so the head and the rows share the columns */
-.fg .jl-table { --jl-cols:minmax(0,2.4fr) minmax(0,1.3fr) minmax(0,1fr) 112px; min-width:0; }
-.fg .jl-table.jl-table--money { --jl-cols:minmax(0,2.4fr) minmax(0,1.3fr) minmax(0,1fr) 112px 112px; }
+.fg .jl-table { --jl-cols:minmax(0,2fr) minmax(0,1.4fr) minmax(0,1.2fr); min-width:0; }
+.fg .jl-table.jl-table--money { --jl-cols:minmax(0,2fr) minmax(0,1.4fr) minmax(0,1.2fr) 112px; }
 .fg .jl-rows { margin:0; padding:0; list-style:none; }
 /* Show more, under the hundred a view draws */
 .fg .jl-more { display:flex; justify-content:center; padding:24px 0; }
@@ -6519,12 +6532,13 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jl-rows .jl-row:focus-visible { outline:none; box-shadow:var(--ring); }
 .fg .jl-cell { display:flex; flex-direction:column; justify-content:center; min-width:0; font-size:14px; line-height:20px; font-weight:400; }
 .fg .jl-row--head .jl-cell { font-size:12px; line-height:16px; font-weight:500; }
-/* THE JOB AS ITS CARD (Isaac, 5 November 2026: "make it so that the job
-   section looks like the job cards ... the number on the side, the color"):
-   a Schedule card at the table's size, the number in a solid box of the
-   job's card colour (white on it, ink on yellow), a hairline of it, and the
-   client, the suburb and the kind inside, so Client and Kind are no longer
-   columns of their own */
+/* THE JOB AS ITS PAGE'S HEAD (Isaac, 17 November 2026, the first-look
+   fixes, https://claude.ai/artifact/7ijojbkVbMJUGasurPCvVF; before it, 5
+   November's Schedule card with its hairline): the number in the 40-high
+   square of the job's card colour that heads its page (`.jp-num`; white on
+   it, ink on yellow), and beside it the client in bold over the kind and
+   the suburb in grey. No outline: the row's hairline is its edge. Who went
+   as a column; the people are named under Next. */
 .fg .jl-card--red { --jl-hue:var(--red-w); }
 .fg .jl-card--orange { --jl-hue:var(--orange-card); }
 .fg .jl-card--yellow { --jl-hue:var(--yellow-card); --jl-on:var(--ink); }
@@ -6533,22 +6547,16 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jl-card--purple { --jl-hue:var(--purple-w); }
 .fg .jl-card--pink { --jl-hue:var(--pink-card); }
 .fg .jl-card--grey { --jl-hue:var(--q); }
-.fg .jl-card { display:flex; align-items:stretch; min-width:0; max-width:440px; min-height:72px; border:1px solid var(--jl-hue, var(--q)); border-radius:var(--r-control); background:var(--white); overflow:hidden; }
-.fg .jl-cn { flex:none; display:flex; flex-direction:column; align-items:center; justify-content:center; min-width:72px; padding:0 12px; background:var(--jl-hue, var(--q)); color:var(--jl-on, var(--white)); font-size:16px; line-height:24px; font-weight:700; font-variant-numeric:tabular-nums; }
+.fg .jl-card { display:flex; align-items:center; gap:12px; min-width:0; }
+.fg .jl-cn { flex:none; display:flex; flex-direction:column; align-items:center; justify-content:center; min-width:64px; min-height:40px; padding:0 12px; border-radius:var(--r-button); background:var(--jl-hue, var(--q)); color:var(--jl-on, var(--white)); font-size:16px; line-height:24px; font-weight:700; font-variant-numeric:tabular-nums; }
 .fg .jl-cn-ours { font-size:12px; line-height:16px; font-weight:500; }
-.fg .jl-cb { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; justify-content:center; padding:8px 12px; }
+.fg .jl-cb { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; justify-content:center; }
 .fg .jl-name { font-weight:600; }
 .fg .jl-sub { font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
-.fg .jl-kindw { font-size:13px; line-height:18px; font-weight:500; color:var(--ink); }
 /* the row's one dot is its kind's: the state is the word alone, as the board draws it */
 .fg .jl-state .pt-state .pt-dot { display:none; }
 .fg .jl-state .pt-state { font-size:14px; line-height:20px; max-width:100%; }
-.fg .jl-next { color:var(--q); }
-.fg .jl-who { flex-direction:row; align-items:center; justify-content:flex-start; }
-/* everyone on the job, apart and readable (Isaac, 20 October: "AM, LJ and LM
-   are all kind of merged across"): three to a line, a second line under
-   when there are more */
-.fg .jl-discs { display:flex; flex-wrap:wrap; align-items:center; gap:4px; max-width:80px; }
+.fg .jl-when { color:var(--ink); }
 .fg .jl-value { align-items:flex-end; text-align:right; font-variant-numeric:tabular-nums; }
 
 /* ===== V2: CONVERSATIONS (v2, step 5; components/conversations, and
@@ -6748,9 +6756,12 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    box in v2's dress, a row's time and tick, a line in its state's colour,
    and the count beside Home in the sidebar (decision 25). */
 .fg .wrap.hm { max-width:none; padding:24px 32px 48px; display:flex; flex-direction:column; gap:32px; }
-/* the three columns under Tiff's box (Isaac, 20 October): Today, Your feed
-   in the middle and widest, To do; 30/40/30 (Isaac, 26 October 2026) */
-.fg .hm-cols { display:grid; grid-template-columns:minmax(0,3fr) minmax(0,4fr) minmax(0,3fr); align-items:stretch; gap:16px; }
+/* two cards under Tiff's box, as a job's Overview (Isaac, 17 November 2026,
+   the first-look fixes, https://claude.ai/artifact/7ijojbkVbMJUGasurPCvVF):
+   Today 420 wide, and the Activity feed, with To do in it, beside it; each
+   as tall as what it holds. Before, three columns as tall as the page,
+   30/40/30 (20 October to 17 November) */
+.fg .hm-cols { display:grid; grid-template-columns:420px minmax(0,1fr); align-items:start; gap:16px; }
 /* each column a white card lifted off the white page, no edge (Isaac, 5
    November 2026, "C, lifted", docs/design.md "On Home"): the card shadow,
    its name and glyph in its colour's word value, as the job's Overview */
@@ -6762,6 +6773,54 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .hm-cols .hm-head--yellow { color:var(--yellow-w); }
 .fg .hm-cols .hm-head--green { color:var(--green-w); }
 .fg .hm-cols .hm-headlinks, .fg .hm-cols .hm-headlink { color:var(--ink); }
+/* Schedule and Show all are words, not underlined (his rule: no underlined links) */
+.fg .hm .pt-link { text-decoration:none; font-weight:600; }
+/* the feed's views on the right of its name, as a job's feed has them */
+.fg .hm-headtray { margin-left:auto; }
+/* a day's name, or To do, over its run of the feed */
+.fg .hm-group { display:flex; flex-direction:column; min-width:0; }
+.fg .hm-dayname { margin:0; padding:16px 0 4px; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.fg .hm-group > .pt-rows > .pt-row { padding-top:8px; padding-bottom:8px; }
+.fg .hm-grouplink { align-self:flex-start; margin:8px 0 4px; font-size:14px; line-height:20px; }
+/* on Home an item's time stands on the right of its line, the day over it */
+.fg .hm-feed--home .hm-feed-open, .fg .hm-feed--home .hm-feed-words { display:grid; grid-template-columns:minmax(0,1fr) auto; column-gap:12px; row-gap:4px; }
+.fg .hm-feed--home .hm-feed-head { grid-column:1; grid-row:1; }
+.fg .hm-feed--home .hm-feed-when { grid-column:2; grid-row:1; align-self:start; padding-top:2px; font-variant-numeric:tabular-nums; }
+.fg .hm-feed--home .hm-feed-said { grid-column:1 / -1; }
+/* the box on one line: the words, then the microphone and Send inside it;
+   it grows upward as you type, the buttons staying at its foot */
+.fg .hm-ask .cv-field { flex-direction:row; align-items:flex-end; gap:8px; }
+.fg .hm-ask .cv-field > .cv-wordsat { flex:1 1 auto; }
+.fg .hm-ask .cv-field .cv-words { margin:8px 12px; }
+.fg .hm-ask .cv-field > .cv-boxbar { flex:none; }
+/* TODAY'S BOOKINGS AS THE SCHEDULE'S CARDS (rule 19): a white card in a
+   hairline of the job's colour, its number in a solid box of it, white on
+   it, ink on yellow; the client, then the suburb, the kind and who else is
+   going; the time on the right, where it's up to under it. A done one's
+   colour goes grey and its client goes quiet. */
+.fg .hm-day.pt-rows { display:flex; flex-direction:column; gap:8px; padding-top:12px; }
+.fg .hm-day.pt-rows > .pt-row + .pt-row { border-top:0; }
+.fg .hm-jc--red { --hm-c:var(--red-w); }
+.fg .hm-jc--orange { --hm-c:var(--orange-card); }
+.fg .hm-jc--yellow { --hm-c:var(--yellow-card); --hm-on:var(--ink); }
+.fg .hm-jc--green { --hm-c:var(--green-w); }
+.fg .hm-jc--blue { --hm-c:var(--press); }
+.fg .hm-jc--purple { --hm-c:var(--purple-w); }
+.fg .hm-jc--pink { --hm-c:var(--pink-card); }
+.fg .hm-jc--grey { --hm-c:var(--q); }
+.fg .hm-jc { list-style:none; }
+.fg .hm-jc-hit { display:flex; align-items:center; gap:12px; min-width:0; padding:8px 12px 8px 8px; border:1px solid var(--hm-c, var(--q)); border-radius:var(--r-button); background:var(--paper); color:var(--ink); text-decoration:none; transition:background-color var(--t-fast) var(--ease); }
+.fg a.hm-jc-hit:hover { background:var(--tint); }
+.fg a.hm-jc-hit:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .hm-jc-n { flex:none; display:flex; align-items:center; justify-content:center; min-width:56px; min-height:40px; padding:0 8px; border-radius:var(--r-control); background:var(--hm-c, var(--q)); color:var(--hm-on, var(--white)); font-size:16px; line-height:24px; font-weight:700; font-variant-numeric:tabular-nums; }
+.fg .hm-jc-t { flex:1 1 auto; display:flex; flex-direction:column; min-width:0; }
+.fg .hm-jc-client { font-size:14px; line-height:20px; font-weight:600; }
+.fg .hm-jc-line { font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
+.fg .hm-jc-end { flex:none; display:flex; flex-direction:column; align-items:flex-end; gap:2px; text-align:right; }
+.fg .hm-jc-time { font-size:13px; line-height:18px; font-weight:600; font-variant-numeric:tabular-nums; }
+.fg .hm-jc-end .pt-state { font-size:13px; line-height:18px; }
+.fg .hm-jc-end .pt-state .pt-dot { display:none; }
+.fg .hm-jc--done .hm-jc-client { font-weight:500; color:var(--q); }
 /* a column's head: a solid block of its colour, its glyph in ink on it */
 .fg .hm-blk { display:inline-flex; align-items:center; justify-content:center; flex:none; width:32px; height:32px; border-radius:var(--r-button); color:var(--ink); }
 .fg .hm-blk--purple { background:var(--purple); }

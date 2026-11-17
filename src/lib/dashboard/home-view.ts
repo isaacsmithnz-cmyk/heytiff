@@ -15,7 +15,13 @@ import { FEED_TALK_DAYS, yourFeed, type FeedItem } from "./your-feed";
 import { plusDays } from "@/lib/workboard/dates";
 
 /** Home's three columns: Today, To do, and Your feed in place of Activity. */
-export type HomeView = { today: TodayView; todo: TodoRow[]; feed: FeedItem[] };
+export type HomeView = {
+  today: TodayView;
+  todo: TodoRow[];
+  feed: FeedItem[];
+  /** the account's day Home was read on, YYYY-MM-DD: the feed's days count from it */
+  day: string;
+};
 
 /** Today: the rail's bookings and timed tasks, and the day's events and
     shared birthdays (`day`, the phone's own read: ./event-mobile). */
@@ -78,5 +84,6 @@ export function homeView(data: DashboardData): HomeView {
       now,
       since: plusDays(data.rail.dayISO, -FEED_TALK_DAYS),
     }),
+    day: data.rail.dayISO,
   };
 }

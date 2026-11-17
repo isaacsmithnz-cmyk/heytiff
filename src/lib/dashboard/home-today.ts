@@ -35,6 +35,12 @@ export type TodayRow = {
   href: string | null;
   /** The task a tick completes. Null for a job. */
   taskId: string | null;
+  /** A booking as the Schedule's card (rule 19; Isaac, 17 November 2026, the
+      first-look fixes, https://claude.ai/artifact/7ijojbkVbMJUGasurPCvVF):
+      the number in its colour's box, the client, and the suburb, the kind
+      and who else is going on one line. Null for a task, an event, or a
+      booking with no job number. */
+  card?: { number: string; client: string; line: string; done: boolean } | null;
 };
 
 /** "7:30", "12:45": a day reads in order, so no am or pm, as the board draws it. */
@@ -122,6 +128,8 @@ export function todayRows(
         : now !== null && now >= b.startMin
           ? { tone: "good", word: "On now" }
           : null;
+    const client = b.clientName?.trim() || b.suburb?.trim() || `Job ${number}`;
+    const where = [b.suburb?.trim() || null, kind, crew.length > 0 ? `with ${andList(crew)}` : null].filter(Boolean).join(", ");
     rows.push({
       at: b.startMin,
       key: `job:${b.key}`,
@@ -133,6 +141,7 @@ export function todayRows(
       state,
       href: jobPageHref(b.remoteId),
       taskId: null,
+      card: number ? { number, client, line: where, done: state?.word === "Done" } : null,
     });
   }
   for (const t of rail.tasks) {

@@ -17,6 +17,7 @@ import { VISIT_STAGES, type VisitStage } from "@/lib/quotes/buildup";
 import { fmtMinutesAsHours } from "@/lib/workboard/all-jobs";
 import { placeTasks, visitSlots, type JobTask, type TaskLine, type TaskPhoto, type TaskUpdate } from "@/lib/workboard/visit-tasks";
 import { dateBlock, rangeWords } from "@/lib/workboard/visit-words";
+import { FaceTitle } from "./face-title";
 
 /* A JOB'S VISITS (Isaac's mock of 25 October 2026, frames 1 to 4: "now I
    think we're ready to build").
@@ -291,7 +292,9 @@ export function JobVisits({
     <div className="jv">
       <div className="jv-main">
         {/* the card's name (Isaac, 14 November 2026, mock F) */}
-        <h3 className="jv-title">Visits</h3>
+        <FaceTitle className="jv-title" icon="calendar" hue="purple">
+          Visits
+        </FaceTitle>
         <div className="jv-head">
           <h3>Coming up</h3>
           {onBook && (

@@ -136,7 +136,19 @@ function LaterButton({ name, onPick }: { name: string; onPick: (s: Snooze) => vo
 
 /** Rows of To do's kind, in any of Home's columns: a tick for a task, the
     dot, the name, the line, and the one button that does the thing. */
-export function TodoList({ rows, label, cap }: { rows: readonly TodoRow[]; label: string; cap?: number }) {
+export function TodoList({
+  rows,
+  label,
+  cap,
+  disc = false,
+}: {
+  rows: readonly TodoRow[];
+  label: string;
+  cap?: number;
+  /** in the Activity feed: a row that isn't a task leads with the job feed's
+      checklist disc, where a feed item's face goes, and the line keeps its colour */
+  disc?: boolean;
+}) {
   const after = useAfter();
   const replyHere = useContext(HomeReplyContext);
   /* a mention's Reply, answered in Your feed on this page */
@@ -202,9 +214,13 @@ export function TodoList({ rows, label, cap }: { rows: readonly TodoRow[]; label
                     if (on && row.tick) void tick(row.key, row.tick);
                   }}
                 />
+              ) : disc ? (
+                <span className="hm-feed-av hm-feed-av--thing" aria-hidden="true">
+                  <Icon name="listCheck" size={16} />
+                </span>
               ) : undefined
             }
-            dot={stateTone(row.tone)}
+            dot={disc ? undefined : stateTone(row.tone)}
             /* up to three lines, never cut off at the right (Isaac, 25 October 2026) */
             lines={3}
             name={row.name}

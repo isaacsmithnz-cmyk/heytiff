@@ -41,6 +41,7 @@ export default async function DashboardHomePage({
         today={view.today}
         todo={view.todo}
         feed={view.feed}
+        day={view.day}
         /* To do's Reply on a mention names its note: the box opens in Your feed */
         replyTo={typeof reply === "string" && /^[0-9a-f-]{36}$/i.test(reply) ? reply : null}
         openTask={typeof task === "string" && UUID.test(task) ? task : null}

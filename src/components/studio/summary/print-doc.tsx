@@ -23,6 +23,7 @@ import { useStudioFlow } from "../flow";
 import { PlanFigure } from "./plan-figure";
 import { picture3d } from "../view-3d";
 import { sceneOf } from "@/lib/studio/scene3d";
+import type { DesignDocument } from "@/lib/studio/document";
 import { NO_BRAND, type OrgBrand } from "@/lib/org/brand";
 import { themeVars } from "@/lib/org/theme";
 
@@ -65,6 +66,41 @@ const formatDay = (iso: string): string =>
    none: the sheet takes the whole page. */
 const FOOT_MM = 12;
 const SIDE_MM = 14;
+
+/** The house in 3D as a picture for the paper, or null when it can't be
+    drawn in 20 s (it is then left out rather than holding the print). */
+export function housePicture(doc: DesignDocument): Promise<string | null> {
+  const timeout = new Promise<null>((r) => window.setTimeout(() => r(null), 20000));
+  return Promise.race([picture3d(sceneOf(doc)).catch(() => null), timeout]);
+}
+
+/** The pictures the file's page will want, drawn HERE, in the browser asking
+    for the file, as JPEGs small enough to ride in the request. */
+export async function housePicturesFor(docs: readonly DesignDocument[]): Promise<Record<string, string>> {
+  const out: Record<string, string> = {};
+  for (const d of docs) {
+    if (!d.floors.length) continue;
+    const png = await housePicture(d);
+    const jpg = png ? await asJpeg(png).catch(() => null) : null;
+    if (jpg) out[d.id] = jpg;
+  }
+  return out;
+}
+
+async function asJpeg(png: string): Promise<string> {
+  const img = new Image();
+  img.src = png;
+  await img.decode();
+  const c = document.createElement("canvas");
+  c.width = img.naturalWidth;
+  c.height = img.naturalHeight;
+  const g = c.getContext("2d");
+  if (!g) return png;
+  g.fillStyle = "#fff";
+  g.fillRect(0, 0, c.width, c.height);
+  g.drawImage(img, 0, 0);
+  return c.toDataURL("image/jpeg", 0.85);
+}
 
 export function nextPageBoxes(size: string): string {
   const box = (at: "left" | "right", content: string, width: string) =>
@@ -136,6 +172,7 @@ export function PrintDoc({
   urls,
   brand = NO_BRAND,
   onReady,
+  drawn,
 }: {
   model: PrintModel;
   urls: Record<string, string>;
@@ -144,6 +181,11 @@ export function PrintDoc({
   brand?: OrgBrand;
   /** every plan raster AND the logo is decoded — safe to window.print() */
   onReady: () => void;
+  /** the house in 3D, already drawn, by design id. Given, this page draws
+      none itself: the server's headless Chrome has no graphics card, and a
+      house drawn there in software ran the PDF out of time and memory (18
+      November 2026), so the browser that asked for the file draws it */
+  drawn?: Record<string, string>;
 }) {
   const { options } = model;
   /* the next flow: its document (sheet-doc-next.tsx), and a plan page that
@@ -220,6 +262,7 @@ export function PrintDoc({
      to be DRAWN, not just found: they are committed synchronously before the
      paint that fires it. */
   const logoUrl = brand.logoUrl;
+  const given = drawn;
   const [trims, setTrims] = useState<Record<string, PixelTrim> | null>(null);
   /* THE HOUSE IN 3D, a page after a design's plans (Isaac, 8 November 2026),
      drawn in this browser before it prints; one that can't be drawn in 20 s
@@ -245,16 +288,10 @@ export function PrintDoc({
         onReadyRef.current();
       }
     };
-    const drawn = Promise.all(
-      model.variants
-        .filter((v) => v.floors.length > 0)
-        .map(async (v) => {
-          const timeout = new Promise<null>((r) => window.setTimeout(() => r(null), 20000));
-          const png = await Promise.race([picture3d(sceneOf(v.doc)).catch(() => null), timeout]);
-          return [v.doc.id, png] as const;
-        }),
-    );
-    void Promise.all([Promise.all(jobs), trimming, drawn]).then(([, found, pics]) => {
+    const pics = given
+      ? Promise.resolve(Object.entries(given))
+      : Promise.all(model.variants.filter((v) => v.floors.length > 0).map(async (v) => [v.doc.id, await housePicture(v.doc)] as const));
+    void Promise.all([Promise.all(jobs), trimming, pics]).then(([, found, pics]) => {
       if (!alive.current) return;
       const next: Record<string, PixelTrim> = {};
       for (const [ref, t] of found) if (t) next[ref] = t;
@@ -270,7 +307,7 @@ export function PrintDoc({
         fire();
       });
     });
-  }, [urls, logoUrl, model.variants]);
+  }, [urls, logoUrl, model.variants, given]);
 
   return createPortal(
     <div

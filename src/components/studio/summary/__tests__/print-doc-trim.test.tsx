@@ -12,12 +12,14 @@ import { buildDesignSnapshot, designBasis } from "@/lib/studio/summary";
 import { ALL_SECTIONS, type PrintModel } from "@/lib/studio/export";
 import { trimOfImageUrl, withPrintTrims } from "@/lib/studio/plans";
 import { PrintDoc } from "../print-doc";
+import { picture3d } from "@/components/studio/view-3d";
 
 jest.mock("@/lib/studio/plans", () => ({
   ...jest.requireActual("@/lib/studio/plans"),
   trimOfImageUrl: jest.fn(),
 }));
 const trimMock = trimOfImageUrl as jest.MockedFunction<typeof trimOfImageUrl>;
+jest.mock("@/components/studio/view-3d", () => ({ picture3d: jest.fn(() => Promise.resolve(null)) }));
 
 /** an Image that decodes the moment it is given a source */
 class LoadingImage {
@@ -128,6 +130,23 @@ it("never overrides a crop somebody made", async () => {
   );
   await settle();
   expect(viewBox()).toEqual([-25, -25, 450, 550]);
+});
+
+/* the server's headless Chrome has no graphics card: a house drawn there in
+   software ran the PDF out of time and memory (18 November 2026), so the
+   browser asking for the file draws it and the page is handed the picture */
+it("prints the house in 3D it is handed, and never draws one itself", async () => {
+  trimMock.mockResolvedValue(null);
+  (picture3d as jest.Mock).mockClear();
+  const model = modelWith();
+  const onReady = jest.fn();
+  const jpg = "data:image/jpeg;base64,AAAA";
+  render(<PrintDoc model={model} urls={{ r1: "https://signed.example/r1.png" }} drawn={{ [model.variants[0].doc.id]: jpg }} onReady={onReady} />);
+  await settle();
+
+  expect(picture3d).not.toHaveBeenCalled();
+  expect(document.querySelector("img.ds-print-3d")?.getAttribute("src")).toBe(jpg);
+  expect(onReady).toHaveBeenCalledTimes(1);
 });
 
 describe("a floor as it prints", () => {

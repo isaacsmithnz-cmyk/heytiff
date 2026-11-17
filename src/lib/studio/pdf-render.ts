@@ -19,18 +19,33 @@ import { signPdfTicket, type PdfTicket } from "./pdf-request";
 const LOCAL_CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const READY_MS = 25_000;
 
-export async function renderDesignPdf(ticket: PdfTicket, origin: string): Promise<Uint8Array> {
+export async function renderDesignPdf(
+  ticket: PdfTicket,
+  origin: string,
+  pictures: Record<string, string> = {}
+): Promise<Uint8Array> {
   /* PrintDoc raises the flag once every plan raster and the logo have decoded
-     — the moment the print window would have opened */
-  return renderPdfAt("/print/design", signPdfTicket(ticket), origin);
+     — the moment the print window would have opened. The house in 3D comes
+     already drawn (pdf-print.tsx): this Chrome never draws it. */
+  return renderPdfAt("/print/design", signPdfTicket(ticket), origin, { __htPdfPictures: pictures });
 }
 
 /** Any print page that takes a ticket as `t` and raises `window.__htPdfReady`
     once it is ready to print. The design's and the certificate's both do. */
-export async function renderPdfAt(path: string, ticket: string, origin: string): Promise<Uint8Array> {
+export async function renderPdfAt(
+  path: string,
+  ticket: string,
+  origin: string,
+  /** set on the page's window before any of its code runs */
+  given: Record<string, unknown> = {}
+): Promise<Uint8Array> {
   const browser = await launchHeadless();
   try {
     const page = await browser.newPage();
+    if (Object.keys(given).length > 0)
+      await page.evaluateOnNewDocument((g: Record<string, unknown>) => {
+        Object.assign(window, g);
+      }, given);
     const url = new URL(path, printBase(origin));
     url.searchParams.set("t", ticket);
     const res = await page.goto(url.toString(), { waitUntil: "load", timeout: READY_MS });

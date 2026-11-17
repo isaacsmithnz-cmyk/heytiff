@@ -37,7 +37,7 @@ import type { DesignJobRead } from "@/app/actions/studio-job-send";
 import type { DesignToJobResult } from "@/lib/studio/job-send";
 import { pushOutcome } from "./picklist-push";
 import { PlanFigure } from "./plan-figure";
-import { PrintDoc } from "./print-doc";
+import { PrintDoc, housePicturesFor } from "./print-doc";
 import { PicklistSection, SheetDoc } from "./sheet-doc";
 import { SheetDocNext } from "./sheet-doc-next";
 import { useStudioFlow } from "../flow";
@@ -149,10 +149,13 @@ function attachWords(r: Extract<DesignToJobResult, { ok: true }>): string {
    cannot lower a `throw` inside a try/catch, and refuses the whole component
    when it meets one. */
 async function designPdf(body: unknown): Promise<Blob> {
+  /* the route has two minutes; past that the answer is never coming, and
+     "Making the PDF" must not sit there for good (18 November 2026) */
   const res = await fetch("/api/studio/design-pdf", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(130_000),
   });
   if (!res.ok) throw new Error(`design-pdf answered ${res.status}`);
   return res.blob();
@@ -530,7 +533,15 @@ export function SendCard({
     const key = `${doc.meta.updatedAt} ${JSON.stringify(body)}`;
     const held = pdfMade.current;
     if (held && held.key === key) return held.blob;
-    const blob = await designPdf(body);
+    /* the house in 3D is drawn here, on this machine's graphics card: the
+       server's Chrome has none (print-doc.tsx housePicturesFor) */
+    const docs: DesignDocument[] = [doc];
+    othersOn.forEach((v) => {
+      const d = variantDocs.get(v.id);
+      if (d && d !== "error") docs.push(d);
+    });
+    const pictures = await housePicturesFor(docs);
+    const blob = await designPdf({ ...body, pictures });
     pdfMade.current = { key, blob };
     return blob;
   };
@@ -641,7 +652,8 @@ export function SendCard({
         <>
           {/* the print window stays, beside the file: some days a sheet of
               paper is what is wanted */}
-          <button className="ds-tbbtn" onClick={() => void startPrint()} disabled={busy || nothing}>
+          {/* not held by Making the PDF: the print window doesn't wait on the file */}
+          <button className="ds-tbbtn" onClick={() => void startPrint()} disabled={preparing || pnging || nothing}>
             {preparing ? "Preparing to print" : "Print"}
           </button>
           <button

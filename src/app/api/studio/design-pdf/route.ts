@@ -10,7 +10,23 @@ import { renderDesignPdf } from "@/lib/studio/pdf-render";
 
 export const runtime = "nodejs";
 /* a cold start unpacks Chromium before it prints anything */
-export const maxDuration = 60;
+export const maxDuration = 120;
+
+/* the house in 3D, drawn by the asking browser: data-URL pictures by design
+   id, nothing else, and no more than the request can carry */
+const MAX_PICTURES_BYTES = 3_000_000;
+function readPictures(raw: unknown): Record<string, string> {
+  if (!raw || typeof raw !== "object") return {};
+  const out: Record<string, string> = {};
+  let total = 0;
+  for (const [id, v] of Object.entries(raw as Record<string, unknown>).slice(0, 11)) {
+    if (id.length > 80 || typeof v !== "string" || !/^data:image\/(jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(v)) continue;
+    total += v.length;
+    if (total > MAX_PICTURES_BYTES) break;
+    out[id] = v;
+  }
+  return out;
+}
 
 export async function POST(request: Request): Promise<Response> {
   let orgId: string;
@@ -24,6 +40,7 @@ export async function POST(request: Request): Promise<Response> {
     name?: unknown;
     options?: unknown;
     flow?: unknown;
+    pictures?: unknown;
   } | null;
   const designId = typeof body?.designId === "string" ? body.designId.slice(0, 80) : "";
   if (!designId) return new Response("Which design?", { status: 400 });
@@ -31,7 +48,8 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const pdf = await renderDesignPdf(
       { orgId, designId, options: readPdfOptions(body?.options, designId), ...readPdfFlow(body?.flow) },
-      new URL(request.url).origin
+      new URL(request.url).origin,
+      readPictures(body?.pictures)
     );
     const name = pdfFileName(typeof body?.name === "string" ? body.name : "");
     return new Response(Buffer.from(pdf), {

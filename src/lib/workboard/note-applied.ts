@@ -26,6 +26,7 @@ import { visitsOf, type VisitMade } from "./note-visit";
 import { movedBack, movesMadeOf, type MoveMade } from "./note-move";
 import { costsOf, type CostMade } from "./note-cost";
 import { startedVariations, variationsOf, type VariationMade } from "./note-variation";
+import { skillsMadeOf, skillsToTakeBack, type SkillMade } from "./note-skills";
 
 export const APPLIED_V = 2;
 
@@ -85,6 +86,9 @@ export type AppliedRecord = {
   /** The bookings it moved (note-move): each with the schedule change that
       puts it back. Absent on a record from before the lane. */
   moves?: MoveMade[];
+  /** What Tiff's skills did (note-skills): each with its own Undo, where
+      it has one. Absent on a record from before them. */
+  skills?: SkillMade[];
 };
 
 /** WHAT GOES ON TO SERVICEM8 (Isaac, 14 November 2026, call 9): only a fact
@@ -110,6 +114,7 @@ export function onlyTodos(a: AppliedRecord): boolean {
     a.costs,
     a.variations,
     a.moves ?? [],
+    a.skills ?? [],
   ];
   return lists.every((l) => l.length === 0);
 }
@@ -173,6 +178,7 @@ export function appliedOf(raw: unknown): AppliedRecord {
     costs: costsOf(r.costs),
     variations: variationsOf(r.variations),
     moves: movesMadeOf(r.moves),
+    skills: skillsMadeOf(r.skills),
   };
 }
 
@@ -261,7 +267,8 @@ export function takesBack(a: AppliedRecord): boolean {
       bookedVisits(a).length +
       filedCosts(a).length +
       startedOn(a).length +
-      movedBookings(a).length >
+      movedBookings(a).length +
+      skillsToTakeBack(a.skills ?? []).length >
     0
   );
 }
@@ -391,6 +398,7 @@ export function undoSummary(a: AppliedRecord): string {
     a.entryIds.length + a.entryLines.length &&
       plural(a.entryIds.length + a.entryLines.length, "line", "lines"),
     a.kbIds.length && plural(a.kbIds.length, "library entry", "library entries"),
+    skillsToTakeBack(a.skills ?? []).length && plural(skillsToTakeBack(a.skills ?? []).length, "other thing", "other things"),
   ].filter((p): p is string => typeof p === "string");
   if (parts.length === 0) return "Taken back.";
   const said = parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}`;

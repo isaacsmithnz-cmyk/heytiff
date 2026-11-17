@@ -3,6 +3,7 @@ import type { NoteProposal, NoteStaff } from "@/lib/workboard/note-brain";
 import type { Turn } from "@/lib/workboard/note-turns";
 import type { LinePlanRow } from "@/lib/calendar/line";
 import type { VariationCard } from "@/lib/workboard/note-variation";
+import { skillRow, type SkillMade } from "@/lib/workboard/note-skills";
 
 /* WHAT TIFF WILL FILE, AS SHE SAYS IT — pure.
 
@@ -38,7 +39,7 @@ export type PlanRowView = {
 };
 
 /** The lane's own word, where a row has no person to lead with. */
-const LEAD: Record<Exclude<PlanLane, "tasks" | "visits">, string> = {
+const LEAD: Record<Exclude<PlanLane, "tasks" | "visits" | "skills">, string> = {
   costs: "Cost",
   variations: "Variation",
   flags: "On the board",
@@ -90,6 +91,15 @@ export function planView(
       if (who) return { ...base, lead: firstName(who.fullName), join: ", ", text, needs: false };
       return { ...base, lead: "Who", join: " ", text, needs: asking };
     }
+    if (row.lane === "skills") {
+      /* "**Used**, 3/8 5/8 pair coil, 14 m", "**Isaac**, blocked out Fri
+         12:00 to 3:30, dentist" (note-skills). A status or a new job waits
+         on its answer, and says so. */
+      const sk = proposal.skills![row.index]!;
+      const who = sk.whoId ? staff.find((s) => s.id === sk.whoId) : undefined;
+      const r = skillRow(sk, who ? firstName(who.fullName) : "");
+      return { ...base, lead: r.lead, join: ", ", text: r.text, needs: r.needs };
+    }
     return {
       ...base,
       lead: LEAD[row.lane],
@@ -109,6 +119,17 @@ export function withVariationCards(rows: readonly PlanRowView[], cards: readonly
   return rows.map((r) => {
     const card = r.lane === "variations" ? cards.find((c) => c.index === r.index) : undefined;
     return card ? { ...r, text: card.title, ...(card.href ? { open: card.href } : {}) } : r;
+  });
+}
+
+/** The plan's rows once filed, with what a skill did laid over its row:
+    the line it said, and where it opens. A skill still waiting on its
+    answer keeps asking; one done no longer does. */
+export function withSkillsMade(rows: readonly PlanRowView[], made: readonly SkillMade[] | undefined): PlanRowView[] {
+  if (!made?.length) return [...rows];
+  return rows.map((r) => {
+    const m = r.lane === "skills" ? made.find((x) => x.index === r.index && !x.undone) : undefined;
+    return m ? { ...r, needs: false, ...(m.open ? { open: m.open } : {}) } : r;
   });
 }
 

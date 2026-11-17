@@ -27,6 +27,7 @@
 /** At most this many variations come off one note: one client's change is
     one variation, however many parts it touches. */
 import { quoteHref } from "@/lib/shell/links";
+import { linesOf, linesWords, type SkillLine } from "./note-skills";
 export const VARIATIONS_MAX = 1;
 
 /** The most of what's changing a variation keeps (lines-job's own). */
@@ -36,6 +37,11 @@ export type ProposedVariation = {
   /** What the client wants changed, in the record's language: "return
       grille in Bed 2". */
   what: string;
+  /** The lines said for it (Isaac, 17 November 2026, Dan Brad's job:
+      "Allow 1 hour for the tap and 2 hours for the ceiling fans as a
+      variation. No materials needed"): put on the variation's draft, still
+      to price. Absent on every proposal stored before them. */
+  lines?: SkillLine[];
 };
 
 const text = (v: unknown, max: number): string =>
@@ -43,10 +49,15 @@ const text = (v: unknown, max: number): string =>
 
 /** One variation, re-derived from what came in (the model's, or a stored
     proposal's). Null when it says nothing to change. */
-export function variationFields(r: { what: unknown }): ProposedVariation | null {
-  const what = text(r.what, VARIATION_WHAT_MAX);
-  return what ? { what } : null;
+export function variationFields(r: { what: unknown; lines?: unknown }): ProposedVariation | null {
+  const lines = linesOf(r.lines);
+  const what = text(r.what, VARIATION_WHAT_MAX) || lines.map((l) => l.what).join(", ");
+  return what ? { what, ...(lines.length ? { lines } : {}) } : null;
 }
+
+/** The row's words: "ceiling fans and the tap, 3 h labour". */
+export const variationRowText = (v: ProposedVariation): string =>
+  [v.what, linesWords(v.lines ?? [])].filter(Boolean).join(", ");
 
 /* ── what a variation became ─────────────────────────────────────────── */
 
@@ -197,4 +208,4 @@ export const variationUndoneLine = (v: Pick<VariationMade, "how" | "why" | "n" |
   v.how === "started" ? `Variation ${v.n ?? 1} taken back.` : `The task "${variationTaskTitle(v.what, v.why ?? "unaccepted")}" taken back.`;
 
 /** The variation as the router is told it on a reply. */
-export const variationRowLine = (v: ProposedVariation): string => `Variation to the accepted quote: ${v.what}`;
+export const variationRowLine = (v: ProposedVariation): string => `Variation to the accepted quote: ${variationRowText(v)}`;

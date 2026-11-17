@@ -16,6 +16,8 @@ const ALLOWED = new Set([
   "src/lib/sites/site-notes-server.ts",
   // the job page's actions over it, behind the job card's gate
   "src/app/actions/site-notes.ts",
+  // Tiff's site_note skill, a note's "gate code is 4471" through those same actions (note-skills, 18 November 2026)
+  "src/lib/workboard/note-skills-file.ts",
   // the button and the pop-up on the job page
   "src/components/jobs/site-notes.tsx",
   // their reads by a route of their own, off the page's queue of actions (the walk of 15 November 2026)

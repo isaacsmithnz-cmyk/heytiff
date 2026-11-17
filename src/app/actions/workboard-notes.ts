@@ -137,7 +137,7 @@ import {
   type VariationMade,
 } from "@/lib/workboard/note-variation";
 import { startNoteVariation, variationRoute } from "@/lib/workboard/note-variation-start";
-import { VARIATION_KEPT, dropVariation, variationDraft } from "@/lib/quotes/lines-job-server";
+import { VARIATION_KEPT, dropVariation, readByHand, variationDraft } from "@/lib/quotes/lines-job-server";
 import { UNDO_HOLD_COLUMNS, undoHeldBySm8, type CreateRow } from "@/lib/integrations/sm8-note-plan";
 import { sm8PressFromSession } from "@/lib/integrations/sm8-press";
 import { sendNoteOnToSm8 } from "@/lib/integrations/sm8-note-send-on";
@@ -168,6 +168,8 @@ import { comingBookingsOf, sm8StaffOfCard } from "@/lib/workboard/note-move-read
 import { changeSchedule } from "@/lib/mobile/schedule-change";
 import { changeAllowed } from "@/lib/mobile/schedule-gate";
 import type { MobileCtx } from "@/lib/mobile/auth";
+import { FUEL_RECEIPT, NO_RECEIPT, confirmAsk, confirms, skillGap, skillsToTakeBack, type ProposedSkill, type SkillMade } from "@/lib/workboard/note-skills";
+import { addToQuote, doSkill, undoSkill } from "@/lib/workboard/note-skills-file";
 
 /* Smart Notes — capture, route, file, take back.
 
@@ -255,6 +257,8 @@ export type FileResult =
       visits?: VisitCard[];
       costs?: CostCard[];
       variations?: VariationCard[];
+      /** What Tiff's skills did (note-skills). */
+      skills?: SkillMade[];
       ask?: FileAsk;
     }
   /** `turns` when it asked: the conversation with the question on the end. */
@@ -1502,6 +1506,18 @@ export async function fileNote(
     if (gap) return askFirst(ctx, note, turns, { question: costQuestion(owed, gap), options: [] });
   }
 
+  /* A SKILL SHORT OF SOMETHING (note-skills) asks the same way: how many
+     were used, and the fuel's receipt (Isaac, 17 November 2026: "it should
+     ask you for a receipt still"), answered with a photo or "No receipt". */
+  for (const sk of draft.skills) {
+    if (!sk.on) continue;
+    if (sk.kind === "fuel" && (sk.litres || sk.amount) && !sk.noReceipt && !receipt) {
+      return askFirst(ctx, note, turns, { question: FUEL_RECEIPT, options: [{ label: NO_RECEIPT }] });
+    }
+    const gap = skillGap(sk);
+    if (gap && sk.kind !== "fuel") return askFirst(ctx, note, turns, { question: gap, options: [] });
+  }
+
   const picked = await pickTarget(ctx, note, opts.retarget);
   if (!picked) return { ok: false, error: MOVED };
   /* A NOTE THAT ONLY MOVES A BOOKING IS NO NOTE ON A JOB (note-move): it
@@ -1512,7 +1528,9 @@ export async function fileNote(
   const costsOn = draft.costs.some((c) => c.on);
   /* and a variation is a change to a job's quote: the same */
   const variationsOn = draft.variations.some((v) => v.on);
-  if ((jobBound(draft) || costsOn || variationsOn) && (target.kind === "none" || !target.id)) {
+  /* and a skill done on a job, as the job's Used, time or list are */
+  const skillsOnJob = draft.skills.some((k) => k.on && ON_A_JOB.has(k.kind));
+  if ((jobBound(draft) || costsOn || variationsOn || skillsOnJob) && (target.kind === "none" || !target.id)) {
     const jobs = matchedJobs(said, await jobCandidates(ctx.orgId), 3);
     const ask: FileAsk = {
       question: WHICH_JOB,
@@ -1613,31 +1631,75 @@ export async function fileNote(
   const money = variationsOn ? await can("financials") : false;
   const varJob = variationsOn ? (jobLabel ?? (await targetLabel(ctx.orgId, target))) : null;
   const variationsMade: VariationMade[] = [];
+  const linesMade: SkillMade[] = [];
   const variationTaskIds: string[] = [];
   const variationLines: string[] = [];
   for (const [index, v] of draft.variations.entries()) {
     if (!v.on) continue;
+    /* WITH ITS LINES (Isaac, 17 November 2026, Dan Brad's job: "Allow 1
+       hour for the tap and 2 hours for the ceiling fans as a variation"):
+       on a quote nothing's accepted on yet, they go on the quote itself;
+       on a variation started, onto its draft. Still to price either way. */
+    const lines = v.lines ?? [];
+    const jobUuid = target.kind === "job" ? (target.id ?? null) : null;
+    if (lines.length && jobUuid && !(await readByHand(ctx.orgId, jobUuid)).accepted.length) {
+      const q = await addToQuote(await skillCtx(ctx), jobUuid, v.what, lines, LINES_INDEX + index, "quote_add");
+      if (q.made) linesMade.push(q.made);
+      variationLines.push(q.line);
+      continue;
+    }
     const r = await makeVariation(ctx, note, target, v, index, { money, jobLabel: varJob });
     if ("made" in r) {
       variationsMade.push(r.made);
       if (r.made.taskId) variationTaskIds.push(r.made.taskId);
     }
     variationLines.push(r.line);
+    if ("made" in r && r.made.how === "started" && r.made.option !== null && lines.length && jobUuid) {
+      const q = await addToQuote(await skillCtx(ctx), jobUuid, v.what, lines, LINES_INDEX + index, "quote_add", r.made.option);
+      if (q.made) linesMade.push(q.made);
+      variationLines.push(q.line);
+    }
   }
   if (variationsMade.length) {
     done.applied.variations = variationsMade;
     if (variationTaskIds.length) done.applied.taskIds = [...appliedOf(done.applied).taskIds, ...variationTaskIds];
   }
 
+  /* TIFF'S SKILLS (note-skills, Isaac, 17 November 2026), each through
+     the app's own action for it (note-skills-file). A job's status and a
+     new job are asked first, since ServiceM8 can't take them back. */
+  const skillsMade: SkillMade[] = [...linesMade];
+  const skillLines: string[] = [];
+  const skillAsks: number[] = [];
+  if (draft.skills.some((k) => k.on)) {
+    const label = jobLabel ?? (await targetLabel(ctx.orgId, target));
+    const staff = await assignableStaff(ctx.orgId);
+    const sctx = await skillCtx(ctx);
+    for (const [index, k] of draft.skills.entries()) {
+      if (!k.on) continue;
+      if (confirms(k)) {
+        skillAsks.push(index);
+        continue;
+      }
+      const who = k.whoId ? (staff.find((p) => p.id === k.whoId)?.fullName.split(" ")[0] ?? "") : "";
+      const r = await doSkill(sctx, k, index, target, { today, jobLabel: label, receipt, who });
+      if (r.made) skillsMade.push(r.made);
+      skillLines.push(r.line);
+    }
+  }
+  if (skillsMade.length) done.applied.skills = skillsMade;
+
   /* THE MOVES (note-move), asked once the rest is in: the booking found,
      and "Move the visit?" asked before anything moves. A move asked goes
-     ahead of a visit's time; the visit is asked once the moves are done. */
+     ahead of a visit's time; the visit is asked once the moves are done.
+     A skill asked first goes ahead of both. */
   const moving = await moveAskFrom(ctx, plan.moves ?? [], 0, today);
-  const ask = moving.ask ?? (asks.length ? await visitAsk(ctx, target, plan.visits[asks[0]!]!, asks[0]!, today, visitStaff) : null);
+  const skillAsk = skillAsks.length ? skillFileAsk(plan.skills![skillAsks[0]!]!, skillAsks[0]!, (await targetLabel(ctx.orgId, target)) ?? "") : null;
+  const ask = skillAsk ?? moving.ask ?? (asks.length ? await visitAsk(ctx, target, plan.visits[asks[0]!]!, asks[0]!, today, visitStaff) : null);
   /* "Done." only over something done: a note whose one row is a visit
      still to be timed says the question alone, and so does a move */
   const didSomething =
-    takesBack(appliedOf(done.applied)) || made.length > 0 || costsMade.length > 0 || variationsMade.length > 0 || (!ask && !movesOnly);
+    takesBack(appliedOf(done.applied)) || made.length > 0 || costsMade.length > 0 || variationsMade.length > 0 || skillLines.length > 0 || (!ask && !movesOnly);
 
   const filed = withTurns(
     turns.length ? turns : [turn("you", note.transcript)],
@@ -1646,6 +1708,7 @@ export async function fileNote(
     ...visitLines.map((l) => turn("tiff", l)),
     ...costLines.map((l) => turn("tiff", l)),
     ...variationLines.map((l) => turn("tiff", l)),
+    ...skillLines.map((l) => turn("tiff", l)),
     ...moving.lines.map((l) => turn("tiff", l)),
     ...(ask ? [turn("tiff", ask.question)] : []),
   );
@@ -1665,6 +1728,7 @@ export async function fileNote(
               ...proposal,
               clarify: ask ? { question: ask.question, options: ask.options.map((o) => o.label) } : null,
               ...(ask ? { visitAsks: asks } : {}),
+              ...(skillAsks.length ? { skillAsks } : {}),
               moveAsk: moving.store,
             },
           }
@@ -1712,8 +1776,90 @@ export async function fileNote(
     ...(made.length ? { visits: visitCards(made, today) } : {}),
     ...(costsMade.length ? { costs: costCards(costsMade) } : {}),
     ...(variationsMade.length ? { variations: variationCards(variationsMade) } : {}),
+    ...(skillsMade.length ? { skills: skillsMade } : {}),
     ...(ask ? { ask } : {}),
   };
+}
+
+/** The skills done on a job: its Used, its time, its status, its list, its
+    site, its contacts, its quote (note-skills). */
+const ON_A_JOB = new Set<ProposedSkill["kind"]>(["used", "stock_taken", "time_on_job", "job_status", "photo_request", "site_note", "job_contact", "quote_add"]);
+/** Where a variation's lines sit among the record's skills: past any skill. */
+const LINES_INDEX = 1000;
+/** A skill's own question's answers carry the visit marker past the moves'
+    (100 on), so both apps send a tap back to `answerVisit`, which hands it
+    to `answerSkill`. */
+const SKILL_MARK = 200;
+
+function skillFileAsk(k: ProposedSkill, index: number, job: string): FileAsk | null {
+  const c = confirmAsk(k, job);
+  return c
+    ? { question: c.question, options: [c.yes, c.no].map((label) => ({ label, visit: { index: SKILL_MARK + index, start: null } })) }
+    : null;
+}
+
+/** The filer's own context for a skill, with the session's press. */
+const skillCtx = async (ctx: Ctx) => ({ ...ctx, press: await sm8PressFromSession().catch(() => null) });
+
+const norm = (v: string) => v.trim().toLowerCase().replace(/\s+/g, " ");
+
+const skillAsksOf = (proposal: unknown): number[] => {
+  const raw = (proposal && typeof proposal === "object" ? proposal : {}) as Record<string, unknown>;
+  return Array.isArray(raw.skillAsks) ? raw.skillAsks.filter((i): i is number => Number.isInteger(i)) : [];
+};
+
+/** THE ANSWER TO A SKILL ASKED FIRST: its yes does it, anything else
+    leaves it. Then the next skill, a move or a visit's time is asked. */
+async function answerSkill(ctx: Ctx, note: NoteRow, asks: number[], answer: string): Promise<VisitResult> {
+  const words = trim(answer, 300);
+  if (!words) return { ok: false, error: "Type an answer first." };
+  const plan = storedProposal(note.proposal);
+  const index = asks[0]!;
+  const k = plan?.skills?.[index];
+  const target: NoteTarget = { kind: note.target_kind, id: note.target_id };
+  const job = (await targetLabel(ctx.orgId, target)) ?? "";
+  const c = k ? confirmAsk(k, job) : null;
+  const turns = turnsOf(note.turns);
+  let line = "Left as it is.";
+  if (k && c) {
+    const yes = norm(words) === norm(c.yes) || /^(?:y(?:es|eah|ep|up)?|ok(?:ay)?|sure|do it|go(?: ahead)?|please)\b/i.test(words.trim());
+    if (yes) {
+      const today = todayInZone(await getSm8Timezone(ctx.orgId));
+      const r = await doSkill(await skillCtx(ctx), k, index, target, { today, jobLabel: job || null, receipt: null, who: "" });
+      line = r.line;
+      if (r.made) {
+        const a = appliedOf(note.applied);
+        await supabaseAdmin.rpc("workboard_note_file_record", { p_org: ctx.orgId, p_note: note.id, p_applied: { skills: [...(a.skills ?? []), r.made] } });
+      }
+    }
+  }
+  const rest = asks.slice(1);
+  const nextSkill = rest.length && plan?.skills?.[rest[0]!] ? skillFileAsk(plan.skills[rest[0]!]!, rest[0]!, job) : null;
+  const pendingMove = moveAskOf(note.proposal);
+  const visitsLeft = visitAsksOf(note.proposal);
+  const ask =
+    nextSkill ??
+    (pendingMove
+      ? moveFileAsk(pendingMove)
+      : visitsLeft.length && plan?.visits[visitsLeft[0]!]
+        ? await visitAsk(ctx, target, plan.visits[visitsLeft[0]!]!, visitsLeft[0]!, todayInZone(await getSm8Timezone(ctx.orgId)), await assignableStaff(ctx.orgId))
+        : null);
+  const next = withTurns(turns, turn("you", words), turn("tiff", line), ...(ask ? [turn("tiff", ask.question)] : []));
+  await supabaseAdmin
+    .from("workboard_notes")
+    .update({
+      turns: next,
+      proposal: {
+        ...(note.proposal as Record<string, unknown>),
+        skillAsks: rest,
+        clarify: ask ? { question: ask.question, options: ask.options.map((o) => o.label) } : null,
+      },
+    })
+    .eq("org_id", ctx.orgId)
+    .eq("id", note.id)
+    .eq("status", "applied");
+  refreshHome(target);
+  return { ok: true, visit: null, turns: next, ...(ask ? { ask } : {}) };
 }
 
 /** A note just filed on a job, sent on to ServiceM8 as the person who said
@@ -1868,6 +2014,9 @@ export async function answerVisit(noteId: string, answer: string): Promise<Visit
   if ((note.author_id ?? null) !== ctx.staffId) return { ok: false, error: NOT_YOURS };
   if (note.status !== "applied") return { ok: false, error: SETTLED[note.status] ?? "That note isn't filed yet." };
 
+  /* a skill asked first goes ahead of a move and a visit's time */
+  const skillAsks = skillAsksOf(note.proposal);
+  if (skillAsks.length) return answerSkill(ctx, note, skillAsks, answer);
   /* a move asked about goes ahead of a visit's time (note-move) */
   const pendingMove = moveAskOf(note.proposal);
   if (pendingMove) return answerMove(ctx, note, pendingMove, answer);
@@ -2721,6 +2870,16 @@ export async function undoNote(noteId: string): Promise<UndoResult> {
   for (const v of drafts) {
     const r = await dropVariation(ctx.orgId, v.jobUuid!, v.option!, ctx.userId);
     if (!r.ok && r.reason !== VARIATION_KEPT.gone) return { ok: false, error: r.reason };
+  }
+
+  /* then what its skills did, each through its own action's Undo
+     (note-skills-file): refused, it stops the Undo there */
+  let skills = a.skills ?? [];
+  for (const m of skillsToTakeBack(skills)) {
+    const why = await undoSkill(await skillCtx(ctx), m);
+    if (why) return { ok: false, error: why };
+    skills = skills.map((x) => (x.index === m.index ? { ...x, undone: true } : x));
+    await supabaseAdmin.rpc("workboard_note_file_record", { p_org: ctx.orgId, p_note: noteId, p_applied: { skills } });
   }
 
   /* ── claimed: only one Undo lands ── */

@@ -378,6 +378,9 @@ export function JobVisits({
               <Icon name="listCheck" size={16} />
               Tasks
             </h3>
+            {/* never a heading over nothing but a box (the walk of 16
+                November 2026, N7, Isaac: 1) */}
+            {toPlan.length === 0 && <p className="jv-none">{tasks.length === 0 ? "No tasks." : "Every task is on a visit."}</p>}
             {stages.map((st) => {
               const lines = toPlan.filter((l) => l.task.stage === st);
               const ids = lines.map((l) => l.task.id);

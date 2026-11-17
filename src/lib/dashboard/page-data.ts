@@ -377,7 +377,7 @@ export async function loadDashboard(): Promise<DashboardData> {
       ? loadNextDay(orgId, mineUuid, railDay).catch(() => null)
       : Promise.resolve(null),
     caps.has("workboard")
-      ? teamDayFor(orgId, schedule, { dayISO: railDay, today: true, nowMin: railNowMin, mine: mineUuid }).catch(() => null)
+      ? teamDayFor(orgId, schedule, { dayISO: railDay, today: true, nowMin: railNowMin, mine: mineUuid, userId }).catch(() => null)
       : Promise.resolve(null),
   ]);
 

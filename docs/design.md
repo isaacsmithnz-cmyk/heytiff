@@ -358,8 +358,14 @@ here rather than in the table below, each with his words and the day.
     30 km from the rest, which waits as a chip on the edge facing it with
     how far it is; pressing the chip goes there, Show all fits everything,
     + and − zoom, and the map drags. Jobs too close to read join into one
-    black count; pressing it zooms in. Hovering a row lifts its pin. People
-    are placed by their clock-on, not live GPS, which HeyTiff doesn't keep.
+    black count; pressing it zooms in. Hovering a row lifts its pin. Someone
+    clocked on to a job sits beside its pin; where the business has its
+    team's location on (Settings, Business, off by default, with the notice
+    the law asks for under the switch; Isaac, 17 November 2026: "add it, i
+    will give notice"), each person clocked on is a disc in ink with their
+    first letter where their phone last said, you in the press blue, for
+    20 minutes after it said so. HeyTiff keeps only the last place, and
+    forgets it at clock off.
   - **The Activity feed**, the card's full width: All starts with To do,
     what waits on you, the reminders due today among it, each row led by
     the job feed's checklist disc or its tick; then what came in, the day

@@ -45,6 +45,10 @@ export type OrgSettings = {
   expiry_warn_days: number;
   /** Whether the morning email carries what is inside that window. */
   expiry_email: boolean;
+  /** The team's location on Home's map: while someone is clocked on, their
+      phone sends where it is (lib/mobile/where). Off until the business turns
+      it on, having given its people notice (Isaac, 17 November 2026). */
+  live_location: boolean;
   email: string | null;
   phone: string | null;
   website: string | null;
@@ -77,7 +81,7 @@ export const AU_STATES = ["NSW", "VIC", "QLD", "WA", "SA", "TAS", "ACT", "NT"] a
 export const ORG_EDITABLE_SECTIONS = {
   identity: ["trading_name", "legal_name", "abn", "acn", "gst_registered"],
   contact: ["email", "phone", "website", "address", "suburb", "state", "postcode"],
-  preferences: ["payment_terms_days", "expiry_warn_days", "expiry_email"],
+  preferences: ["payment_terms_days", "expiry_warn_days", "expiry_email", "live_location"],
 } as const;
 
 export type OrgSection = keyof typeof ORG_EDITABLE_SECTIONS;

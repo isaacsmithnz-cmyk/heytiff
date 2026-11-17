@@ -84,6 +84,7 @@ export async function saveOrgSection(
     payment_terms_days: termsRaw,
     expiry_warn_days: warnRaw,
     expiry_email: emailRaw,
+    live_location: liveRaw,
     ...rest
   } = patch;
   const update: Record<string, unknown> = { ...rest, updated_at: new Date().toISOString() };
@@ -112,6 +113,9 @@ export async function saveOrgSection(
     update.expiry_warn_days = days;
   }
   if (emailRaw !== undefined) update.expiry_email = emailRaw === "Yes";
+  /* the team's location on Home's map: on with the owner's word, off at once,
+     and where a person was is forgotten the moment it goes off */
+  if (liveRaw !== undefined) update.live_location = liveRaw === "Yes";
 
   if (Object.keys(update).length === 1) return { ok: true }; // only the timestamp
 
@@ -120,6 +124,7 @@ export async function saveOrgSection(
     .update(update)
     .eq("id", orgId);
   if (error) return { ok: false, error: error.message };
+  if (update.live_location === false) await supabaseAdmin.from("staff_positions").delete().eq("org_id", orgId);
 
   revalidatePath("/dashboard/admin/organization");
   // the sidebar "HeyTiff × trading name" lives in the dashboard layout

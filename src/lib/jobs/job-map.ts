@@ -63,3 +63,21 @@ export function staticMapUrl(address: string, hue: Hue, key: string, shape: MapS
   p.set("key", key);
   return `https://maps.googleapis.com/maps/api/staticmap?${p.toString()}`;
 }
+
+/** Home's map (app/api/home/day-map): one view of the day, a centre and a
+    zoom, w × h at twice the pixels, with no marker, since the page draws its
+    own pins over it. Points of interest and transit are left off, as on a
+    job's map, and so are the roads' little icons. */
+export function dayMapUrl(view: { lat: number; lng: number; zoom: number }, w: number, h: number, key: string): string {
+  const p = new URLSearchParams();
+  p.set("center", `${view.lat},${view.lng}`);
+  p.set("zoom", String(view.zoom));
+  p.set("size", `${w}x${h}`);
+  p.set("scale", "2");
+  p.set("maptype", "roadmap");
+  p.append("style", "feature:poi|visibility:off");
+  p.append("style", "feature:transit|visibility:off");
+  p.append("style", "feature:road|element:labels.icon|visibility:off");
+  p.set("key", key);
+  return `https://maps.googleapis.com/maps/api/staticmap?${p.toString()}`;
+}

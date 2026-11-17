@@ -329,35 +329,59 @@ here rather than in the table below, each with his words and the day.
 
 #### On Home
 
-- **Home is two cards, as a job's Overview** (`home.tsx`, `home-feed.tsx`;
-  Isaac, 17 November 2026: "Make home todo part of activity feed like the
-  job card", "Today should be just your day", then "Make all fixes" to
-  https://claude.ai/artifact/7ijojbkVbMJUGasurPCvVF). Today, 420 wide: your
-  own bookings as the Schedule's cards (rule 19), your timed tasks and the
-  day's events. Beside it the Activity feed, as a job's is named, its views
-  on the right of its name (All, To do, To you, Jobs, Approvals): All starts
-  with To do, what waits on you, the reminders due today among it, each row
-  led by the job feed's checklist disc or its tick; then what came in, the
-  day said once over each day's items (Today, Yesterday, Thu 12 Nov) and an
-  item saying only its time. A mention's Reply goes from under it on Home,
-  since the item opens its job and To do's row opens its box; Show all's
-  page keeps it. Each card is as tall as what it holds. Tiff's box is one
-  line, the microphone and Send inside it, growing as you type. Schedule
-  and Show all are not underlined. Before, three columns as tall as the
-  page, To do the third (20 October to 17 November).
-- **Home's cards are white cards lifted off the white page**
-  (`.hm-cols > .hm-sec`, `--shadow-card`), each column's name and glyph in
-  its colour's word value with no block, as the job's Overview names its
-  sections (Isaac, 5 November 2026, on
-  https://claude.ai/artifact/ENNSiAcvz4rSAm2hxQsPbU, told it needs the
-  one-shadow law set aside: "C, lifted"). Two rules give way, on Home only:
-  - one shadow, only on things that float: each column rests on the page
+- **Home is one card with two tabs, Schedule and the Activity feed**
+  (`home.tsx`, `home-schedule.tsx`, `home-feed.tsx`; Isaac, 17 November
+  2026: "the person who's going to be looking at the desktop screen over
+  the app is probably going to be the admin person on a daily basis",
+  "default would be team view", then "let's make it so we've got schedule
+  and activity feed as two separate tabs" and "Build it" to
+  https://claude.ai/artifact/7ijojbkVbMJUGasurPCvVF). The tabs are a
+  record's section tabs (rule 31), the one you're on in its colour's word
+  value on 2px of ink; each tab's controls sit on the line under them, and
+  both tabs are the same height, so changing tab never moves the page.
+  Home keeps the tab, the day's view and the feed's view you left it on.
+  - **Schedule**: the days along the top as soft tabs (rule 29), Today and
+    the next four working days, Saturday and Sunday passed over; Team or
+    You in a tray (rule 30) on the same line, Team the default. Under them
+    the day's jobs on the left, each once however many are booked on it,
+    in start order: the number in its colour's box (rule 19), the client,
+    the suburb and who's on it by first name (on You, the kind and the
+    suburb), the start, and where it's up to (On site, Done, Didn't go
+    ahead, On now, Booked; a day ahead says its kind). Done goes grey. Who
+    is free all day (Schedule capacity's people with nothing booked and no
+    time off) is said once over the list, and whose birthday it is today.
+  - **The map** beside the list, 640 at most: Google's picture of the view
+    under the page's own pins, the key on the server (`/api/home/day-map`).
+    A job still to do is its number in its colour; a done one a grey dot;
+    who's clocked on to a job sits beside its pin in ink, a count where
+    more than one is. It opens fitted to the day's jobs less any more than
+    30 km from the rest, which waits as a chip on the edge facing it with
+    how far it is; pressing the chip goes there, Show all fits everything,
+    + and − zoom, and the map drags. Jobs too close to read join into one
+    black count; pressing it zooms in. Hovering a row lifts its pin. People
+    are placed by their clock-on, not live GPS, which HeyTiff doesn't keep.
+  - **The Activity feed**, the card's full width: All starts with To do,
+    what waits on you, the reminders due today among it, each row led by
+    the job feed's checklist disc or its tick; then what came in, the day
+    said once over each day's items (Today, Yesterday, Thu 12 Nov) and an
+    item saying only its time. A mention's Reply opens the feed tab.
+  Before: two cards, your own Today beside the feed (17 November, the
+  morning; the day's events went with it), and three columns as tall as
+  the page, To do the third (20 October to 17 November). Tiff's box is one
+  line, the microphone and Send inside it, growing as you type.
+- **Home's card is a white card lifted off the white page**
+  (`.hm-card`, `--shadow-card`), its tab you're on named in its colour's
+  word value, as the job's Overview names its sections (Isaac, 5 November
+  2026, on https://claude.ai/artifact/ENNSiAcvz4rSAm2hxQsPbU, told it needs
+  the one-shadow law set aside: "C, lifted"). Two rules give way, on Home
+  only:
+  - one shadow, only on things that float: the card rests on the page
     with the card shadow, its own token, which the shadows ratchet does not
-    count, as it does not count the overlay's;
-  - rule 35, a card is something you act on: Today and the Activity feed
-    are cards, though a column is not pressed.
-  Tiff's box stays as it is, outlined. The hairline between the columns
-  goes. A hover is still one change, a fill (rule 23): nothing lifts more.
+    count, as it does not count the overlay's; the map's pins and counts
+    stand on a 2px ring of paper, not a shadow;
+  - rule 35, a card is something you act on: the card is not pressed.
+  Tiff's box stays as it is, outlined. A hover is still one change, a fill
+  (rule 23): nothing lifts more.
 - **To do's rows have no buttons: the row is the door** (`home-todo.tsx`),
   despite rule 39's one button on the right (Isaac, 5 November 2026, on
   https://claude.ai/artifact/LHfRit1ThXLpobEXwZGPWK: "remove the action

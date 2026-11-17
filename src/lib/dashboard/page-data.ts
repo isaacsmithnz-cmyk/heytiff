@@ -48,6 +48,8 @@ import { loadNextDay, type NextDay } from "./next-day";
 import { loadDesk, readHomeShared, type DeskData, type HomeShared } from "./desk-data";
 import { readFeedEvents, type FeedEvent } from "./feed-events-query";
 import { dayExtras, type DayExtras } from "./event-mobile";
+import { teamDayFor } from "./team-day-query";
+import type { TeamDay } from "./team-day";
 import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 import { sm8StaffLinkMap } from "@/lib/integrations/links";
 import { sm8QueueStuck } from "@/lib/integrations/sm8-writes";
@@ -114,6 +116,9 @@ export type DashboardData = {
       birthdays people chose to share, yours left out (./event-mobile, the
       phone's Today's read). */
   day: DayExtras;
+  /** Home's Schedule (./team-day): the whole team's jobs today, for whoever
+      may see the crew's bookings (`workboard`); null otherwise. */
+  team: TeamDay | null;
 };
 
 const EMPTY_DAY: DayExtras = { events: [], birthdays: [] };
@@ -218,6 +223,7 @@ const EMPTY: DashboardData = {
   todo: EMPTY_TODO,
   events: [],
   day: EMPTY_DAY,
+  team: null,
 };
 
 export async function loadDashboard(): Promise<DashboardData> {
@@ -308,7 +314,8 @@ export async function loadDashboard(): Promise<DashboardData> {
     caps.has("workboard") ? listOpenIssues(orgId) : Promise.resolve([] as HomeIssue[]),
     /* The day rail. Same gate as the board it mirrors — a viewer without
        `workboard` may not see the crew's bookings, on Home or anywhere. */
-    caps.has("workboard") ? loadScheduleDay(orgId, railDay) : Promise.resolve(EMPTY_SCHEDULE),
+    /* with its time off, so Home's Schedule never calls someone away free */
+    caps.has("workboard") ? loadScheduleDay(orgId, railDay, { away: true }) : Promise.resolve(EMPTY_SCHEDULE),
     linksP,
     /* The desk's own reads, in this same wait. Those that need the link
        map wait for it themselves, so nothing else does. */
@@ -364,10 +371,15 @@ export async function loadDashboard(): Promise<DashboardData> {
   /* NOTHING ON TODAY: the new Home draws your next booked day instead of a
      bare line (./next-day, Isaac 2026-09-26). Asked only then, and only of a
      viewer ServiceM8 knows; a day with a timed task on it is not empty. */
-  const next =
+  /* and Home's Schedule, the whole team's day, beside it */
+  const [next, team] = await Promise.all([
     day && mineUuid && railBlocks.length === 0 && railTasks.length === 0
-      ? await loadNextDay(orgId, mineUuid, railDay).catch(() => null)
-      : null;
+      ? loadNextDay(orgId, mineUuid, railDay).catch(() => null)
+      : Promise.resolve(null),
+    caps.has("workboard")
+      ? teamDayFor(orgId, schedule, { dayISO: railDay, today: true, nowMin: railNowMin, mine: mineUuid }).catch(() => null)
+      : Promise.resolve(null),
+  ]);
 
   return {
     chips, tasks, assignable, journal, issues, canManage, viewerStaffId, today,
@@ -404,6 +416,7 @@ export async function loadDashboard(): Promise<DashboardData> {
     todo,
     events,
     day: dayOf,
+    team,
   };
 }
 

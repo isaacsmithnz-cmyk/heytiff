@@ -177,3 +177,36 @@ describe("the cached head of the router's prompt", () => {
     expect(head.text).not.toMatch(/\d{4}-\d{2}-\d{2}/);
   });
 });
+
+/* Bug 9 (Isaac, 17 November 2026: "She didn't sort out my note"): an answer
+   that isn't whole JSON gets a second read, and every failure says why in
+   the logs. */
+describe("a read that fails", () => {
+  it("is tried once more, and says why each time", async () => {
+    const said = jest.spyOn(console, "error").mockImplementation(() => {});
+    let calls = 0;
+    globalThis.fetch = (async (_url: string | URL | Request, init?: RequestInit) => {
+      sent.push(JSON.parse(String(init?.body ?? "{}")));
+      calls++;
+      const text = calls === 1 ? '{"tasks": [' : JSON.stringify(lanes);
+      return new Response(
+        JSON.stringify({ id: "msg_1", type: "message", role: "assistant", model: "claude-opus-5-5", content: [{ type: "text", text }], stop_reason: "end_turn", stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    }) as typeof fetch;
+    const read = await readNote("tell Lyle to order the grilles", card);
+    expect(read.ok).toBe(true);
+    expect(sent).toHaveLength(2);
+    expect(said.mock.calls.map((c) => String(c[0]))).toEqual([expect.stringMatching(/^\[note-read\] attempt 1 failed .*wasn't whole JSON/)]);
+    said.mockRestore();
+  });
+
+  it("isn't tried again when the API itself said no, and says why", async () => {
+    const said = jest.spyOn(console, "error").mockImplementation(() => {});
+    const read = await readNote("tell Lyle to order the grilles", card);
+    expect(read.ok).toBe(false);
+    expect(sent).toHaveLength(1);
+    expect(String(said.mock.calls[0]?.[0])).toMatch(/^\[note-read\] attempt 1 failed .* 400/);
+    said.mockRestore();
+  });
+});

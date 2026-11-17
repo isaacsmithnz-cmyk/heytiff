@@ -1,4 +1,5 @@
 import {
+  isFileType,
   isVideoMime,
   asDocumentKind,
   checkUpload,
@@ -32,6 +33,22 @@ describe("checkUpload", () => {
     type: "image/jpeg",
     size: 1024,
     ...over,
+  });
+
+  it("lets a job's document be an office file, and nothing else be one", () => {
+    const docx = file({ name: "Scope.docx", type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+    expect(checkUpload(docx, { files: true })).toEqual({ ok: true, ext: "docx" });
+    expect(checkUpload(file({ name: "take-off.xlsx", type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), { files: true })).toEqual({ ok: true, ext: "xlsx" });
+    expect(checkUpload(file({ name: "readings.csv", type: "text/csv" }), { files: true })).toEqual({ ok: true, ext: "csv" });
+    expect(checkUpload(docx).ok).toBe(false);
+    expect(checkUpload(file({ name: "setup.exe", type: "application/x-msdownload" }), { files: true }).ok).toBe(false);
+  });
+
+  it("isFileType: a PDF or an office file, never a photo", () => {
+    expect(isFileType("application/pdf")).toBe(true);
+    expect(isFileType("APPLICATION/MSWORD")).toBe(true);
+    expect(isFileType("image/jpeg")).toBe(false);
+    expect(isFileType("application/zip")).toBe(false);
   });
 
   it("accepts a photo and says what to call it", () => {

@@ -27,17 +27,18 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const [items, media, zone] = await Promise.all([
     /* the messages are a nicety beside the job: a read that fails is none.
        A send no staff member sent is from the business, by its short name */
-    supabaseAdmin
-      .from("organizations")
-      .select("trading_name, legal_name, name")
-      .eq("id", ctx.orgId)
-      .maybeSingle()
-      .then(
-        ({ data }) => shortBusinessName(companyName(data)),
-        () => null,
-      )
-      .then((business) => readCustomerMessages({ orgId: ctx.orgId, jobUuid: parentRemoteId, money, business }))
-      .catch(() => []),
+    (async () => {
+      const business = await supabaseAdmin
+        .from("organizations")
+        .select("trading_name, legal_name, name")
+        .eq("id", ctx.orgId)
+        .maybeSingle()
+        .then(
+          ({ data }) => shortBusinessName(companyName(data)),
+          () => null,
+        );
+      return readCustomerMessages({ orgId: ctx.orgId, jobUuid: parentRemoteId, money, business });
+    })().catch(() => []),
     familyMediaSources(ctx.orgId, parentRemoteId)
       .then((claims) => readJobMediaGroups(ctx.orgId, parentRemoteId, claims))
       .catch(() => null),

@@ -10,12 +10,16 @@ import { WindowsContext, useRecords } from "@/components/records/records-context
 import { isPinned, pin, pinsServerSnapshot, pinsSnapshot, subscribePins, unpin } from "@/components/shell/pins-store";
 import { namePage } from "@/components/shell/page-names";
 import { jobTabLabel, SECTION_FACES, type JobSection } from "@/lib/jobs/job-sections";
-import { jobPageHref, projectHref } from "@/lib/shell/links";
+import { jobPageHref, projectHref, quoteHref } from "@/lib/shell/links";
 import { recordKey, type RecordRef } from "@/lib/records/ref";
 import { jobHue } from "@/lib/workboard/job-hue";
 import { noteJobOpened } from "@/lib/jobs/opened-jobs";
 import type { PriceAsk } from "@/lib/jobs/job-prices";
 import type { AllJobRow } from "@/lib/workboard/all-jobs";
+
+/** What a job's page opens as a document in a tab of its own: the quote
+    (/dashboard/jobs/<id>/quote). */
+export type JobDoc = "quote";
 
 /* ONE JOB AS A PAGE (v2, step 5, "Jobs and a job"), inside the dashboard
    frame at /dashboard/jobs/<its ServiceM8 uuid>.
@@ -38,6 +42,7 @@ export function JobPage({
   add = null,
   price = null,
   first,
+  doc = null,
 }: {
   row: AllJobRow;
   section: JobSection;
@@ -54,6 +59,9 @@ export function JobPage({
   price?: Omit<PriceAsk, "n"> | null;
   /** What the page read on the server for the card (JobCardFirst). */
   first?: JobCardFirst;
+  /** The quote open in a tab of its own: the job's head and sections give
+      way to the quote's (job-doc-head.tsx). */
+  doc?: JobDoc | null;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -76,7 +84,8 @@ export function JobPage({
   const ref: RecordRef = { kind: "job", id: row.id };
   const title = row.number ? `Job ${row.number}` : "Job";
   const sub = row.clientName ?? null;
-  const label = jobTabLabel(row.number, row.clientName);
+  /* the quote's tab says it's the quote ("Quote 3423"), in the job's colour */
+  const label = doc === "quote" ? (row.number ? `Quote ${row.number}` : "Quote") : jobTabLabel(row.number, row.clientName);
   const hue = jobHue(row.categoryColour, row.statusLabel);
 
   /* the open tab's name, and the sidebar's Recents */
@@ -124,7 +133,7 @@ export function JobPage({
       const ok = pinned ? await unpin(ref) : await pin({ ref, title, sub });
       if (!ok) toast(pinned ? "That didn't unpin. Try it again." : "That didn't pin. Try it again.");
     } else if (key === "link") {
-      const link = `${window.location.origin}${jobPageHref(row.id)}`;
+      const link = `${window.location.origin}${doc === "quote" ? quoteHref(row.id) : jobPageHref(row.id)}`;
       await (navigator.clipboard?.writeText(link) ?? Promise.reject(new Error("no clipboard"))).then(
         () => toast("Link copied."),
         () => toast("Could not copy the link"),
@@ -144,7 +153,7 @@ export function JobPage({
           studio={studio}
           initialTab={SECTION_FACES[firstSection][0]}
           first={first}
-          page={{ section, onSection: goSection, actions, onAction: (key) => void onAction(key), add, price: priceAsk }}
+          page={{ section, onSection: goSection, actions, onAction: (key) => void onAction(key), add, price: priceAsk, doc }}
           /* New agreement opens over the page (rule 51), the job filled in */
           onCreateAgreement={(r) => setAgreementFrom(r)}
           /* a visit opens over the page; a project on its own page */

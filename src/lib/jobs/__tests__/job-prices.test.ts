@@ -106,7 +106,7 @@ describe("the cards", () => {
 
   it("says an accepted quote is accepted", () => {
     const [card] = priceCards({ quote: quote({ accepted: [0] }), sm8: none, rows: null, claims: null, staged: false, when: WHEN });
-    expect(card!.state).toEqual({ word: "Accepted", tone: "good" });
+    expect(card!.state).toEqual({ word: "Customer accepted", tone: "good" });
   });
 });
 

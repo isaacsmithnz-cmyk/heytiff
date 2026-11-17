@@ -134,8 +134,8 @@ describe("the words", () => {
     expect(progressState(facts({ toConfirm: 4 }), WHEN)).toEqual({ tone: "look", word: "Scope, 4 to settle", rest: "" });
     expect(progressState(facts(), WHEN)).toEqual({ tone: "info", word: "Scope, 6 lines", rest: "" });
     expect(progressState(facts({ lines: 0 }), WHEN)).toEqual({ tone: "info", word: "Brief, with Tiff", rest: "" });
-    expect(progressState(facts({ approved: true, version: 2 }), WHEN)).toEqual({ tone: "good", word: "Version 2 approved", rest: "" });
-    expect(progressState(facts({ approved: true, sent: { at: "2026-10-11T00:00:00Z", trial: true } }), WHEN)).toEqual({ tone: "good", word: "Approved", rest: ", trial run to ServiceM8" });
+    expect(progressState(facts({ approved: true, version: 2 }), WHEN)).toEqual({ tone: "good", word: "Version 2 ready to send", rest: "" });
+    expect(progressState(facts({ approved: true, sent: { at: "2026-10-11T00:00:00Z", trial: true } }), WHEN)).toEqual({ tone: "good", word: "Ready to send", rest: ", trial run to ServiceM8" });
   });
 
   /* a send is a timestamp: 21:30 UTC on the 12th is 8:30 on Tuesday the
@@ -171,7 +171,7 @@ describe("the words", () => {
     expect(rows.map((r) => [r.title, r.state.tone, `${r.state.word}${r.state.rest}`, r.who, r.cents, r.open])).toEqual([
       ["Variation 2", "look", "Waiting for the client", "Luke Ingold", 0, true],
       ["Variation 1", "good", "Accepted Fri 23 Oct, return grille in Bed 2", "Luke Ingold", 41200, false],
-      ["Version 2", "good", "Accepted Thu 22 Oct", "Isaac Smith", 2457463, false],
+      ["Version 2", "good", "Customer accepted Thu 22 Oct", "Isaac Smith", 2457463, false],
       ["Version 1", "info", "Replaced, approved Tue 20 Oct", "Luke Ingold", 2380036, false],
     ]);
   });

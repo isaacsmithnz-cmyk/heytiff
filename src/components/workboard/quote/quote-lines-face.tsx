@@ -35,7 +35,7 @@ import { Dialog } from "@/components/parts/dialog";
 import { Button } from "@/components/parts/button";
 import { Field } from "@/components/parts/field";
 import { NoteToken } from "@/components/notes/note-token";
-import { Tray } from "@/components/parts/tabs";
+import { SectionTabs, type TabItem } from "@/components/parts/tabs";
 
 /* THE QUOTE, IN LAYOUT B (Isaac's pick, 21 October 2026; chat first since
    2026-10-13): the conversation with Tiff fills the left, and the rail
@@ -58,7 +58,11 @@ const ROUTE = "/api/workboard/quote-lines";
 
 /** The quote's state word, for the line under the job's name: settle when
     something is left to settle before it's approved. */
-export type QuoteStage = { word: string; settle: boolean };
+/** Where the quote is up to, in the phone's words (the Price overhaul, 18
+    November 2026): `settle` needs a look, `good` is ready, sent or the
+    customer's yes, `undo` takes the yes back, and `title` is the proposal's
+    name, for the head of the quote's own tab. */
+export type QuoteStage = { word: string; settle: boolean; good?: boolean; undo?: (() => void) | null; title?: string | null };
 
 export type LinesView = {
   ok: boolean;
@@ -347,42 +351,44 @@ export function QuoteLinesFace({
     openUpdate();
   }, [updateReady]);
   const linesUp = tiff !== null && (!chat || tab === "lines");
-  /* the Price tab's views: Chat while Tiff is on, the line items, and the
-     paper, which is the money's as Preview quote was; one alone is no tray */
-  /* the Price tab's one tray (the walk of 15 November 2026, T2): Chat,
-     Scope and To confirm are the conversation's own faces, then Line items
-     and Preview, where there were two trays stacked */
-  const viewsOffered: { value: "chat" | "scope" | "confirm" | "lines" | "preview"; label: string; tone?: "look" }[] = [
-    ...(chat
-      ? [
-          { value: "chat" as const, label: "Chat" },
-          { value: "scope" as const, label: "Scope" },
-          { value: "confirm" as const, label: "To confirm", ...(asked > 0 ? { tone: "look" as const } : {}) },
-        ]
-      : []),
-    { value: "lines" as const, label: "Line items" },
-    ...(money && all.length > 0 ? [{ value: "preview" as const, label: "Preview" }] : []),
+  /* THE QUOTE'S THREE TABS, as the phone has them (the Price overhaul, 18
+     November 2026: "On the app, it's build, breakdown, and proposal… We
+     need them to be the same on either system"): Build, the conversation
+     with Tiff, while she's on for the business; Breakdown, the line items;
+     and Proposal, the paper as the customer gets it, which is the money's.
+     Tiff's questions still open turn Build amber (rule 31). */
+  const tabsOffered: TabItem[] = [
+    ...(chat ? [{ key: "build", label: "Build", ...(asked > 0 ? { tone: "look" as const } : {}) }] : []),
+    { key: "breakdown", label: "Breakdown" },
+    ...(money && all.length > 0 ? [{ key: "proposal", label: "Proposal" }] : []),
   ];
+  const tabOn = paper ? "proposal" : linesUp ? "breakdown" : "build";
 
   /* the quote's state word, for the line under the job's name: where it has
      got to, or what's left to settle on the way */
   const unknownNow = toConfirmOf(all, asked);
   const sentForReal = !!view?.sent && !view.sent.trial;
+  /* the customer's yes taken back from the head of the quote's tab: the
+     accept below, as it stands when Undo is pressed */
+  const acceptNow = useRef<() => Promise<void>>(async () => undefined);
+  const yesUndoable = money && accepted.includes(at) && !(view?.variations ?? []).some((v) => v.option === at) && viewing == null;
   const stage: QuoteStage | null = !view
     ? null
     : accepted.length > 0
-      ? { word: "Accepted", settle: false }
+      ? { word: "Customer accepted", settle: false, good: true }
       : sentForReal
-        ? { word: "Sent", settle: false }
+        ? { word: "Sent", settle: false, good: true }
         : view.approved
-          ? { word: "Approved", settle: false }
+          ? { word: "Ready to send", settle: false, good: true }
           : unknownNow > 0
             ? { word: `${unknownNow} to settle`, settle: true }
             : all.length > 0
               ? { word: "Draft", settle: false }
               : { word: "Not started", settle: false };
-  const stageKey = stage ? `${stage.word}|${stage.settle}` : "";
-  const tellStage = useEffectEvent(() => onStage?.(stage));
+  const quoteTitle = view?.proposal?.title || meta?.title || null;
+  const undoable = yesUndoable && accepted.length > 0;
+  const stageKey = stage ? `${stage.word}|${stage.settle}|${undoable}|${quoteTitle ?? ""}` : "";
+  const tellStage = useEffectEvent(() => onStage?.(stage ? { ...stage, title: quoteTitle, undo: undoable ? () => void acceptNow.current() : null } : null));
   useEffect(() => {
     tellStage();
   }, [stageKey]);
@@ -411,6 +417,10 @@ export function QuoteLinesFace({
       onToast?.(v.onJob.added || v.onJob.removed ? "The accepted option's parts are on the job's materials list" : "The job's materials list already has the accepted option's parts");
     }
   };
+
+  useEffect(() => {
+    acceptNow.current = accept;
+  });
 
   /* LINES TAKEN OFF (Isaac, 6 November 2026, on 3054: "Need to be able to
      remove line items, swap them out"): one option's, or the same line on
@@ -736,29 +746,28 @@ export function QuoteLinesFace({
 
   return (
     <>
-      <div className="qc-body">
+      {views && tiff !== null && (
+        /* the three tabs over the quote, All ex GST at their right, as the phone's */
+        <div className="qc-views qc-views--tabs">
+          <SectionTabs
+            items={tabsOffered}
+            current={tabOn}
+            ariaLabel="The quote"
+            idPrefix="qc-tab"
+            onGo={(k) => {
+              if (k === "proposal") return setPaper(true);
+              setPaper(false);
+              setViewing(null);
+              if (k === "breakdown") return setTab("lines");
+              setTab("chat");
+              setFace("talk");
+            }}
+          />
+          {money && <span className="qc-gst">All ex GST</span>}
+        </div>
+      )}
+      <div className={views && paper ? "qc-body qc-body--full" : "qc-body"}>
         <div className="qc-main">
-          {views && tiff !== null && (meta?.title || viewsOffered.length > 1) && (
-            /* the quote's name heading its card, the views on its right (the Price mock, 16 November 2026) */
-            <div className="qc-views">
-              {meta?.title && <h2 className="qc-vt">{meta.title}</h2>}
-              {viewsOffered.length > 1 && (
-                <Tray
-                  ariaLabel="What the quote shows"
-                  value={paper ? "preview" : linesUp ? "lines" : face === "talk" ? "chat" : face}
-                  options={viewsOffered}
-                  onChange={(v) => {
-                    if (v === "preview") return setPaper(true);
-                    setPaper(false);
-                    setViewing(null);
-                    if (v === "lines") return setTab("lines");
-                    setTab("chat");
-                    setFace(v === "chat" ? "talk" : v);
-                  }}
-                />
-              )}
-            </div>
-          )}
           {note && <p className="wb2-sherr qc-note">{note}</p>}
           {/* mounted whatever is up: her work lands, and the page learns
               whether she's on, from here */}
@@ -772,7 +781,7 @@ export function QuoteLinesFace({
             onOpen={setAsked}
             onPlan={setPlan}
             /* behind the paper, the review is the rail's */
-            confirm={paper ? null : confirm}
+            confirm={paper || views ? null : confirm}
             confirmTitle={confirmTitle}
             words={{ proposal: view?.proposal ?? null, optionNames: view?.optionNames ?? [], options: quoteOptions }}
             say={say}
@@ -884,6 +893,8 @@ export function QuoteLinesFace({
             </Field>
           </div>
         </Dialog>
+        {/* Proposal is the page at full width, with no total beside it (the mock's) */}
+        {!(views && paper) && (
         <QuoteRail
           progress={
             <QuoteStepsLine
@@ -943,7 +954,7 @@ export function QuoteLinesFace({
           /* the conversation holds what's to confirm, except where there is
              none, or the paper is up in its place: before approving, the
              review stands beside the paper (11.1) */
-          confirm={tiff !== null && (!chat || paper) ? confirm : null}
+          confirm={tiff !== null && (views || !chat || paper) ? confirm : null}
           confirmTitle={confirmTitle}
           card={card}
           building={building}
@@ -968,6 +979,7 @@ export function QuoteLinesFace({
             />
           }
         />
+        )}
       </div>
     </>
   );

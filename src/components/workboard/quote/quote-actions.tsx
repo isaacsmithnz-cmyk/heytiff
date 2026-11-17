@@ -140,11 +140,11 @@ export function QuoteActions({
     waiting === null ? null : !waiting ? (
       /* on the Price tab the steps say it (the Price mock, 16 November 2026) */
       views && !variation ? null : (
-        given(variation ? `Variation ${variation.n} approved` : "Approved")
+        given(variation ? `Variation ${variation.n} approved` : "Ready to send")
       )
     ) : (
       <Button kind="main" disabled={busy || !ready} onClick={onApprove}>
-        {variation ? "Approve variation" : "Approve quote"}
+        {variation ? "Approve variation" : "Mark ready to send"}
       </Button>
     );
   const left = waiting && !ready && why ? <StateWord tone="look">{why}</StateWord> : null;
@@ -156,14 +156,15 @@ export function QuoteActions({
         <Button disabled={busy} onClick={onAccept}>{`Mark variation ${variation.n} accepted`}</Button>
       )
     ) : acceptable ? (
-      /* "Mark accepted" until it is, then the word in green with Undo (T3) */
+      /* "Customer accepted" to press until it is, then the words in green with
+         Undo (T3); the phone's words since the Price overhaul, 18 November 2026 */
       accepted ? (
         /* on the Price tab the steps say it, with Undo beside it */
         views ? null : (
-          <Taken words={options > 1 ? `Option ${at + 1} accepted` : "Accepted"} busy={busy} onUndo={onAccept} />
+          <Taken words={options > 1 ? `Customer accepted option ${at + 1}` : "Customer accepted"} busy={busy} onUndo={onAccept} />
         )
       ) : (
-        <Button disabled={busy} onClick={onAccept}>{options > 1 ? `Mark option ${at + 1} accepted` : "Mark accepted"}</Button>
+        <Button disabled={busy} onClick={onAccept}>{options > 1 ? `Customer accepted option ${at + 1}` : "Customer accepted"}</Button>
       )
     ) : null;
   const updating =

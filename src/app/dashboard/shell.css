@@ -5905,6 +5905,29 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jpr-quote .qc-views { margin:0 -16px 0; padding:0 16px 12px; border-bottom:1px solid var(--line); }
 .fg .qc-vt { flex:1 1 auto; min-width:0; margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); overflow-wrap:anywhere; }
 .fg .qc-views > .pt-tray { flex:none; margin-left:auto; }
+/* THE QUOTE IN A TAB OF ITS OWN (the Price overhaul, 18 November 2026:
+   "Quote and invoice should open full screen", then the phone's Build,
+   Breakdown and Proposal). One row of head: ‹ Job, the job's number in its
+   colour, the client, the site and the quote's name faded where they run
+   out, then its state word and Actions. Under it the quote's three tabs
+   across the page, All ex GST at their right, then what's open, its total
+   beside it; Proposal is the page at full width. */
+.fg .jp-doc { display:flex; flex-direction:column; gap:12px; }
+.fg .jd-head { display:flex; align-items:center; gap:16px; min-width:0; min-height:40px; }
+.fg .jd-back { margin:0; align-self:center; }
+.fg .jd-id { flex:1 1 auto; min-width:0; display:flex; align-items:center; gap:12px; }
+.fg .jd-num { align-self:center; min-width:0; min-height:32px; padding:0 12px; font-size:14px; line-height:20px; }
+.fg .jd-client { flex:none; max-width:40%; margin:0; overflow:hidden; white-space:nowrap; font-size:20px; line-height:28px; font-weight:600; color:var(--ink); }
+.fg .jd-line { flex:1 1 auto; min-width:0; font-size:14px; line-height:20px; color:var(--q); }
+.fg .jd-stage { flex:none; display:inline-flex; align-items:center; gap:8px; font-size:13px; line-height:18px; }
+.fg .jpr-doc { flex:1; min-height:0; display:flex; flex-direction:column; }
+.fg .jpr-quote .qc-views--tabs { position:relative; margin:0 0 16px; padding:0; border-bottom:0; }
+.fg .qc-gst { position:absolute; right:0; bottom:8px; font-size:13px; line-height:18px; color:var(--q); }
+.fg .qc-body--full { grid-template-columns:minmax(0, 1fr); }
+/* the quote's paper on the Price tab, read only: Open quote changes it */
+.fg .lp-ro .lp-edit { display:none; }
+.fg .jpr-body--one { grid-template-columns:minmax(0, 1fr); }
+.fg .jpr-mainhead { flex:none; display:flex; align-items:center; gap:16px; margin:0 -16px 12px; padding:0 16px 12px; border-bottom:1px solid var(--line); }
 /* ServiceM8's quote and an invoice: the paper or the lines on the left,
    the rail on the right */
 .fg .jpr-body { flex:1; min-height:0; display:grid; grid-template-columns:minmax(0,1fr) 400px; grid-template-rows:minmax(0,1fr); gap:24px; }

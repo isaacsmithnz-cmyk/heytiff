@@ -102,7 +102,7 @@ it("shows the total in its card, each system with its total, and every line's qt
   /* what's left, said once under Approve quote (layout B): the core hole,
      and labour nobody's set */
   expect(screen.getByText("2 lines to price")).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Approve quote" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Mark ready to send" })).toBeDisabled();
 });
 
 /* Isaac, 2026-10-15: "when you hit view line items, I think have everything
@@ -446,15 +446,15 @@ it("marks the option accepted from the rail once it's approved, says its parts w
     <QuoteLinesFace job="job-3377" price={price} onPriced={jest.fn()} onToast={onToast} send={<p>To ServiceM8</p>} />
   );
   expect(screen.queryByText("To ServiceM8")).not.toBeInTheDocument();
-  const mark = await screen.findByRole("button", { name: "Mark accepted" });
+  const mark = await screen.findByRole("button", { name: "Customer accepted" });
   await act(async () => {
     fireEvent.click(mark);
   });
   expect(posted).toContainEqual({ job: "job-3377", op: "accept", option: 0 });
   expect(onToast).toHaveBeenCalledWith("The accepted option's parts are on the job's materials list");
   /* the client's yes is a green word with Undo beside it (the walk of 15 November 2026, T3) */
-  expect(screen.getByText("Accepted", { selector: ".pt-state__word" }).closest(".pt-state")).toHaveClass("pt-state--good");
-  expect(screen.getByRole("button", { name: "Undo accepted" })).toBeInTheDocument();
+  expect(screen.getByText("Customer accepted", { selector: ".pt-state__word" }).closest(".pt-state")).toHaveClass("pt-state--good");
+  expect(screen.getByRole("button", { name: "Undo customer accepted" })).toBeInTheDocument();
   expect(screen.getByText("To ServiceM8")).toBeInTheDocument();
 });
 
@@ -589,7 +589,7 @@ describe("the proposal (7.1)", () => {
     expect(screen.getByRole("article", { name: "The proposal" })).toHaveTextContent("Jo Bloggs");
     expect(screen.getByRole("heading", { name: "Air conditioning for 12 Smith St" })).toBeInTheDocument();
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Approve quote" }));
+      fireEvent.click(screen.getByRole("button", { name: "Mark ready to send" }));
     });
     expect(posted.at(-1)).toMatchObject({ op: "approve" });
     /* no conversation here (Tiff isn't on): the way back is to the line items */
@@ -599,37 +599,45 @@ describe("the proposal (7.1)", () => {
 
   /* the job's Price tab (build 10, 15 November 2026): its views are a tray
      over the left, so the rail has no Preview quote and no way back */
-  it("on the Price tab, lays Line items and Preview in a tray over the left, and keeps them off the rail", async () => {
+  /* THE PHONE'S THREE TABS (the Price overhaul, 18 November 2026): Build,
+     Breakdown and Proposal across the quote, All ex GST at their right; the
+     total beside Build and Breakdown, Proposal the page at full width */
+  it("in its own tab, lays Build, Breakdown and Proposal across the quote, Proposal the page at full width", async () => {
     (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => ({ json: async () => view([indoor]) }));
     render(<QuoteLinesFace job="job-3377" views price={pricedWhole} onPriced={jest.fn()} meta={{ title: "Air conditioning for 12 Smith St", client: "Jo Bloggs", site: "12 Smith St", jobNumber: "3377" }} />);
-    const tray = await screen.findByRole("radiogroup", { name: "What the quote shows" });
-    /* no conversation here (Tiff isn't on): no Chat */
-    expect(within(tray).getAllByRole("radio").map((r) => r.textContent)).toEqual(["Line items", "Preview"]);
-    expect(within(tray).getByRole("radio", { name: "Line items" })).toHaveAttribute("aria-checked", "true");
+    const tabs = await screen.findByRole("tablist", { name: "The quote" });
+    /* no conversation here (Tiff isn't on): no Build */
+    expect(within(tabs).getAllByRole("tab").map((t) => t.textContent)).toEqual(["Breakdown", "Proposal"]);
+    expect(within(tabs).getByRole("tab", { name: "Breakdown" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("All ex GST")).toBeInTheDocument();
+    expect(screen.getByRole("complementary", { name: "On this quote" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Preview quote" })).toBeNull();
-    fireEvent.click(within(tray).getByRole("radio", { name: "Preview" }));
+    fireEvent.click(within(tabs).getByRole("tab", { name: "Proposal" }));
     expect(screen.getByRole("article", { name: "The proposal" })).toHaveTextContent("Jo Bloggs");
-    expect(screen.queryByRole("button", { name: "Back to the line items" })).toBeNull();
-    fireEvent.click(within(tray).getByRole("radio", { name: "Line items" }));
+    expect(screen.queryByRole("complementary", { name: "On this quote" })).toBeNull();
+    fireEvent.click(within(tabs).getByRole("tab", { name: "Breakdown" }));
     expect(screen.queryByRole("article", { name: "The proposal" })).not.toBeInTheDocument();
+    expect(screen.getByRole("complementary", { name: "On this quote" })).toBeInTheDocument();
   });
 
-  /* the Price mock (Isaac, 16 November 2026): the quote's name heads its
-     card, Approved and Accepted are said once, in the steps, with Undo
-     beside Accepted, and the foot is Update quote and Share */
-  it("on the Price tab, heads the quote with its name, says Approved and Accepted only in the steps, and ends the rail with Update quote and Share", async () => {
+  /* the customer's yes is said once, in the steps, with Undo beside it, and
+     the foot is Update quote and Share; it tells the tab's head where it's
+     up to, in the phone's words, and its name */
+  it("in its own tab, says Ready to send and Customer accepted only in the steps, ends the rail with Update quote and Share, and tells the head", async () => {
     (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => ({ json: async () => ({ ...view([indoor]), approved: true, accepted: [0], proposal: null }) }));
-    render(<QuoteLinesFace job="job-3377" views price={pricedWhole} onPriced={jest.fn()} meta={{ title: "Air conditioning for 12 Smith St", client: "Jo Bloggs", site: "12 Smith St", jobNumber: "3377" }} />);
-    expect(await screen.findByRole("heading", { name: "Air conditioning for 12 Smith St" })).toHaveClass("qc-vt");
+    const onStage = jest.fn();
+    render(<QuoteLinesFace job="job-3377" views price={pricedWhole} onPriced={jest.fn()} onStage={onStage} meta={{ title: "Air conditioning for 12 Smith St", client: "Jo Bloggs", site: "12 Smith St", jobNumber: "3377" }} />);
     const group = await screen.findByRole("group", { name: "The quote's buttons" });
     expect(group.querySelector(".qc-given, .qc-taken")).toBeNull();
     const pair = group.querySelector(".qc-pair--two") as HTMLElement;
     expect(within(pair).getAllByRole("button").map((b) => b.textContent)).toEqual(["Update quote", "Share"]);
     const steps = screen.getByRole("list", { name: "Where the quote is" });
-    const yes = within(steps).getByText("Accepted").closest("li") as HTMLElement;
+    const yes = within(steps).getByText("Customer accepted").closest("li") as HTMLElement;
     expect(yes).toHaveClass("done");
     expect(within(yes).getByRole("button", { name: "Undo accepted" })).toBeInTheDocument();
     expect(within(group).queryByRole("button", { name: "Undo accepted" })).toBeNull();
+    await waitFor(() => expect(onStage).toHaveBeenLastCalledWith(expect.objectContaining({ word: "Customer accepted", good: true, title: "Air conditioning for 12 Smith St" })));
+    expect(typeof onStage.mock.calls.at(-1)![0].undo).toBe("function");
   });
 
   /* layout B (Isaac, 21 October 2026): "Price on top, buttons pinned" */
@@ -637,7 +645,7 @@ describe("the proposal (7.1)", () => {
     mountPriced();
     await linesRead();
     const group = screen.getByRole("group", { name: "The quote's buttons" });
-    const approve = within(group).getByRole("button", { name: "Approve quote" });
+    const approve = within(group).getByRole("button", { name: "Mark ready to send" });
     expect(approve).toHaveClass("pt-btn--main", "pt-btn--36");
     expect(approve).toBeEnabled();
     const preview = within(group).getByRole("button", { name: "Preview quote" });
@@ -654,7 +662,7 @@ describe("the proposal (7.1)", () => {
     mountPriced(price);
     await linesRead();
     expect(screen.getByRole("button", { name: "Preview quote" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Approve quote" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Mark ready to send" })).toBeDisabled();
     expect(screen.getByText("2 lines to price").closest(".pt-state")).toHaveClass("pt-state--look");
   });
 
@@ -669,19 +677,19 @@ describe("the proposal (7.1)", () => {
   it("turns Approve quote into Approved, a green word that can't be pressed, once it is (T3)", async () => {
     (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => ({ json: async () => ({ ...view([indoor]), approved: true, proposal: null }) }));
     render(<QuoteLinesFace job="job-3377" price={pricedWhole} onPriced={jest.fn()} />);
-    const given = (await screen.findByText("Approved", { selector: ".pt-state__word" })).closest(".qc-given")!;
+    const given = (await screen.findByText("Ready to send", { selector: ".pt-state__word" })).closest(".qc-given")!;
     expect(given.querySelector(".pt-state")).toHaveClass("pt-state--good");
     expect(given.tagName).toBe("SPAN");
     expect(screen.queryByRole("button", { name: /Approve/ })).toBeNull();
     /* the client can say yes now, and the quote can change */
-    expect(screen.getByRole("button", { name: "Mark accepted" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Customer accepted" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Update quote" })).toBeInTheDocument();
   });
 
   /* Isaac, 21 October 2026: "share becomes available once approved" */
   it("offers Share only once it's approved: the PDF, or the quote's link", async () => {
     const first = render(<QuoteLinesFace job="job-3377" price={pricedWhole} onPriced={jest.fn()} />);
-    expect(await screen.findByRole("button", { name: "Approve quote" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Mark ready to send" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Share" })).toBeNull();
     first.unmount();
     (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => ({ json: async () => ({ ...view([indoor]), approved: true, proposal: null }) }));
@@ -735,7 +743,7 @@ describe("the proposal (7.1)", () => {
     }));
     render(<QuoteLinesFace job="job-3377" price={pricedWhole} onPriced={jest.fn()} />);
     expect(await screen.findByText("2 questions to answer")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Approve quote" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Mark ready to send" })).toBeDisabled();
   });
 });
 
@@ -1072,7 +1080,7 @@ describe("version 2 before it's accepted", () => {
     expect(paper.getByText("$1,467.82")).toBeInTheDocument();
     /* nothing to approve or accept on a kept version */
     expect(screen.queryByRole("button", { name: /^Approve/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Mark accepted" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Customer accepted" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Back to the line items" }));
     expect(screen.queryByRole("article", { name: "Version 1" })).not.toBeInTheDocument();
   });
@@ -1185,7 +1193,7 @@ it("shows a tech the work without its money: no price head, no cost or sell, no 
   expect(screen.queryByLabelText("Search your book for a line to add")).toBeNull();
   expect(screen.queryByRole("button", { name: "Preview quote" })).toBeNull();
   expect(screen.queryByRole("group", { name: "The quote's buttons" })).toBeNull();
-  expect(screen.queryByRole("button", { name: /Mark accepted/ })).toBeNull();
+  expect(screen.queryByRole("button", { name: /Customer accepted/ })).toBeNull();
   /* the work is still theirs */
   expect(screen.getByRole("button", { name: "Add a line by hand" })).toBeInTheDocument();
 });
@@ -1328,7 +1336,7 @@ describe("the page turned round", () => {
     const rail = screen.getByRole("complementary", { name: "On this quote" });
     const steps = within(rail).getByRole("list", { name: "Where the quote is" });
     expect(rail.firstElementChild).toContainElement(steps);
-    expect(within(steps).getAllByRole("listitem").map((li) => li.querySelector("b")!.textContent)).toEqual(["Brief", "Scope", "Priced", "Approved", "Sent", "Accepted"]);
+    expect(within(steps).getAllByRole("listitem").map((li) => li.querySelector("b")!.textContent)).toEqual(["Brief", "Scope", "Priced", "Ready to send", "Sent", "Customer accepted"]);
     const [brief, scope, ...rest] = within(steps).getAllByRole("listitem");
     expect(brief).toHaveClass("done");
     expect(scope).toHaveClass("now");
@@ -1344,7 +1352,7 @@ describe("the page turned round", () => {
     const onStage = jest.fn();
     render(<QuoteLinesFace job="job-3377" price={price} onStage={onStage} onPriced={jest.fn()} />);
     await screen.findByText("Priced from your book.");
-    expect(onStage).toHaveBeenLastCalledWith({ word: "1 to settle", settle: true });
+    expect(onStage).toHaveBeenLastCalledWith(expect.objectContaining({ word: "1 to settle", settle: true }));
   });
 
   /* 11.1 with her on: the paper stands where the conversation was, so the

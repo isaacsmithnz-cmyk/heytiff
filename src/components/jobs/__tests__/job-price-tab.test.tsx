@@ -3,7 +3,9 @@ import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 
 /* THE JOB'S PRICE TAB (the job page plan's build 10, 15 November 2026): every
-   price on the job as a card, the one open below with its views and rail.
+   price on the job as a card, the one open below; the quote's paper with
+   Open quote, which opens it in a tab of its own (the Price overhaul, 18
+   November 2026), where the tab is the quote alone.
    The quote page's body moved here with it: a quote still on the old builder
    is switched to its lines as it opens (Isaac, 2026-10-12). */
 
@@ -13,7 +15,13 @@ jest.mock("@/app/actions/workboard", () => ({ readClaim: (...a: unknown[]) => re
 const sendInvoiceToSm8 = jest.fn();
 jest.mock("@/app/actions/invoice-sm8", () => ({ sendInvoiceToSm8: (...a: unknown[]) => sendInvoiceToSm8(...a) }));
 /* the lines have a suite of their own: here, what the tab hands them */
+const push = jest.fn();
+jest.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
+jest.mock("@/components/shell/open-tabs", () => ({ openInTab: (href: string) => href }));
+jest.mock("@/components/workboard/quote/lines-proposal-paper", () => ({ LinesProposalPaper: () => <p>The proposal&rsquo;s paper</p> }));
+let quoteView: unknown = { ok: true, lines: [{ id: "l-1", optionIndex: 0 }], variations: [], names: {}, me: null, proposal: null };
 jest.mock("@/components/workboard/quote/quote-lines-face", () => ({
+  useQuoteLines: () => ({ view: quoteView }),
   QuoteLinesFace: ({ price, sm8, start, views, openAt, update }: { price: unknown; sm8: { value: string | null }; start?: boolean; views?: boolean; openAt?: number | null; update?: boolean }) => (
     <div>
       <p>{`Lines, ${sm8.value ?? "no value"}`}</p>
@@ -59,6 +67,8 @@ beforeEach(() => {
   sendInvoiceToSm8.mockReset().mockResolvedValue({ ok: true, trial: false, sent: 2, lines: 2, waiting: 0, failed: [], said: "2 of 2 lines on job 3221 in ServiceM8." });
   engine = "lines";
   switches = true;
+  push.mockReset();
+  quoteView = { ok: true, lines: [{ id: "l-1", optionIndex: 0 }], variations: [], names: {}, me: null, proposal: null };
   fetchMock = jest.fn(async (url: string, init?: { body?: string }) => ({
     ok: true,
     json: async () => {
@@ -117,15 +127,23 @@ const draw = (over: Partial<ComponentProps<typeof JobPriceTab>> = {}) =>
   );
 const prices = () => within(screen.getByRole("group", { name: "The job's prices" }));
 
-it("lays the job's prices across the top, the quote open in its views, the invoice beside it", async () => {
+it("lays the job's prices across the top, the quote's paper under them with Open quote, the invoice beside it", async () => {
   draw();
   const quote = await prices().findByRole("button", { name: /^Quote/ });
   expect(quote).toHaveAttribute("aria-pressed", "true");
   expect(quote).toHaveTextContent("Return visit$775.00 ex GST");
   /* owed said one way, as Billing's row says it */
   expect(prices().getByRole("button", { name: /^Invoice #3408/ })).toHaveTextContent("$350 ex GSTAwaiting");
+  /* the paper as the customer gets it, read only; the quote opens in a tab of its own (the Price overhaul, 18 November 2026) */
+  expect(await screen.findByText("The proposal’s paper")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Open quote" })).toHaveAttribute("href", `/dashboard/jobs/${JOB}/quote`);
+  expect(screen.queryByText("Views over the left")).toBeNull();
+});
+
+it("in the quote's own tab, is the quote alone, with no prices over it", async () => {
+  draw({ doc: "quote" });
   expect(await screen.findByText("Views over the left")).toBeInTheDocument();
-  expect(await screen.findByText("Priced")).toBeInTheDocument();
+  expect(screen.queryByRole("group", { name: "The job's prices" })).toBeNull();
 });
 
 it("opens an invoice on its paper, with its figure and word down the right", async () => {
@@ -189,7 +207,8 @@ it("opens on the invoice a door asked for", async () => {
 
 it("shows a tech no invoice, and reads no price without the money grants", async () => {
   draw({ moneyVisible: false, financials: false, billing: null });
-  expect(await screen.findByText("No price")).toBeInTheDocument();
+  expect(await screen.findByText("Open the quote to see its work and talk it through with Tiff.")).toBeInTheDocument();
+  expect(screen.queryByText("The proposal’s paper")).toBeNull();
   expect(prices().queryByRole("button", { name: /^Invoice/ })).toBeNull();
   expect(readClaim).not.toHaveBeenCalled();
   expect(fetchMock.mock.calls.some((c) => String(c[0]).startsWith("/api/workboard/quote-price"))).toBe(false);
@@ -202,20 +221,29 @@ it("offers New quote, orange, on a job with no price, and starts it at the reply
   const button = screen.getByRole("button", { name: "New quote" });
   expect(button).toHaveClass("pt-btn--quote");
   await userEvent.click(button);
-  expect(await screen.findByText("Starts at the reply box")).toBeInTheDocument();
-  expect(prices().getByRole("button", { name: /New quote/, pressed: true })).toBeInTheDocument();
+  /* in a tab of its own, the reply box ready for the brief */
+  expect(push).toHaveBeenCalledWith(`/dashboard/jobs/${JOB}/quote?start=1`);
 });
 
-it("hands the quote what the address asked: the start, an option, Update quote", async () => {
+it("opens the quote's own tab on what a door asked: the start, an option, Update quote", async () => {
   status = { ok: true, facts: facts({ lines: 0, talked: false }), landing: null };
   const { unmount } = draw({ ask: { start: true, n: 1 } });
+  await waitFor(() => expect(push).toHaveBeenCalledWith(`/dashboard/jobs/${JOB}/quote?start=1`));
+  unmount();
+  draw({ ask: { option: 2, update: true, n: 1 } });
+  await waitFor(() => expect(push).toHaveBeenLastCalledWith(`/dashboard/jobs/${JOB}/quote?option=2&update=1`));
+});
+
+it("hands the quote in its own tab what the address asked: the start, an option, Update quote", async () => {
+  status = { ok: true, facts: facts({ lines: 0, talked: false }), landing: null };
+  const { unmount } = draw({ doc: "quote", ask: { start: true, n: 1 } });
   expect(await screen.findByText("Starts at the reply box")).toBeInTheDocument();
   unmount();
   status = { ok: true, facts: facts(), landing };
-  draw({ ask: { option: 2, update: true, n: 1 } });
+  draw({ doc: "quote", ask: { option: 2, update: true, n: 1 } });
   expect(await screen.findByText("On option 2")).toBeInTheDocument();
   expect(screen.getByText("Update quote asked")).toBeInTheDocument();
-  expect(screen.queryByText("Starts at the reply box")).toBeNull();
+  expect(push).not.toHaveBeenCalled();
 });
 
 it("stands ServiceM8's own quote in for one never built here, with Update quote in orange", async () => {
@@ -228,12 +256,12 @@ it("stands ServiceM8's own quote in for one never built here, with Update quote 
   const update = screen.getByRole("button", { name: "Update quote" });
   expect(update).toHaveClass("pt-btn--quote");
   await userEvent.click(update);
-  expect(await screen.findByText("Starts at the reply box")).toBeInTheDocument();
+  expect(push).toHaveBeenCalledWith(`/dashboard/jobs/${JOB}/quote?start=1`);
 });
 
 it("switches a quote still on the old builder to its lines as it opens", async () => {
   engine = "old";
-  draw();
+  draw({ doc: "quote" });
   expect(await screen.findByText("Views over the left")).toBeInTheDocument();
   expect(fetchMock.mock.calls.filter((c) => (c[1] as { method?: string } | undefined)?.method === "POST")).toEqual([
     ["/api/workboard/quote-lines", expect.objectContaining({ body: JSON.stringify({ job: JOB, op: "switch", engine: "lines" }) })],
@@ -243,7 +271,7 @@ it("switches a quote still on the old builder to its lines as it opens", async (
 it("says when the quote couldn't be opened, and Try again opens it", async () => {
   engine = "old";
   switches = false;
-  draw();
+  draw({ doc: "quote" });
   expect(await screen.findByText("The quote couldn’t be opened.")).toBeInTheDocument();
   switches = true;
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
@@ -262,7 +290,7 @@ it("says when where the quote stands wasn't read, and reads it again", async () 
 describe("New invoice", () => {
   it("is offered to whoever sees money and the business's figures, and to nobody else", async () => {
     draw({ moneyVisible: false, financials: false, billing: null });
-    await screen.findByText("No price");
+    await screen.findByText("Open the quote to see its work and talk it through with Tiff.");
     expect(screen.queryByRole("button", { name: "New invoice" })).toBeNull();
   });
 

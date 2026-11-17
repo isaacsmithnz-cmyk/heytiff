@@ -122,7 +122,7 @@ describe("the places (rule 5)", () => {
 });
 
 describe("your name (rule 7)", () => {
-  it("opens your card, time, leave, claims, vehicle, notes, Reports and Settings, then Report bug and Sign out", () => {
+  it("opens your card, time, leave, claims, vehicle, notes, Reports and Settings, then Sign out", () => {
     draw({ ...userAs("owner", [...resolve("owner")]), hasVehicle: true });
     act(() => screen.getByRole("button", { name: /Isaac Smith/ }).click());
     const menu = screen.getByRole("menu", { name: "Your name" });
@@ -135,13 +135,12 @@ describe("your name (rule 7)", () => {
       "Notes",
       "Reports",
       "Settings",
-      "Report bug",
       "Sign out",
     ]);
   });
 
-  it("keeps Report bug for the owner, as on the phone", () => {
-    for (const role of ["admin", "staff"] as const) {
+  it("has no Report bug: it's the bug in the top bar, for everyone", () => {
+    for (const role of ["owner", "admin", "staff"] as const) {
       draw(userAs(role));
       act(() => screen.getByRole("button", { name: /Isaac Smith/ }).click());
       const items = within(screen.getByRole("menu", { name: "Your name" })).getAllByRole("menuitem");

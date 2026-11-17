@@ -271,6 +271,7 @@ this list the way it holds the loops: both ways, by name.
 | `arrowUp` | `cv-rnd` ×2 | Tiff's ↑, on the box and on the bar while you speak: a chat's Send, as Claude's and the phone's are (law 25; the box, 9 November 2026) |
 | `rotate` | `ds-tool` ×2 | undo and redo in the Studio toolbar, the candidates law 25 named |
 | `x` | `camdel`, `ds-plancard-x` | a thumbnail's cross, on a photo badge and on a plan page in the Studio's import: a picture has no room for a word |
+| `bug` | `fr-bug` ×2 | Report bug, at the right end of the top bar and again over a pop-up's scrim, as the phone's bug is in its ink: a symbol pressable from anywhere, for the whole team (Isaac, 18 November 2026: "the bug should move to a symbol at the top of the screen, similar to the app, and it's pressable at any point", then "I need everyone to be able to report bugs") |
 
 ### His rulings
 

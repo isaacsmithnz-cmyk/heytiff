@@ -1,12 +1,13 @@
 /**
  * @jest-environment node
  */
-/* The phone's bug: the owner's alone, each one the workspace's next number, kept under bugs/<workspace>/ as
+/* The phone's bug: anyone in the workspace's, saying who, each one the workspace's next number, kept under bugs/<workspace>/ as
    0012.png beside 0012.txt; a note rewrites the .txt's Note line; Undo takes both away. Storage is a fake folder. */
 
 let role: string | null = "owner";
+let userId = "auth0|isaac";
 jest.mock("@/lib/mobile/auth", () => ({
-  requireMobile: async (r: Request) => (r.headers.get("authorization") ? { userId: "auth0|isaac", orgId: "org1", role } : new Response(null, { status: 401 })),
+  requireMobile: async (r: Request) => (r.headers.get("authorization") ? { userId, orgId: "org1", role } : new Response(null, { status: 401 })),
   ok: (b: unknown) => Response.json(b),
 }));
 
@@ -15,6 +16,10 @@ const files = new Map<string, string>();
 let racing: string[] = [];
 jest.mock("@/lib/supabase-server", () => ({
   supabaseAdmin: {
+    from: () => {
+      const q = { select: () => q, eq: () => q, maybeSingle: async () => ({ data: { first_name: "Luke", preferred_name: null, full_name: "Luke Brown" }, error: null }) };
+      return q;
+    },
     storage: {
       from: (bucket: string) => ({
         list: async (folder: string) => ({
@@ -51,13 +56,14 @@ beforeEach(() => {
   files.clear();
   racing = [];
   role = "owner";
+  userId = "auth0|isaac";
 });
 
 test("the first bug is 1, the next is one past the highest in the folder, and each holds its number in a .txt", async () => {
   const first = await (await POST(req("POST", { page: "/job/3324", app: "1.0.11/e2d46512" }))).json();
   expect(first).toEqual({ number: 1, uploadUrl: "https://store/documents/bugs/org1/0001.png?token=t" });
   const txt = files.get("documents:bugs/org1/0001.txt")!;
-  expect(txt).toMatch(/^Bug 1\nWhen: \d{4}-\d\d-\d\dT.*\nPage: \/job\/3324\nApp: 1\.0\.11\/e2d46512\n$/);
+  expect(txt).toMatch(/^Bug 1\nWhen: \d{4}-\d\d-\d\dT.*\nBy: Luke Brown\nUser: auth0\|isaac\nPage: \/job\/3324\nApp: 1\.0\.11\/e2d46512\n$/);
 
   files.set("documents:bugs/org1/0011.png", "png");
   const next = await (await POST(req("POST", { page: "/" }))).json();
@@ -88,19 +94,36 @@ test("Undo takes the picture and its facts away", async () => {
   expect([...files.keys()]).toEqual([]);
 });
 
-test("only the owner saves a bug, and only signed in; another workspace's folder is never touched", async () => {
+test("anyone in the workspace saves a bug, signed in; another workspace's folder is never touched", async () => {
   expect((await POST(req("POST", {}, false))).status).toBe(401);
-  role = "staff";
+  role = null;
   expect((await POST(req("POST", {}))).status).toBe(403);
-  expect((await PUT(req("PUT", { note: "x" }), params("1"))).status).toBe(403);
-  expect((await DELETE(req("DELETE"), params("1"))).status).toBe(403);
   expect(files.size).toBe(0);
-  role = "owner";
+  role = "staff";
   files.set("documents:bugs/org2/0040.png", "png");
   expect((await (await POST(req("POST", {}))).json()).number).toBe(1);
+});
+
+test("a note or Undo is for whoever saved the bug, or the owner", async () => {
+  role = "staff";
+  userId = "auth0|luke";
+  await POST(req("POST", {}));
+  userId = "auth0|sam";
+  expect((await PUT(req("PUT", { note: "x" }), params("1"))).status).toBe(403);
+  expect((await DELETE(req("DELETE"), params("1"))).status).toBe(403);
+  userId = "auth0|luke";
+  expect((await PUT(req("PUT", { note: "PDF won't open" }), params("1"))).status).toBe(200);
+  role = "owner";
+  userId = "auth0|isaac";
+  expect((await DELETE(req("DELETE"), params("1"))).status).toBe(200);
+  // a bug from before the User line is the owner's alone
+  files.set("documents:bugs/org1/0002.txt", "Bug 2\n");
+  role = "staff";
+  expect((await DELETE(req("DELETE"), params("2"))).status).toBe(403);
 });
 
 test("numbers come from the names alone, and the .txt says what it doesn't know", () => {
   expect(highestBug(["0003.png", "0003.txt", "0010.txt", "notes.md", "12.png"])).toBe(10);
   expect(bugText({ n: 4, at: "2026-11-11T05:40:00.000Z", page: "", app: "" })).toBe("Bug 4\nWhen: 2026-11-11T05:40:00.000Z\nPage: (not said)\nApp: (not said)\n");
+  expect(bugText({ n: 5, at: "2026-11-18T05:40:00.000Z", page: "/", app: "Web", by: "", user: "auth0|x" })).toBe("Bug 5\nWhen: 2026-11-18T05:40:00.000Z\nBy: (not known)\nUser: auth0|x\nPage: /\nApp: Web\n");
 });

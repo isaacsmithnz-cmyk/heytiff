@@ -18,8 +18,6 @@ import type { RecordRef } from "@/lib/records/ref";
 import { jobPageHref } from "@/lib/shell/links";
 import { Initials } from "@/components/parts/initials";
 import { Menu, type MenuItem } from "@/components/parts/menu";
-import { ToastProvider } from "@/components/parts/toast";
-import { useReportBug } from "./report-bug";
 import type { Role } from "@/lib/roles-shared";
 import type { Capability } from "@/lib/permissions";
 
@@ -218,33 +216,21 @@ type YourNameProps = {
 
 /* YOUR NAME (rule 7): at the foot. Your card, timesheet, leave, expense
    claims, your vehicle (when you have one) and notes, Reports and
-   Settings, then Report bug for the owner (components/shell/report-bug),
-   then Sign out. Its own toasts, for the bug's "Bug 13 saved" and Undo. */
-function YourName(props: YourNameProps) {
-  return (
-    <ToastProvider>
-      <YourNameMenu {...props} />
-    </ToastProvider>
-  );
-}
-
-function YourNameMenu({ user, viewer }: YourNameProps) {
+   Settings, then Sign out. Report bug is the bug in the top bar
+   (components/shell/report-bug). */
+function YourName({ user, viewer }: YourNameProps) {
   const ref = useRef<HTMLButtonElement>(null);
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const bug = useReportBug();
   const yours = placesFor(YOURS, viewer);
   const items: MenuItem[] = [
     ...yours.map((p) => ({ key: p.key, label: p.label, lead: <Icon name={p.icon} size={16} /> })),
-    /* the phone's bug, the owner's alone as there (lib/mobile/bugs) */
-    ...(viewer.role === "owner" ? [{ key: "bug", label: "Report bug", lead: <Icon name="bug" size={16} /> }] : []),
     { key: "signout", label: "Sign out", lead: <Icon name="logout" size={16} /> },
   ];
   const choose = (key: string) => {
     setOpen(false);
     /* Sign out is a real navigation: the auth route clears the session */
     if (key === "signout") window.location.assign("/auth/logout");
-    else if (key === "bug") bug.begin();
     else {
       const p = yours.find((y) => y.key === key);
       if (p) router.push(p.href);
@@ -268,7 +254,6 @@ function YourNameMenu({ user, viewer }: YourNameProps) {
         <Icon name="chevUD" size={16} />
       </button>
       <Menu anchor={ref} open={open} onClose={() => setOpen(false)} onSelect={choose} items={items} label="Your name" matchWidth />
-      {bug.view}
     </div>
   );
 }

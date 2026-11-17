@@ -1,7 +1,7 @@
 /**
  * @jest-environment node
  */
-/* The website's bug (Your name, Report bug): the phone's folder and numbers, the owner's alone, its App line
+/* The website's bug (the bug in the top bar): the phone's folder and numbers, anyone in the workspace's, its App line
    "Web", the session saying which workspace. Storage is a fake folder. */
 
 let session: { orgId: string } | null = { orgId: "org1" };
@@ -17,6 +17,10 @@ jest.mock("@/lib/permissions-server", () => ({
 const files = new Map<string, string>();
 jest.mock("@/lib/supabase-server", () => ({
   supabaseAdmin: {
+    from: () => {
+      const q = { select: () => q, eq: () => q, maybeSingle: async () => ({ data: { first_name: "Luke", preferred_name: null, full_name: "Luke Brown" }, error: null }) };
+      return q;
+    },
     storage: {
       from: (bucket: string) => ({
         list: async (folder: string) => ({
@@ -57,14 +61,15 @@ test("a bug from the website takes the next number after the phone's, says Web, 
   const res = await POST(req("POST", { page: "Job 3521, /dashboard/jobs/abc?tab=scope", app: "1.0.11" }));
   expect(res.status).toBe(200);
   expect(await res.json()).toEqual({ number: 13, uploadUrl: "https://store/documents/bugs/org1/0013.png?token=t", path: "bugs/org1/0013.png", token: "t" });
-  expect(files.get("documents:bugs/org1/0013.txt")).toMatch(/^Bug 13\nWhen: .*\nPage: Job 3521, \/dashboard\/jobs\/abc\?tab=scope\nApp: Web\n$/);
+  expect(files.get("documents:bugs/org1/0013.txt")).toMatch(/^Bug 13\nWhen: .*\nBy: Luke Brown\nUser: auth0\|isaac\nPage: Job 3521, \/dashboard\/jobs\/abc\?tab=scope\nApp: Web\n$/);
 });
 
-test("only the owner files one, and only signed in", async () => {
-  role = "admin";
+test("anyone in the workspace files one, and only signed in", async () => {
+  role = null;
   expect((await POST(req("POST", {}))).status).toBe(403);
   role = "staff";
-  expect((await POST(req("POST", {}))).status).toBe(403);
+  expect((await POST(req("POST", {}))).status).toBe(200);
+  files.clear();
   session = null;
   expect((await POST(req("POST", {}))).status).toBe(401);
   expect(files.size).toBe(0);

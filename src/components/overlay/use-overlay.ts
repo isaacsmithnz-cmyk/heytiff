@@ -45,12 +45,27 @@ let layers: readonly Layer[] = [];
 let drawn = 0;
 const nextDrawn = () => ++drawn;
 
+/* Who wants to know when a dialog opens or shuts: the bug in the top bar,
+   which rises over them (components/shell/report-bug). */
+const watchers = new Set<() => void>();
+const tell = () => watchers.forEach((w) => w());
+
 function add(layer: Layer) {
   layers = [...layers, layer].sort((a, b) => a.seq - b.seq);
+  tell();
 }
 
 function remove(layer: Layer) {
   layers = layers.filter((l) => l !== layer);
+  tell();
+}
+
+/** For useSyncExternalStore with `overlayOpen`: told whenever a dialog opens or shuts. */
+export function subscribeOverlays(watch: () => void): () => void {
+  watchers.add(watch);
+  return () => {
+    watchers.delete(watch);
+  };
 }
 
 const front = (): Layer | undefined => layers[layers.length - 1];

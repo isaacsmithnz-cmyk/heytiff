@@ -34,8 +34,14 @@ export type LinesProposal = {
   updatedAt: string;
   approvedAt: string | null;
   approvedBy: string | null;
+  /** THE BLOCKS A PERSON TYPED (the Price overhaul, decision 5, 18 November
+      2026: "1", Tiff keeps them): "title", "intro", "notIncluded",
+      "summary-N", "work-N", "included-N". Tiff writes over one only when
+      the change asked for is in it, and says so. */
+  typed: string[];
 };
 
+const BLOCK = /^(?:title|intro|notIncluded|(?:summary|work|included)-\d{1,2})$/;
 const MAX_TEXT = 2000;
 const MAX_ITEM = 300;
 const MAX_ITEMS = 30;
@@ -87,7 +93,38 @@ export function proposalOf(raw: unknown): LinesProposal {
     updatedAt: typeof r.updatedAt === "string" ? r.updatedAt : "",
     approvedAt: typeof r.approvedAt === "string" ? r.approvedAt : null,
     approvedBy: typeof r.approvedBy === "string" ? r.approvedBy : null,
+    typed: [...new Set((Array.isArray(r.typed) ? r.typed : []).filter((k): k is string => typeof k === "string" && BLOCK.test(k)))].slice(0, 80),
   };
+}
+
+/* ── whose words: the blocks a person typed ── */
+
+/** The blocks whose words differ between two proposals. */
+export function blocksChanged(was: LinesProposal, now: LinesProposal): string[] {
+  const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+  const out: string[] = [];
+  if (was.title !== now.title) out.push("title");
+  if (was.intro !== now.intro) out.push("intro");
+  for (let i = 0; i < Math.max(was.options.length, now.options.length); i++) {
+    const a = was.options[i];
+    const b = now.options[i];
+    if ((a?.summary ?? "") !== (b?.summary ?? "")) out.push(`summary-${i}`);
+    if (!same(a?.areas ?? [], b?.areas ?? [])) out.push(`work-${i}`);
+    if (!same(a?.included ?? [], b?.included ?? [])) out.push(`included-${i}`);
+  }
+  if (!same(was.notIncluded, now.notIncluded)) out.push("notIncluded");
+  return out;
+}
+
+/** A block in words: "the introduction", "option 2's work". */
+export function blockWords(key: string): string {
+  if (key === "title") return "the title";
+  if (key === "intro") return "the introduction";
+  if (key === "notIncluded") return "what isn't included";
+  const m = /^(summary|work|included)-(\d+)$/.exec(key);
+  if (!m) return key;
+  const n = Number(m[2]) + 1;
+  return m[1] === "summary" ? `option ${n}'s summary` : m[1] === "work" ? `option ${n}'s work` : `what option ${n} includes`;
 }
 
 /* ── the words as a person types them ── */

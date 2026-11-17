@@ -27,7 +27,7 @@ export function PrintQuote(props: {
 }) {
   return (
     <div className="fg qpdf">
-      <LinesProposalPaper {...props} busy={false} onSave={() => {}} />
+      <LinesProposalPaper {...props} busy={false} readOnly onSave={() => {}} />
       <PrintReady />
     </div>
   );

@@ -646,7 +646,7 @@ export const SESSION_TOOLS: ToolDef[] = [
   {
     name: "write_proposal",
     description:
-      "Write the proposal's words, the way the client reads them: the title and an introduction of two or three sentences, and for an option its summary (what it is and why, in plain words), the work by area and what's included. What isn't included and how the client chooses (one option, or any they tick) are the whole proposal's. Give only what you're writing; the rest stays. Never a price or a figure: those come from the lines. Plainly and with confidence, as the business puts it to its client: no hedge or working (about, approximately, assumed, an allowance per item, a count not settled), a choice still open as \"Floor grille style to be confirmed with you\", and never the business's own notes. A person approves it before it goes.",
+      "Write the proposal's words, the way the client reads them: the title and an introduction of two or three sentences, and for an option its summary (what it is and why, in plain words), the work by area and what's included. What isn't included and how the client chooses (one option, or any they tick) are the whole proposal's. Give only what you're writing; the rest stays. Never a price or a figure: those come from the lines. Plainly and with confidence, as the business puts it to its client: no hedge or working (about, approximately, assumed, an allowance per item, a count not settled), a choice still open as \"Floor grille style to be confirmed with you\", and never the business's own notes. A part a person typed is theirs: it's refused with their words, and written over only with replace_typed when the change they asked for is in it, and then you say which of their words you changed. A person approves it before it goes.",
     input_schema: {
       type: "object",
       properties: {
@@ -661,6 +661,8 @@ export const SESSION_TOOLS: ToolDef[] = [
         included: { type: "array", items: { type: "string" } },
         not_included: { type: "array", items: { type: "string" } },
         choice: { type: "string", enum: ["one", "any"] },
+        /* a person's own words, written over only when the change they asked for is in them */
+        replace_typed: { type: "boolean" },
       },
       additionalProperties: false,
     },

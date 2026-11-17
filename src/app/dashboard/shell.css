@@ -3814,6 +3814,15 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 /* the proposal for a quote built on its lines (slice 7.1, mock-up screen 7):
    a sheet of paper on the desk, option by option, price last; the
    business's colour on its headings where it has one */
+/* THE PROPOSAL TYPED ON (the Price overhaul, 18 November 2026: "like a
+   Word document"): each block is its own box, found by its pointer, lit
+   while you type in it; an empty one says so in grey; a bar over the page
+   says it saved itself */
+.fg .lp-typed { margin:0; min-height:1.55em; border-radius:var(--r-control); outline:none; cursor:text; }
+.fg .lp-typed:focus { background:var(--sel); }
+.fg .lp-typed:focus-visible { box-shadow:var(--ring); }
+.fg .lp-typed:empty::before { content:attr(data-empty); color:var(--q); }
+.fg .qc-fmt { flex:none; display:flex; align-items:center; justify-content:flex-end; min-height:40px; padding:0 16px; font-size:13px; line-height:18px; }
 .fg .lp-desk { margin:0 -24px -32px; padding:24px 24px 48px; background:var(--bg); }
 .fg .lp-paper { max-width:800px; margin:0 auto; padding:48px; display:flex; flex-direction:column; gap:24px; background:var(--paper); border:1px solid var(--hd-edge); border-radius:var(--r-control); font-size:13px; line-height:1.55; color:var(--hd-ink); }
 .fg .lp-lh { display:flex; justify-content:space-between; align-items:flex-start; gap:24px; padding-bottom:16px; border-bottom:2px solid var(--doc-ink, var(--hd-ink)); }

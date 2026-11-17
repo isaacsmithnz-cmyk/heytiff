@@ -468,6 +468,7 @@ function QuotePreview({ job, detail, money, starting }: { job: string; detail: M
                 jobNumber={detail?.jobNumber ?? null}
                 preparedBy={view.names[view.me ?? ""] ?? null}
                 busy
+                readOnly
                 onSave={() => undefined}
               />
             </div>

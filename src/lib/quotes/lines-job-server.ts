@@ -104,10 +104,11 @@ export async function putResearchedOn(orgId: string, cardId: string, by: string,
   return m.ok ? { ok: true } : m;
 }
 
-/** The proposal's words changed (7.1), one set of words an option. */
-export async function saveProposal(orgId: string, cardId: string, patch: unknown, by: string) {
+/** The proposal's words changed (7.1), one set of words an option: by a
+    person, whose blocks are then theirs, or by Tiff (`person` false). */
+export async function saveProposal(orgId: string, cardId: string, patch: unknown, by: string, person = true) {
   const options = Math.max(1, ...(await readLines(orgId, cardId)).map((l) => l.optionIndex + 1));
-  return changeByHand(orgId, cardId, by, (b) => withProposal(b, patch, new Date().toISOString(), options));
+  return changeByHand(orgId, cardId, by, (b) => withProposal(b, patch, new Date().toISOString(), options, person));
 }
 /** A person saying this version of the proposal is right to go. */
 export const approveProposal = (orgId: string, cardId: string, by: string) => changeByHand(orgId, cardId, by, (b) => withApproval(b, by, new Date().toISOString()));

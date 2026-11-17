@@ -2,17 +2,17 @@
 
 import { useState, type ReactNode } from "react";
 import { Letterhead } from "@/components/org/letterhead";
-import { NoteToken } from "@/components/notes/note-token";
 import { useOrgBrand } from "@/components/studio/summary/use-org-brand";
 import type { OrgBrand } from "@/lib/org/brand";
 import { capacityOf } from "@/lib/quotes/brands";
 import { againstFirst, type QuoteLine } from "@/lib/quotes/lines";
-import { areasOf, areasText, listOf, listText, proposalOf, stageAmounts, type LinesProposal } from "@/lib/quotes/lines-proposal";
+import { proposalOf, stageAmounts, type LinesProposal } from "@/lib/quotes/lines-proposal";
 import { PAYMENT_PRESETS, PAYMENT_PRESET_KEYS, type PaymentPreset, type PaymentStage } from "@/lib/quotes/payment";
 import type { QuotePrice } from "@/lib/quotes/quote-price-server";
 import type { QuoteNote } from "@/lib/templates/settings";
 import { themeVars } from "@/lib/org/theme";
 import { fmtAud } from "@/lib/workboard/project-money";
+import { Typed, TypedList } from "./typed";
 
 /* THE PROPOSAL, FOR A QUOTE BUILT ON ITS LINES (slice 7.1, mock-up screen 7,
    Isaac 2026-10-07: "the price should not be first… each option… clear
@@ -40,6 +40,8 @@ type Props = {
   jobNumber: string | null;
   busy: boolean;
   onSave: (patch: Partial<LinesProposal>) => void;
+  /** drawn to read, not to type on: the Price tab's preview and the PDF */
+  readOnly?: boolean;
   /** the business's brand as the server read it: the PDF's print page has
       no session to ask for it with (app/print/quote) */
   brand?: OrgBrand;
@@ -50,11 +52,11 @@ type Block = "intro" | "notIncluded" | "payment" | "choice" | "notes" | `summary
 const today = () => new Date().toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" });
 
 /** A block of the proposal's words, edited where it sits. */
-function Editable({ label, editing, onEdit, children, editor }: { label: string; editing: boolean; onEdit: () => void; children: ReactNode; editor: ReactNode }) {
+function Editable({ label, editing, onEdit, children, editor, readOnly = false }: { label: string; editing: boolean; onEdit: () => void; children: ReactNode; editor: ReactNode; readOnly?: boolean }) {
   return (
     <div className={editing ? "lp-ed on" : "lp-ed"}>
       {editing ? editor : children}
-      {!editing && (
+      {!editing && !readOnly && (
         <button type="button" className="lp-edit" aria-label={`Edit ${label}`} onClick={onEdit}>
           Edit
         </button>
@@ -63,28 +65,11 @@ function Editable({ label, editing, onEdit, children, editor }: { label: string;
   );
 }
 
-/** A box of words with Save and Cancel. */
-function WordsBox({ label, value, rows, onSave, onCancel, busy }: { label: string; value: string; rows: number; onSave: (v: string) => void; onCancel: () => void; busy: boolean }) {
-  const [typed, setTyped] = useState(value);
-  return (
-    <div className="lp-box">
-      <NoteToken as="field" label={label} offer={false} rows={rows} value={typed} onChange={setTyped} box={{ "aria-label": label }} />
-      <div className="wb2-jqacts">
-        <button type="button" className="pbtn ghost sm" onClick={onCancel}>
-          Cancel
-        </button>
-        <button type="button" className="pbtn ghost sm qp-go" disabled={busy} onClick={() => onSave(typed)}>
-          Save
-        </button>
-      </div>
-    </div>
-  );
-}
-
 const quiet = (words: string) => <p className="lp-none">{words}</p>;
 
 export function LinesProposalPaper(props: Props) {
   const { lines, price, busy, onSave } = props;
+  const ro = !!props.readOnly;
   const brand = useOrgBrand(props.brand);
   const [editing, setEditing] = useState<Block | null>(null);
   const p = props.proposal ?? proposalOf({});
@@ -125,25 +110,11 @@ export function LinesProposalPaper(props: Props) {
         </div>
       </div>
 
-      <Editable
-        label="the introduction"
-        editing={editing === "intro"}
-        onEdit={() => setEditing("intro")}
-        editor={
-          <IntroBox
-            title={p.title || props.title}
-            intro={p.intro}
-            busy={busy}
-            onCancel={() => setEditing(null)}
-            onSave={(title, intro) => save({ title, intro })}
-          />
-        }
-      >
-        <div className="lp-intro">
-          <h2>{p.title || props.title}</h2>
-          {p.intro ? <p>{p.intro}</p> : quiet("No introduction written yet.")}
-        </div>
-      </Editable>
+      {/* typed where it sits, as on a page in Word (the Price overhaul, 18 November 2026) */}
+      <div className="lp-intro">
+        <Typed as="h2" value={p.title || props.title} label="The proposal's title" readOnly={ro} onSave={(title) => save({ title })} />
+        <Typed value={p.intro} label="The introduction" empty="No introduction written yet." multiline readOnly={ro} onSave={(intro) => save({ intro })} />
+      </div>
 
       {Array.from({ length: options }, (_, i) => {
         const w = optionWords(i);
@@ -158,64 +129,45 @@ export function LinesProposalPaper(props: Props) {
                 <h3>{nameOf(i)}</h3>
               </div>
             </header>
-            <Editable
-              label={`option ${i + 1}'s summary`}
-              editing={editing === `summary-${i}`}
-              onEdit={() => setEditing(`summary-${i}`)}
-              editor={<WordsBox label={`Option ${i + 1}'s summary`} value={w.summary} rows={4} busy={busy} onCancel={() => setEditing(null)} onSave={(v) => setOption(i, { summary: v })} />}
-            >
-              {w.summary ? <p className="lp-osum">{w.summary}</p> : quiet("No summary written yet.")}
-            </Editable>
+            <Typed
+              className="lp-osum"
+              value={w.summary}
+              label={`Option ${i + 1}'s summary`}
+              empty="No summary written yet."
+              multiline
+              readOnly={ro}
+              onSave={(summary) => setOption(i, { summary })}
+            />
             <div className="lp-ocols">
-              <Editable
-                label={`option ${i + 1}'s work`}
-                editing={editing === `work-${i}`}
-                onEdit={() => setEditing(`work-${i}`)}
-                editor={
-                  <WordsBox
-                    label={`Option ${i + 1}'s work: an area's name ending in a colon, its items under it`}
-                    value={areasText(w.areas)}
-                    rows={10}
-                    busy={busy}
-                    onCancel={() => setEditing(null)}
-                    onSave={(v) => setOption(i, { areas: areasOf(v) })}
-                  />
-                }
-              >
-                <div className="lp-work">
-                  <h4 className="lp-oh">The work</h4>
-                  {w.areas.length === 0 && quiet("Not written yet.")}
-                  {w.areas.map((a, k) => (
-                    <div key={k} className="lp-scope">
-                      {a.name && <h4>{a.name}</h4>}
-                      <ul>
-                        {a.items.map((it, n) => (
-                          <li key={n}>{it}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
-              </Editable>
-              <Editable
-                label={`what option ${i + 1} includes`}
-                editing={editing === `included-${i}`}
-                onEdit={() => setEditing(`included-${i}`)}
-                editor={<WordsBox label={`What option ${i + 1} includes, one a line`} value={listText(w.included)} rows={8} busy={busy} onCancel={() => setEditing(null)} onSave={(v) => setOption(i, { included: listOf(v) })} />}
-              >
-                <aside className="lp-inc">
-                  <h4 className="lp-oh">Included</h4>
-                  {w.included.length === 0 ? (
-                    quiet("Not written yet.")
-                  ) : (
-                    <ul className="lp-in">
-                      {w.included.map((it, n) => (
-                        <li key={n}>{it}</li>
-                      ))}
-                    </ul>
-                  )}
-                </aside>
-              </Editable>
+              <div className="lp-work">
+                <h4 className="lp-oh">The work</h4>
+                {w.areas.length === 0 && (
+                  <TypedList items={[]} label={`Option ${i + 1}'s work`} empty="Not written yet." readOnly={ro} onSave={(items) => setOption(i, { areas: [{ name: "", items }] })} />
+                )}
+                {w.areas.map((a, k) => (
+                  <div key={k} className="lp-scope">
+                    {a.name && (
+                      <Typed
+                        as="h4"
+                        value={a.name}
+                        label={`Option ${i + 1}, the name of area ${k + 1}`}
+                        readOnly={ro}
+                        onSave={(name) => setOption(i, { areas: w.areas.map((x, j) => (j === k ? { ...x, name } : x)) })}
+                      />
+                    )}
+                    <TypedList
+                      items={a.items}
+                      label={a.name || `Option ${i + 1}'s work`}
+                      readOnly={ro}
+                      onSave={(items) => setOption(i, { areas: w.areas.map((x, j) => (j === k ? { ...x, items } : x)).filter((x) => x.name || x.items.length) })}
+                    />
+                  </div>
+                ))}
+              </div>
+              <aside className="lp-inc">
+                <h4 className="lp-oh">Included</h4>
+                <TypedList className="lp-in" items={w.included} label={`What option ${i + 1} includes`} empty="Not written yet." readOnly={ro} onSave={(included) => setOption(i, { included })} />
+              </aside>
             </div>
             {units.length > 0 && (
               <table className="lp-eq">
@@ -259,6 +211,7 @@ export function LinesProposalPaper(props: Props) {
 
       <section className="lp-sec" aria-label="Your choice">
         <Editable
+          readOnly={ro}
           label="how the client chooses"
           editing={editing === "choice"}
           onEdit={() => setEditing("choice")}
@@ -304,27 +257,13 @@ export function LinesProposalPaper(props: Props) {
       </section>
 
       <section className="lp-sec" aria-label="Not included">
-        <Editable
-          label="what isn't included"
-          editing={editing === "notIncluded"}
-          onEdit={() => setEditing("notIncluded")}
-          editor={<WordsBox label="What isn't included, one a line" value={listText(p.notIncluded)} rows={8} busy={busy} onCancel={() => setEditing(null)} onSave={(v) => save({ notIncluded: listOf(v) })} />}
-        >
-          <h3 className="lp-ph">Not included</h3>
-          {p.notIncluded.length === 0 ? (
-            quiet("Not written yet.")
-          ) : (
-            <ul className="lp-ex">
-              {p.notIncluded.map((it, n) => (
-                <li key={n}>{it}</li>
-              ))}
-            </ul>
-          )}
-        </Editable>
+        <h3 className="lp-ph">Not included</h3>
+        <TypedList className="lp-ex" items={p.notIncluded} label="What isn't included" empty="Not written yet." readOnly={ro} onSave={(notIncluded) => save({ notIncluded })} />
       </section>
 
       <section className="lp-sec" aria-label="Payment">
         <Editable
+          readOnly={ro}
           label="the payment stages"
           editing={editing === "payment"}
           onEdit={() => setEditing("payment")}
@@ -381,6 +320,7 @@ export function LinesProposalPaper(props: Props) {
 
       <section className="lp-sec" aria-label="Notes">
         <Editable
+          readOnly={ro}
           label="the notes"
           editing={editing === "notes"}
           onEdit={() => setEditing("notes")}
@@ -413,25 +353,6 @@ export function LinesProposalPaper(props: Props) {
         </div>
       </section>
     </article>
-  );
-}
-
-function IntroBox({ title, intro, busy, onSave, onCancel }: { title: string; intro: string; busy: boolean; onSave: (title: string, intro: string) => void; onCancel: () => void }) {
-  const [t, setT] = useState(title);
-  const [words, setWords] = useState(intro);
-  return (
-    <div className="lp-box">
-      <input className="wb2-fi" value={t} aria-label="The proposal's title" onChange={(e) => setT(e.target.value)} />
-      <NoteToken as="field" label="the introduction" offer={false} rows={5} value={words} onChange={setWords} box={{ "aria-label": "The introduction" }} />
-      <div className="wb2-jqacts">
-        <button type="button" className="pbtn ghost sm" onClick={onCancel}>
-          Cancel
-        </button>
-        <button type="button" className="pbtn ghost sm qp-go" disabled={busy} onClick={() => onSave(t.trim(), words)}>
-          Save
-        </button>
-      </div>
-    </div>
   );
 }
 

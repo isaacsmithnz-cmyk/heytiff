@@ -85,8 +85,19 @@ it("lays out each option with its words, equipment and price, the price last", (
   expect(within(second).getByRole("heading", { name: "Option 2" })).toBeInTheDocument();
   /* a unit option 1 hasn't got is marked */
   expect(within(second).getByText("Added")).toBeInTheDocument();
-  expect(within(second).getAllByText("No summary written yet.")).toHaveLength(1);
+  /* nothing written yet: an empty box that says so */
+  const empty = within(second).getByRole("textbox", { name: "Option 2's summary" });
+  expect(empty).toHaveTextContent("");
+  expect(empty).toHaveAttribute("data-empty", "No summary written yet.");
 });
+
+/* typed where it sits, as on a page in Word (the Price overhaul, 18 November 2026) */
+const typeIn = (box: HTMLElement, words: string) => {
+  fireEvent.focus(box);
+  box.textContent = words;
+  fireEvent.input(box);
+  fireEvent.blur(box, { relatedTarget: null });
+};
 
 it("shows the notes always on, and each option's share of each payment stage", () => {
   paper();
@@ -98,29 +109,42 @@ it("shows the notes always on, and each option's share of each payment stage", (
   for (const c of inc) expect(deposit).toHaveTextContent(fmtAud(Math.round(c / 10)));
 });
 
-it("edits a block where it sits, and saves only that block's words", () => {
+it("types a block where it sits, and saves only that block's words as you leave it", () => {
   const onSave = paper();
-  fireEvent.click(screen.getByRole("button", { name: "Edit option 2's summary" }));
-  fireEvent.change(screen.getByLabelText("Option 2's summary"), { target: { value: "The bigger unit, for the open plan." } });
-  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+  expect(screen.queryByRole("button", { name: /^Edit option/ })).toBeNull();
+  typeIn(screen.getByRole("textbox", { name: "Option 2's summary" }), "The bigger unit, for the open plan.");
   expect(onSave).toHaveBeenCalledWith({
     options: [
       { summary: "The smaller unit.", areas: [{ name: "Roof", items: ["Duct to each room"] }], included: ["Commissioning"] },
       { summary: "The bigger unit, for the open plan.", areas: [], included: [] },
     ],
   });
-  expect(screen.queryByLabelText("Option 2's summary")).not.toBeInTheDocument();
 });
 
-it("takes the work by area as typed", () => {
+it("saves nothing when a block is left as it was", () => {
   const onSave = paper();
-  fireEvent.click(screen.getByRole("button", { name: "Edit option 1's work" }));
-  fireEvent.change(screen.getByRole("textbox"), { target: { value: "Roof:\n- Duct to each room\nGarage:\n- Outdoor on brackets" } });
-  fireEvent.click(screen.getByRole("button", { name: "Save" }));
-  expect(onSave.mock.calls[0]![0].options[0].areas).toEqual([
-    { name: "Roof", items: ["Duct to each room"] },
-    { name: "Garage", items: ["Outdoor on brackets"] },
-  ]);
+  typeIn(screen.getByRole("textbox", { name: "The introduction" }), "Thanks for having us out.");
+  expect(onSave).not.toHaveBeenCalled();
+});
+
+it("types a list one item a line: Enter starts the next, and the list saves as you leave it", () => {
+  const onSave = paper();
+  const first = screen.getByRole("textbox", { name: "Roof, item 1" });
+  fireEvent.focus(first);
+  fireEvent.keyDown(first, { key: "Enter" });
+  const next = screen.getByRole("textbox", { name: "Roof, item 2" });
+  next.textContent = "Outdoor on brackets";
+  fireEvent.input(next);
+  fireEvent.blur(next, { relatedTarget: null });
+  expect(onSave.mock.calls[0]![0].options[0].areas).toEqual([{ name: "Roof", items: ["Duct to each room", "Outdoor on brackets"] }]);
+});
+
+it("what isn't included is typed as a list too, and a blank item is left off", () => {
+  const onSave = paper();
+  const box = screen.getByRole("textbox", { name: "What isn't included, item 1" });
+  fireEvent.keyDown(box, { key: "Enter" });
+  typeIn(screen.getByRole("textbox", { name: "What isn't included, item 1" }), "Switchboard upgrades");
+  expect(onSave).toHaveBeenCalledWith({ notIncluded: ["Switchboard upgrades"] });
 });
 
 it("picks the notes, the always-on ones fixed", () => {
@@ -139,11 +163,21 @@ it("a payment preset brings its stages", () => {
   expect(onSave.mock.calls[0]![0].payment.stages).toHaveLength(4);
 });
 
-it("Cancel leaves the words as they were", () => {
+it("Escape puts the words back as they were", () => {
   const onSave = paper();
-  fireEvent.click(screen.getByRole("button", { name: "Edit the introduction" }));
-  fireEvent.change(screen.getByLabelText("The introduction"), { target: { value: "Changed" } });
-  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  const box = screen.getByRole("textbox", { name: "The introduction" });
+  fireEvent.focus(box);
+  box.textContent = "Changed";
+  fireEvent.keyDown(box, { key: "Escape" });
+  expect(box).toHaveTextContent("Thanks for having us out.");
+  fireEvent.blur(box, { relatedTarget: null });
   expect(onSave).not.toHaveBeenCalled();
+});
+
+it("drawn to read (the Price tab's preview, the PDF), has no box to type in and nothing to edit", () => {
+  paper({ readOnly: true });
+  expect(screen.queryAllByRole("textbox")).toHaveLength(0);
+  expect(screen.queryByRole("button", { name: /^Edit/ })).toBeNull();
   expect(screen.getByText("Thanks for having us out.")).toBeInTheDocument();
+  expect(screen.getByText("Duct to each room")).toBeInTheDocument();
 });

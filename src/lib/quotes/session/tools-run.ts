@@ -6,7 +6,7 @@ import { stillUnknown } from "../lines-price";
 import { findInBook, offerFor, supplierOffer, type UnitLookup } from "../lookups";
 import type { TaskKey } from "../settings";
 import type { Correction } from "../corrections";
-import { proposalOf, type LinesProposal } from "../lines-proposal";
+import { blockWords, blocksChanged, proposalOf, type LinesProposal } from "../lines-proposal";
 import { planOf } from "../build-progress";
 import { mergedWriteUp, WRITE_UP_SECTIONS, type WriteUp } from "../write-up";
 import type { Research } from "../research";
@@ -154,6 +154,20 @@ const CHANGES_MONEY = new Set(["add_lines", "change_line", "remove_line", "add_k
 const CREW_OR_TIME = /\b(?:\d+|one|two|three|four|five|six)\s+(?:technicians?|techs?|installers?|tradesm[ae]n|people|persons?|guys|men|workers|crew)\b|\b\d+(?:\.\d+)?\s*(?:hours?|hrs?|person-hours?)\b|\b(?:\d+|full|half|one|two|three|four|five|a)[ -]days?\b|\b(?:in|over)\s+(?:\d+|one|two|three|four|five|a)\s+visits?\b/i;
 
 /** Every string the proposal's write puts on the paper. */
+/** A block's words as a person typed them, for Tiff to read back, cut short. */
+const typedText = (p: LinesProposal, key: string): string => {
+  const m = /^(summary|work|included)-(\d+)$/.exec(key);
+  const o = m ? p.options[Number(m[2])] : undefined;
+  const words =
+    key === "title" ? p.title
+    : key === "intro" ? p.intro
+    : key === "notIncluded" ? p.notIncluded.join("; ")
+    : m?.[1] === "summary" ? (o?.summary ?? "")
+    : m?.[1] === "work" ? (o?.areas ?? []).map((a) => [a.name, ...a.items].filter(Boolean).join(": ")).join("; ")
+    : (o?.included ?? []).join("; ");
+  return words.length > 300 ? `${words.slice(0, 300)}…` : words;
+};
+
 const proposalWords = (input: Record<string, unknown>): string[] => {
   const out: string[] = [];
   const walk = (v: unknown) => {
@@ -518,9 +532,20 @@ function makeToolRun(store: QuoteStore) {
           patch.options = kept.map((o, j) => (j === i ? given : o));
         }
         if (Object.keys(patch).length === 0) return fail("Give the words to write: a title, an introduction, an option's summary, work or included, what isn't included, or how the client chooses.");
+        /* A PERSON'S OWN WORDS STAND (decision 5, 18 November 2026: "1"):
+           a block they typed is written over only when the change asked
+           for is in it, said with replace_typed, and then said in the reply */
+        const before = proposalOf((await store.proposal()) ?? {});
+        const after = proposalOf({ ...before, ...patch });
+        const overTyped = blocksChanged(before, after).filter((k) => before.typed.includes(k));
+        if (overTyped.length > 0 && input.replace_typed !== true)
+          return fail(
+            `A person typed ${overTyped.map(blockWords).join(" and ")}, so it's theirs: ${overTyped.map((k) => `"${typedText(before, k)}"`).join("; ")}. Leave it unless the change they asked for is in it; then write it again with replace_typed and say in your reply which of their words you changed.`,
+          );
         const res = await store.writeProposal(patch);
         const what = [patch.title !== undefined && "title", patch.intro !== undefined && "introduction", forOption && `option ${Math.round(input.option as number) + 1}`, patch.notIncluded && "not included", patch.choice && "choice"].filter(Boolean).join(", ");
-        return res.ok ? { ok: true, label, said: what, value: { written: what } } : fail(res.reason);
+        const over = overTyped.length > 0 ? `, over what a person typed in ${overTyped.map(blockWords).join(" and ")}` : "";
+        return res.ok ? { ok: true, label, said: `${what}${over}`, value: { written: what, ...(overTyped.length ? { overTyped: overTyped.map(blockWords) } : {}) } } : fail(res.reason);
       }
       case "ask": {
         const asked = questionOf(input);

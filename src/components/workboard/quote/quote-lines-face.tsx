@@ -36,6 +36,8 @@ import { Button } from "@/components/parts/button";
 import { Field } from "@/components/parts/field";
 import { NoteToken } from "@/components/notes/note-token";
 import { SectionTabs, type TabItem } from "@/components/parts/tabs";
+import { StateWord } from "@/components/parts/state";
+import { fmtAuTime } from "@/lib/au-dates";
 
 /* THE QUOTE, IN LAYOUT B (Isaac's pick, 21 October 2026; chat first since
    2026-10-13): the conversation with Tiff fills the left, and the rail
@@ -218,6 +220,8 @@ export function QuoteLinesFace({
   const [note, setNote] = useState<string | null>(null);
   /* the proposal, previewed in place of the left (7.1) */
   const [paper, setPaper] = useState(false);
+  /* the Proposal typed on: when it last saved itself, for the bar over it */
+  const [savedAt, setSavedAt] = useState<string | null>(null);
   /* what fills the left while Tiff is on for the business: the
      conversation, or the line items, switched from the rail */
   const [tab, setTab] = useState<"chat" | "lines">("chat");
@@ -799,6 +803,12 @@ export function QuoteLinesFace({
           />
           {paper ? (
             <div className="hd-face qp-face ql-face qc-fill">
+              {/* the page saves itself as you type on it, and says so */}
+              {views && !shown && !variation && (busy || savedAt) && (
+                <div className="qc-fmt" role="status">
+                  <StateWord tone="info">{busy ? "Saving" : `Saved, ${fmtAuTime(new Date(savedAt!))}`}</StateWord>
+                </div>
+              )}
               <div className="lp-desk">
                 {shown ? (
                   <VersionPaper version={shown} jobNumber={meta?.jobNumber ?? null} client={meta?.client ?? null} />
@@ -833,7 +843,7 @@ export function QuoteLinesFace({
                     jobNumber={meta?.jobNumber ?? null}
                     preparedBy={view?.names[view?.me ?? ""] ?? null}
                     busy={busy}
-                    onSave={(patch) => void act({ op: "proposal", patch })}
+                    onSave={(patch) => void act({ op: "proposal", patch }).then((v) => v?.ok && setSavedAt(new Date().toISOString()))}
                   />
                 )}
               </div>

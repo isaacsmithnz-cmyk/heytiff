@@ -8,7 +8,8 @@ import type { ComponentProps } from "react";
    is switched to its lines as it opens (Isaac, 2026-10-12). */
 
 const readClaim = jest.fn();
-jest.mock("@/app/actions/workboard", () => ({ readClaim: (...a: unknown[]) => readClaim(...a) }));
+const readJobBookedVisits = jest.fn(async (..._a: unknown[]) => [] as unknown[]);
+jest.mock("@/app/actions/workboard", () => ({ readClaim: (...a: unknown[]) => readClaim(...a), readJobBookedVisits: (...a: unknown[]) => readJobBookedVisits(...a) }));
 const sendInvoiceToSm8 = jest.fn();
 jest.mock("@/app/actions/invoice-sm8", () => ({ sendInvoiceToSm8: (...a: unknown[]) => sendInvoiceToSm8(...a) }));
 /* the lines have a suite of their own: here, what the tab hands them */
@@ -160,6 +161,16 @@ it("says what the job's invoice was built from: the visits oldest first, the wor
     "Work doneCleaned the existing filters and serviced the outdoor unit.",
     "Used3 things",
   ]);
+});
+
+it("counts a past booking nobody checked in on that the booking's own read says was a visit, as booked", async () => {
+  readJobBookedVisits.mockResolvedValueOnce([{ day: "2026-10-14", who: "Isaac Smith", minutes: 60 }]);
+  draw();
+  await userEvent.click(await prices().findByRole("button", { name: /^Invoice #3408/ }));
+  const built = within(await screen.findByRole("region", { name: "Built from" }));
+  expect(await built.findByText("Isaac Smith, booked 1h")).toBeInTheDocument();
+  expect(built.getByText("Visit, Wed 14 Oct")).toBeInTheDocument();
+  expect(built.queryByText("No time on site recorded")).toBeNull();
 });
 
 it("says so when the job's invoice has no visits and no work done", async () => {

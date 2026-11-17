@@ -1,7 +1,8 @@
 "use client";
 
 import { Suspense, lazy, useEffect, useMemo, useState, type ReactNode } from "react";
-import { readClaim } from "@/app/actions/workboard";
+import { readClaim, readJobBookedVisits } from "@/app/actions/workboard";
+import type { BookedVisitRead } from "@/lib/jobs/built-from-server";
 import { Button } from "@/components/parts/button";
 import { Fade } from "@/components/parts/fade";
 import { StateWord } from "@/components/parts/state";
@@ -469,9 +470,13 @@ function PriceInvoice({
      (a claim's is a share of the job's value, which its line says) */
   const own = id.toLowerCase() === job.toLowerCase();
   const [used, setUsed] = useState<number | null | undefined>(undefined);
+  const [booked, setBooked] = useState<readonly BookedVisitRead[]>([]);
   useEffect(() => {
     if (!own) return;
     let live = true;
+    void readJobBookedVisits(job)
+      .then((b) => live && setBooked(b ?? []))
+      .catch(() => undefined);
     void fetch(`/api/workboard/job-tracker?job=${encodeURIComponent(job)}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((j: { ok?: boolean; tracker?: TrackerRead } | null) => live && setUsed(j?.ok && j.tracker ? j.tracker.materials.count : null))
@@ -508,7 +513,7 @@ function PriceInvoice({
             <span className="jb-basis">{row?.basis === "inc" ? "inc GST" : "ex GST"}</span>
           </p>
           {row && <StateWord tone={row.tone}>{row.word}</StateWord>}
-          {own && detail && <BuiltFrom detail={detail} used={used} />}
+          {own && detail && <BuiltFrom detail={detail} booked={booked} used={used} />}
           {read && read.ledger.payments.length > 0 && (
             <section className="jpr-grp" aria-label="Paid">
               <h3>Paid</h3>
@@ -568,19 +573,29 @@ function PriceInvoice({
 /* BUILT FROM (the Price mock's invoice, 3408; the walk of 16 November 2026,
    N4): what the job's own invoice stands on, oldest first: each day on site
    with who went and for how long, the work done as written on the job, and
-   how much was said used (job_materials_used, as the Job tracker counts it). */
-function BuiltFrom({ detail, used }: { detail: MirrorJobDetail; used: number | null | undefined }) {
-  const visits = [...detail.visits].reverse();
+   how much was said used (job_materials_used, as the Job tracker counts it).
+   A past booking nobody checked in on is a visit too when that person left
+   photos or notes during it (built-from.ts), said as booked: its time is
+   the booking's, not a check-in's (Isaac, 17 November 2026, 3408). */
+function BuiltFrom({ detail, booked, used }: { detail: MirrorJobDetail; booked: readonly BookedVisitRead[]; used: number | null | undefined }) {
+  const visits = [
+    ...detail.visits.map((v) => ({
+      day: v.day,
+      key: v.day,
+      words: [v.crew.map((c) => c.name).join(", "), v.minutes > 0 ? fmtMinutesAsHours(Math.round(v.minutes)) : null].filter(Boolean).join(", ") || "Nobody recorded",
+    })),
+    ...booked.map((b) => ({ day: b.day, key: `${b.day}|${b.who}`, words: `${b.who}, booked ${fmtMinutesAsHours(b.minutes)}` })),
+  ].sort((a, b) => a.day.localeCompare(b.day));
   const done = firstWords(detail.workDone);
   return (
     <section className="jpr-grp" aria-label="Built from">
       <h3>Built from</h3>
       <ul className="jpr-lines">
         {visits.map((v) => (
-          <li key={v.day}>
+          <li key={v.key}>
             <span className="jpr-line">
               <b>Visit, {fmtAuWeekdayDayMonth(v.day)}</b>
-              <em>{[v.crew.map((c) => c.name).join(", "), v.minutes > 0 ? fmtMinutesAsHours(Math.round(v.minutes)) : null].filter(Boolean).join(", ") || "Nobody recorded"}</em>
+              <em>{v.words}</em>
             </span>
           </li>
         ))}

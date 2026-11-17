@@ -12,6 +12,7 @@ import { orgTemplates } from "@/lib/templates/query";
 import { searchMirrorJobs, staffIdFor, type JobSearchHit } from "@/lib/workboard/projects-query";
 import { getSm8Timezone } from "@/lib/workboard/query";
 import { todayInZone } from "@/lib/workboard/dates";
+import { readBookedVisits, type BookedVisitRead } from "@/lib/jobs/built-from-server";
 import { parseSm8AmountToCents } from "@/lib/workboard/job-money";
 import { readJobMediaGroups, type JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
 import {
@@ -563,6 +564,16 @@ export async function readJobFiles(remoteId: string): Promise<JobMediaGroupsRead
      pictures of their own job. */
   const claims = await familyMediaSources(ctx.orgId, id);
   return readJobMediaGroups(ctx.orgId, id, claims);
+}
+
+/** The job's past bookings nobody checked in on that were visits all the
+    same (built-from.ts), for the invoice's Built from. */
+export async function readJobBookedVisits(jobUuid: string): Promise<BookedVisitRead[] | null> {
+  const ctx = await context();
+  if (!ctx || !(await can("workboard"))) return null;
+  const id = trim(jobUuid, 80);
+  if (!id) return null;
+  return readBookedVisits(ctx.orgId, id, todayInZone(await getSm8Timezone(ctx.orgId)));
 }
 
 /** One claim's own contents, for the modal that opens on it. MONEY — the

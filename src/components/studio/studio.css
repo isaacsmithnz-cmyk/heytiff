@@ -10379,6 +10379,7 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
 .dstudio .ds-stack-row + .ds-stack-row::before { content: ""; position: absolute; left: 12px; right: 0; top: 0; height: 1px; background: var(--line); }
 .dstudio .ds-stack-row.press { cursor: pointer; }
 .dstudio .ds-stack-row.press:hover { background: var(--hov); }
+.dstudio .ds-stack-row.lit, .dstudio .ds-stack-row.lit:hover { background: var(--sel); }
 .dstudio .ds-stack-row.press:focus-visible { outline: none; box-shadow: inset var(--ring); }
 .dstudio .ds-stack-row-l { flex: 1 1 40%; min-width: 96px; display: flex; flex-direction: column; }
 .dstudio .ds-stack-row-t { font: 500 14px/20px var(--font); overflow: hidden; white-space: nowrap; }

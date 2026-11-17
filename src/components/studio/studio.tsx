@@ -1561,8 +1561,19 @@ function Editor({
     () => (flow === "next" && activeFloorId ? foundOn(doc, activeFloorId) : undefined),
     [flow, doc, activeFloorId],
   );
+  /* a room picked on the plan while a system is open stays in the system,
+     its row lit: the click after dropping a unit that misses it lands on
+     the room, and used to swap the system for the room (Isaac, 17 November
+     2026, the options mock's item 2). Its row, or a double click, opens it. */
+  const [heldRoomId, setHeldRoomId] = useState<string | null>(null);
   const pickedRoom =
-    flow === "next" ? (doc.objects.find((o) => o.id === selectedId && o.type === "room") ?? null) : null;
+    flow === "next" && !(systemOpen && heldRoomId === selectedId)
+      ? (doc.objects.find((o) => o.id === selectedId && o.type === "room") ?? null)
+      : null;
+  const openRoom = (id: string | null) => {
+    setHeldRoomId(null);
+    setSelectedId(id);
+  };
   const showRooms =
     roomsOpen ||
     picked.length > 0 ||
@@ -2328,6 +2339,8 @@ function Editor({
             onSelect={(id) => {
               setPickedSpace(null);
               setSelectedId(id);
+              const held = id ? doc.objects.find((x) => x.id === id) : undefined;
+              setHeldRoomId(flow === "next" && systemOpen && held?.type === "room" ? id : null);
               if (id) {
                 const o = doc.objects.find((x) => x.id === id);
                 if (o?.systemId && o.type !== "room") setActiveSystemId(o.systemId);
@@ -2352,7 +2365,7 @@ function Editor({
               if (flow === "next") setSelectedId(id);
               else setEditingRoomId(id);
             }}
-            onOpenRoom={(id) => (flow === "next" ? setSelectedId(id) : setEditingRoomId(id))}
+            onOpenRoom={(id) => (flow === "next" ? openRoom(id) : setEditingRoomId(id))}
             found={flow === "next" && showRooms ? (showAllFound ? found : found?.filter((s) => s.keep)) : undefined}
             onFound={(key, more) => {
               const id = newId("obj");
@@ -2530,7 +2543,8 @@ function Editor({
               onNext={onNext}
               claiming={claiming === effectiveSystemId}
               onBack={() => setSystemOpen(false)}
-              onOpenRoom={setSelectedId}
+              onOpenRoom={openRoom}
+              litRoomId={heldRoomId === selectedId ? heldRoomId : null}
               onAddZones={() => startClaim(effectiveSystemId)}
               onClaimDone={() => changeTool("select")}
               onBuild={() => onBuildSystem(effectiveSystemId)}

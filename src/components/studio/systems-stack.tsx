@@ -135,11 +135,14 @@ export function SystemScreen({
   onInstall,
   onAir,
   onArmPlace,
+  litRoomId = null,
 }: {
   doc: DesignDocument;
   pack: DataPack | null;
   basis: SizingBasis;
   systemId: string;
+  /** the room picked on the plan while this system is open: its row lit */
+  litRoomId?: string | null;
   next: { label: string } | null;
   onNext: () => void;
   claiming: boolean;
@@ -213,7 +216,7 @@ export function SystemScreen({
       <StackSection>Rooms</StackSection>
       <StackGroup>
         {zones.map((z) => (
-          <StackRow key={z.id} name={String(z.props.name ?? "Room")} value={kwText(roomLoadKw(doc, z))} chevron onPress={() => onOpenRoom(z.id)} />
+          <StackRow key={z.id} name={String(z.props.name ?? "Room")} value={kwText(roomLoadKw(doc, z))} lit={z.id === litRoomId} chevron onPress={() => onOpenRoom(z.id)} />
         ))}
         {claiming ? (
           <StackRow name="Done adding rooms" onPress={onClaimDone} />

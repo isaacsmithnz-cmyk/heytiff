@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import dynamic from "next/dynamic";
 import type { PrintModel } from "@/lib/studio/export";
 import type { OrgBrand } from "@/lib/org/brand";
@@ -19,6 +20,9 @@ const PrintDoc = dynamic(
 declare global {
   interface Window {
     __htPdfReady?: boolean;
+    /** the house in 3D, drawn by the browser that asked for the file and set
+        here by the renderer before the page loads (lib/studio/pdf-render.ts) */
+    __htPdfPictures?: Record<string, string>;
   }
 }
 
@@ -35,12 +39,16 @@ export function PdfPrint({
       to say so, and it has to come out the same as that flow's print window */
   flow?: "next";
 }) {
+  /* never drawn here: this Chrome has no graphics card, and a house drawn in
+     software ran the file out of time and memory */
+  const [drawn] = useState<Record<string, string>>(() => (typeof window === "undefined" ? {} : (window.__htPdfPictures ?? {})));
   return (
     <StudioFlowContext.Provider value={flow ?? "current"}>
       <PrintDoc
         model={model}
         urls={urls}
         brand={brand}
+        drawn={drawn}
         onReady={() => {
           window.__htPdfReady = true;
         }}

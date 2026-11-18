@@ -5,7 +5,7 @@ import { withoutPlaceTag } from "@/lib/brain/place-tag";
 import { Icon } from "@/components/shell/icon";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
 import { useHydrated } from "@/lib/use-hydrated";
-import { kbDocUrl } from "@/app/actions/kb";
+import { useKbPdf } from "./kb-pdf";
 import type { AskSourceItem, AskTurn } from "@/lib/tiff/ask-client";
 import { askBrain } from "@/lib/brain/ask-client";
 import { consumeAskHandoff, type AskHandoff, type AskScope } from "@/lib/tiff/ask-handoff";
@@ -1137,28 +1137,16 @@ function SourcePeek({ source, onClose }: { source: SourceDoc; onClose: () => voi
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  /* Open document opens it in HeyTiff's own viewer, over the peek (kb-pdf),
+     at the top-RANKED passage's page, not the lowest-numbered: rank 1 is the
+     page the answer leaned on hardest, which is what "open it" means here */
+  const pdf = useKbPdf();
   const open = async () => {
     setError(null);
     setBusy(true);
-    // opened synchronously so the pop-up blocker sees the click; the signed
-    // URL is a round trip away and would arrive too late to be trusted
-    const tab = typeof window === "undefined" ? null : window.open("", "_blank");
-    const res = await kbDocUrl(source.docId);
+    const why = await pdf.open(source.docId, source.title, source.items[0].pageFrom);
     setBusy(false);
-    if (!res.ok) {
-      tab?.close();
-      setError(res.error);
-      return;
-    }
-    // the top-RANKED passage's page, not the lowest-numbered: rank 1 is the
-    // page the answer leaned on hardest, which is what "open it" means here
-    const url = `${res.url}#page=${source.items[0].pageFrom}`;
-    if (tab) {
-      tab.opener = null;
-      tab.location.href = url;
-    } else if (typeof window !== "undefined") {
-      window.open(url, "_blank", "noopener,noreferrer");
-    }
+    if (why) setError(why);
   };
 
   // read top to bottom in the peek, whatever order retrieval ranked them
@@ -1166,37 +1154,40 @@ function SourcePeek({ source, onClose }: { source: SourceDoc; onClose: () => voi
   const category = KB_CATEGORIES.find((c) => c.key === source.category);
 
   return (
-    <Dialog
-      heading={source.title}
-      width={560}
-      onClose={onClose}
-      foot={
-        <>
-          <Button kind="quiet" onClick={onClose}>
-            Close
-          </Button>
-          <Button kind="main" disabled={busy} onClick={open}>
-            {busy ? "Opening the document" : "Open document"}
-          </Button>
-        </>
-      }
-    >
-      <div className="tk-pk">
-        <p className="tk-pkline">
-          <Dot hue={category?.hue ?? "grey"} />
-          {category?.label ?? "Document"}, {pageWords(passages)}
-        </p>
-        {error && <p className="tk-pkerr">{error}</p>}
-        <ul className="tk-pks" aria-label="What Tiff read">
-          {passages.map((item) => (
-            <li key={item.chunkId} className="tk-pkq">
-              {passages.length > 1 && <span className="tk-pkqp">{pageWord(item)}</span>}
-              {item.excerpt}
-            </li>
-          ))}
-        </ul>
-      </div>
-    </Dialog>
+    <>
+      <Dialog
+        heading={source.title}
+        width={560}
+        onClose={onClose}
+        foot={
+          <>
+            <Button kind="quiet" onClick={onClose}>
+              Close
+            </Button>
+            <Button kind="main" disabled={busy} onClick={open}>
+              {busy ? "Opening the document" : "Open document"}
+            </Button>
+          </>
+        }
+      >
+        <div className="tk-pk">
+          <p className="tk-pkline">
+            <Dot hue={category?.hue ?? "grey"} />
+            {category?.label ?? "Document"}, {pageWords(passages)}
+          </p>
+          {error && <p className="tk-pkerr">{error}</p>}
+          <ul className="tk-pks" aria-label="What Tiff read">
+            {passages.map((item) => (
+              <li key={item.chunkId} className="tk-pkq">
+                {passages.length > 1 && <span className="tk-pkqp">{pageWord(item)}</span>}
+                {item.excerpt}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </Dialog>
+      {pdf.viewer}
+    </>
   );
 }
 

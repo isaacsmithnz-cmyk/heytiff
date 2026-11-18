@@ -16,6 +16,7 @@ import {
   kbTitle,
 } from "@/lib/tiff/files";
 import { searchKbDocument, signKbRef } from "@/lib/tiff/query";
+import { noteWordsOf, type NoteWords } from "@/lib/tiff/field-notes";
 import {
   isSearchable,
   MAX_DOC_HITS,
@@ -129,6 +130,26 @@ export async function kbDocUrl(
   const url = await signKbRef(ref);
   if (!url) return { ok: false, error: "That file couldn't be opened." };
   return { ok: true, url };
+}
+
+/* A note's own words, to read (bug 34, Luke, 18 November 2026: "Message
+   box doesn't display correctly"). A field note was written from somebody's
+   note, so it has no file to open and nothing worth searching inside: opening
+   one in the Library shows what it says, as the phone's Details sheet does.
+   Gated `tiff` like opening a file, and the document has to be this
+   organisation's: the passages are read by its id and the org together. */
+export async function kbNoteWords(
+  documentId: string
+): Promise<{ ok: true; words: NoteWords } | { ok: false; error: string }> {
+  let orgId: string;
+  try {
+    ({ orgId } = await requireOrg("tiff"));
+  } catch {
+    return { ok: false, error: "You don't have access to the library." };
+  }
+  const words = await noteWordsOf(orgId, documentId);
+  if (!words) return { ok: false, error: GONE };
+  return { ok: true, words };
 }
 
 /* Find a word inside one document.

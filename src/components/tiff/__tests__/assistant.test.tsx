@@ -239,10 +239,10 @@ describe("what she read", () => {
   });
 
   /* Opening at the page is the point of a citation — a link to page one of a
-     300-page manual is not a source. */
-  it("opens the document at the page the answer leaned on hardest", async () => {
-    const tab = { opener: {} as unknown, location: { href: "" }, close: jest.fn() };
-    const open = jest.spyOn(window, "open").mockReturnValue(tab as unknown as Window);
+     300-page manual is not a source. In HeyTiff's own viewer, over the peek,
+     not a tab of its own (Isaac, 18 November 2026). */
+  it("opens the document at the page the answer leaned on hardest, in HeyTiff's viewer", async () => {
+    const open = jest.spyOn(window, "open");
     const user = userEvent.setup();
     seed(thread({ researched: true, sources: [src(), src({ n: 2, chunkId: "c-2", pageFrom: 12, pageTo: 12 })] }));
     draw();
@@ -250,7 +250,8 @@ describe("what she read", () => {
     await user.click(screen.getByRole("button", { name: "Open document" }));
 
     await waitFor(() => expect(kbDocUrl).toHaveBeenCalledWith("d-1"));
-    await waitFor(() => expect(tab.location.href).toBe("https://signed.example/doc.pdf#page=41"));
+    await waitFor(() => expect(document.querySelector(".wb2-mv iframe")).toHaveAttribute("src", "https://signed.example/doc.pdf#page=41"));
+    expect(open).not.toHaveBeenCalled();
     open.mockRestore();
   });
 });

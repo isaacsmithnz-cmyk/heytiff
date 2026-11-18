@@ -165,3 +165,25 @@ export async function listUnreviewedFieldNotes(orgId: string, limit = 50): Promi
     };
   });
 }
+
+/* ── a note's own words, to read ─────────────────────────────────────── */
+
+export type NoteWords = { learned: string | null; body: string };
+
+/** A document with no file, as words: where it was learned (its first
+    passage's heading) and what it says, its passages in order. Null when it
+    has none. A field note is one passage; twenty is plenty for anything
+    else written rather than uploaded. Read by the phone's Details sheet and
+    the web Library's note, so both say the same thing. */
+export async function noteWordsOf(orgId: string, documentId: string): Promise<NoteWords | null> {
+  const { data } = await supabaseAdmin
+    .from("kb_chunks")
+    .select("heading, content")
+    .eq("org_id", orgId)
+    .eq("document_id", documentId)
+    .order("chunk_index", { ascending: true })
+    .limit(20);
+  const parts = (data ?? []) as { heading: string | null; content: string | null }[];
+  const body = parts.map((c) => c.content?.trim() ?? "").filter(Boolean).join("\n\n");
+  return body ? { learned: parts[0]?.heading?.trim() || null, body } : null;
+}

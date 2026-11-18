@@ -215,6 +215,7 @@ export function RoomPanel({
   onMarkWalls,
   onEditSystem,
   onDelete,
+  onLeaveOut,
   back,
   onBack,
   onMove,
@@ -235,6 +236,8 @@ export function RoomPanel({
   onMarkWalls: () => void;
   onEditSystem: (systemId: string) => void;
   onDelete: () => void;
+  /** off the design, kept to put back (left-out.ts); absent on a room a system has */
+  onLeaveOut?: () => void;
 }) {
   const room = doc.objects.find((o): o is RoomObj => o.id === roomId && o.type === "room" && o.geometry.kind === "polygon");
   if (!room) return null;
@@ -387,9 +390,16 @@ export function RoomPanel({
       </div>
 
       <div className="ds-su-fill" />
-      <button type="button" className="ds-su-second ds-rp-del" onClick={onDelete}>
-        Delete room
-      </button>
+      <div className="ds-rp-foot">
+        {onLeaveOut && (
+          <button type="button" className="ds-su-second" onClick={onLeaveOut}>
+            Leave out
+          </button>
+        )}
+        <button type="button" className="ds-su-second ds-rp-del" onClick={onDelete}>
+          Delete room
+        </button>
+      </div>
     </section>
   );
 }

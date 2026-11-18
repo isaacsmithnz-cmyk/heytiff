@@ -7,7 +7,10 @@
    screen. The next step is always the one button at the foot, in the same
    words everywhere. */
 
+import { useState } from "react";
 import type { DesignDocument } from "@/lib/studio/document";
+import { canLeaveOut, leftOutRooms } from "@/lib/studio/left-out";
+import type { QuotedOption } from "@/lib/studio/from-quote";
 import type { DataPack } from "@/lib/studio/packs/schema";
 import type { SizingBasis } from "@/lib/studio/loads";
 import { allocationsOf, hasAllocations, trayItems } from "@/lib/studio/builder";
@@ -42,6 +45,10 @@ export function SystemsList({
   onAddVariant,
   onSwitchVariant,
   onRenameVariant,
+  onLeaveOut,
+  onPutBack,
+  quoted = [],
+  onAddQuoted,
 }: {
   doc: DesignDocument;
   pack: DataPack | null;
@@ -49,6 +56,12 @@ export function SystemsList({
   next: { label: string } | null;
   onNext: () => void;
   onOpen: (id: string) => void;
+  /** the job's quote's options not in the design yet (from-quote.ts) */
+  quoted?: QuotedOption[];
+  onAddQuoted?: (o: QuotedOption) => void;
+  /** these rooms off the design, kept (left-out.ts) */
+  onLeaveOut: (ids: string[]) => void;
+  onPutBack: (ids: string[]) => void;
   onAddSystem: () => void;
   onOpenRooms: () => void;
   onOpenRoom: (id: string) => void;
@@ -58,6 +71,10 @@ export function SystemsList({
 }) {
   const free = unclaimedZones(doc);
   const rooms = doc.objects.filter((o) => o.type === "room").length;
+  const leavable = free.filter((z) => canLeaveOut(doc, z.id));
+  const freeKw = free.reduce((t, z) => t + (roomLoadKw(doc, z) ?? 0), 0);
+  const out = leftOutRooms(doc);
+  const [outOpen, setOutOpen] = useState(false);
   return (
     <StackScreen
       label="Systems"
@@ -77,6 +94,32 @@ export function SystemsList({
           </button>
         }
       />
+      {quoted.length > 0 && onAddQuoted && (
+        <>
+          <StackSection>From the quote</StackSection>
+          {quoted.map((o) => (
+            <StackGroup key={o.index}>
+              <StackRow
+                name={o.accepted ? `${o.name}, accepted` : o.name}
+                sub={[pack ? brandName(pack, pack.meta.brand) : "", o.kind].filter(Boolean).join(" ")}
+              >
+                <button type="button" className="ds-stack-small" onClick={() => onAddQuoted(o)}>
+                  Add to design
+                </button>
+              </StackRow>
+              {o.outdoor && <StackRow name="Outdoor" value={o.outdoor.model ?? o.outdoor.code} />}
+              {o.heads.map((h, i) => (
+                <StackRow
+                  key={i}
+                  name={h.roomName ?? h.room}
+                  value={h.roomId ? (h.model ?? h.code) : "No room on the plan"}
+                  tone={h.roomId && h.model ? undefined : "look"}
+                />
+              ))}
+            </StackGroup>
+          ))}
+        </>
+      )}
       {doc.systems.length > 0 && (
         <StackGroup>
           {doc.systems.map((sys) => {
@@ -109,9 +152,37 @@ export function SystemsList({
         <>
           <StackSection>Rooms without a system</StackSection>
           <StackGroup>
+            {leavable.length > 0 && (
+              <StackRow name={`${free.length === 1 ? "1 room" : `${free.length} rooms`}, ${freeKw.toFixed(1)} kW`} sub="Not air conditioned?">
+                <button type="button" className="ds-stack-small" onClick={() => onLeaveOut(leavable.map((z) => z.id))}>
+                  {leavable.length === 1 ? "Leave it out" : "Leave them out"}
+                </button>
+              </StackRow>
+            )}
             {free.map((z) => (
               <StackRow key={z.id} name={String(z.props.name ?? "Room")} value={kwText(roomLoadKw(doc, z))} chevron onPress={() => onOpenRoom(z.id)} />
             ))}
+          </StackGroup>
+        </>
+      )}
+      {out.length > 0 && (
+        <>
+          <StackSection>Left out</StackSection>
+          <StackGroup>
+            <StackRow
+              name={out.length === 1 ? "1 room" : `${out.length} rooms`}
+              sub={out.map((o) => String(o.props.name ?? "Room")).join(", ")}
+              chevron={!outOpen}
+              onPress={() => setOutOpen((v) => !v)}
+            />
+            {outOpen &&
+              out.map((o) => (
+                <StackRow key={o.id} name={String(o.props.name ?? "Room")}>
+                  <button type="button" className="ds-stack-small" onClick={() => onPutBack([o.id])}>
+                    Put back
+                  </button>
+                </StackRow>
+              ))}
           </StackGroup>
         </>
       )}
@@ -135,11 +206,14 @@ export function SystemScreen({
   onInstall,
   onAir,
   onArmPlace,
+  litRoomId = null,
 }: {
   doc: DesignDocument;
   pack: DataPack | null;
   basis: SizingBasis;
   systemId: string;
+  /** the room picked on the plan while this system is open: its row lit */
+  litRoomId?: string | null;
   next: { label: string } | null;
   onNext: () => void;
   claiming: boolean;
@@ -213,7 +287,7 @@ export function SystemScreen({
       <StackSection>Rooms</StackSection>
       <StackGroup>
         {zones.map((z) => (
-          <StackRow key={z.id} name={String(z.props.name ?? "Room")} value={kwText(roomLoadKw(doc, z))} chevron onPress={() => onOpenRoom(z.id)} />
+          <StackRow key={z.id} name={String(z.props.name ?? "Room")} value={kwText(roomLoadKw(doc, z))} lit={z.id === litRoomId} chevron onPress={() => onOpenRoom(z.id)} />
         ))}
         {claiming ? (
           <StackRow name="Done adding rooms" onPress={onClaimDone} />

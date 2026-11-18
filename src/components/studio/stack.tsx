@@ -72,6 +72,7 @@ export function StackRow({
   chevron,
   onPress,
   label,
+  lit,
   children,
 }: {
   lead?: ReactNode;
@@ -86,6 +87,8 @@ export function StackRow({
   onPress?: () => void;
   /** names a pressable row when its words alone would not */
   label?: string;
+  /** picked on the plan: filled as a selection is (law 14) */
+  lit?: boolean;
   /** the row's own control, at its right: a tray or a field */
   children?: ReactNode;
 }) {
@@ -107,11 +110,11 @@ export function StackRow({
     </>
   );
   return onPress ? (
-    <button type="button" className="ds-stack-row press" aria-label={label} onClick={onPress}>
+    <button type="button" className={`ds-stack-row press${lit ? " lit" : ""}`} aria-label={label} aria-current={lit || undefined} onClick={onPress}>
       {inner}
     </button>
   ) : (
-    <div className="ds-stack-row">{inner}</div>
+    <div className={`ds-stack-row${lit ? " lit" : ""}`}>{inner}</div>
   );
 }
 

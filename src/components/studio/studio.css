@@ -10348,6 +10348,8 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
 .dstudio .ds-rp-num:focus-visible { outline: none; box-shadow: var(--ring); }
 .dstudio .ds-rp { overflow-y: auto; }
 .dstudio .ds-rp-del { flex: none; width: 100%; color: var(--bad-t); }
+.dstudio .ds-rp-foot { display: flex; gap: 8px; }
+.dstudio .ds-rp-foot > button { flex: 1 1 0; width: auto; }
 /* a tray takes the column's width under its word: three choices don't fit beside it */
 .dstudio .ds-rp .ds-su-row.ds-rp-tray { flex-direction: column; align-items: stretch; gap: 4px; }
 .dstudio .ds-rp .ds-su-row.ds-rp-tray .k { width: auto; }
@@ -10379,6 +10381,7 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
 .dstudio .ds-stack-row + .ds-stack-row::before { content: ""; position: absolute; left: 12px; right: 0; top: 0; height: 1px; background: var(--line); }
 .dstudio .ds-stack-row.press { cursor: pointer; }
 .dstudio .ds-stack-row.press:hover { background: var(--hov); }
+.dstudio .ds-stack-row.lit, .dstudio .ds-stack-row.lit:hover { background: var(--sel); }
 .dstudio .ds-stack-row.press:focus-visible { outline: none; box-shadow: inset var(--ring); }
 .dstudio .ds-stack-row-l { flex: 1 1 40%; min-width: 96px; display: flex; flex-direction: column; }
 .dstudio .ds-stack-row-t { font: 500 14px/20px var(--font); overflow: hidden; white-space: nowrap; }

@@ -85,15 +85,16 @@ export function foundOn(doc: DesignDocument, floorId: string): Suggestion[] {
   const sheets = doc.reading?.floors[floorId];
   if (!floor || !sheets?.length) return [];
   /* a joined room holds the keys of every read room it took in */
+  /* a room left out is still hers, kept: she never offers it again */
   const kept = new Set(
-    doc.objects
+    [...doc.objects, ...(doc.leftOut ?? [])]
       .filter((o) => o.type === "room" && o.floorId === floorId)
       .flatMap((o) => [o.props.readKey, ...(Array.isArray(o.props.joinedKeys) ? o.props.joinedKeys : [])])
       .filter((k): k is string => typeof k === "string"),
   );
   /* a room kept before rooms remembered their key: matched by name */
   const named = new Set(
-    doc.objects
+    [...doc.objects, ...(doc.leftOut ?? [])]
       .filter((o) => o.type === "room" && o.floorId === floorId && o.props.fromReading === true && o.props.readKey == null)
       .map((o) => norm(String(o.props.name ?? ""))),
   );

@@ -196,3 +196,32 @@ export async function deleteStudioDesign(id: string): Promise<void> {
     .eq("id", id);
   if (error) throw new Error(error.message);
 }
+
+/* FROM THE QUOTE (from-quote.ts): the units each option of a design's job's
+   quote names, with which options are accepted and what they're called. The
+   codes and the rooms only, never a price. Nothing for a quote kept the old
+   way, or one with no unit lines. Lazy, so the quote engine's server code
+   loads only when a design asks. */
+export async function readQuotedUnits(jobRemoteId: string): Promise<{
+  lines: { optionIndex: number; system: string; name: string; code: string | null; kind: string; qty: number }[];
+  accepted: number[];
+  names: Record<number, string>;
+}> {
+  const empty = { lines: [], accepted: [], names: {} };
+  const { orgId } = await requireOrg("studio");
+  if (!(await can("workboard")) || typeof jobRemoteId !== "string" || !jobRemoteId) return empty;
+  const [{ readEngine, readLines }, { readByHand }] = await Promise.all([import("@/lib/quotes/lines-server"), import("@/lib/quotes/lines-job-server")]);
+  if ((await readEngine(orgId, jobRemoteId)) !== "lines") return empty;
+  const [lines, byHand] = await Promise.all([readLines(orgId, jobRemoteId), readByHand(orgId, jobRemoteId)]);
+  const names: Record<number, string> = {};
+  byHand.names.forEach((n, i) => {
+    if (n) names[i] = n;
+  });
+  return {
+    lines: lines
+      .filter((l) => l.kind === "unit" && l.code)
+      .map((l) => ({ optionIndex: l.optionIndex, system: l.system, name: l.name, code: l.code, kind: l.kind, qty: l.qty })),
+    accepted: byHand.accepted,
+    names,
+  };
+}

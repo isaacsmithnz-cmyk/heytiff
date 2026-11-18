@@ -18,7 +18,8 @@ import { newId } from "@/lib/studio/document";
 import { defaultFloorName, placeSheets, type UploadedSheet } from "@/lib/studio/plans";
 import type { TrimRect } from "@/lib/studio/plan-trim";
 import type { MeasuredScale, PlanReading, PlanWord, ReadPoint, ReadSpace, SheetReading } from "@/lib/studio/reading";
-import { area, parseWritten, suggestedRooms } from "@/lib/studio/reading";
+import { area, scaleFromWritten, suggestedRooms } from "@/lib/studio/reading";
+export { scaleFromWritten };
 import { andList } from "@/lib/swms/library";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { pagesWords } from "./take-in";
@@ -212,34 +213,6 @@ export const floorPagesOf = (plan: { pages: readonly JobPlanPage[] }): JobPlanPa
   plan.pages.filter((p) => p.kind === "floor" && p.ref).sort((a, b) => (a.level ?? 0) - (b.level ?? 0) || a.n - b.n);
 
 /* ── a page's scale ───────────────────────────────────────────────────────── */
-
-const boxOf = (outline: readonly ReadPoint[]) => {
-  const xs = outline.map((p) => p.x);
-  const ys = outline.map((p) => p.y);
-  return { w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
-};
-
-/** The scale the rooms' own written sizes give: each room's written sides
-    over its outline's box, the middle of them. Two rooms at least, so one
-    table's size written in a room can't set the scale. */
-export function scaleFromWritten(spaces: readonly ReadSpace[]): { mmPerPx: number; rooms: number } | null {
-  const each: number[] = [];
-  for (const s of spaces) {
-    const w = parseWritten(s.written);
-    if (!w || s.outline.length < 3) continue;
-    const b = boxOf(s.outline);
-    const [long, short] = b.w >= b.h ? [b.w, b.h] : [b.h, b.w];
-    if (short <= 0) continue;
-    const byLong = (w[0] * 1000) / long;
-    const byShort = (w[1] * 1000) / short;
-    /* the written size is the room's only when both sides give the same scale */
-    if (Math.abs(byLong - byShort) > Math.min(byLong, byShort) * 0.2) continue;
-    each.push((byLong + byShort) / 2);
-  }
-  if (each.length < 2) return null;
-  each.sort((a, b) => a - b);
-  return { mmPerPx: each[Math.floor((each.length - 1) / 2)], rooms: each.length };
-}
 
 /** A page's scale and what it rests on: the one somebody set, else the one
     the title block prints, else the lengths printed along its dimension

@@ -80,6 +80,8 @@ import { GRILLE_SIZES, clampSupply, grilleMount, grilleSize, grilleSplit, grille
 import { claimZone, newSystem, toggleZone, zoneIdsOf } from "@/lib/studio/zones";
 import { doneBlockers, systemFindings } from "@/lib/studio/verdict";
 import { SystemsPanel } from "./systems-panel";
+import { canLeaveOut, leaveOut, putBack } from "@/lib/studio/left-out";
+import { addQuotedOption, canAddQuoted, quotedOptions, type QuotedLine } from "@/lib/studio/from-quote";
 import { SystemScreen, SystemsList } from "./systems-stack";
 import { AirPanel, type AirShow } from "./air-panel";
 import { airRows, airTags } from "@/lib/studio/air-view";
@@ -96,7 +98,7 @@ import { measuredForJob, setupNeeds, shareAcrossSet } from "@/lib/studio/plan-se
 import { InstallQuestions } from "./install-questions";
 import { isAirCapable, moduleFor } from "@/lib/studio/modules";
 import { SystemBuilder, ZoneStanding } from "./system-builder";
-import { deleteZone, releaseSystem, releaseZones, moveZone, removeZone } from "@/lib/studio/builder";
+import { allocationsOf, deleteZone, hasAllocations, releaseSystem, releaseZones, moveZone, removeZone } from "@/lib/studio/builder";
 import { roomAtPoint, roomCoverage, roomsServedBy, systemPairKw } from "@/lib/studio/coverage";
 import { nextMoveZones, type NextMove } from "@/lib/studio/next-move";
 import { StudioHelp } from "./studio-help";
@@ -1561,8 +1563,19 @@ function Editor({
     () => (flow === "next" && activeFloorId ? foundOn(doc, activeFloorId) : undefined),
     [flow, doc, activeFloorId],
   );
+  /* a room picked on the plan while a system is open stays in the system,
+     its row lit: the click after dropping a unit that misses it lands on
+     the room, and used to swap the system for the room (Isaac, 17 November
+     2026, the options mock's item 2). Its row, or a double click, opens it. */
+  const [heldRoomId, setHeldRoomId] = useState<string | null>(null);
   const pickedRoom =
-    flow === "next" ? (doc.objects.find((o) => o.id === selectedId && o.type === "room") ?? null) : null;
+    flow === "next" && !(systemOpen && heldRoomId === selectedId)
+      ? (doc.objects.find((o) => o.id === selectedId && o.type === "room") ?? null)
+      : null;
+  const openRoom = (id: string | null) => {
+    setHeldRoomId(null);
+    setSelectedId(id);
+  };
   const showRooms =
     roomsOpen ||
     picked.length > 0 ||
@@ -1627,6 +1640,38 @@ function Editor({
       on = false;
     };
   }, [packLoader]);
+
+  /* From the quote (from-quote.ts): the units the job's quote names, read
+     once a design has its job; not where the pack is a test's */
+  const quoteJob = doc.jobLink?.remoteId ?? null;
+  const [quotedRead, setQuotedRead] = useState<{ job: string; lines: QuotedLine[]; accepted: number[]; names: Record<number, string> } | null>(null);
+  useEffect(() => {
+    if (!quoteJob || packLoader) return;
+    let on = true;
+    studioActions()
+      .then((a) => a.readQuotedUnits(quoteJob))
+      .then((r) => {
+        if (on) setQuotedRead({ job: quoteJob, ...r });
+      })
+      .catch(() => {
+        /* no quote to offer: the panel is as it was */
+      });
+    return () => {
+      on = false;
+    };
+  }, [quoteJob, packLoader]);
+  const quoted = useMemo(() => {
+    if (!pack || !quotedRead || quotedRead.job !== quoteJob) return [];
+    const all = quotedOptions(doc, pack, quotedRead.lines, quotedRead.accepted, quotedRead.names);
+    /* the accepted ones where one is marked, else every option; one already
+       in the design (a system of its name on its outdoor) is said no more */
+    const shown = all.some((o) => o.accepted) ? all.filter((o) => o.accepted) : all;
+    return shown.filter(
+      (o) =>
+        canAddQuoted(o) &&
+        !doc.systems.some((sys) => sys.name === o.name && hasAllocations(sys) && allocationsOf(sys).some((a) => a.role === "odu" && a.model === o.outdoor?.model)),
+    );
+  }, [doc, pack, quotedRead, quoteJob]);
 
   /* arm (or null-disarm) unit placement — armed by dragging a unit card */
   const armPlace = useCallback((p: PlacingUnit | null) => {
@@ -2328,6 +2373,8 @@ function Editor({
             onSelect={(id) => {
               setPickedSpace(null);
               setSelectedId(id);
+              const held = id ? doc.objects.find((x) => x.id === id) : undefined;
+              setHeldRoomId(flow === "next" && systemOpen && held?.type === "room" ? id : null);
               if (id) {
                 const o = doc.objects.find((x) => x.id === id);
                 if (o?.systemId && o.type !== "room") setActiveSystemId(o.systemId);
@@ -2352,7 +2399,7 @@ function Editor({
               if (flow === "next") setSelectedId(id);
               else setEditingRoomId(id);
             }}
-            onOpenRoom={(id) => (flow === "next" ? setSelectedId(id) : setEditingRoomId(id))}
+            onOpenRoom={(id) => (flow === "next" ? openRoom(id) : setEditingRoomId(id))}
             found={flow === "next" && showRooms ? (showAllFound ? found : found?.filter((s) => s.keep)) : undefined}
             onFound={(key, more) => {
               const id = newId("obj");
@@ -2530,7 +2577,8 @@ function Editor({
               onNext={onNext}
               claiming={claiming === effectiveSystemId}
               onBack={() => setSystemOpen(false)}
-              onOpenRoom={setSelectedId}
+              onOpenRoom={openRoom}
+              litRoomId={heldRoomId === selectedId ? heldRoomId : null}
               onAddZones={() => startClaim(effectiveSystemId)}
               onClaimDone={() => changeTool("select")}
               onBuild={() => onBuildSystem(effectiveSystemId)}
@@ -2558,6 +2606,13 @@ function Editor({
               onAddVariant={onAddVariant}
               onSwitchVariant={onSwitchVariant}
               onRenameVariant={onRenameVariant}
+              quoted={quoted}
+              onAddQuoted={(o) => {
+                if (!pack) return;
+                mutate((d) => addQuotedOption(d, pack, d.settings.sizingBasis, o).doc);
+              }}
+              onLeaveOut={(ids) => mutate((d) => leaveOut(d, ids))}
+              onPutBack={(ids) => mutate((d) => putBack(d, ids))}
             />
           ) : (
           <SystemsPanel
@@ -4025,6 +4080,15 @@ function RoomScreen({
         onSelect(null);
         mutate((d) => deleteZone(d, pack, id));
       }}
+      onLeaveOut={
+        canLeaveOut(doc, room.id)
+          ? () => {
+              const id = room.id;
+              onSelect(null);
+              mutate((d) => leaveOut(d, [id]));
+            }
+          : undefined
+      }
     />
   );
 }

@@ -68,7 +68,26 @@ describe("ServiceM8's own sends", () => {
     expect(all.some((l) => l.kind === "bubble" && /^yes$/i.test(l.words))).toBe(false);
     /* the 6 October booking's answer sits on its line inside the thread */
     const line = threads().find((t) => t.day === "2026-10-06")!.lines.find((l) => l.kind === "line" && l.words.startsWith("Booking"));
-    expect(line).toEqual({ kind: "line", key: expect.any(String), words: "Booking for 2:00 pm texted", reply: "Marco: Yes" });
+    expect(line).toMatchObject({ kind: "line", key: expect.any(String), words: "Booking for 2:00 pm texted", reply: "Marco: Yes" });
+    expect(line?.kind === "line" ? line.send : null).toMatchObject({ plain: "Booking for Tue 6 Oct, 2:00 pm", answer: { who: "Marco", words: "Yes", time: "11:40 am" } });
+  });
+
+  /* bug 20, "This looks pretty messy" (Isaac, 17 November 2026) */
+  it("says each send as a bubble: who sent it, how it went, its words without texted or sent, and the answer as the customer's", () => {
+    const booked = sends().find((s) => s.day === "2026-10-14")!;
+    expect(booked).toMatchObject({ who: "Dana", via: "text", plain: "Booking for Wed 14 Oct, 2:00 pm", time: "8:54 am", answer: { who: "Marco", words: "YES", time: "8:58 am", at: "2026-10-14 08:58:27" } });
+    expect(booked.full?.text).toMatch(/^Hi Marco,\nAcme Air has availability/);
+    expect(sends().find((s) => s.day === "2026-10-16")).toMatchObject({ who: "Sam", via: "text", plain: "On the way, about 23 minutes", answer: null });
+    expect(sends().find((s) => s.sort === "invoice")).toMatchObject({ via: "both", plain: "Invoice, $13,200" });
+    expect(sends(feed(false)).find((s) => s.sort === "invoice")!.plain).toBe("Invoice");
+    expect(sends().find((s) => s.day === "2026-09-29")).toMatchObject({ via: "email", plain: "Quote" });
+  });
+
+  it("says a send no staff member sent is from the business, by its short name", () => {
+    const nobody = { ...fixture3372()[13]!, name: null };
+    const [alone] = customerFeed([nobody], { customer: "Marco", money: true, business: "Acme Air" }) as CustomerSend[];
+    expect(alone!.who).toBe("Acme Air");
+    expect((customerFeed([nobody], { customer: "Marco", money: true })[0] as CustomerSend).who).toBe("ServiceM8");
   });
 
   it("makes one row of an invoice emailed and texted within five minutes, its amount for whoever sees money", () => {

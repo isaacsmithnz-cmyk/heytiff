@@ -58,6 +58,12 @@ export type CustomerMessage = {
 
 export type SendSort = "booking" | "way" | "quote" | "invoice" | "other";
 
+/** How a message went: a text, an email, or one send both ways. */
+export type SendVia = "text" | "email" | "both";
+
+/** A send's or a message's words whole, for the sheet that opens it. */
+export type FullMessage = { subject: string | null; from: string | null; to: string | null; when: string; text: string; files: MessageFile[] };
+
 /** ServiceM8's own send, as a row of the feed. */
 export type CustomerSend = {
   kind: "send";
@@ -82,6 +88,21 @@ export type CustomerSend = {
   amountCents: number | null;
   /** the job or invoice numbers its subject and words name ("Job #3372") */
   refs: string[];
+  /* AS A BUBBLE (Isaac, 17 November 2026, bug 20, "This looks pretty
+     messy", then "Yes, all of it" to the tidied Messages): who sent it, how
+     it went, its words without "texted" or "sent by", its time, the
+     customer's short answer as their own, and the message whole. Optional
+     only so a feed built before them still reads. */
+  /** who sent it, first name: the staff member, else the business's short name */
+  who?: string;
+  via?: SendVia;
+  /** "Booking for Wed 4 Feb, 7:00 am", "On the way", "Invoice, $13,200" */
+  plain?: string;
+  /** when it went: "9:02 am" */
+  time?: string;
+  /** the customer's short answer ("Yes"), as their own bubble */
+  answer?: { who: string; words: string; time: string; at: string } | null;
+  full?: FullMessage;
 };
 
 export type ThreadBubble = {
@@ -98,12 +119,18 @@ export type ThreadBubble = {
   seen: string | null;
   /** what came with this message, said under its own bubble */
   files: MessageFile[];
-  full: { subject: string | null; from: string | null; to: string | null; when: string; text: string; files: MessageFile[] };
+  full: FullMessage;
   /** An email, shown trimmed, with Whole email and Reply under it (call 12). */
   email?: boolean;
+  /** who said it, on every bubble of a run (`name` is only on its first) */
+  who?: string;
+  /** its stamp, naive, for laying it among the sends */
+  at?: string;
+  via?: SendVia;
 };
 
-export type ThreadLine = ThreadBubble | { kind: "line"; key: string; words: string; reply: string | null };
+/** A ServiceM8 send inside a thread: its grey line, and the send itself. */
+export type ThreadLine = ThreadBubble | { kind: "line"; key: string; words: string; reply: string | null; send?: CustomerSend };
 
 export type CustomerThread = {
   kind: "thread";
@@ -248,12 +275,19 @@ export function bareSubject(subject: string | null): string | null {
 
 /* ── the feed ── */
 
-type Draft = { msgs: CustomerMessage[]; sort: SendSort; reply: string | null };
+type Draft = { msgs: CustomerMessage[]; sort: SendSort; reply: string | null; answer: CustomerMessage | null };
 
 export function customerFeed(
   messages: readonly CustomerMessage[],
-  opts: { customer: string; money: boolean; staffOf?: (m: CustomerMessage) => string | null },
+  opts: {
+    customer: string;
+    money: boolean;
+    staffOf?: (m: CustomerMessage) => string | null;
+    /** the business's short name, for a send no staff member sent; ServiceM8 without it */
+    business?: string | null;
+  },
 ): CustomerItem[] {
+  const ours = opts.business?.trim() || "ServiceM8";
   const all = [...messages].sort((a, b) => (a.stamp < b.stamp ? -1 : a.stamp > b.stamp ? 1 : 0));
   /* A TEMPLATE THE CUSTOMER ANSWERED starts the conversation (the walk of
      26 October 2026: Piero's 10:03 reply opened a thread whose first half
@@ -281,7 +315,7 @@ export function customerFeed(
   const sends: Draft[] = [];
   const real: CustomerMessage[] = [];
   for (const m of all) {
-    if (m.side === "us" && m.template && !answered.has(m)) sends.push({ msgs: [m], sort: sortOf(m), reply: null });
+    if (m.side === "us" && m.template && !answered.has(m)) sends.push({ msgs: [m], sort: sortOf(m), reply: null, answer: null });
     else real.push(m);
   }
 
@@ -297,6 +331,7 @@ export function customerFeed(
         .find((s) => s.sort === "booking" && !s.reply && s.msgs[0]!.stamp <= m.stamp && at - secondsOf(s.msgs[0]!.stamp) <= 86_400);
       if (booking) {
         booking.reply = `${m.name ?? opts.customer}: ${words}`;
+        booking.answer = m;
         continue;
       }
     }
@@ -335,9 +370,11 @@ export function customerFeed(
     let line: string;
     let icon: CustomerSend["icon"] = first.kind === "sms" ? "message" : "mail";
     let cents: number | null = null;
+    let plain: string;
     if (s.sort === "booking") {
       const when = bookingWhen(first.text, Number(first.stamp.slice(0, 4)));
-      words = when ? `Booking for ${fmtAuWeekdayDayMonth(when.day)}, ${clock12(when.minutes)} ${verb}` : `Booking request ${verb}`;
+      plain = when ? `Booking for ${fmtAuWeekdayDayMonth(when.day)}, ${clock12(when.minutes)}` : "Booking request";
+      words = `${plain} ${verb}`;
       line = when
         ? when.day === dayOf(first.stamp)
           ? `Booking for ${clock12(when.minutes)} ${verb}`
@@ -349,18 +386,24 @@ export function customerFeed(
       const mins = arrivalMinutes(first.text);
       detail = [opts.staffOf?.(first) ?? null, mins].filter(Boolean).join(", ") || null;
       line = mins ? `${words}, ${mins}` : words;
+      plain = mins ? `On the way, ${mins}` : "On the way";
     } else if (s.sort === "quote") {
       words = `Quote ${verb}`;
+      plain = "Quote";
       line = by ? `${words} ${by}` : words;
     } else if (s.sort === "invoice") {
       cents = opts.money ? (s.msgs.map((m) => amountCents(m.text)).find((c) => c !== null) ?? null) : null;
       words = cents !== null ? `Invoice ${verb}, ${fmtAud(cents)}` : `Invoice ${verb}`;
+      plain = cents !== null ? `Invoice, ${fmtAud(cents)}` : "Invoice";
       line = by ? `${words} ${by}` : words;
     } else {
       words = verb === "texted" ? "Texted" : verb === "emailed" ? "Emailed" : "Sent";
       opening = openingWords(first.text) || null;
       line = opening ? `${words}: ${opening}` : words;
+      /* a send of no known kind says what it said */
+      plain = bubbleOf(first).words || words;
     }
+    const answer = s.answer;
     return {
       kind: "send",
       key: `send:${first.id}`,
@@ -377,6 +420,12 @@ export function customerFeed(
       files,
       amountCents: cents,
       refs: [...new Set(s.msgs.flatMap((m) => [...`${m.subject ?? ""}\n${m.text}`.matchAll(/#\s?(\d+[A-Za-z]?)\b/g)].map((x) => x[1]!.toUpperCase())))],
+      who: first.name ?? opts.staffOf?.(first) ?? ours,
+      via: both ? "both" : first.kind === "sms" ? "text" : "email",
+      plain,
+      time: clockOf(first.stamp),
+      answer: answer ? { who: answer.name ?? opts.customer, words: answer.text.trim(), time: clockOf(answer.stamp), at: answer.stamp } : null,
+      full: { subject: first.subject, from: first.from, to: first.to, when: `${fmtAuWeekdayDayMonth(dayOf(first.stamp))}, ${clockOf(first.stamp)}`, text: first.text.trim(), files },
     };
   };
 
@@ -399,17 +448,21 @@ export function customerFeed(
     for (const mo of moments) {
       if (mo.send) {
         const send = sendOf(mo.send);
-        lines.push({ kind: "line", key: send.key, words: send.line, reply: send.reply });
+        lines.push({ kind: "line", key: send.key, words: send.line, reply: send.reply, send });
         speaker = null;
         continue;
       }
       const m = mo.msg!;
       const who = `${m.side}:${m.name ?? ""}`;
+      const said = m.name ?? (m.side === "them" ? opts.customer : ours);
       lines.push({
         kind: "bubble",
         key: `msg:${m.id}`,
         side: m.side,
-        name: who === speaker ? null : (m.name ?? (m.side === "them" ? opts.customer : "ServiceM8")),
+        name: who === speaker ? null : said,
+        who: said,
+        at: m.stamp,
+        via: m.kind === "sms" ? "text" : "email",
         last: true,
         /* a bubble reads as a text does: the paragraphs' blank lines closed up;
            an email's sign-off and its signature's pictures go */

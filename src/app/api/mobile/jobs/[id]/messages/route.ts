@@ -1,7 +1,9 @@
 import { readCustomerMessages } from "@/lib/jobs/customer-messages-query";
 import { bookingZone } from "@/lib/integrations/sm8-booking-zone";
 import { ok, requireMobile } from "@/lib/mobile/auth";
-import { fileDoors, phoneMessages } from "@/lib/mobile/job-messages";
+import { companyName } from "@/lib/mobile/documents";
+import { fileDoors, phoneMessages, shortBusinessName } from "@/lib/mobile/job-messages";
+import { supabaseAdmin } from "@/lib/supabase-server";
 import { familyMediaSources, resolveJobCard } from "@/lib/workboard/all-jobs-query";
 import { todayInZone } from "@/lib/workboard/dates";
 import { readJobMediaGroups } from "@/lib/workboard/job-media-query";
@@ -23,8 +25,20 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const money = ctx.caps.has("workboard_money");
   const { parentRemoteId } = await resolveJobCard(ctx.orgId, id);
   const [items, media, zone] = await Promise.all([
-    /* the messages are a nicety beside the job: a read that fails is none */
-    readCustomerMessages({ orgId: ctx.orgId, jobUuid: parentRemoteId, money }).catch(() => []),
+    /* the messages are a nicety beside the job: a read that fails is none.
+       A send no staff member sent is from the business, by its short name */
+    (async () => {
+      const business = await supabaseAdmin
+        .from("organizations")
+        .select("trading_name, legal_name, name")
+        .eq("id", ctx.orgId)
+        .maybeSingle()
+        .then(
+          ({ data }) => shortBusinessName(companyName(data)),
+          () => null,
+        );
+      return readCustomerMessages({ orgId: ctx.orgId, jobUuid: parentRemoteId, money, business });
+    })().catch(() => []),
     familyMediaSources(ctx.orgId, parentRemoteId)
       .then((claims) => readJobMediaGroups(ctx.orgId, parentRemoteId, claims))
       .catch(() => null),

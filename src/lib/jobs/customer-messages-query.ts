@@ -71,7 +71,7 @@ function uuidsOf(v: unknown): string[] {
 }
 
 /** The feed's rows and threads alone. */
-export async function readCustomerMessages(input: { orgId: string; jobUuid: string; money: boolean }): Promise<CustomerItem[]> {
+export async function readCustomerMessages(input: { orgId: string; jobUuid: string; money: boolean; business?: string | null }): Promise<CustomerItem[]> {
   return (await readCustomerConversation({ ...input, today: null })).items;
 }
 
@@ -82,9 +82,11 @@ export async function readCustomerConversation(input: {
   money: boolean;
   /** the account's today, for Comms' "Today" and "Yesterday" */
   today: string | null;
+  /** the business's short name, who a send no staff member sent is from */
+  business?: string | null;
 }): Promise<{ items: CustomerItem[]; comms: CommsThread[] }> {
   const none = { items: [], comms: [] };
-  const { orgId, jobUuid, money, today } = input;
+  const { orgId, jobUuid, money, today, business } = input;
   const { data, error } = await supabaseAdmin
     .from("sm8_job_messages")
     .select("uuid, kind, direction, raw")
@@ -211,6 +213,7 @@ export async function readCustomerConversation(input: {
   const items = customerFeed(dated, {
     customer: who,
     money,
+    business,
     staffOf: (m) => {
       const id = (m as { staffUuid?: string | null }).staffUuid;
       return id ? firstName(staff.get(id.toLowerCase())?.first) : null;

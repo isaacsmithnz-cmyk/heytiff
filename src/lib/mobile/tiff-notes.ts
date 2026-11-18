@@ -18,6 +18,7 @@ import { openName, parseMove } from "@/lib/tiff/moves";
 import { filesNothing, planRows } from "@/lib/workboard/note-draft";
 import type { NoteProposal, NoteStaff } from "@/lib/workboard/note-brain";
 import { KEPT_AS_SAID, WHICH_JOB, earlierTurns } from "@/lib/workboard/note-turns";
+import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { askLine, lastTiff, planView, tiffSince } from "@/components/tiff/modal/plan-view";
 
 /* TIFF DOING THINGS FROM THE PHONE (Isaac, 28 October 2026: "Chat ability =
@@ -65,10 +66,14 @@ export type SayInput =
 
 const NOT_REACHED = "That didn't reach HeyTiff. Try again.";
 
+/** A date as the model writes it, "(2026-11-27)" or "2026-11-27", said as a person would: "(Fri 27 Nov)" (bug 33). */
+export const datesInWords = (text: string): string =>
+  text.replace(/\b(\d{4}-\d{2}-\d{2})\b/g, (iso) => fmtAuWeekdayDayMonth(iso) || iso);
+
 const rowsOf = (proposal: NoteProposal, staff: NoteStaff[], asking: boolean): PhoneRow[] =>
   planView(proposal, staff, asking)
     .filter((r) => !r.off)
-    .map((r) => ({ key: r.key, lead: r.lead, join: r.join, text: r.text, needs: r.needs }));
+    .map((r) => ({ key: r.key, lead: r.lead, join: r.join, text: datesInWords(r.text), needs: r.needs }));
 
 const optionsOf = (ask: FileAsk): PhoneOption[] => ask.options.map((o) => ({ label: o.label, ...(o.target ? { target: o.target } : {}), ...(o.visit ? { visit: o.visit } : {}) }));
 
@@ -92,16 +97,18 @@ async function file(noteId: string, opts: { retarget?: NoteTarget }, routed?: Ex
     return [{ kind: "said", say: NOT_REACHED, failed: true }];
   }
   if (res.ok) {
-    const out: PhoneTurn[] = [
-      {
-        kind: "filed",
-        noteId,
-        say: lastTiff(res.turns) || "Done.",
-        rows: routed ? rowsOf(routed.proposal, routed.staff, false) : [],
-        doors: res.doors.map((d) => d.label),
-        visits: (res.visits ?? []).map((v) => [v.line, v.aside].filter(Boolean).join(". ")),
-      },
-    ];
+    const rows = routed ? rowsOf(routed.proposal, routed.staff, false) : [];
+    const doors = res.doors.map((d) => d.label);
+    const visits = (res.visits ?? []).map((v) => [v.line, v.aside].filter(Boolean).join(". "));
+    /* ASKED ONCE (Isaac, 18 November 2026, bug 33, "Does this look right?": "Make the job in ServiceM8?" came twice,
+       first over the plan with an Undo, then with its answers). Her question is its own turn and never the words of
+       what was filed; and when nothing landed yet, there is nothing to take back, so the plan goes with the question
+       and there's no Undo. */
+    if (res.ask && doors.length === 0 && visits.length === 0) {
+      return [{ kind: "asks", noteId, say: res.ask.question, rows, options: optionsOf(res.ask), answer: "visit" }];
+    }
+    const said = lastTiff(res.turns);
+    const out: PhoneTurn[] = [{ kind: "filed", noteId, say: (res.ask && said === res.ask.question ? "" : said) || "Done.", rows, doors, visits }];
     /* a visit with no clear time is asked once the rest is filed */
     if (res.ask) out.push({ kind: "asks", noteId, say: res.ask.question, rows: [], options: optionsOf(res.ask), answer: "visit" });
     return out;

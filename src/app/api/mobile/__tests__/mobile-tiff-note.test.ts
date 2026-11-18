@@ -74,6 +74,7 @@ jest.mock("@/components/tiff/modal/plan-view", () => ({
 import { POST } from "../tiff/note/route";
 import { MOBILE_AUDIENCE } from "@/lib/mobile/token";
 import { WHICH_JOB } from "@/lib/workboard/note-turns";
+import { datesInWords } from "@/lib/mobile/tiff-notes";
 
 const DOMAIN = "tenant.example.auth0.com";
 const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString("base64url");
@@ -142,6 +143,22 @@ test("which job is a pick, filed on the job picked; a visit's time is its own an
   expect(asked.slice(-1)).toEqual(["file as auth0|isaac@org-1: n-1 on j-2935"]);
   const v = await say("auth0|isaac", { do: "visit", noteId: "n-2", answer: "7:00 am" });
   expect(v.body.turns).toEqual([{ kind: "filed", noteId: "n-2", say: "Leo's on 3304 tomorrow.", rows: [], doors: [], visits: ["Leo, Thursday 29 October, 7:00 am to 3:00 pm"] }]);
+});
+
+test("a question comes once: with nothing filed yet it carries the plan and no Undo; after a filing it isn't the filing's words", async () => {
+  fileAnswer = { ok: true, summary: "", doors: [], ask: { question: "Make the job in ServiceM8?", options: [{ label: "Make the job" }, { label: "Not now" }] }, turns: [{ who: "tiff", text: "Make the job in ServiceM8?" }] };
+  const r = await say("auth0|isaac", words("Peter Fraser wants a return visit"));
+  expect(r.body.turns).toEqual([expect.objectContaining({ kind: "asks", say: "Make the job in ServiceM8?", rows: [expect.objectContaining({ lead: "Luke" })] })]);
+  fileAnswer = { ...fileAnswer, doors: [{ kind: "tasks", count: 1, label: "1 task filed", ids: ["t-1"] }] };
+  const f = await say("auth0|isaac", words("Peter Fraser wants a return visit"));
+  expect(f.body.turns?.map((x) => [x.kind, x.say])).toEqual([
+    ["filed", "Done."],
+    ["asks", "Make the job in ServiceM8?"],
+  ]);
+});
+
+test("her dates are said in words", () => {
+  expect(datesInWords("the end of next Friday (2026-11-27), Peter Fraser")).toBe("the end of next Friday (Fri 27 Nov), Peter Fraser");
 });
 
 test("nothing to file is set aside and answered instead; Undo takes a note back as its author", async () => {

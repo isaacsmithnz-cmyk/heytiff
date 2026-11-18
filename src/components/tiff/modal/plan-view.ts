@@ -42,7 +42,7 @@ export type PlanRowView = {
 const LEAD: Record<Exclude<PlanLane, "tasks" | "visits" | "skills">, string> = {
   costs: "Cost",
   variations: "Variation",
-  flags: "On the board",
+  flags: "To follow up",
   issueEntries: "Logged",
   bringItems: "Bring",
   progressBullets: "On the job",

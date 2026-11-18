@@ -71,7 +71,7 @@ describe("planView", () => {
       false
     );
     expect(rows.map((r) => [r.key, r.lead, r.text, r.kb ?? null])).toEqual([
-      ["flags:0", "On the board", "Isolator loose", null],
+      ["flags:0", "To follow up", "Isolator loose", null],
       ["issueEntries:0", "Logged", "E6 again", null],
       ["bringItems:0", "Bring", "3.5 kW head", null],
       ["progressBullets:0", "On the job", "Pipework run", null],

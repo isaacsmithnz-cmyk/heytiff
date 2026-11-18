@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { DRAWING_HEADING_PREFIX } from "@/lib/tiff/drawings";
 import { kbDocsForOrg, kbUploaderNames } from "@/lib/tiff/query";
 import { editionWords } from "@/lib/tiff/released";
+import { noteWordsOf } from "@/lib/tiff/field-notes";
 import { shelvesOf } from "@/lib/tiff/shelves";
 import { kbTagsByDocument, kbTagsForOrg } from "@/lib/tiff/tags-query";
 import { ok, requireMobile } from "@/lib/mobile/auth";
@@ -29,20 +30,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
      Samsung VRF E603 note: "it didn't give me anything useful ... I wasn't
      actually able to view the information"). Its words come with it: where
      it was learned, and what it says. */
-  const note = d.fileName
-    ? null
-    : await supabaseAdmin
-        .from("kb_chunks")
-        .select("heading, content")
-        .eq("org_id", ctx.orgId)
-        .eq("document_id", d.id)
-        .order("chunk_index", { ascending: true })
-        .limit(20)
-        .then(({ data }) => {
-          const parts = (data ?? []) as { heading: string | null; content: string | null }[];
-          const body = parts.map((c) => c.content?.trim() ?? "").filter(Boolean).join("\n\n");
-          return body ? { learned: parts[0]?.heading?.trim() || null, body } : null;
-        });
+  const note = d.fileName ? null : await noteWordsOf(ctx.orgId, d.id);
   const { count } = await supabaseAdmin
     .from("kb_chunks")
     .select("id", { count: "exact", head: true })

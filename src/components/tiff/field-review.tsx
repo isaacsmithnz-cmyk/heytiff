@@ -1,14 +1,15 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Button } from "@/components/parts/button";
 import { Dialog } from "@/components/parts/dialog";
 import { Row, RowList } from "@/components/parts/row";
 import { Dot } from "@/components/parts/state";
-import { Empty } from "@/components/parts/states";
+import { Empty, Loading } from "@/components/parts/states";
+import { kbNoteWords } from "@/app/actions/kb";
 import { markFieldNoteReviewed, removeFieldNote, type ReviewResult } from "@/app/actions/kb-review";
 import { auDayOf, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
-import type { FieldNoteRow } from "@/lib/tiff/field-notes";
+import type { FieldNoteRow, NoteWords } from "@/lib/tiff/field-notes";
 import "./field-review.css";
 
 /* KNOWLEDGE FROM THE FIELD, in the Library (v2, 25 October 2026; it was
@@ -103,5 +104,54 @@ export function FieldReview({ entries, onDone }: { entries: FieldNoteRow[]; onDo
         </Dialog>
       )}
     </div>
+  );
+}
+
+/* A FIELD NOTE OPENS AS ITS WORDS (bug 34, Luke, 18 November 2026:
+   "Message box doesn't display correctly"). A field note was written from
+   somebody's note, so it has no PDF, and searching its one paragraph inside
+   a dialog found nothing worth finding: opening its cover on a brand's page
+   showed a title, a search box and Close, and never what it says. It opens
+   as the note above does, and as the phone's Details sheet shows one: where
+   it was learned in grey, what it says at the reading size (rule 13). Its
+   words are read when it opens; the Library's list carries titles only. */
+export function FieldNote({ doc, onClose }: { doc: { id: string; title: string }; onClose: () => void }) {
+  const [read, setRead] = useState<{ id: string; words: NoteWords | null; error: string | null } | null>(null);
+  useEffect(() => {
+    let live = true;
+    void kbNoteWords(doc.id).then((res) => {
+      if (live) setRead({ id: doc.id, words: res.ok ? res.words : null, error: res.ok ? null : res.error });
+    });
+    return () => {
+      live = false;
+    };
+  }, [doc.id]);
+  const now = read?.id === doc.id ? read : null;
+
+  return (
+    <Dialog
+      heading={doc.title}
+      width={560}
+      onClose={onClose}
+      foot={
+        <Button kind="quiet" onClick={onClose}>
+          Close
+        </Button>
+      }
+    >
+      {!now ? (
+        <Loading what="Loading the note" />
+      ) : now.words ? (
+        <>
+          {now.words.learned && <p className="lb2-fr-said">{now.words.learned}</p>}
+          <p className="lb2-fr-body">{now.words.body}</p>
+        </>
+      ) : (
+        <p className="lb2-fr-wrong" role="alert">
+          <Dot hue="red" />
+          <span>{now.error}</span>
+        </p>
+      )}
+    </Dialog>
   );
 }

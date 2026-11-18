@@ -16,7 +16,7 @@ import { StateWord, type Tone } from "@/components/parts/state";
 import { ViewTabs } from "@/components/parts/tabs";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
 import { KB_CATEGORIES, filterKbDocs, type KbCategoryKey } from "./kb";
-import { FieldReview } from "./field-review";
+import { FieldNote, FieldReview } from "./field-review";
 import { UploadDrawer } from "./upload-drawer";
 import { TagField } from "./tag-picker";
 import { TagManager } from "./tag-manager";
@@ -1006,7 +1006,14 @@ export function Library({
       )}
       {/* No `canManage` — searching a document is reading it, and the whole
           library is a read surface for staff. */}
-      {searching && <DocSearch doc={searching} onClose={() => setSearching(null)} />}
+      {/* A document with no file (a field note) opens as its words, not a
+          search box over nothing (bug 34). */}
+      {searching &&
+        (searching.storageRef ? (
+          <DocSearch doc={searching} onClose={() => setSearching(null)} />
+        ) : (
+          <FieldNote doc={searching} onClose={() => setSearching(null)} />
+        ))}
     </div>
   );
 }

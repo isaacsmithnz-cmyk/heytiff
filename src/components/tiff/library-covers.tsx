@@ -4,11 +4,11 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
 import { searchManuals } from "@/app/actions/library-search";
-import { kbDocUrl } from "@/app/actions/kb";
 import type { LibrarySearch } from "@/lib/mobile/library-search";
 import type { CoverReading } from "@/lib/tiff/covers";
 import type { KbDocRow } from "@/lib/tiff/query";
 import { KB_CATEGORIES } from "./kb";
+import { useKbPdf } from "./kb-pdf";
 import "./library-covers.css";
 
 /* THE WEB LIBRARY IN THE PHONE'S DRESS (Isaac, 16 November 2026: "make
@@ -249,21 +249,18 @@ export function SearchBoard({
   const manuals = (now?.found?.manuals ?? []).map((id) => byId.get(id)).filter((d): d is CoveredDoc => !!d);
   const pages = now?.found?.pages ?? [];
 
-  /* the page opens in a new tab at its page, the tab opened on the click so
-     the pop-up blocker sees it (doc-search.tsx does the same) */
-  const openAt = async (id: string, page: number) => {
+  /* the page opens in HeyTiff's own viewer at its page (kb-pdf), as the
+     document search's hits do; a field note has no PDF, so its page opens
+     the note itself, as its cover does */
+  const pdf = useKbPdf();
+  const openAt = async (id: string, title: string, page: number) => {
     setOpenError(null);
-    const tab = window.open("", "_blank");
-    const res = await kbDocUrl(id);
-    if (!res.ok) {
-      tab?.close();
-      setOpenError(res.error);
+    if (byId.get(id)?.category === "field") {
+      onOpenDoc(id);
       return;
     }
-    if (tab) {
-      tab.opener = null;
-      tab.location.href = `${res.url}#page=${page}`;
-    }
+    const why = await pdf.open(id, title, page);
+    if (why) setOpenError(why);
   };
 
   return (
@@ -297,7 +294,7 @@ export function SearchBoard({
           <h2 className="lb3-sh">Pages</h2>
           <div className="lb3-group">
             {pages.map((p) => (
-              <button key={`${p.documentId}-${p.pageFrom}`} type="button" className="lb3-cell lb3-cell--page" onClick={() => void openAt(p.documentId, p.pageFrom)}>
+              <button key={`${p.documentId}-${p.pageFrom}`} type="button" className="lb3-cell lb3-cell--page" onClick={() => void openAt(p.documentId, p.title, p.pageFrom)}>
                 <span className="lb3-cw">
                   <b>
                     {p.title}, p. {p.pageFrom}
@@ -316,6 +313,7 @@ export function SearchBoard({
       {now && !now.error && manuals.length === 0 && pages.length === 0 && (
         <p className="lb3-none">No manual says “{q}”</p>
       )}
+      {pdf.viewer}
     </section>
   );
 }

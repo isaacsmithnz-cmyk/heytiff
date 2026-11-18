@@ -94,12 +94,11 @@ describe("searching", () => {
 
 describe("a hit is a doorway", () => {
   /* THE POINT OF THE WHOLE PANEL. Landing on page 1 of a 220-page manual and
-     scrolling is the thing this replaces. */
-  it("opens the document at the passage's own page", async () => {
-    const tab = { opener: {} as unknown, location: { href: "" }, close: jest.fn() };
-    const open = jest.fn(() => tab);
-    Object.defineProperty(window, "open", { value: open, writable: true });
-
+     scrolling is the thing this replaces. And it opens in HeyTiff's own
+     viewer, not a tab of its own (Isaac, 18 November 2026: "it opens it in a
+     whole new tab instead of using TIFF's PDF display"). */
+  it("opens the document at the passage's own page, in HeyTiff's viewer", async () => {
+    const open = jest.spyOn(window, "open");
     searchKbDoc.mockResolvedValue({ ok: true, hits: [hit({ pageFrom: 34, pageTo: 35 })], capped: false });
     kbDocUrl.mockResolvedValue({ ok: true, url: "https://signed.example/doc.pdf?token=abc" });
 
@@ -108,19 +107,34 @@ describe("a hit is a doorway", () => {
 
     await userEvent.click(await screen.findByRole("button", { name: /Pages 34–35/ }));
 
-    await waitFor(() =>
-      expect(tab.location.href).toBe("https://signed.example/doc.pdf?token=abc#page=34")
-    );
-    // the tab is opened on the gesture, before the signed URL is asked for —
-    // a pop-up blocker only trusts a window opened during the click
-    expect(open).toHaveBeenCalledWith("", "_blank");
-    expect(tab.opener).toBeNull();
+    // two dialogs named for the document now: the search, and the viewer over it
+    await waitFor(() => expect(screen.getAllByRole("dialog", { name: DOC.title })).toHaveLength(2));
+    const viewer = document.querySelector(".wb2-mv");
+    expect(viewer).toHaveAttribute("aria-modal", "true");
+    expect(viewer?.querySelector("iframe")).toHaveAttribute("src", "https://signed.example/doc.pdf?token=abc#page=34");
+    expect(kbDocUrl).toHaveBeenCalledWith("d-1");
+    expect(open).not.toHaveBeenCalled();
+    open.mockRestore();
   });
 
-  it("closes the tab it opened and says why when the link can't be minted", async () => {
-    const tab = { opener: {} as unknown, location: { href: "" }, close: jest.fn() };
-    Object.defineProperty(window, "open", { value: jest.fn(() => tab), writable: true });
+  it("opens the whole file from the top with Open the PDF, and closes back to the search", async () => {
+    kbDocUrl.mockResolvedValue({ ok: true, url: "https://signed.example/doc.pdf" });
+    render(<DocSearch doc={DOC} onClose={jest.fn()} />);
 
+    await userEvent.click(screen.getByRole("button", { name: "Open the PDF" }));
+    const frame = await waitFor(() => {
+      const f = document.querySelector(".wb2-mv iframe");
+      expect(f).not.toBeNull();
+      return f!;
+    });
+    expect(frame).toHaveAttribute("src", "https://signed.example/doc.pdf#page=1");
+
+    await userEvent.click(screen.getByRole("button", { name: "Close viewer", hidden: true }));
+    expect(document.querySelector(".wb2-mv")).toBeNull();
+    expect(screen.getByLabelText("Search inside this document")).toBeInTheDocument();
+  });
+
+  it("says why when the link can't be minted, and opens nothing", async () => {
     searchKbDoc.mockResolvedValue({ ok: true, hits: [hit()], capped: false });
     kbDocUrl.mockResolvedValue({ ok: false, error: "That file couldn't be opened." });
 
@@ -129,7 +143,6 @@ describe("a hit is a doorway", () => {
     await userEvent.click(await screen.findByRole("button", { name: /Page 34/ }));
 
     expect(await screen.findByText("That file couldn't be opened.")).toBeInTheDocument();
-    expect(tab.close).toHaveBeenCalled();
-    expect(tab.location.href).toBe("");
+    expect(document.querySelector(".wb2-mv")).toBeNull();
   });
 });

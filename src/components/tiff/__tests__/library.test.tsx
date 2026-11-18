@@ -32,12 +32,14 @@ const push = jest.fn();
 jest.mock("next/navigation", () => ({ useRouter: () => ({ refresh, push }) }));
 
 const kbDocUrl = jest.fn();
+const kbNoteWords = jest.fn();
 const searchKbDoc = jest.fn();
 const retryKbDoc = jest.fn();
 const updateKbDocMeta = jest.fn();
 const deleteKbDoc = jest.fn();
 jest.mock("@/app/actions/kb", () => ({
   kbDocUrl: (...a: unknown[]) => kbDocUrl(...(a as [])),
+  kbNoteWords: (...a: unknown[]) => kbNoteWords(...(a as [])),
   searchKbDoc: (...a: unknown[]) => searchKbDoc(...(a as [])),
   retryKbDoc: (...a: unknown[]) => retryKbDoc(...(a as [])),
   updateKbDocMeta: (...a: unknown[]) => updateKbDocMeta(...(a as [])),
@@ -494,14 +496,32 @@ describe("opening a document", () => {
   /* A FIELD NOTE HAS NO PDF. It was written from somebody's note, and the
      panel offered "Open the PDF" anyway — which answered "That file doesn't
      belong to this organisation.", the org check's refusal, on the reader's
-     own note. */
-  it("offers no PDF door on a note that never had a file", async () => {
+     own note. Then it offered only a search box over its one paragraph,
+     and never what it says (bug 34, Luke, 18 November 2026: "Message box
+     doesn't display correctly"): it opens as its words. */
+  it("opens a note that never had a file as its words, with no PDF and no search", async () => {
+    kbNoteWords.mockResolvedValue({
+      ok: true,
+      words: { learned: "Learned on the job — Alex L, Wed 6 Aug", body: "Set the indoor unit count first, then run the auto test." },
+    });
     render(<Library docs={[doc({ category: "field", title: "Grille clips on the AP25", storageRef: null })]} canManage />);
 
     await userEvent.click(screen.getByRole("button", { name: "Grille clips on the AP25" }));
     const panel = screen.getByRole("dialog", { name: "Grille clips on the AP25" });
+    expect(await within(panel).findByText("Set the indoor unit count first, then run the auto test.")).toBeInTheDocument();
+    expect(within(panel).getByText("Learned on the job — Alex L, Wed 6 Aug")).toBeInTheDocument();
+    expect(kbNoteWords).toHaveBeenCalledWith("d-1");
     expect(within(panel).queryByRole("button", { name: /Open the PDF/ })).toBeNull();
-    expect(within(panel).getByLabelText("Search inside this document")).toBeInTheDocument();
+    expect(within(panel).queryByLabelText("Search inside this document")).toBeNull();
+    expect(kbDocUrl).not.toHaveBeenCalled();
+  });
+
+  it("says why when a note's words can't be read", async () => {
+    kbNoteWords.mockResolvedValue({ ok: false, error: "That document is no longer here." });
+    render(<Library docs={[doc({ category: "field", title: "Grille clips on the AP25", storageRef: null })]} canManage />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Grille clips on the AP25" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("That document is no longer here.");
   });
 
   /* Searching a document is reading it, so this is the one row affordance

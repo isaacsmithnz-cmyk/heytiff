@@ -64,7 +64,8 @@ export type PhoneVehicle = {
     motorised: boolean;
     odometer: number;
     service: FactRow[];
-    renewals: { label: string; date: string | null; word: Word | null }[];
+    /** each renewal with its kind, so the register's phone can open it to renew */
+    renewals: { kind: "rego" | "ctp" | "insurance"; label: string; date: string | null; word: Word | null }[];
     lastFuel: { when: string; line: string } | null;
     issues: { id: string; name: string; line: string }[];
     entries: PhoneEntry[];
@@ -129,7 +130,7 @@ export function phoneVehicleOf(
     odometer: v.odometer,
     service: serviceRows(v, logs, o.today, o.warnDays),
     /* the driver reads the renewals; the register renews them */
-    renewals: renewalRows(v, [], o.today, o.warnDays).map((r) => ({ label: r.label, date: r.date, word: r.word ?? null })),
+    renewals: renewalRows(v, [], o.today, o.warnDays).map((r) => ({ kind: r.kind, label: r.label, date: r.date, word: r.word ?? null })),
     lastFuel: fuel ? { when: fuel.when, line: fuel.line } : null,
     issues: issueGroups(logs).open.map((l) => ({ id: l.id, name: issueName(l), line: issueLine(l) })),
     entries: [...logs].sort((a, b) => a.ago - b.ago).map((l) => entryOf(l, o.me)),

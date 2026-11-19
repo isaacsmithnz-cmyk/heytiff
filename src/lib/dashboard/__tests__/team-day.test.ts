@@ -34,7 +34,7 @@ describe("teamDayOf", () => {
       block({ key: "act-4", remoteId: "job-3538", jobNumber: "3538", clientName: "Halliday, Jo", suburb: "Clovelly", startMin: 780, endMin: 840 }),
     ]),
     lane("s-isaac", "Isaac Smith", [block({ key: "act-5", remoteId: "job-2359", jobNumber: "2359", clientName: "Dryridge Estate", suburb: "Megalong Valley", categoryName: "Service Call", startMin: 720, endMin: 900 })]),
-    lane("s-alexl", "Alex Lorenz", [block({ key: "act-6", remoteId: "job-3392", jobNumber: "3392", status: "Unsuccessful", suburb: "Bondi Beach", startMin: 660, endMin: 720 })]),
+    lane("s-alexl", "Alex Lorenz", [block({ key: "act-6", remoteId: "job-3392", jobNumber: "3392", status: "Unsuccessful", suburb: "Bondi Beach", startMin: 660, endMin: 720, onSite: true })]),
   ];
   const day = teamDayOf(
     { lanes },
@@ -63,6 +63,8 @@ describe("teamDayOf", () => {
     expect(of("3432").done).toBe(true);
     expect(of("3392").state).toEqual({ tone: "wrong", word: "Didn't go ahead" });
     expect(of("3392").done).toBe(false);
+    /* Alex checked in and out that morning: on a job that didn't go ahead he isn't on site at 9 pm (3392, 17 November) */
+    expect(of("3392").here).toEqual([]);
     expect(of("2359").state).toEqual({ tone: "info", word: "On now" });
     expect(of("3538").state).toEqual({ tone: "info", word: "Booked" });
   });

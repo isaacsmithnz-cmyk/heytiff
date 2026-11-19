@@ -162,7 +162,9 @@ export function teamDayOf(
                 : now >= j.startMin
                   ? { tone: "info", word: "On now" }
                   : { tone: "info", word: "Booked" };
-      return { ...j, time: clock(j.startMin), state, done, here: done ? [] : j.here };
+      /* a job that didn't go ahead has nobody on it: a check-in recorded
+         earlier that day, closed or not, doesn't keep them there all evening */
+      return { ...j, time: clock(j.startMin), state, done, here: done || lost ? [] : j.here };
     })
     .sort((a, b) => a.startMin - b.startMin || (a.number ?? "").localeCompare(b.number ?? "", "en", { numeric: true }));
   return {

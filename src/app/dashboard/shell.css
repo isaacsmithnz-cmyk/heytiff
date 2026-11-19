@@ -6877,6 +6877,8 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .hm-sd { display:grid; grid-template-columns:minmax(320px,1fr) minmax(0,640px); gap:16px; align-items:start; }
 .fg .hm-sd--nomap { grid-template-columns:minmax(0,1fr); }
 .fg .hm-sd-list { display:flex; flex-direction:column; min-width:0; height:368px; overflow-y:auto; }
+/* no map beside it: the list is as tall as what it holds, up to the map's height */
+.fg .hm-sd--nomap .hm-sd-list { height:auto; max-height:368px; }
 .fg .hm-sd-note { margin:0; padding:0 0 8px; font-size:13px; line-height:18px; color:var(--q); }
 .fg .hm-sd-list .hm-bdays { padding:0 0 8px; }
 .fg .hm-sd-rows { display:flex; flex-direction:column; margin:0; padding:0; list-style:none; }

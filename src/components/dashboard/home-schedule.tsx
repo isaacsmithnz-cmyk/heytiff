@@ -354,7 +354,13 @@ export function HomeSchedule({
   const [people, setPeople] = useKept<People>("heytiff.home.people.v1", ["team", "you"], "team");
   const [read, setRead] = useState<Record<string, TeamDay | "reading" | "failed">>({ [first.day]: first });
   const [hot, setHot] = useState<string | null>(null);
-  const got = read[day];
+  /* the day the card shows: the last one read, held while the next is read,
+     so a new day replaces the old one instead of the card going blank */
+  const [held, setHeld] = useState(first.day);
+  const pressed = read[day];
+  if (typeof pressed === "object" && held !== day) setHeld(day);
+  const shownDay = pressed === "reading" && typeof read[held] === "object" ? held : day;
+  const got = read[shownDay];
   /* a day is read when it is first pressed, and kept for the visit */
   const go = (d: string) => {
     setDay(d);
@@ -366,7 +372,7 @@ export function HomeSchedule({
       .catch(() => setRead((r) => ({ ...r, [d]: "failed" })));
   };
 
-  const label = days.find((d) => d.day === day)?.label ?? day;
+  const label = days.find((d) => d.day === shownDay)?.label ?? shownDay;
   const team = typeof got === "object" ? got : null;
   const jobs = team ? (people === "you" ? team.jobs.filter((j) => j.mine) : team.jobs) : [];
   const free = team && people === "team" ? freeLine(team.free) : null;
@@ -403,7 +409,7 @@ export function HomeSchedule({
           <Tray options={PEOPLE} value={people} onChange={setPeople} ariaLabel="Whose day" />
         </span>
       </div>
-      <div className={mapped ? "hm-sd" : "hm-sd hm-sd--nomap"}>
+      <div className={mapped ? "hm-sd" : "hm-sd hm-sd--nomap"} aria-busy={shownDay !== day}>
         <div className="hm-sd-list">
           {free && <p className="hm-sd-note">{free}</p>}
           {team?.today && birthdays.length > 0 && (
@@ -420,7 +426,7 @@ export function HomeSchedule({
         </div>
         {mapped && (
           <DayMap
-            key={`${day}:${people}`}
+            key={`${shownDay}:${people}`}
             jobs={jobs}
             whereNow={team?.today ? (people === "you" ? team.live.filter((p) => p.name === "you") : team.live) : []}
             hot={hot}

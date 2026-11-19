@@ -7,6 +7,8 @@ import { listFleetStaff, listLogs, listVehicles } from "@/lib/fleet/query";
 import { nickname, type Word } from "@/lib/fleet/vehicle-page";
 import { orgExpiryWindow } from "@/lib/org/query";
 import { phoneVehicleOf, type PhoneVehicleBody } from "@/lib/mobile/vehicle";
+import { papersOf, type PhonePaper } from "@/lib/mobile/vehicle-papers";
+import { documentsForVehicles } from "@/lib/documents/query";
 import type { MobileCtx } from "@/lib/mobile/auth";
 
 /* EVERY VEHICLE ON THE PHONE, for whoever holds the register (Isaac, 17
@@ -34,9 +36,11 @@ export type PhoneFleetRow = {
   word: Word | null;
 };
 
-export type PhoneFleet = { look: PhoneFleetRow[]; rest: PhoneFleetRow[] };
+/** `drivers`: who Add a vehicle can hand it to, the active team by name. */
+export type PhoneFleet = { look: PhoneFleetRow[]; rest: PhoneFleetRow[]; drivers: { id: string; name: string }[] };
 
-export type PhoneFleetVehicle = { vehicle: (PhoneVehicleBody & { driver: string | null }) | null };
+/** `papers`: the vehicle's own documents, newest first (lib/mobile/vehicle-papers). */
+export type PhoneFleetVehicle = { vehicle: (PhoneVehicleBody & { driver: string | null; papers: PhonePaper[] }) | null };
 
 const makeModel = (v: Vehicle) => [v.make.trim(), v.model.trim()].filter(Boolean).join(" ");
 const daysWord = (n: number) => (n === 1 ? "1 day" : `${fmtKm(n)} days`);
@@ -100,6 +104,10 @@ export async function readPhoneFleet(ctx: MobileCtx): Promise<PhoneFleet> {
   return {
     look: look.sort((a, b) => a.rank - b.rank || byTitle(a, b)).map(({ rank: _rank, ...r }) => r),
     rest: rest.sort(byTitle),
+    drivers: staff
+      .filter((s) => s.status !== "Inactive")
+      .map((s) => ({ id: s.id, name: s.name }))
+      .sort((a, b) => a.name.localeCompare(b.name)),
   };
 }
 
@@ -111,9 +119,10 @@ export async function readPhoneFleetVehicle(ctx: MobileCtx, id: string): Promise
   const v = vehicles.find((x) => x.id === want && x.status !== "sold");
   if (!v) return { vehicle: null };
   const [logs, staff] = await Promise.all([listLogs(ctx.orgId, { vehicleId: v.id }), listFleetStaff(ctx.orgId)]);
+  const docs = await documentsForVehicles(ctx.orgId, [v.id], new Map(logs.map((l) => [l.id, l.vehicleId]))).catch(() => new Map());
   const driver = v.assignedTo ? (staff.find((s) => s.id === v.assignedTo)?.name ?? null) : null;
   /* for looking: no entry is anyone's to correct from here */
   const body = phoneVehicleOf(v, logs, { today: todayInAu(), warnDays, driver, me: null });
   /* the driver has a group of their own, so the grey line keeps the year and the nickname */
-  return { vehicle: { ...body, head: [v.year ? String(v.year) : null, nickname(v)].filter(Boolean).join(", "), driver } };
+  return { vehicle: { ...body, head: [v.year ? String(v.year) : null, nickname(v)].filter(Boolean).join(", "), driver, papers: papersOf(docs.get(v.id) ?? []) } };
 }

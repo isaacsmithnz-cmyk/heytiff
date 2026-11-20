@@ -24,6 +24,21 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const modules = path.join(here, "node_modules");
 const projectRoot = fs.existsSync(modules) ? path.dirname(fs.realpathSync(modules)) : here;
 
+/* What drawing a job's plan set in Node needs beside the code
+   (lib/jobs/plan-draw-node.ts): pdf.js's build, its fonts, its character
+   maps and its image decoders, all reached by paths file tracing can't see,
+   and the canvas with its native binary for Vercel's Linux. Every route that
+   reads a plan (the read route, and the quote chat that picks a dropped read
+   up) carries it. */
+const PLAN_DRAWING = [
+  "./node_modules/pdfjs-dist/legacy/build/**/*",
+  "./node_modules/pdfjs-dist/standard_fonts/**/*",
+  "./node_modules/pdfjs-dist/cmaps/**/*",
+  "./node_modules/pdfjs-dist/wasm/**/*",
+  "./node_modules/@napi-rs/canvas/**/*",
+  "./node_modules/@napi-rs/canvas-linux-x64-gnu/**/*",
+];
+
 const nextConfig: NextConfig = {
   turbopack: { root: projectRoot },
   /* React Compiler, on for the whole app.
@@ -58,6 +73,9 @@ const nextConfig: NextConfig = {
        its code finds on disk beside itself */
     "puppeteer-core",
     "@sparticuz/chromium",
+    /* pdf.js's Node canvas, a native module: a job's plan set is drawn
+       with it (lib/jobs/plan-draw-node.ts) */
+    "@napi-rs/canvas",
   ],
   /* PAGES ARE REMEMBERED FOR THREE MINUTES (Isaac, 26 October 2026:
      "Remember recently opened pages for a few minutes so switching back is
@@ -118,7 +136,7 @@ const nextConfig: NextConfig = {
     /* Tiff's turns on a quote read a unit off its pack (unit_specs, her
        kits) and check the air against the ducted airflow guide
        (data/guides): untraced, she'd find no pack and no guide, and say so */
-    "/api/workboard/quote-session": ["./data/packs/**/*", "./data/guides/**/*", "./node_modules/@sparticuz/chromium/bin/**/*"],
+    "/api/workboard/quote-session": ["./data/packs/**/*", "./data/guides/**/*", "./node_modules/@sparticuz/chromium/bin/**/*", ...PLAN_DRAWING],
     "/api/workboard/quote-compare": ["./data/packs/**/*", "./data/guides/**/*"],
     /* Chromium's brotli archives are read off disk at run time, so the
        tracer never sees them: name them, or the first PDF dies looking */
@@ -126,7 +144,7 @@ const nextConfig: NextConfig = {
     "/api/studio/design-to-job": ["./node_modules/@sparticuz/chromium/bin/**/*", "./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs"],
     /* a job's plans are drawn in the same browser (lib/jobs/plans-server.ts):
        from the Plans read, and from a quote's turn when Tiff has one read */
-    "/api/jobs/plans/read": ["./node_modules/@sparticuz/chromium/bin/**/*", "./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs"],
+    "/api/jobs/plans/read": ["./node_modules/@sparticuz/chromium/bin/**/*", ...PLAN_DRAWING],
     /* every PDF that lands on a job is sorted by its own words in Node
        (lib/jobs/take-in-server.ts), from a server action on any dashboard
        page, the phone's papers and a design sent to its job: untraced, each

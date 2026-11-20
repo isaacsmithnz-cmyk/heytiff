@@ -4,12 +4,13 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { DOCUMENTS_BUCKET } from "@/lib/documents/query";
 import { newId } from "@/lib/studio/document";
 import { launchHeadless, printBase } from "@/lib/studio/pdf-render";
-import { signPlanPagesTicket, type PlanPagesTicket } from "@/lib/studio/pdf-request";
+import { signPlanPagesTicket, signPlanReadTicket, type PlanPagesTicket } from "@/lib/studio/pdf-request";
 import { mmPerPxFor, printedScaleOf } from "@/lib/studio/plan-set";
 import { scaleFromDimensions, type PlanReading, type PlanWord } from "@/lib/studio/reading";
 import { READING_MODEL, readDimensions, readRoof, readSheet, readSite, type SheetToRead } from "@/lib/studio/reading-server";
 import { SONNET_FALLBACK } from "@/lib/tiff/sonnet-fallback";
 import { openPdf } from "@/lib/tiff/extract";
+import { fullInNode, previewsInNode } from "./plan-draw-node";
 import { airPages, plainWords } from "./take-in";
 import { staffDisplayNames } from "@/lib/workboard/job-notes-query";
 import type { DrawnFull, DrawnPreview, PlanPagesAnswer } from "@/app/print/plan-pages/plan-pages";
@@ -334,6 +335,25 @@ export async function draw(ticket: PlanPagesTicket, origin: string, file?: Sourc
   }
 }
 
+/** Past this, a read stops at the end of a stage and hands the rest to a
+    fresh run: the route has 300 s, and the read of the floors, the roof
+    and the site wants a run of its own on a big set. */
+const HANDOFF_MS = 90_000;
+
+/** The read route asked for a plan by the server itself, and let go once
+    it has the request: the read writes its row as it goes. */
+async function askReadRoute(orgId: string, planId: string, origin: string): Promise<void> {
+  const stop = new AbortController();
+  const timer = setTimeout(() => stop.abort(), 4_000);
+  await fetch(new URL("/api/jobs/plans/read", printBase(origin)), {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-plan-read": signPlanReadTicket({ orgId, planId }) },
+    body: JSON.stringify({ planId }),
+    signal: stop.signal,
+  }).catch(() => {});
+  clearTimeout(timer);
+}
+
 /* ── how far a read has got ── */
 
 /** How far a read has got, written for the bar under the plan: never fails
@@ -355,9 +375,12 @@ function progressWriter(orgId: string, planId: string): (p: PlanProgress) => voi
         () => {},
       );
   };
+  let step: PlanProgress["step"] | null = null;
   return (p) => {
-    const finalOne = p.total > 0 && p.done >= p.total;
-    if (finalOne || Date.now() - last >= 1500) {
+    /* a new step, or a step's last, is written at once */
+    const now = p.step !== step || (p.total > 0 && p.done >= p.total);
+    step = p.step;
+    if (now || Date.now() - last >= 1500) {
       if (timer) clearTimeout(timer);
       timer = null;
       queued = null;
@@ -443,10 +466,11 @@ async function classify(kind: "pdf" | "image", previews: readonly DrawnPreview[]
       decided++;
     }
   }
-  const floors = [...out.values()].filter((g) => g.kind === "floor").length;
-  if (floors === 0 && decided < previews.length) {
-    /* the words named no floor: let her look */
-    const looked = await guessPagesByLook(previews, client).catch((e) => {
+  if (decided < previews.length) {
+    /* the pages the words left undecided, looked at, whatever else was found:
+       a set's own floors can be the ones its words don't name (3570's LGF,
+       GF and FF, beside a garage's "ground floor plan" the words did) */
+    const looked = await guessPagesByLook(previews.filter((p) => !out.has(p.n)), client).catch((e) => {
       console.error(`[job-plans] the look at the pages failed: ${String(e)}`);
       return new Map<number, PageGuess>();
     });
@@ -686,6 +710,14 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
     return { ok: false, error: why };
   };
   const tell = progressWriter(orgId, planId);
+  const started = Date.now();
+  /* the rest of the read to a fresh run of the route: the claim let go,
+     the route asked with a signed ticket, this run done */
+  const handOff = async (): Promise<ReadPlanOutcome> => {
+    await supabaseAdmin.from("job_plans").update({ claimed_at: null }).eq("org_id", orgId).eq("id", planId);
+    await askReadRoute(orgId, planId, origin);
+    return { ok: true, state: "reading" };
+  };
   try {
     const file = await fileFor(orgId, plan.jobUuid, pick);
     if (!file) return failed("The file isn't on the job any more.");
@@ -696,13 +728,32 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
     const { data: signed, error: signErr } = await supabaseAdmin.storage.from(PLANS_BUCKET).createSignedUrl(sourceRef, SIGNED_SECONDS);
     if (signErr || !signed) return failed("The file couldn't be opened for drawing.");
 
-    /* 2 to 4: the pages, which are the floors, and the floors in full */
+    /* 2 to 4 in stages, each saved before the next, so a read the server
+       cut off picks up where it stopped: the pages drawn small and the
+       floors found among them; the floors drawn in full; then the read. A
+       PDF is drawn in Node (plan-draw-node.ts), the headless browser its
+       fallback and a photo's way in. A run past HANDOFF_MS at the end of a
+       stage hands the rest to a fresh run of the read route, so a big set
+       never meets the route's five minutes in one go (3570, 20 November
+       2026: 27 A1 sheets, 11 MB). */
     let pages = plan.pages;
-    if (!pages.some((p) => p.kind === "floor" && p.ref)) {
+    const isPdf = plan.sourceKind === "pdf";
+    let source: SourceFile | null = null;
+    const bytesOf = async () => (source ??= await sourceFile(sourceRef, plan.sourceKind));
+    const signedUrl = signed.signedUrl;
+
+    /* 2. the pages drawn small, which of them are floors, saved */
+    if (pages.length === 0) {
       tell({ step: "drawing", done: 0, total: 0 });
-      const source = await sourceFile(sourceRef, plan.sourceKind);
-      const drawn = await draw({ orgId, url: signed.signedUrl, kind: plan.sourceKind }, origin, source, (done, total) => tell({ step: "drawing", done, total }));
-      const previews = drawn.previews ?? [];
+      const report = (done: number, total: number) => tell({ step: "drawing", done, total });
+      const file = await bytesOf();
+      let previews: DrawnPreview[] | null = null;
+      if (isPdf)
+        previews = await previewsInNode(new Uint8Array(file.bytes), report).catch((e) => {
+          console.error(`[job-plans] ${planId}/node pages: ${String(e)}`);
+          return null;
+        });
+      previews ??= (await draw({ orgId, url: signedUrl, kind: plan.sourceKind }, origin, file, report)).previews ?? [];
       if (previews.length === 0) return failed("No pages could be drawn from the file.");
       tell({ step: "finding", done: 0, total: 1 });
       const guesses = await classify(plan.sourceKind, previews, client);
@@ -715,42 +766,86 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
         const put = await supabaseAdmin.storage.from(PLANS_BUCKET).upload(ref, Buffer.from(pv.jpeg.replace(/^data:[^,]*,/, ""), "base64"), { contentType: PREVIEW_MIME, upsert: false });
         if (!put.error) previewRefs.set(f.n, ref);
       }
-      /* their full rasters, straight into the bucket */
-      let full: DrawnFull[] = [];
-      if (floors.length) {
+      pages = previews.map((pv): JobPlanPage => {
+        const g = floors.find((f) => f.n === pv.n) ?? guesses.get(pv.n) ?? { kind: "other" as const, name: "", level: null };
+        const floor = g.kind === "floor";
+        /* a floor's words are where they sit on its full drawing, which is the size given */
+        const words = floor ? ((pv.words ?? []) as PlanWord[]) : [];
+        const scale = floor ? printedScaleOf(words) : null;
+        return {
+          n: pv.n,
+          kind: g.kind,
+          name: floor ? g.name : "",
+          level: floor ? (g.level ?? 0) : null,
+          ref: null,
+          preview: previewRefs.get(pv.n) ?? null,
+          width: pv.width,
+          height: pv.height,
+          ...(words.length ? { words } : {}),
+          mmPerPx: scale ? mmPerPxFor(scale, { width: pv.width, height: pv.height }) : null,
+          scale: scale?.text ?? null,
+        };
+      });
+      await write(orgId, planId, { pages, page_count: previews.length });
+      if (Date.now() - started > HANDOFF_MS) return await handOff();
+    }
+
+    /* 3. the floors drawn in full, each saved with its place in storage */
+    const waiting = pages.filter((p) => p.kind === "floor" && !p.ref);
+    if (waiting.length) {
+      tell({ step: "floors", done: 0, total: waiting.length });
+      const report = (done: number, total: number) => tell({ step: "floors", done, total });
+      const file = await bytesOf();
+      let full: DrawnFull[] | null = null;
+      if (isPdf) {
+        const drawnFull = await fullInNode(
+          new Uint8Array(file.bytes),
+          waiting.map((p) => p.n),
+          report,
+        ).catch((e) => {
+          console.error(`[job-plans] ${planId}/node floors: ${String(e)}`);
+          return null;
+        });
+        if (drawnFull) {
+          full = [];
+          for (const d of drawnFull) {
+            const ref = `org/${orgId}/${newId("plan")}.png`;
+            const put = await supabaseAdmin.storage.from(PLANS_BUCKET).upload(ref, d.png, { contentType: "image/png", upsert: false });
+            if (put.error) return failed(`A floor couldn't be saved: ${put.error.message}`);
+            full.push({ n: d.n, ref, width: d.width, height: d.height, ...(d.trim ? { trim: d.trim } : {}), ...(d.words ? { words: d.words } : {}) });
+          }
+        }
+      }
+      if (!full) {
         const slots: NonNullable<PlanPagesTicket["full"]> = [];
-        for (const f of floors) {
+        for (const f of waiting) {
           const ref = `org/${orgId}/${newId("plan")}.png`;
           const { data: slot, error } = await supabaseAdmin.storage.from(PLANS_BUCKET).createSignedUploadUrl(ref);
           if (error || !slot) return failed("A page's place in storage couldn't be made.");
           slots.push({ n: f.n, ref, token: slot.token });
         }
-        tell({ step: "floors", done: 0, total: slots.length });
-        full = (await draw({ orgId, url: signed.signedUrl, kind: plan.sourceKind, full: slots }, origin, source, (done, total) => tell({ step: "floors", done, total }))).full ?? [];
+        full = (await draw({ orgId, url: signedUrl, kind: plan.sourceKind, full: slots }, origin, file, report)).full ?? [];
       }
       const fullOf = new Map(full.map((f) => [f.n, f]));
-      pages = previews.map((pv): JobPlanPage => {
-        const g = floors.find((f) => f.n === pv.n) ?? guesses.get(pv.n) ?? { kind: "other" as const, name: "", level: null };
-        const f = fullOf.get(pv.n);
-        const words: PlanWord[] | undefined = (f?.words ?? pv.words) as PlanWord[] | undefined;
-        const scale = f ? printedScaleOf(words) : null;
-        const mm = scale && f ? mmPerPxFor(scale, { width: f.width, height: f.height }) : null;
+      pages = pages.map((p): JobPlanPage => {
+        const f = fullOf.get(p.n);
+        if (!f) return p;
+        const words = (f.words ?? p.words) as PlanWord[] | undefined;
+        const scale = printedScaleOf(words);
         return {
-          n: pv.n,
-          kind: g.kind,
-          name: g.kind === "floor" ? g.name : "",
-          level: g.kind === "floor" ? (g.level ?? 0) : null,
-          ref: f?.ref ?? null,
-          preview: previewRefs.get(pv.n) ?? null,
-          width: f?.width ?? pv.width,
-          height: f?.height ?? pv.height,
-          ...(f?.trim ? { trim: f.trim } : {}),
-          ...(f && words?.length ? { words } : {}),
-          mmPerPx: mm,
+          ...p,
+          ref: f.ref,
+          width: f.width,
+          height: f.height,
+          ...(f.trim ? { trim: f.trim } : {}),
+          ...(words?.length ? { words } : {}),
+          mmPerPx: scale ? mmPerPxFor(scale, { width: f.width, height: f.height }) : null,
           scale: scale?.text ?? null,
         };
       });
-      await write(orgId, planId, { pages, page_count: previews.length });
+      await write(orgId, planId, { pages });
+      if (pages.some((p) => p.kind === "floor" && !p.ref)) return failed("Not every floor could be drawn in full.");
+      if (Date.now() - started > HANDOFF_MS) return await handOff();
     }
 
     /* 5. the read: each floor, the roof and the site off the set */

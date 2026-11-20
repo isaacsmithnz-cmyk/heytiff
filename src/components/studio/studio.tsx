@@ -1509,7 +1509,13 @@ function Editor({
   /* asking Tiff while designing (Isaac, 20 October 2026: "can I fit a
      ducted unit in the roof void?"): she is told which design is open, so
      she reads that one (the registry's studio_design) */
-  useNoteScopeScreen({ screenDetail: `the design "${doc.meta.name}" (id ${doc.id})` });
+  /* and which job it's for, so a note said over it lands on that job
+     rather than asking which (bug 67, 21 November 2026) */
+  useNoteScopeScreen({
+    target: doc.jobLink ? { kind: "job", id: doc.jobLink.remoteId } : undefined,
+    targetLabel: doc.jobLink?.jobNumber ? `job ${doc.jobLink.jobNumber}` : undefined,
+    screenDetail: `the design "${doc.meta.name}" (id ${doc.id})`,
+  });
   /* and she revises its 3D from the chat (Isaac, 20 October 2026, in place
      of the box under the picture): her revise_design_3d hands the corrected
      roof here, and it goes on through the history, so Undo takes it back */

@@ -4,7 +4,7 @@ import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { withoutPlaceTag } from "@/lib/brain/place-tag";
 import { appendSpoken, useDictation } from "@/components/notes/dictation";
 import { askBrain, TIFF_APPLY } from "@/lib/brain/ask-client";
-import { looksLikeDesignWords, looksLikeMove, looksLikeQuestion, priceIntent } from "@/lib/brain/intent";
+import { looksLikeMove, looksLikeWorkForSomeone, looksLikeQuestion, priceIntent } from "@/lib/brain/intent";
 import {
   answerVisit,
   continueNote,
@@ -223,8 +223,9 @@ export function useConversation({
   /** What on the screen it's about, in the screen's words (Design's open
       design): told to her beside the screen's name. */
   screenDetail?: string;
-  /** A design is open under the chat: words about its building go to her
-      (lib/brain/intent `looksLikeDesignWords`), not the note flow. */
+  /** A design is open under the chat: words go to her, not the note flow,
+      unless they make work for someone (lib/brain/intent
+      `looksLikeWorkForSomeone`). */
   designOpen?: boolean;
   /** Tiff moved the screen: the modal closes, and the page goes to `href`
       once it has. Called after her line has been shown. */
@@ -799,7 +800,7 @@ export function useConversation({
         priceFork.current = { words, source, before };
         return settle(() => tiffSays(PRICE_OR_TASK, "asking", { quick: PRICE_OR_TASK_ANSWERS }));
       }
-      if (askedBack.current || looksLikeQuestion(words) || (designOpen && looksLikeDesignWords(words))) return ask(words, before);
+      if (askedBack.current || looksLikeQuestion(words) || (designOpen && !looksLikeWorkForSomeone(words))) return ask(words, before);
       void route(words, source, before);
     };
     /* "Open up Isaac Smith" is free when the name is exact (`tryOpen`). */

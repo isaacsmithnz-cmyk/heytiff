@@ -192,7 +192,11 @@ async function build(
   scene.add(sun.target);
   scene.fog = new THREE.Fog(0xffffff, d * 1.8, d * 4.5);
 
-  const groundY = Math.min(0, ...scene3.floors.map((f) => f.y0));
+  /* THE GROUND is the ground floor's level, and a floor below it is dug in
+     (Isaac, 21 November 2026, a house with a lower ground floor: "the house
+     floats above the ground": the lawn was laid under the lowest floor,
+     three metres down) */
+  const groundY = 0;
   const gridSize = Math.ceil(scene3.span * 2.5);
   const grid = new THREE.GridHelper(gridSize, gridSize, C.grid, C.grid);
   (grid.material as THREE_NS.Material).opacity = 0.25;

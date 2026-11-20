@@ -227,6 +227,23 @@ describe("units and runs", () => {
     ]);
   });
 
+  it("stand on the ground beside a house with a floor below it, which is dug in (job 3570)", () => {
+    const lower = { ...unit("o", "odu", "sys", "external-ground"), floorId: "lg" };
+    const s = sceneOf(
+      design(
+        [floor("lg", -1), floor("gf", 0)],
+        { lg: [read("s-lg", [space("Cellar", "room", [0, 0, 400, 300])])], gf: [read("s-gf", [space("Lounge", "room", [0, 0, 400, 300])])] },
+        [lower],
+      ),
+    );
+    expect(s.floors.map((f) => [f.id, f.y0 < 0])).toEqual([
+      ["lg", true],
+      ["gf", false],
+    ]);
+    expect(s.floors.find((f) => f.id === "gf")!.y0).toBe(0);
+    expect(s.units[0].y).toBe(0);
+  });
+
   it("carry a run through the ceiling cavity over its floor", () => {
     const run: DesignObject = { id: "p", type: "pipe-run", systemId: "sys", floorId: "gf", plane: "ceiling-cavity", geometry: { kind: "polyline", points: [{ x: 0, y: 0 }, { x: 100, y: 0 }] }, props: {} };
     const s = sceneOf(design([floor("gf", 0)], { gf: [read("s-gf", [space("Lounge", "room", [0, 0, 400, 300])])] }, [run]));
@@ -399,4 +416,5 @@ describe("a roof space (floor-spaces.ts)", () => {
     expect(by.get("below")!.floorId).toBe("gf");
   });
 });
+
 

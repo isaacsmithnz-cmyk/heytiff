@@ -531,7 +531,9 @@ export function sceneOf(doc: DesignDocument, unitRow?: (model: string) => UnitRo
       const y = outdoor
         ? o.plane === "external-roof"
           ? f.y0 + f.ceiling + FLOOR_ZONE_M
-          : Math.min(0, f.y0)
+          : /* on the ground, which is the ground floor's level: a unit drawn on a
+               lower ground floor's plan stands beside the house, not three metres down */
+            0
         : row || underFloor
           ? indoorHeight(row?.form_factor ?? "ducted", underFloor, f.y0, f.ceiling, h)
           : ducted

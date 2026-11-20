@@ -1,6 +1,6 @@
 "use client";
 
-import { useId } from "react";
+import { useId, useState } from "react";
 import { useTiff } from "@/components/tiff/modal/tiff-context";
 import type { TiffRoom } from "@/lib/workboard/note-turns";
 import { TiffGlyph, TiffMark } from "./tiff-mark";
@@ -95,12 +95,14 @@ export function TiffButton({ where = "topbar", room, day }: { where?: Where; roo
       expanded. */
   const id = useId();
 
-  /* THE PRESS THROWS THE BOOMERANG. Opening means listening, and while
-     the conversation this button opened is open, Tiff is listening or
-     working: her small mark is in the air, circling, and it comes home when
-     the conversation closes (Isaac, 20 November 2026). It replaced the
-     press's turn and the ring that left the edge. */
-  const listening = tiff.isOpen && tiff.openedBy === id;
+  /* THE PRESS PLAYS THE OPENING: her boomerang is released fast, flies one
+     quick loop out to her top left, spinning, and comes home to rest as her
+     window opens (Isaac, 20 November 2026: "on opening tiff, fast release
+     … back to rest", on https://claude.ai/artifact/J5cTywUNx5VVErDK6F3YeN).
+     It replaced the press's turn and the ring that left the edge. From the
+     pointer only: a keyboard press moves nothing (law 8). Her marks inside
+     the window fly while she works. */
+  const [opened, setOpened] = useState(0);
 
   /* A sheet says what it is about, so its button can say what it will do
      with what you say — the topbar's cannot, because the topbar is nowhere
@@ -126,12 +128,13 @@ export function TiffButton({ where = "topbar", room, day }: { where?: Where; roo
            keyboard, and a keyboard press moves nothing (law 8): not the
            modal's blossom. */
         const keyboard = e.detail === 0;
+        if (!keyboard) setOpened((n) => n + 1);
         tiff.open({ from: e.currentTarget, id, keyboard, room, day });
       }}
     >
       {/* v2: the header is on the white page (rule 2), so every Tiff button
           stands on paper and the mark is black (rule 8). */}
-      <TiffMark working={listening} />
+      <TiffMark opened={opened} />
     </button>
   );
 }

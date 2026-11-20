@@ -1,6 +1,9 @@
 import { act, cleanup, render } from "@testing-library/react";
-import { TiffGlyph } from "../tiff-mark";
-import { IDLE_SLOW, LAND_SHARE, LAP_MS, THROW_SHARE } from "../tiff-flight";
+import type { ReactNode } from "react";
+import { TiffGlyph, TiffMark } from "../tiff-mark";
+
+const Span = ({ children }: { children: ReactNode }) => <span className="tiffmk">{children}</span>;
+import { LAND_MS, LAP_MS, OPEN_MS, THROW_MS } from "../tiff-flight";
 
 /* THE BOOMERANG'S CLOCK (Isaac, 20 November 2026: "it should stay in air
    while thinking"). Jest draws no CSS, so this holds the half that is
@@ -62,25 +65,46 @@ describe("the mark's flight", () => {
   it("moves on by its own clock when no animation event comes", () => {
     jest.useFakeTimers();
     const { container, rerender } = render(<TiffGlyph size={24} working />);
-    act(() => void jest.advanceTimersByTime(LAP_MS * THROW_SHARE + 300));
+    act(() => void jest.advanceTimersByTime(THROW_MS + 300));
     expect(st(container)).toHaveClass("fly-orbit");
     rerender(<TiffGlyph size={24} />);
     act(() => void jest.advanceTimersByTime(LAP_MS + 300));
     expect(st(container)).toHaveClass("fly-land");
-    act(() => void jest.advanceTimersByTime(LAP_MS * LAND_SHARE + 300));
+    act(() => void jest.advanceTimersByTime(LAND_MS + 300));
     expect(st(container)).toHaveClass("rest");
   });
 
-  /* rule 8's one exception: Home's mark throws one slow lap now and then */
-  it("on Home, throws one slow lap every ten seconds at rest, and nowhere else", () => {
+  /* rule 8's one exception: Home's mark throws one lap now and then */
+  it("on Home, throws one lap every ten seconds at rest, and nowhere else", () => {
     jest.useFakeTimers();
     const home = render(<TiffGlyph size={96} alive />);
     const other = render(<TiffGlyph size={24} />);
     act(() => void jest.advanceTimersByTime(10_000));
-    expect(st(home.container)).toHaveClass("fly-throw", "fly-slow");
+    expect(st(home.container)).toHaveClass("fly-throw");
     expect(st(other.container)).toHaveClass("rest");
-    act(() => void jest.advanceTimersByTime(LAP_MS * IDLE_SLOW * THROW_SHARE + 300));
+    act(() => void jest.advanceTimersByTime(THROW_MS + 300));
     expect(st(home.container)).toHaveClass("fly-land");
+  });
+
+  /* "on opening tiff, fast release, double spin behind her and back to rest" */
+  it("plays the opening once for each new opening, then rests with the catch", () => {
+    const { container, rerender } = render(<TiffMark opened={0} />, { wrapper: Span });
+    expect(st(container)).toHaveClass("rest");
+    rerender(<TiffMark opened={1} />);
+    expect(st(container)).toHaveClass("fly-open");
+    fire(boom(container), "animationend", "tiffOpen");
+    expect(st(container)).toHaveClass("rest", "caught");
+    // the same count again plays nothing
+    rerender(<TiffMark opened={1} />);
+    expect(st(container)).toHaveClass("rest");
+  });
+
+  it("finishes the opening by its own clock when no event comes", () => {
+    jest.useFakeTimers();
+    const { container, rerender } = render(<TiffMark opened={0} />, { wrapper: Span });
+    rerender(<TiffMark opened={1} />);
+    act(() => void jest.advanceTimersByTime(OPEN_MS + 300));
+    expect(st(container)).toHaveClass("rest");
   });
 
   it("never leaves its place when motion is reduced", () => {

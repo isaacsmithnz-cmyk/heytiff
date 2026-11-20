@@ -1,19 +1,21 @@
 #!/usr/bin/env node
 /* THE BOOMERANG'S FLIGHT, WORKED OUT ONCE.
 
-   Tiff's small mark is a boomerang (Isaac, 20 November 2026, on
-   https://claude.ai/artifact/6DK1HJY1QWYFYE6JDFecEm). It flies a flat orbit
-   round the top of the mark in real depth: forward from its place, away
-   behind into the distance, across the back, round in front near and big,
-   and home. The path is sampled into keyframes here, because a stylesheet
+   Tiff's small mark is a boomerang (Isaac, 20 November 2026). Its loop
+   (https://claude.ai/artifact/J5cTywUNx5VVErDK6F3YeN): thrown forward on her
+   right, it rises over her and swings wide out to her top left, behind her,
+   then comes round in front and home, spinning clockwise from the moment it
+   leaves. The path is sampled into keyframes here, because a stylesheet
    cannot do trigonometry and the ratchets allow no curve of our own: the
-   speed is in where the samples fall, slow at the far turn and quick near
-   you.
+   speed is in where the samples fall, quick away and quick home, hanging out
+   at her top left.
 
-   Three phases, so it can stay up for as long as she works:
-     throw  from its place out onto the orbit (a lap and a bit's worth of path)
-     orbit  one whole lap, seamless, run `infinite` while she works
-     land   from the orbit's join back into its place, with a last settle
+   Four phases:
+     open   the opening: one quick lap and home (about 1.6 s), when she's opened
+     throw  thinking begins: from its place out onto the loop
+     orbit  one whole lap, seamless, run `infinite` while she thinks
+     land   from the loop's join back into its place, with a last settle
+   Thinking runs 1.8 times slower than the opening ("slower when thinking").
    Each phase moves three wrappers: the flight (`.tiffbtn-boom`), the lean
    into the curve (`.tiffbtn-bank`) and the spin (`.tiffbtn-spin`).
 
@@ -26,84 +28,96 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const HOME = [74, 31]; /* the small mark's middle, in the logo's 100 box, which it spins about */
-const C = [54, 36]; /* the orbit's middle: round the top of the mark, its head */
-const R = 40; /* the orbit's half-width */
-const LIFT = 9; /* the far side sits this much higher, as an orbit seen from a little above */
-const FAR = 1.5; /* how far behind it goes, in mark widths */
+/* the loop: its middle up and left of hers, so it swings well out past her top left */
+const C = [40, 22], R = 72, LIFT = 32;
+const FAR = 0.4; /* how deep it goes behind her, in mark widths: not so deep that it shrinks back in */
 const NEAR = 0.45; /* how near it comes in front */
-const TH0 = (30 * Math.PI) / 180; /* the throw leaves forward of the mark, on the right */
-const ORBIT_AT = 0.7; /* laps from its place where the circling lap starts and ends */
-const LAP_MS = 3000; /* one lap at the working pace */
-const IDLE_SLOW = 1.7; /* Home's lap at rest, this much slower */
-const STEPS = { throw: 28, orbit: 36, land: 16 };
-const TURNS = { throw: 3, orbit: 4, land: 1 };
+const TH0 = (30 * Math.PI) / 180; /* thrown forward, on her right */
+const OUT_P = (TH0 + 0.75 * Math.PI) / (2 * Math.PI); /* where in a lap it is out at her top left */
+const FAR_P = (TH0 + Math.PI / 2) / (2 * Math.PI);
+const JOIN = 0.7; /* laps from its place where the thinking lap starts and ends */
+const OPEN_MS = 1600; /* the opening, one lap */
+const SLOWER = 1.8; /* thinking, this much slower */
+const OPEN_TURNS = 6; /* the opening's spins, clockwise */
+const THINK_RATE = 2.5 / 1000; /* thinking's spins, turns a millisecond */
 
-const FAR_P = (TH0 + Math.PI / 2) / (2 * Math.PI); /* where in a lap it is furthest away */
-const NEAR_P = (FAR_P + 0.5) % 1;
 const wrap = (p) => ((p % 1) + 1) % 1;
-const gap = (a, b) => Math.min(Math.abs(a - b), 1 - Math.abs(a - b));
-/* real speed: it slows and seems to hang at the far turn, and quickens near you */
-const speed = (p) => 1 - 0.55 * Math.exp(-((gap(wrap(p), FAR_P) / 0.12) ** 2)) + 0.25 * Math.exp(-((gap(wrap(p), NEAR_P) / 0.12) ** 2));
-const time = (a, b, n = 400) => {
+const bump = (p, at, w) => Math.exp(-((Math.min(Math.abs(wrap(p) - at), 1 - Math.abs(wrap(p) - at)) / w) ** 2));
+/* hangs at the far side and out at her top left */
+const steady = (p) => (1 - 0.55 * bump(p, FAR_P, 0.12) + 0.25 * bump(p, FAR_P + 0.5, 0.12)) * (1 - 0.4 * bump(p, OUT_P, 0.1));
+/* and quick away, quick home */
+const fast = (p) => steady(p) * (1 + 1.4 * Math.exp(-((p / 0.1) ** 2)) + 0.9 * Math.exp(-(((1 - p) / 0.1) ** 2)));
+const timeBy = (v) => (a, b, n = 200) => {
   let t = 0;
-  for (let i = 0; i < n; i++) t += (b - a) / n / speed(a + ((b - a) * (i + 0.5)) / n);
+  for (let i = 0; i < n; i++) t += (b - a) / n / v(a + ((b - a) * (i + 0.5)) / n);
   return t;
 };
-const LAP_T = time(0, 1);
+const tFast = timeBy(fast), tSteady = timeBy(steady);
+const MS = OPEN_MS / tFast(0, 1); /* the opening's milliseconds per unit of time */
 const smooth = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
 
-/* where it is at lap position p, k of the way out from its place to the orbit */
+/* where it is at lap position p, k of the way out from its place onto the loop */
 function at(p, k) {
   const th = TH0 - 2 * Math.PI * p, sn = Math.sin(th), cs = Math.cos(th);
   return {
     x: (C[0] + R * cs - HOME[0]) * k,
     y: (C[1] + LIFT * sn - HOME[1]) * k,
     z: (sn > 0 ? NEAR * sn : FAR * sn) * k,
-    /* it spins on its side: nearly edge-on far behind, tipped the other way in front */
-    rx: k * (sn < 0 ? 64 * -sn : -22 * sn),
-    ry: -24 * cs * k,
+    /* it spins on its side: tipped back while it is behind, the other way in front */
+    rx: k * (sn < 0 ? 40 * -sn : -18 * sn),
+    ry: -20 * cs * k,
     front: sn * k > 0.02,
   };
 }
 
 const n = (v, d = 2) => (Math.abs(v) < 1e-9 ? "0" : v.toFixed(d).replace(/\.?0+$/, ""));
-function phase(name, a, b, kOf, steps, turns, settle) {
-  const total = time(a, b);
-  let path = "", bank = "", t = 0, prev = a;
+/* spin(f, turns) gives the angle at a share f of the phase's time */
+function phase(name, a, b, kOf, time, scale, steps, spinOf) {
+  const total = time(a, b), ms = total * scale;
+  let path = "", bank = "", spin = "", t = 0, prev = a;
   for (let i = 0; i <= steps; i++) {
     const p = a + ((b - a) * i) / steps;
-    if (i) t += time(prev, p, 16);
+    if (i) t += time(prev, p, 12);
     prev = p;
-    const pct = `${n((t / total) * 100)}%`, q = at(p, kOf(p));
+    const f = i === steps ? 1 : t / total, pct = `${n(f * 100)}%`, q = at(p, kOf(p));
     path += `  ${pct} { transform:translate3d(calc(var(--orb) * ${n(q.x)}%), calc(var(--orb) * ${n(q.y)}%), calc(var(--art) * var(--orb) * ${n(q.z, 3)})); z-index:${q.front ? 2 : 0}; }\n`;
     bank += `  ${pct} { transform:rotateX(${n(q.rx, 1)}deg) rotateY(${n(q.ry, 1)}deg); }\n`;
+    spin += `  ${pct} { transform:rotate(${n(spinOf(f, ms), 1)}deg); }\n`;
   }
-  const turn = -360 * turns;
-  const spin = settle
-    ? `  0% { transform:rotate(0deg); }\n  86% { transform:rotate(${turn - 14}deg); animation-timing-function:ease-out; }\n  100% { transform:rotate(${turn}deg); }\n`
-    : `  0% { transform:rotate(0deg); }\n  100% { transform:rotate(${turn}deg); }\n`;
-  return {
-    css: `@keyframes ${name} {\n${path}}\n@keyframes ${name}Bank {\n${bank}}\n@keyframes ${name}Spin {\n${spin}}\n`,
-    share: total / LAP_T,
-  };
+  return { name, ms: Math.round(ms), css: `@keyframes ${name} {\n${path}}\n@keyframes ${name}Bank {\n${bank}}\n@keyframes ${name}Spin {\n${spin}}\n` };
 }
+/* by the clock, a whole number of turns, so each phase begins and ends square */
+const steadySpin = (f, ms) => 360 * Math.max(1, Math.round(THINK_RATE * ms)) * f;
+const settleSpin = (f, ms) => {
+  const turns = 360 * Math.max(1, Math.round(THINK_RATE * ms));
+  return turns * (f < 0.9 ? (f / 0.9) * 0.97 : 0.97 + 0.03 * smooth((f - 0.9) / 0.1));
+};
+/* the opening spins from release at one speed, easing into its last turn */
+const openSpin = (f) => {
+  const u = Math.min(1, f / 0.92);
+  return 360 * OPEN_TURNS * (u < 0.85 ? (u / 0.85) * 0.94 : 0.94 + 0.06 * smooth((u - 0.85) / 0.15));
+};
 
-const throwP = phase("tiffThrow", 0, ORBIT_AT, (p) => smooth(p / 0.3), STEPS.throw, TURNS.throw, false);
-const orbitP = phase("tiffOrbit", ORBIT_AT, ORBIT_AT + 1, () => 1, STEPS.orbit, TURNS.orbit, false);
-const landP = phase("tiffLand", ORBIT_AT, 1, (p) => smooth((1 - p) / 0.3), STEPS.land, TURNS.land, true);
+const P = {
+  open: phase("tiffOpen", 0, 1, (p) => smooth(p / 0.16) * smooth((1 - p) / 0.2), tFast, MS, 48, openSpin),
+  throw: phase("tiffThrow", 0, JOIN, (p) => smooth(p / 0.16), tFast, MS * SLOWER, 36, steadySpin),
+  orbit: phase("tiffOrbit", JOIN, JOIN + 1, () => 1, tSteady, MS * SLOWER, 48, steadySpin),
+  land: phase("tiffLand", JOIN, 1, (p) => smooth((1 - p) / 0.2), tFast, MS * SLOWER, 20, settleSpin),
+};
 
 const BEGIN = "/* ── THE BOOMERANG'S FLIGHT, GENERATED by scripts/tiff-flight.mjs: change the script, not these ── */";
 const END = "/* ── end of the generated flight ── */";
-const rules = (cls, name, dur, iter) =>
+const rules = (cls, ph, iter) =>
   [".tiffbtn-boom", ".tiffbtn-bank", ".tiffbtn-spin"]
-    .map((el, i) => `.tiffbtn-st.${cls} ${el} { animation:${name}${["", "Bank", "Spin"][i]} ${dur} linear ${iter}; }`)
+    .map((el, i) => `.tiffbtn-st.${cls} ${el} { animation:${ph.name}${["", "Bank", "Spin"][i]} ${ph.ms}ms linear ${iter}; }`)
     .join("\n");
 const block = [
   BEGIN,
-  rules("fly-throw", "tiffThrow", `calc(var(--lap) * ${n(throwP.share, 4)})`, "both"),
-  rules("fly-orbit", "tiffOrbit", "var(--lap)", "infinite"),
-  rules("fly-land", "tiffLand", `calc(var(--lap) * ${n(landP.share, 4)})`, "both"),
-  throwP.css + orbitP.css + landP.css + END,
+  rules("fly-open", P.open, "both"),
+  rules("fly-throw", P.throw, "both"),
+  rules("fly-orbit", P.orbit, "infinite"),
+  rules("fly-land", P.land, "both"),
+  P.open.css + P.throw.css + P.orbit.css + P.land.css + END,
 ].join("\n");
 
 const root = process.cwd();
@@ -120,14 +134,14 @@ writeFileSync(
    mark's own clock to fall back on if an animation event never comes (a
    mark inside something hidden runs no animation at all). */
 
-/** One lap of the orbit at the working pace. */
-export const LAP_MS = ${LAP_MS};
-/** The throw, as a share of a lap. */
-export const THROW_SHARE = ${n(throwP.share, 4)};
-/** The landing, as a share of a lap. */
-export const LAND_SHARE = ${n(landP.share, 4)};
-/** Home's lap at rest is this much slower. */
-export const IDLE_SLOW = ${IDLE_SLOW};
+/** The opening: one quick lap and home. */
+export const OPEN_MS = ${P.open.ms};
+/** Thinking begins: out onto the loop. */
+export const THROW_MS = ${P.throw.ms};
+/** One lap of the thinking loop. */
+export const LAP_MS = ${P.orbit.ms};
+/** Thinking ends: home from the loop. */
+export const LAND_MS = ${P.land.ms};
 `
 );
-console.log(`flight: throw ${n(throwP.share, 3)} lap, land ${n(landP.share, 3)} lap`);
+console.log(`flight: open ${P.open.ms} ms, throw ${P.throw.ms}, lap ${P.orbit.ms}, land ${P.land.ms}`);

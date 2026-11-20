@@ -24,7 +24,7 @@ const CSS = readFileSync(join(process.cwd(), "src/app/dashboard/shell.css"), "ut
 const blocks = [...CSS.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => [m[1].trim(), m[2]] as const);
 // split on the commas between selectors, never the ones inside `:is(…)`
 const each = (sel: string) => sel.split(/,(?![^(]*\))/).map((x) => x.trim());
-const PHASES = ["fly-throw", "fly-orbit", "fly-land"];
+const PHASES = ["fly-open", "fly-throw", "fly-orbit", "fly-land"];
 const PARTS = [".tiffbtn-boom", ".tiffbtn-bank", ".tiffbtn-spin"];
 
 describe("the Tiff mark's motion", () => {
@@ -44,7 +44,7 @@ describe("the Tiff mark's motion", () => {
      or is the catch as it lands. */
   it("animates nothing at rest", () => {
     expect(animated.length).toBe(PHASES.length * PARTS.length + 1);
-    for (const sel of animated) expect(sel).toMatch(/\.tiffbtn-st\.(fly-throw|fly-orbit|fly-land|caught) /);
+    for (const sel of animated) expect(sel).toMatch(/\.tiffbtn-st\.(fly-open|fly-throw|fly-orbit|fly-land|caught) /);
   });
 
   it("stops every one of them under reduced motion", () => {

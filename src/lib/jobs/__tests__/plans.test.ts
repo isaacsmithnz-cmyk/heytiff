@@ -59,6 +59,13 @@ describe("which pages are floors, by their words", () => {
   it("reads the title block's kind of plan and its level", () => {
     expect(guessPageByWords(words("SUTTOR", "GROUND FLOOR PLAN", "1:100 @ A3", "A-103"))).toEqual({ kind: "floor", name: "Ground floor", level: 0 });
     expect(guessPageByWords(words("FIRST FLOOR PLAN"))).toEqual({ kind: "floor", name: "Level 1", level: 1 });
+    /* 3570's CDC set (20 November 2026): the house's floors in the architect's shorthand */
+    expect(guessPageByWords(words("B", "307 COONAWARRA ROAD", "1103", "LGF PLAN", "A101"))).toEqual({ kind: "floor", name: "Lower ground", level: -1 });
+    expect(guessPageByWords(words("B", "307 COONAWARRA ROAD", "1103", "GF PLAN", "A102"))).toEqual({ kind: "floor", name: "Ground floor", level: 0 });
+    expect(guessPageByWords(words("B", "307 COONAWARRA ROAD", "1103", "FF PLAN", "A103"))).toEqual({ kind: "floor", name: "Level 1", level: 1 });
+    expect(guessPageByWords(words("2ND FLOOR PLAN"))).toEqual({ kind: "floor", name: "Level 2", level: 2 });
+    /* and a building of its own on the site is named for it, not taken for the house */
+    expect(guessPageByWords(words("GARGE GROUND FLOOR PLAN", "1", "GARAGE PLAN", "A105"))).toEqual({ kind: "floor", name: "Garage ground floor", level: 0 });
     expect(guessPageByWords(words("LEVEL 2 PLAN"))).toEqual({ kind: "floor", name: "Level 2", level: 2 });
     expect(guessPageByWords(words("BASEMENT PLAN"))).toEqual({ kind: "floor", name: "Basement", level: -1 });
     expect(guessPageByWords(words("SITE PLAN", "1:200"))).toEqual({ kind: "site", name: "", level: null });

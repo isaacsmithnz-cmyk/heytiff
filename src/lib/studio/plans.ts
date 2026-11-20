@@ -630,7 +630,7 @@ type TextViewport = { scale: number; convertToViewportPoint: (x: number, y: numb
 /** A page's text, word by word, centred where it sits on the raster. A page
     with no text layer (a scan) has none, and a failure here never fails the
     page: the words are a check, not the plan. */
-async function wordsOf(page: TextPage, viewport: TextViewport): Promise<{ text: string; at: { x: number; y: number } }[]> {
+export async function wordsOf(page: TextPage, viewport: TextViewport): Promise<{ text: string; at: { x: number; y: number } }[]> {
   let items: unknown[];
   try {
     items = (await page.getTextContent()).items;
@@ -672,11 +672,11 @@ async function openPdf(file: PdfSource) {
 /* A preview is drawn this wide: enough to tell a floor plan from an
    elevation in the page picker, and about thirty times quicker than a
    full page. */
-const PREVIEW_WIDTH = 480;
+export const PREVIEW_WIDTH = 480;
 
 /** The scale a page is drawn at in full: MAX_RENDER_WIDTH across, never
     smaller than the page's own size nor more than three times it. */
-const fullScale = (pageWidth: number) => Math.min(Math.max(MAX_RENDER_WIDTH / pageWidth, 1), 3);
+export const fullScale = (pageWidth: number) => Math.min(Math.max(MAX_RENDER_WIDTH / pageWidth, 1), 3);
 
 /** How a page is drawn. `print` draws it straight through, as printing
     does, instead of a slice a frame: a headless browser on the server

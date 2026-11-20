@@ -1341,17 +1341,19 @@ describe("the keyboard", () => {
     expect(within(dialog()).getByRole("button", { name: "Stop" })).toBeInTheDocument();
   });
 
-  it("a press from it does not turn the button; a pointer's does", async () => {
+  /* The press no longer turns the button: while the conversation it opened
+     is open, Tiff is listening, and that is state, not the press's echo, so
+     the keyboard's press throws the boomerang as a pointer's does (rule 8,
+     Isaac, 20 November 2026). */
+  it("a press from it throws the button's boomerang, as a pointer's does", async () => {
     motion(false);
     render(<Harness />);
+    const flight = () => topButton().querySelector(".tiffbtn-st")!;
+    expect(flight()).toHaveClass("rest");
     await act(async () => {
       fireEvent.click(topButton(), { detail: 0 });
     });
-    expect(topButton()).not.toHaveClass("lit");
-    await userEvent.setup().keyboard("{Escape}");
-    await flush();
-    await userEvent.setup().click(topButton());
-    expect(topButton()).toHaveClass("lit");
+    expect(flight()).toHaveClass("fly-throw");
   });
 });
 

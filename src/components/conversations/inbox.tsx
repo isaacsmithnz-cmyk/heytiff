@@ -64,7 +64,7 @@ export function InboxRead({ job }: { job: EmailJob }) {
     <>
       <article className="jc-tiffturn">
         <p className="jc-tiffname">
-          <TiffGlyph size={18} alive working={view.state === "received"} />
+          <TiffGlyph size={18} working={view.state === "received"} />
           <b>Tiff</b>
         </p>
         {view.state === "received" ? (

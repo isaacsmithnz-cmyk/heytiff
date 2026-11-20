@@ -946,7 +946,7 @@ function TiffTurn({ when, working = false, doors = null, children }: { when: str
   return (
     <article className="jc-tiffturn">
       <p className="jc-tiffname">
-        <TiffGlyph size={18} alive working={working} />
+        <TiffGlyph size={18} working={working} />
         <b>Tiff</b>
       </p>
       {children}

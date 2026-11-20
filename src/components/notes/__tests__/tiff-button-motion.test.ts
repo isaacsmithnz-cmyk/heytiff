@@ -1,84 +1,84 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-/* THE TIFF MARK MOVES WHILE TIFF WORKS, HOME'S ALWAYS, AND STOPS BY NAME.
+/* THE TIFF MARK MOVES WHILE TIFF WORKS, AND STOPS BY NAME.
 
-   v2, rule 8 (18 October 2026): black and white and still at rest; while
-   Tiff listens or works it turns and its rings take the colours. Home's
-   mark (`.alive`, Isaac, 20 October) turns at rest too, in the colours, and
-   faster while she works. Until then
-   it was the one loop not tied to feedback or state, Isaac's override of
-   24 September, which v2 retires. The loops table
-   holds its keyframe names; this holds the other half of the bargain, which
-   nothing at runtime shows you. Jest renders no CSS, and a screenshot with
-   motion reduced shows a still button whether the loops stopped or were
-   never running. So the guard is a read of the stylesheet, the way the halo's
-   guard before it was.
+   Rule 8: black and still at rest; while Tiff listens or works her small
+   mark is a boomerang in the air, circling the mark's head, and it comes
+   home when she's done (Isaac, 20 November 2026). Home's mark throws one
+   slow lap now and then at rest. The loops table holds the keyframe names;
+   this holds the other half of the bargain, which nothing at runtime shows
+   you. Jest renders no CSS, and a screenshot with motion reduced shows a
+   still mark whether the flight stopped or never ran. So the guard is a
+   read of the stylesheet.
 
-   Two rules: every element that loops is named in a reduced-motion block
-   with `animation:none`, and the hover never lights what a keyboard cannot
-   (law 24: the focus ring gets the same light). */
+   Four rules: nothing on the mark animates but in a phase of the flight or
+   the catch; every one is named in a reduced-motion block with
+   `animation:none`; the one thing a hover moves is the boomerang's lift,
+   and only from the pointer; and the mark is black and grey, with no
+   colour of its own. */
 
 const CSS = readFileSync(join(process.cwd(), "src/app/dashboard/shell.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
 
 /** Every rule block as [selector, body]. */
 const blocks = [...CSS.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => [m[1].trim(), m[2]] as const);
+// split on the commas between selectors, never the ones inside `:is(…)`
+const each = (sel: string) => sel.split(/,(?![^(]*\))/).map((x) => x.trim());
+const PHASES = ["fly-throw", "fly-orbit", "fly-land"];
+const PARTS = [".tiffbtn-boom", ".tiffbtn-bank", ".tiffbtn-spin"];
 
-describe("the Tiff button's motion", () => {
-  const looping = blocks
-    .filter(([sel, body]) => /\.tiffbtn/.test(sel) && /animation\s*:[^;]*\binfinite\b/.test(body))
-    // split on the commas between selectors, never the ones inside `:is(…)`
-    .flatMap(([sel]) => sel.split(/,(?![^(]*\))/).map((x) => x.trim()));
+describe("the Tiff mark's motion", () => {
+  const animated = blocks
+    .filter(([sel, body]) => /\.tiffbtn|\.tiffmk/.test(sel) && /(?:^|[^-\w])animation\s*:(?!\s*none)/.test(body))
+    .flatMap(([sel]) => each(sel));
 
-  it("loops on the elements docs/design.md names, and no more", () => {
-    expect(looping.sort()).toEqual(
-      [
-        ".tiffbtn-arc", ".tiffbtn-gim-a", ".tiffbtn-gim-b", ".tiffbtn-nod", ".tiffbtn-pre", ".tiffbtn-sheen::before",
-        // the working mark's rings, in the colours (v2, rule 8)
-        ":is(.tiffbtn, .tiffmk).working .tiffbtn-gim-a .tiffbtn-ring", ":is(.tiffbtn, .tiffmk).working .tiffbtn-gim-b .tiffbtn-ring",
-        // Home's mark, alive at rest (Isaac, 20 October)
-        ".tiffmk.alive .tiffbtn-gim-a .tiffbtn-ring", ".tiffmk.alive .tiffbtn-gim-b .tiffbtn-ring",
-      ].sort()
-    );
+  it("loops only the boomerang's circling lap, on its three wrappers", () => {
+    const looping = blocks
+      .filter(([sel, body]) => /\.tiffbtn/.test(sel) && /animation\s*:[^;]*\binfinite\b/.test(body))
+      .flatMap(([sel]) => each(sel));
+    expect(looping.sort()).toEqual(PARTS.map((p) => `.tiffbtn-st.fly-orbit ${p}`).sort());
   });
 
-  /* v2, rule 8: "Black and white at rest, and still." Every loop on the mark
-     is declared paused, and only a working mark, or Home's alive one, runs them. */
-  it("holds every loop still at rest and runs them only while Tiff works, or on Home's mark", () => {
-    const paused = blocks.filter(([, body]) => /animation-play-state\s*:\s*paused/.test(body)).map(([sel]) => sel).join(",");
-    const running = blocks.filter(([, body]) => /animation-play-state\s*:\s*running/.test(body)).map(([sel]) => sel);
-    for (const el of [".tiffbtn-pre", ".tiffbtn-nod", ".tiffbtn-gim-a", ".tiffbtn-gim-b", ".tiffbtn-arc", ".tiffbtn-sheen::before"]) {
-      expect(paused).toContain(el.replace("::before", ""));
-    }
-    expect(running.length).toBeGreaterThan(0);
-    for (const sel of running) expect(sel).toMatch(/\.working|\.tiffmk\.alive/);
+  /* rule 8: still at rest. Everything that moves is in a phase of the flight,
+     which the mark's clock enters only while Tiff works (or for Home's lap),
+     or is the catch as it lands. */
+  it("animates nothing at rest", () => {
+    expect(animated.length).toBe(PHASES.length * PARTS.length + 1);
+    for (const sel of animated) expect(sel).toMatch(/\.tiffbtn-st\.(fly-throw|fly-orbit|fly-land|caught) /);
   });
 
   it("stops every one of them under reduced motion", () => {
     const reduced = [...CSS.matchAll(/@media \(prefers-reduced-motion:reduce\)\s*\{([\s\S]*?)\n\}/g)]
       .map((m) => m[1])
-      .find((b) => b.includes(".tiffbtn-pre"));
+      .find((b) => b.includes(".tiffbtn-st.fly-orbit"));
     expect(reduced).toBeTruthy();
     const stopped = [...reduced!.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
       .filter(([, , body]) => /animation\s*:\s*none/.test(body))
-      // split on the commas between selectors, never the ones inside `:is(…)`
-      .flatMap(([, sel]) => sel.split(/,(?![^(]*\))/).map((s) => s.trim()));
-    // the band of light is hidden rather than stopped: parked, it would sit across the face
-    const hidden = /\.tiffbtn-sheen\s*\{\s*display\s*:\s*none/.test(reduced!);
-    for (const sel of looping) {
-      if (sel === ".tiffbtn-sheen::before") expect(hidden).toBe(true);
-      else expect(stopped).toContain(sel);
-    }
+      .flatMap(([, sel]) => each(sel));
+    for (const sel of animated) expect(stopped).toContain(sel);
   });
 
-  it("lights on keyboard focus whatever it lights on hover", () => {
-    const hovers = blocks.filter(([sel]) => /\.tiffbtn[^{]*:hover/.test(sel)).map(([sel]) => sel);
-    expect(hovers.length).toBeGreaterThan(0);
-    for (const sel of hovers) expect(sel).toMatch(/:focus-visible/);
+  /* Rule 18's named exemption (Isaac, 20 November 2026, "Yes, build all
+     three"): the pointer lifts the boomerang off its place, as if about to
+     be thrown. Law 8: the keyboard moves nothing, so it is the pointer's
+     alone; the focus ring is the keyboard's light. */
+  it("moves one thing on hover, the boomerang's lift, from the pointer only", () => {
+    const hovers = blocks.filter(([sel]) => /\.tiff(btn|mk)[^{]*:hover/.test(sel)).flatMap(([sel]) => each(sel));
+    expect([...new Set(hovers)]).toEqual([".tiffbtn:hover .tiffbtn-st.rest .tiffbtn-lift"]);
+    expect(hovers.some((s) => s.includes(":focus-visible"))).toBe(false);
+    const doc = readFileSync(join(process.cwd(), "docs/design.md"), "utf8");
+    expect(doc).toMatch(/Rule 18, the Tiff button's lift/);
   });
 
-  it("wears no halo, disc or sparkle", () => {
-    for (const gone of [".tiffbtn-halo", ".tiffbtn-face", ".tiffbtn-core", ".tiffbtn-spark"]) {
+  /* "black only", "and grey" (Isaac, 20 November 2026) */
+  it("is black and grey, with no colour of its own", () => {
+    const marks = blocks.filter(([sel]) => /\.tiffbtn|\.tiffmk/.test(sel)).map(([, body]) => body).join("\n");
+    expect(marks).not.toMatch(/--(mark-|blue|purple|pink|red|orange|yellow|green|teal)/);
+    expect(CSS).not.toMatch(/@keyframes tiffCyc/);
+  });
+
+  it("wears no rings, halo, disc or sparkle", () => {
+    for (const gone of [".tiffbtn-gim", ".tiffbtn-arc", ".tiffbtn-sheen", ".tiffbtn-halo", ".tiffbtn-face", ".tiffbtn-core", ".tiffbtn-spark", ".tiffbtn-burst"]) {
       expect(CSS).not.toContain(gone);
     }
   });

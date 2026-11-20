@@ -20,9 +20,10 @@ import type { FeedItem } from "@/lib/dashboard/your-feed";
 /* HOME, v2 (the board v2-board-home; docs/design.md rules 8, 13, 22, 26,
    27 and 39; decisions 25 and 28). Three things, in one column:
 
-   TIFF'S MARK, centred, three times its old size and always turning in
-   her colours, faster while she works (Isaac, 20 October: "move at all
-   times, even in standby"), over HER BOX ("What's happening on site?").
+   TIFF'S MARK, centred, three times its old size, alive at rest: it throws
+   its boomerang for one slow lap now and then, and keeps it up while she
+   works (Isaac, 20 November 2026: "mock home throw", then "Yes, build all
+   three"), over HER BOX ("What's happening on site?").
    The box is Conversations' own (components/conversations/box): the
    microphone records in the box itself, the recording card taking its
    place and the words landing in it, as Claude's box does (Isaac, 20

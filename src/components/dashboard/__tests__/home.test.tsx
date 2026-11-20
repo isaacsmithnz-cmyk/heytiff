@@ -202,7 +202,7 @@ describe("the box", () => {
     expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
   });
 
-  it("(F) her mark is three times the size and turns at rest, in her colours", () => {
+  it("(F) her mark is three times the size and alive at rest", () => {
     draw();
     const mark = screen.getByRole("img", { name: "Tiff" });
     expect(mark).toHaveClass("tiffmk", "alive");

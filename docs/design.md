@@ -19,7 +19,7 @@ When two sources disagree: Isaac's own words win, then this file, then the canva
 - **5. The eight places.** Home, Conversations, Jobs, Schedule, Documents, Library, Design, Team. Stock stands ninth for now, after Schedule, as its mock drew it (https://claude.ai/artifact/WQ1yppLgALMhXbHM5XWLDq), built on 11 November 2026 on "Don't wait for my answers. Just build"; whether it stays a place or moves under Team is his call. Design is the Studio's list of every design, to show a customer or look one up; it left on 28 October 2026 and came back the same day (Isaac: "keep a design section somewhere like in the app. When you hit more, you can hit design and you can view previous designs"). The one you're on is white at 12% with its label in bold. No number beside any of them.
 - **6. Pinned and Recents.** Stay in the sidebar under the places; a job shows its colour dot.
 - **7. Your name.** At the bottom: your card, timesheet, leave, expense claims, your vehicle (only for someone with one assigned) and notes, Reports and Settings, then Sign out. Each is a page of its own: no strip of tabs between them (Isaac, 24 October 2026). Reports shows to whoever holds the permission each report needs.
-- **8. Tiff's mark.** Black and white at rest, and still: black on the page, white on the ink. While Tiff listens or works it turns, and its rings run through the colours in the boards' order: blue, purple, pink, red, orange, yellow, green. Listening and working look the same. The one exception is Home's mark over her box, 96 across: it turns in her colours all the time, and faster while she works (Isaac, 20 October: "move at all times, even in standby, and then it can just go faster when it's spinning").
+- **8. Tiff's mark.** Black and grey, and still at rest: the chevron black on the page and white on the ink, its small mark in the logo's grey. While Tiff listens or works the small mark is a boomerang: she throws it, it circles the mark's head, out into the distance behind and round in front, for as long as she works, and it comes home on the lap after she's done, the chevron giving a little as it lands (Isaac, 20 November 2026: "it should stay in air while thinking", on https://claude.ai/artifact/6DK1HJY1QWYFYE6JDFecEm). It replaced the gimbal rings and their colours ("black only", "and grey"). Listening and working look the same. The one exception is Home's mark over her box, 96 across: at rest it throws one slow lap every ten seconds ("mock home throw and hover lift", then "Yes, build all three").
 - **9. The wordmark.** HeyTiff in one colour. The teal leaves the app.
 
 ### Tabs, desktop only
@@ -80,7 +80,7 @@ When two sources disagree: Isaac's own words win, then this file, then the canva
 
 - **39. A row.** Time or tick, dot, name in bold, a line under it in grey, then a state word or one button on the right.
 - **40. Nothing there yet.** Says what's missing and leads with the action.
-- **41. Loading.** Nothing for half a second, then Tiff's mark, turning at her working speed, in the middle of where the page will be. A page never wears a skeleton: one shaped like the page never matched it (Isaac, 20 October 2026). Tiff building a quote is a wait with a known shape: her mark, what she's doing and the jumping dots after it, and a thin bar with about how long is left, drawn from how long the business's own turns took (a first build apart from the rest): what's left is the middle of what the turns that ran this long still took, so it narrows as she goes, held short of the end until she's done (Isaac, 1 November 2026; the dots and the estimate, 13 November 2026). What she's doing follows the tool she has begun, not the last one saved, and her reply types out above the wait as she writes it, as her own turn, until it's saved; on the phone a short buzz says she's done (Isaac, 14 November 2026: "Just get it all built").
+- **41. Loading.** Nothing for half a second, then Tiff's mark, its boomerang in the air, in the middle of where the page will be. A page never wears a skeleton: one shaped like the page never matched it (Isaac, 20 October 2026). Tiff building a quote is a wait with a known shape: her mark, what she's doing and the jumping dots after it, and a thin bar with about how long is left, drawn from how long the business's own turns took (a first build apart from the rest): what's left is the middle of what the turns that ran this long still took, so it narrows as she goes, held short of the end until she's done (Isaac, 1 November 2026; the dots and the estimate, 13 November 2026). What she's doing follows the tool she has begun, not the last one saved, and her reply types out above the wait as she writes it, as her own turn, until it's saved; on the phone a short buzz says she's done (Isaac, 14 November 2026: "Just get it all built").
 - **42. When something goes wrong.** A red dot and word, what it means for you, and what to do.
 - **43. Search.** Results by kind; the last row asks Tiff, with Enter.
 - **44. The New menu.** Job, Task and Note: the same three on every page (Note joined on 24 October 2026, Isaac: "Yes to new note"). It fills in only the record you are on, which you can clear: a task made on a job's page is for that job, and made anywhere else it is a general task. A quote is made on its job, through Add. The panel reaches out from the New button, dark, square where it leaves the panel. On the phone New also holds Purchase, the camera on a supplier's docket (Isaac, 29 October 2026).
@@ -205,7 +205,7 @@ The 34 laws of 10 September, as they stand under the rules above. Twenty-four ar
 24. A control hidden until hover is also shown on `:focus-within`, or it is not hidden. Keyboard users get the delete control back.
 25. A button with only an icon is close, clear, the microphone, the ‹ › of a date (rule 27), or a chat's Send and Minimise, as Claude's are (Isaac, 20 October 2026). Every other button carries its word. A `title` is not a label. The few that still keep their glyph are named under Guards, each with its reason, and leave as their screens are rebuilt.
 26. State is not a pill (rule 47). Pills are only for a person's name in a note. Time and Pay's bars and tints go (rule 21).
-27. Nothing spins in the first half second. Past it, a page shows Tiff's mark turning (rule 41). The ring lives only inside a button that says what it is doing.
+27. Nothing spins in the first half second. Past it, a page shows Tiff's mark at work (rule 41). The ring lives only inside a button that says what it is doing.
 28. One footer. The ten footer families fold into one, and the buttons name the choice: "Keep" and "Delete file", "Cancel" and "Rename".
 29. `text-wrap: balance` on headings only. Letter-spacing on display titles only; the positive tracking leaves with the eyebrows. "…", never "...". A typed "…" is for a wait that says what it is doing; text that doesn't fit fades (rule 50) and is never cut with one.
 30. *Done, and moved to the decision log: the public pages carry Open Graph metadata and an image.*
@@ -250,9 +250,7 @@ infinite loop into a strobe.
 | `int-pulse` | an integration's backfill while it runs | a live dot |
 | `orbSpin` | the orb, as the dictation meter | the orb: the microphone is open |
 | `orbSaySweep` | the wait's word beside the working mark | the wait's label, lit while Tiff works: the caret's job on a word |
-| `tiffGyro`, `tiffNod`, `tiffSheen`, `tiffGimbalA`, `tiffGimbalB`, `tiffArc` | the Tiff button and the mark wherever it stands for Tiff; the rules are declared on every mark but held paused until the mark is working | Tiff is working (rule 8, v2). Since 18 October 2026 the mark is still at rest (Isaac, 17 October: "The mark does not turn at rest. It can stay still."), which retires the override of 24 September. Home's mark (`.tiffmk.alive`) runs them at rest, in the colours, from 20 October (Isaac), and the page's hold (`.pg-hold`, rule 41) runs them working |
-| `tiffCyc` ×2 | the two runs of light on a working mark's rings, their gradient stops cycling blue, purple, pink, red, orange, yellow, green | Tiff is working: colour on the mark means she's busy (rule 8). The gradients are only shown on a working mark |
-| `tiffCycRing` ×2 | a working mark's two faint rings, in the same cycle, and Home's mark's at rest | Tiff is working (rule 8); Home's mark is alive (rule 8, 20 October) |
+| `tiffOrbit`, `tiffOrbitBank`, `tiffOrbitSpin` | the boomerang's circling lap, on the mark wherever it stands for Tiff: the flight, its lean into the curve and its spin, one wrapper each; the mark's clock (components/notes/tiff-mark) starts it once the throw is done and lands it at the end of the lap after she's done | Tiff is listening or working (rule 8): "it should stay in air while thinking" (Isaac, 20 November 2026). The throw and the landing run once, and Home's slow lap at rest is a throw and a landing, never a loop. The keyframes are generated by scripts/tiff-flight.mjs |
 
 ### The buttons that keep their glyph
 
@@ -585,10 +583,11 @@ the fourth on the customer's messages, below).
   bubble", "give the logo the colors. And have TIFF black"). Your notes are
   on the right and everyone else's on the left, both in the light grey
   (`--bubble-them`), so green stays a text the customer got. Tiff has no
-  bubble: her mark in her colours, turning slowly, beside her name in ink
-  ("She can turn slowly, given that you won't have an extra one down the
-  bottom of the page"). Under a bubble its time and doors are quiet words
-  with no underline, and Remove is the red word (rule 25).
+  bubble: her mark beside her name in ink, still, its boomerang up while
+  she works (rule 8; it turned slowly in her colours until 20 November
+  2026, when the mark became black and grey and still at rest). Under a
+  bubble its time and doors are quiet words with no underline, and Remove
+  is the red word (rule 25).
 
 - **The Activity feed reads like a chat** (`.jc-convo`, job-conversation.tsx;
   Isaac, 14 November 2026, mock D on
@@ -805,6 +804,13 @@ What the guard cannot count is noted here on the same word:
   sentence case and weight, without caps or tracking. An admin date past
   its due keeps the admin's ink there; only his capsule under the title
   turns late, so the late red is said once, as he drew it.
+- **Rule 18, the Tiff button's lift.** The pointer on a Tiff button lifts
+  the boomerang off its place, tipped back as if about to be thrown, in
+  `--t-fast`, and it settles when the pointer leaves, where rule 18 has
+  nothing lift under the pointer (Isaac, 20 November 2026: "mock home
+  throw and hover lift", then "Yes, build all three"). From the pointer
+  only: the keyboard's focus ring is its light and moves nothing (law 8).
+  Not under reduced motion, and not while the boomerang is in the air.
 - **Law 18, motion tokens, and law 8, the Calendar's fades.** The Calendar
   moves as the prototype he walked moves it ("design exempt for now, but
   keep a note", 2026-09-24), where law 18 has two tokens and law 8 says a

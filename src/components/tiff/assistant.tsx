@@ -780,7 +780,7 @@ export function TiffAssistant({
             {live && live.threadId === active?.id && (
               <article className="jc-tiffturn" aria-busy="true">
                 <p className="jc-tiffname">
-                  <TiffGlyph size={18} alive working />
+                  <TiffGlyph size={18} working />
                   <b>Tiff</b>
                 </p>
                 {live.steps.length > 0 && <CvSteps steps={live.steps} />}
@@ -888,7 +888,7 @@ function CvTurn({
       ) : (
         <article className="jc-tiffturn">
           <p className="jc-tiffname">
-            <TiffGlyph size={18} alive />
+            <TiffGlyph size={18} />
             <b>Tiff</b>
           </p>
           {m.steps && m.steps.length > 0 && <CvSteps steps={m.steps} />}

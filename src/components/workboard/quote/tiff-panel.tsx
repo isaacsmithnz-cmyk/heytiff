@@ -508,7 +508,7 @@ export function TiffPanel({
     <div key={id} className={`qt-msg tf qc-her${landed(id)}`}>
       {named && (
         <span className="qc-who">
-          <TiffGlyph quiet size={24} />
+          <TiffGlyph size={24} />
           <b>Tiff</b>
           {timeOf(at) && <time dateTime={at}>{timeOf(at)}</time>}
         </span>

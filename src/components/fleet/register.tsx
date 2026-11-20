@@ -394,7 +394,7 @@ export function FleetRegister({
                       }
                     >
                       <em className={`fl-tiff${stale ? " stale" : ""}`}>
-                        <TiffGlyph size={18} quiet />
+                        <TiffGlyph size={18} />
                         {fmtMoney(val.point)}
                         {/* The note was hover-only and Isaac found it by accident.
                             The ⓘ is the visible door; the detail modal prints the

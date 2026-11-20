@@ -1,283 +1,210 @@
-import type { CSSProperties } from "react";
+"use client";
+
+import { useEffect, useEffectEvent, useRef, useState, type AnimationEvent, type CSSProperties } from "react";
 import { CHEVRON_STROKES } from "@/components/logo";
+import { IDLE_SLOW, LAND_SHARE, LAP_MS, THROW_SHARE } from "./tiff-flight";
 
-/* THE MARK ITSELF, so it is never copied: the Tiff button's insides, which
-   is the logo as a gyroscope (Isaac, 2026-09-25: "gimbal light, without the
-   sphere").
+/* THE MARK ITSELF, so it is never copied: the Tiff button's insides, and
+   the mark wherever the chevron stands for Tiff.
 
-   THREE THINGS MOVE, AND NONE OF THEM IS A GLOW. The chevron is solid (ten
-   copies stacked in depth, the face in front, the gradient down its sides)
-   and PRECESSES: it leans 18° and the lean travels round once every 6
-   seconds, the way a gyroscope's axis circles, with a small nod riding on it.
-   Two gimbal rings turn on their own axes around it, and a line of light runs
-   along each one. A band of light crosses the face once a turn. The aura the
-   first rounds had was taken off on his word ("aura looks too generic ai"):
-   the light lives on the rings and the mark, never around them.
+   THE SMALL MARK IS A BOOMERANG (Isaac, 20 November 2026, on
+   https://claude.ai/artifact/6DK1HJY1QWYFYE6JDFecEm). It replaced the
+   gimbal rings. The chevron stands still; when Tiff starts working she
+   throws the small mark, and it circles the mark's head in real depth (out
+   forward, away behind into the distance, round in front near and big) for
+   as long as she works: "it should stay in air while thinking". When she's
+   done it finishes the lap it is on and comes home, and the chevron gives a
+   little as it lands, the catch. Black and grey only ("black only", "and
+   grey"): the chevron in the ground's ink, the boomerang in the logo's own
+   grey, in the air too.
 
-   EVERYTHING MOVES BY TRANSFORM, and that is the performance budget. The
-   prototype this came from drew its light with blurred, blended blobs, which
-   repaint every frame; here the only animated properties are `transform` and
-   `opacity`, the geometry is the browser's 3D (one wrapper per motion, the
-   same trick the orb uses), and nothing holds a clock.
+   AT REST IT IS STILL (rule 8), but for Home's mark, which throws one slow
+   lap now and then ("mock home throw and hover lift", then "Yes, build all
+   three"); and a Tiff button lifts the boomerang under the pointer, in the
+   stylesheet.
 
-   THE GROUND DECIDES THE SKIN, as it always has for this button. On the
-   frame's ink the face is paper and the depth is the brand gradient; on a
-   sheet's paper the face takes the brand gradient itself and the depth goes
-   a step darker, because a white face on white is nothing. The rings follow:
-   light-headed on ink, coloured on paper.
+   THE FLIGHT IS THREE PHASES, so it can stay up as long as she works:
+   thrown (onto the orbit), circling (one lap, `infinite`), landing. Their
+   keyframes are sampled by scripts/tiff-flight.mjs into shell.css; this
+   component only says which phase the mark is in. It moves on the
+   animations' own events, a lap's end or a phase's end, so it never cuts a
+   lap short, and falls back on its own clock where no event will come: a
+   mark inside something hidden runs no animation at all. Under reduced
+   motion it never leaves its place.
 
    The shapes are `CHEVRON_STROKES`, the same data the logo draws from, so
    there is still one chevron in the codebase. */
 
 export type Ground = "ink" | "paper";
 
-/** Copies of the mark stacked in depth, back to front. Ten is where the side
-    stops reading as separate outlines at 36px. */
-const LAYERS = 10;
-/** The solid's depth, as a share of the button; the stack is centred on 0. */
-const DEPTH = 0.12;
-
 /** The viewBox nudged 6 right: the chevron hangs off-centre in its own box
     (it was drawn to sit beside a wordmark) and a circle shows that at once. */
 const VIEW = "6 0 100 100";
+const [CHEVRON, BOOMERANG] = CHEVRON_STROKES;
 
-/* The mark's silhouette as a mask, for the band of light that crosses the
-   face. Built once from the same strokes; identical on server and client. */
-const maskSvg =
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${VIEW}">` +
-  CHEVRON_STROKES.map(
-    (s) =>
-      `<path d="${s.d}" fill="none" stroke="#fff" stroke-width="${s.width}" stroke-linecap="${s.cap}" stroke-linejoin="round"/>`
-  ).join("") +
-  `</svg>`;
-export const MARK_MASK = `url("data:image/svg+xml,${encodeURIComponent(maskSvg)}")`;
+/** Home's mark throws a lap this often at rest. */
+const IDLE_EVERY = 10_000;
+/** How long the chevron's give lasts when the boomerang lands. */
+const CATCH_MS = 400;
+/** Slack on the fallback clock, so the animation's own event always wins. */
+const SLACK = 250;
 
-/* Gradient ids are constants per ground: every button of a ground declares
-   identical defs, and identical defs never collide visually — the same call
-   the logo's `htGrad` made, and for the same reason it stays hydration-safe. */
-const IDS = {
-  ink: { face: null, depth: "tiffDepthInk", runA: "tiffRunAInk", runB: "tiffRunBInk" },
-  paper: { face: "tiffFacePaper", depth: "tiffDepthPaper", runA: "tiffRunAPaper", runB: "tiffRunBPaper" },
-} as const;
-/* While Tiff works, the runs of light take the colours (v2, rule 8). The same
-   gradients for either ground: their stops cycle through the boards' order
-   (shell.css, `tiffCyc`), and only a working mark's runs point at them, so a
-   resting mark never shows them. */
-const WORK = { runA: "tiffRunAWork", runB: "tiffRunBWork" } as const;
-/* v2 (rule 8): black and white at rest, the ground deciding which. On the
-   frame's ink the mark is paper; on paper it is ink. */
-const MONO: Record<Ground, string> = { ink: "var(--paper)", paper: "var(--ink)" };
+type Phase = "rest" | "throw" | "orbit" | "land";
 
-/** Stop colours are tokens, set as style (a presentation attribute cannot read a custom property). */
-const stop = (offset: number, colour: string, opacity = 1, className?: string) => (
-  <stop key={offset} offset={offset} className={className} style={{ stopColor: colour, stopOpacity: opacity }} />
-);
+/* THE CLOCK. `working` is whether Tiff is working; `alive` is Home's mark,
+   which throws a slow lap now and then at rest. */
+function useFlight(working: boolean, alive: boolean) {
+  const [phase, setPhase] = useState<Phase>("rest");
+  const [slow, setSlow] = useState(false);
+  const [caught, setCaught] = useState(false);
+  /* read once, before anything is thrown; it is never drawn, so the server's
+     answer (false) cannot disagree with the page's */
+  const [still] = useState(() => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches);
+  /* what the phase that is ending should go on to: read when it ends */
+  const want = useRef(working);
+  useEffect(() => {
+    want.current = working;
+  }, [working]);
 
-/* A ring's run of light is a 120° arc, tail to head, clockwise from three
-   o'clock (a circle's path starts there). The gradient runs along its chord,
-   transparent at the tail to the head's colour at the leading end, so turning
-   the arc reads as light travelling round the ring. */
-const R = 48;
-const HEAD = { x: 50 + R * Math.cos((2 * Math.PI) / 3), y: 50 + R * Math.sin((2 * Math.PI) / 3) };
-function Run({ id, colour, head, cycle }: { id: string; colour: string; head: string; cycle?: "tiffcyc" | "tiffcyc2" }) {
-  return (
-    <linearGradient id={id} gradientUnits="userSpaceOnUse" x1={50 + R} y1={50} x2={HEAD.x} y2={HEAD.y}>
-      {stop(0, colour, 0, cycle)}
-      {stop(0.6, colour, 0.92, cycle)}
-      {stop(0.95, head, 1, cycle)}
-      {stop(1, head, 1, cycle)}
-    </linearGradient>
-  );
+  /* she starts working: thrown at the working pace, in the same render */
+  if (!still && working && phase === "rest") {
+    setSlow(false);
+    setPhase("throw");
+  }
+
+  /* Home's mark at rest: one slow lap every so often */
+  useEffect(() => {
+    if (still || !alive || working || phase !== "rest") return;
+    const t = setTimeout(() => {
+      setSlow(true);
+      setPhase("throw");
+    }, IDLE_EVERY);
+    return () => clearTimeout(t);
+  }, [still, alive, working, phase]);
+
+  /* the ends of the phases. The animation's event and the fallback clock
+     can both arrive; the phase as it stands now decides, so the second is
+     nothing. */
+  const now = useRef<Phase>("rest");
+  useEffect(() => {
+    now.current = phase;
+  }, [phase]);
+  const go = (p: Phase) => {
+    now.current = p;
+    setPhase(p);
+  };
+  const thrown = () => {
+    if (now.current !== "throw") return;
+    if (!want.current) return go("land");
+    setSlow(false);
+    go("orbit");
+  };
+  const lapDone = () => {
+    if (now.current === "orbit" && !want.current) go("land");
+  };
+  const landed = () => {
+    if (now.current !== "land") return;
+    setCaught(true);
+    setSlow(false);
+    go("rest");
+  };
+
+  /* the fallback clock: the same ends, a little after the animation's own */
+  const lap = LAP_MS * (slow ? IDLE_SLOW : 1);
+  const ended = useEffectEvent((p: Phase) => (p === "throw" ? thrown() : p === "land" ? landed() : lapDone()));
+  useEffect(() => {
+    const wait = phase === "throw" ? lap * THROW_SHARE : phase === "land" ? lap * LAND_SHARE : phase === "orbit" && !working ? lap : 0;
+    if (!wait) return;
+    const t = setTimeout(() => ended(phase), wait + SLACK);
+    return () => clearTimeout(t);
+  }, [phase, working, lap]);
+
+  useEffect(() => {
+    if (!caught) return;
+    const t = setTimeout(() => setCaught(false), CATCH_MS);
+    return () => clearTimeout(t);
+  }, [caught]);
+
+  const onAnimationEnd = (e: AnimationEvent) => {
+    if (e.target !== e.currentTarget) return;
+    if (e.animationName === "tiffThrow") thrown();
+    if (e.animationName === "tiffLand") landed();
+  };
+  const onAnimationIteration = (e: AnimationEvent) => {
+    if (e.target === e.currentTarget && e.animationName === "tiffOrbit") lapDone();
+  };
+  const className = `tiffbtn-st ${phase === "rest" ? "rest" : `fly-${phase}`}${slow ? " fly-slow" : ""}${caught ? " caught" : ""}`;
+  return { className, onAnimationEnd, onAnimationIteration };
 }
 
-function Defs({ ground }: { ground: Ground }) {
-  const mono = MONO[ground];
-  return (
-    <svg className="tiffbtn-defs" width="0" height="0" aria-hidden="true" focusable="false">
-      <defs>
-        {ground === "ink" ? (
-          <linearGradient id={IDS.ink.depth} x1="0" y1="0" x2="1" y2="1">
-            {stop(0, mono)}
-            {stop(1, mono)}
-          </linearGradient>
-        ) : (
-          <>
-            <linearGradient id={IDS.paper.face} x1="0" y1="0" x2="1" y2="1">
-              {stop(0, mono)}
-              {stop(1, mono)}
-            </linearGradient>
-            <linearGradient id={IDS.paper.depth} x1="0" y1="0" x2="1" y2="1">
-              {stop(0, mono)}
-              {stop(1, mono)}
-            </linearGradient>
-          </>
-        )}
-        <Run id={IDS[ground].runA} colour={mono} head={mono} />
-        <Run id={IDS[ground].runB} colour={mono} head={mono} />
-        <Run id={WORK.runA} colour="var(--blue)" head="var(--blue)" cycle="tiffcyc" />
-        <Run id={WORK.runB} colour="var(--red)" head="var(--red)" cycle="tiffcyc2" />
-      </defs>
-    </svg>
-  );
+function Stroke({ s }: { s: (typeof CHEVRON_STROKES)[number] }) {
+  return <path d={s.d} fill="none" strokeWidth={s.width} strokeLinecap={s.cap} strokeLinejoin="round" />;
 }
 
-/** A ring's own colour, faint, on each ground: the ground's mono at rest
-    (v2, rule 8); a working mark's rings take the colours in its stylesheet. */
-export const RING_COLOUR: Record<Ground, Record<"a" | "b", string>> = {
-  ink: { a: MONO.ink, b: MONO.ink },
-  paper: { a: MONO.paper, b: MONO.paper },
-};
-
-function Layer({ stroke, z, opacity, face }: { stroke: string; z: number; opacity: number; face?: boolean }) {
+/** The chevron and its boomerang. The ground's skin comes from the class
+    of whatever it stands in: `.tiffbtn-<place>`, `.tiffmk-<ground>`. */
+export function TiffMark({ working = false, alive = false }: { working?: boolean; alive?: boolean }) {
+  const flight = useFlight(working, alive);
   return (
-    <svg
-      className={face ? "tiffbtn-ly face" : "tiffbtn-ly"}
-      viewBox={VIEW}
-      aria-hidden="true"
-      focusable="false"
-      style={{ "--z": z.toFixed(4), opacity: opacity === 1 ? undefined : opacity } as CSSProperties}
-    >
-      {CHEVRON_STROKES.map((s, i) => (
-        <path
-          key={i}
-          d={s.d}
-          fill="none"
-          stroke={stroke}
-          strokeWidth={s.width}
-          strokeLinecap={s.cap}
-          strokeLinejoin="round"
-          opacity={s.opacity === 1 ? undefined : s.opacity}
-        />
-      ))}
-    </svg>
-  );
-}
-
-function Gimbal({ axis, run, work, ring }: { axis: "a" | "b"; run: string; work: string; ring: string }) {
-  return (
-    <span className={`tiffbtn-gim tiffbtn-gim-${axis}`}>
-      <span className="tiffbtn-arc">
-        <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">
-          <circle className="tiffbtn-ring" cx="50" cy="50" r={R} style={{ stroke: ring }} vectorEffect="non-scaling-stroke" />
-          {/* the run at rest, in the ground's mono */}
-          <circle
-            className="tiffbtn-run"
-            cx="50"
-            cy="50"
-            r={R}
-            stroke={`url(#${run})`}
-            pathLength={360}
-            strokeDasharray="120 240"
-            vectorEffect="non-scaling-stroke"
-          />
-          {/* the same run while she works, in the colours (shown by the stylesheet) */}
-          <circle
-            className="tiffbtn-runw"
-            cx="50"
-            cy="50"
-            r={R}
-            stroke={`url(#${work})`}
-            pathLength={360}
-            strokeDasharray="120 240"
-            vectorEffect="non-scaling-stroke"
-          />
-        </svg>
+    <span className={flight.className} aria-hidden="true">
+      <svg className="tiffbtn-chev" viewBox={VIEW} focusable="false">
+        <Stroke s={CHEVRON} />
+      </svg>
+      <span className="tiffbtn-lift">
+        <span className="tiffbtn-boom" onAnimationEnd={flight.onAnimationEnd} onAnimationIteration={flight.onAnimationIteration}>
+          <span className="tiffbtn-bank">
+            <svg className="tiffbtn-spin" viewBox={VIEW} focusable="false">
+              <Stroke s={BOOMERANG} />
+            </svg>
+          </span>
+        </span>
       </span>
     </span>
   );
 }
 
-export function TiffMark({ ground }: { ground: Ground }) {
-  const ids = IDS[ground];
-  const ink = ground === "ink";
-  const layers = [];
-  for (let k = 0; k < LAYERS; k++) {
-    const z = -DEPTH / 2 + (DEPTH * k) / (LAYERS - 1);
-    const front = k === LAYERS - 1;
-    layers.push(
-      front ? (
-        <Layer key={k} face z={z} opacity={1} stroke={ink ? "currentColor" : `url(#${IDS.paper.face})`} />
-      ) : (
-        <Layer key={k} z={z} opacity={0.45 + (0.5 * k) / (LAYERS - 1)} stroke={`url(#${ids.depth})`} />
-      )
-    );
-  }
-  return (
-    <>
-      <Defs ground={ground} />
-      <span className="tiffbtn-st" aria-hidden="true">
-        <span className="tiffbtn-root">
-          {/* the press turns this once on the chevron's own point */}
-          <span className="tiffbtn-flip">
-            <span className="tiffbtn-pre">
-              <span className="tiffbtn-nod">
-                {layers}
-                <span className="tiffbtn-sheen" />
-              </span>
-            </span>
-          </span>
-          <span className="tiffbtn-gw">
-            <Gimbal axis="a" run={ids.runA} work={WORK.runA} ring={RING_COLOUR[ground].a} />
-            <Gimbal axis="b" run={ids.runB} work={WORK.runB} ring={RING_COLOUR[ground].b} />
-          </span>
-        </span>
-      </span>
-    </>
-  );
-}
-
 /* THE MARK OUTSIDE THE BUTTON. Wherever the chevron stands for Tiff it is
-   the gimbal too (Isaac, 2026-09-25: "Elsewhere, for reference — looks good
-   lets do it"), and it moves, the way the button does ("round end, moving,
-   no dark background", the same day, after a still pose read as a smudge
-   at label size). Two paces:
+   the same mark: a label for Tiff (the chat's turns, the palette's footer,
+   the round end of a Tiff button, `.tiffkey`), a wait (a page's hold, a
+   valuation, a receipt being read), and Home's mark over her box.
 
-   AT REST it runs the button's own loops: a label for Tiff — the chat's
-   header and ask bar, the palette's footer, and the round end of a Tiff
-   button (`.tiffkey`).
+   WORKING it throws the boomerang, and it stays up until the work is done.
 
-   THE GROUND DECIDES ITS SKIN, as it does the button's. Every one stands on
-   paper but the Tiff modal's own, beside the context in its header: the
-   modal is ink (Isaac, 2026-09-27, "dark, everywhere"), so that one takes
-   the frame's skin (`.tiffmk-ink`, with `.tiffbtn-topbar`).
+   ALIVE is Home's mark alone (rule 8's one exception): it throws a slow lap
+   now and then at rest.
 
-   WORKING it runs them at the thinking pace: a wait, a valuation, a receipt
-   being read. It starts when the work starts and goes when it is done.
+   THE GROUND DECIDES ITS SKIN, as it does the button's: paper everywhere
+   but the Tiff modal's own ink (`.tiffmk-ink`).
 
-   QUIET marks move only while their control is hovered or focused, for a
-   control repeated down a list (Ask Tiff on every document): a hundred
-   gyroscopes turning at once is a page of motion, and a compositor bill.
-
-   The logo fills more of it than of the button (74%, rings at the edge),
-   because it is small: at 15–24px the button's proportions left a smudge.
+   The logo fills more of it than of the button (74%), because it is small;
+   under 48 it flies a smaller circle, so it stays near its own square.
    Sized by `size`, or by the slot's stylesheet when the slot has more than
    one size, because an inline size would beat every one of them. */
 export function TiffGlyph({
   ground = "paper",
   working = false,
-  quiet = false,
   alive = false,
   size,
   label,
 }: {
   /** The ground it stands on: paper everywhere but the Tiff modal's ink. */
   ground?: Ground;
+  /** Tiff is working: the boomerang is thrown and stays up until this goes false. */
   working?: boolean;
-  /** Moves only while its control is hovered or focused: for a control repeated down a list. */
-  quiet?: boolean;
-  /** Turns at rest, in her colours, and faster while working: Home's mark. */
+  /** Home's mark: a slow lap now and then at rest. */
   alive?: boolean;
   size?: number;
   /** Stand alone as "HeyTiff" for a screen reader; omit it beside words that already name the thing. */
   label?: string;
 }) {
+  const small = (size ?? 24) < 48;
   return (
     <span
-      className={`tiffmk tiffmk-${ground}${working ? " working" : ""}${quiet ? " quiet" : ""}${alive ? " alive" : ""}`}
-      style={{ "--tiffbtn-mask": MARK_MASK, ...(size ? { "--tb": `${size}px` } : {}) } as CSSProperties}
+      className={`tiffmk tiffmk-${ground}${small ? " small" : ""}${working ? " working" : ""}${alive ? " alive" : ""}`}
+      style={size ? ({ "--tb": `${size}px` } as CSSProperties) : undefined}
       {...(label ? { role: "img", "aria-label": label } : { "aria-hidden": true })}
     >
-      <TiffMark ground={ground} />
+      <TiffMark working={working} alive={alive} />
     </span>
   );
 }

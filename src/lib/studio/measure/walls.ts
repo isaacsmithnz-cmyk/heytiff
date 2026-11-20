@@ -51,16 +51,16 @@ export type WallSizes = {
     (walls run 70 to 600 mm thick), else from the raster's own width, taken
     as an A1 sheet at 1:100. */
 export function wallSizes(width: number, mmPerPx: number | null): WallSizes {
-  const mm = mmPerPx && mmPerPx > 0 ? mmPerPx : 84100 / width;
-  const px = (v: number) => v / mm;
-  return {
-    thin: Math.max(3, px(70)),
-    thick: Math.max(8, px(600)),
-    short: Math.max(10, px(450)),
-    long: Math.max(16, px(880)),
-    line: Math.max(24, px(1400)),
-    near: Math.max(3, px(180)),
-  };
+  if (mmPerPx && mmPerPx > 0) {
+    const px = (v: number) => v / mmPerPx;
+    /* a stud wall is 90 mm, and its smoothed edges take a pixel off each side */
+    return { thin: Math.max(3, px(50)), thick: Math.max(8, px(600)), short: Math.max(10, px(300)), long: Math.max(16, px(880)), line: Math.max(24, px(1400)), near: Math.max(3, px(180)) };
+  }
+  /* no scale: a sheet is drawn at 1:100 or 1:50 on A1 or A3, which puts a
+     pixel between a quarter and a whole one of these; the limits are set
+     wide enough for all four */
+  const u = width / 1000;
+  return { thin: 3, thick: Math.max(12, 16 * u), short: Math.max(10, 6 * u), long: Math.max(16, 11 * u), line: Math.max(24, 17 * u), near: Math.max(3, 3 * u) };
 }
 
 const SAT = 14;
@@ -184,14 +184,13 @@ function bands(
     }
     const next: Band[] = [];
     for (const r of runs) {
-      /* the band this run carries on: one over it that it mostly covers */
-      const over = live.find(
-        (b) =>
-          b.open &&
-          b.last === line - 1 &&
-          Math.min(b.b, r.b) - Math.max(b.a, r.a) >=
-            0.6 * Math.min(b.b - b.a, r.b - r.a),
-      );
+      /* the band this run carries on: one over it of much its own length.
+         Of the LONGER of the two: where a wall meets another, the rows past
+         it hold only the other wall's cross-section, a short run under a
+         long one, and that is the wall ending, not carrying on (taking it
+         for more of the same made both walls one slab too thick to be a
+         wall, once a piece could be as short as a wall is thick) */
+      const over = live.find((b) => b.open && b.last === line - 1 && Math.min(b.b, r.b) - Math.max(b.a, r.a) >= 0.6 * Math.max(b.b - b.a, r.b - r.a));
       if (over) {
         over.a = r.a;
         over.b = r.b;
@@ -309,23 +308,65 @@ export function gridOf(segs: readonly WallSeg[], z: WallSizes): WallGrid {
   return { x: lines("v"), y: lines("h") };
 }
 
-/** How much wall a shade draws: the run of its pieces at the two thicknesses
-    it uses most. A building's walls come in a thickness or two (an outside
-    wall, a partition); stray bars of some other fill come in every width. */
-function wallRun(segs: readonly WallSeg[]): number {
-  const by = new Map<number, number>();
-  for (const s of segs) {
-    const k = Math.round(s.t / 2);
-    by.set(k, (by.get(k) ?? 0) + (s.b - s.a + 1));
-  }
-  /* neighbours count together: a wall is a pixel thicker one way than the other */
-  const sums = [...by.keys()].map(
-    (k) => (by.get(k) ?? 0) + (by.get(k + 1) ?? 0),
+/** The pieces that meet another piece running the other way, at a corner
+    or a T: what walls do and hatching doesn't. Boards, roof sheets and
+    paving run side by side for metres and never turn a corner (3395's
+    first floor, whose roof sheeting out-ran its stud walls until this). */
+export function tiedOf(segs: readonly WallSeg[], z: WallSizes): WallSeg[] {
+  return segs.filter((s) =>
+    segs.some((p) => {
+      if (p.dir === s.dir) return false;
+      const reach = Math.max(z.near, s.t, p.t);
+      return p.c >= s.a - reach && p.c <= s.b + reach && s.c >= p.a - reach && s.c <= p.b + reach;
+    }),
   );
-  return sums
-    .sort((p, q) => q - p)
-    .slice(0, 2)
-    .reduce((n, v) => n + v, 0);
+}
+
+const runOf = (segs: readonly WallSeg[]) => segs.reduce((n, s) => n + (s.b - s.a + 1), 0);
+
+/** The buildings among the pieces: pieces that meet, corner to corner, are
+    one building, and a small knot of them off on its own is something else
+    drawn in the wall's shade (a title block's logo, a north point, a key's
+    sample: 19 Albion Ave's "LOOK" lettering drew five grid lines of its
+    own until this). A small knot well clear of the biggest building is
+    left out; a garage or a studio across the yard is big enough to stay. */
+export function buildingsOf(segs: readonly WallSeg[], z: WallSizes): WallSeg[] {
+  const parent = segs.map((_, i) => i);
+  const find = (i: number): number => (parent[i] === i ? i : (parent[i] = find(parent[i])));
+  for (let i = 0; i < segs.length; i++)
+    for (let j = i + 1; j < segs.length; j++) {
+      const s = segs[i];
+      const p = segs[j];
+      const reach = Math.max(z.near, s.t, p.t);
+      const meet =
+        p.dir !== s.dir
+          ? p.c >= s.a - reach && p.c <= s.b + reach && s.c >= p.a - reach && s.c <= p.b + reach
+          : /* in one line, either side of a door or a window */ Math.abs(p.c - s.c) <= reach && Math.max(p.a, s.a) - Math.min(p.b, s.b) <= z.line * 2;
+      if (meet) parent[find(i)] = find(j);
+    }
+  const run = new Map<number, number>();
+  segs.forEach((s, i) => run.set(find(i), (run.get(find(i)) ?? 0) + (s.b - s.a + 1)));
+  const most = Math.max(0, ...run.values());
+  /* where the big knots stand, taken together, and a margin round them: a
+     big house is several knots (doors, glazing and curved walls keep its
+     wings from meeting: 3570's ground floor is four), and a wall piece
+     anywhere among them is the house's even when it meets nothing */
+  const box = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+  const ends = (s: WallSeg) => (s.dir === "h" ? { x0: s.a, x1: s.b, y0: s.c, y1: s.c } : { x0: s.c, x1: s.c, y0: s.a, y1: s.b });
+  segs.forEach((s, i) => {
+    if ((run.get(find(i)) ?? 0) < most / 4) return;
+    const e = ends(s);
+    box.x0 = Math.min(box.x0, e.x0);
+    box.y0 = Math.min(box.y0, e.y0);
+    box.x1 = Math.max(box.x1, e.x1);
+    box.y1 = Math.max(box.y1, e.y1);
+  });
+  const pad = z.line * 3;
+  return segs.filter((s, i) => {
+    if ((run.get(find(i)) ?? 0) >= most / 4) return true;
+    const e = ends(s);
+    return e.x1 >= box.x0 - pad && e.x0 <= box.x1 + pad && e.y1 >= box.y0 - pad && e.y0 <= box.y1 + pad;
+  });
 }
 
 /** Bars lying side by side with only a line between them are hatching (roof
@@ -371,41 +412,37 @@ export function withoutStripes(segs: readonly WallSeg[]): WallSeg[] {
   return out;
 }
 
-export type ShadeWalls = { shade: number; segs: WallSeg[]; run: number };
+export type ShadeWalls = { shade: number; segs: WallSeg[]; run: number; tied: WallSeg[] };
 
-/** Each shade a wall fill could be, with the wall it would draw: most first. */
-export function wallsByShade(
-  rgba: Uint8Array | Uint8ClampedArray,
-  width: number,
-  height: number,
-  mmPerPx: number | null,
-): ShadeWalls[] {
+/** Each shade a wall fill could be, with the wall it would draw: most first.
+    A shade's wall is the run of its pieces that meet others at corners. */
+export function wallsByShade(rgba: Uint8Array | Uint8ClampedArray, width: number, height: number, mmPerPx: number | null): ShadeWalls[] {
   const z = wallSizes(width, mmPerPx);
   return shadesOf(rgba, width, height)
     .map((shade) => {
-      const segs = withoutStripes(
-        segsOf(maskOf(rgba, width, height, shade), width, height, z),
-      );
-      return { shade, segs, run: wallRun(segs) };
+      const segs = withoutStripes(segsOf(maskOf(rgba, width, height, shade), width, height, z));
+      const tied = tiedOf(segs, z);
+      return { shade, segs, run: runOf(tied), tied };
     })
     .sort((p, q) => q.run - p.run);
 }
 
 /** The walls of a drawing, off its pixels (RGBA, row by row). Null when no
-    shade on it draws walls: a scan, a sketch, or walls drawn as lines. */
-export function findWalls(
-  rgba: Uint8Array | Uint8ClampedArray,
-  width: number,
-  height: number,
-  mmPerPx: number | null,
-): Walls | null {
+    shade on it draws walls: a scan, a sketch, or walls drawn as lines.
+    A drawing can fill its walls in two shades (new work and existing, or
+    brick and stud). A second shade is wall too when it draws a fair share
+    of the first's and nearly all of its pieces meet at corners, as walls do
+    and a hatch's stray bars don't; only its pieces that meet are taken. */
+export function findWalls(rgba: Uint8Array | Uint8ClampedArray, width: number, height: number, mmPerPx: number | null): Walls | null {
   const z = wallSizes(width, mmPerPx);
-  const best = wallsByShade(rgba, width, height, mmPerPx)[0];
+  const [best, ...rest] = wallsByShade(rgba, width, height, mmPerPx);
   /* a building has walls both ways and a few rooms' worth of them */
   if (!best || best.run < z.line * 8) return null;
-  const grid = gridOf(best.segs, z);
+  const also = rest.filter((w) => w.run >= 0.35 * best.run && w.run >= 0.75 * runOf(w.segs));
+  const segs = buildingsOf([...best.segs, ...also.flatMap((w) => w.tied)], z);
+  const grid = gridOf(segs, z);
   if (grid.x.length < 2 || grid.y.length < 2) return null;
-  return { ...best, grid };
+  return { shade: best.shade, segs, grid, run: best.run + also.reduce((n, w) => n + w.run, 0) };
 }
 
 /** Walls found on a drawing drawn `k` times the size, back in the size asked for. */

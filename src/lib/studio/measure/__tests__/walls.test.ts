@@ -1,11 +1,4 @@
-import {
-  findWalls,
-  gridOf,
-  scaleWalls,
-  wallSizes,
-  withoutStripes,
-  type WallSeg,
-} from "../walls";
+import { buildingsOf, findWalls, gridOf, scaleWalls, wallSizes, withoutStripes, type WallSeg } from "../walls";
 
 /* a drawing made here: white paper, 20 mm a pixel, things drawn as filled boxes */
 const W = 900;
@@ -95,12 +88,39 @@ describe("the walls off a drawing", () => {
 });
 
 describe("the sizes a wall is judged by", () => {
-  it("come from the scale, and without one take the sheet as A1 at 1:100", () => {
-    expect(wallSizes(4768, 17.64).thin).toBeCloseTo(3.97, 1);
-    expect(wallSizes(4768, null).thin).toBeCloseTo(
-      wallSizes(4768, 17.64).thin,
-      1,
-    );
+  it("come from the scale, and without one are wide enough for a sheet at 1:100 or 1:50", () => {
+    expect(wallSizes(4768, 17.64).thick).toBeCloseTo(34, 0);
+    const blind = wallSizes(2381, null);
+    /* a 300 mm wall at 1:100 on A3 drawn 2381 wide is 17 px; at 1:50, 34 */
+    expect(blind.thin).toBe(3);
+    expect(blind.thick).toBeGreaterThanOrEqual(34);
+  });
+});
+
+describe("the buildings among the pieces", () => {
+  const z = wallSizes(4768, 17.64);
+  const boxAt = (x: number, y: number, w: number, h: number): WallSeg[] => [
+    { dir: "h", c: y, a: x, b: x + w, t: 14 },
+    { dir: "h", c: y + h, a: x, b: x + w, t: 14 },
+    { dir: "v", c: x, a: y, b: y + h, t: 14 },
+    { dir: "v", c: x + w, a: y, b: y + h, t: 14 },
+  ];
+  it("keep the house and a garage across the yard, and leave out a logo's lettering in the title block", () => {
+    const house = boxAt(1000, 500, 1500, 900);
+    const garage = boxAt(200, 500, 400, 400);
+    const logo = boxAt(600, 3000, 90, 110);
+    /* a wall piece between two wide openings meets nothing, and is the house's all the same */
+    const lone: WallSeg = { dir: "h", c: 1400, a: 1300, b: 1400, t: 14 };
+    const kept = buildingsOf([...house, ...garage, ...logo, lone], z);
+    expect(kept).toHaveLength(9);
+    expect(kept.every((s) => s.c < 2900 && s.a < 2900)).toBe(true);
+  });
+  it("count a wall's pieces either side of a door as one building", () => {
+    const pieces: WallSeg[] = [
+      { dir: "h", c: 100, a: 0, b: 300, t: 14 },
+      { dir: "h", c: 100, a: 360, b: 2000, t: 14 },
+    ];
+    expect(buildingsOf(pieces, z)).toHaveLength(2);
   });
 });
 

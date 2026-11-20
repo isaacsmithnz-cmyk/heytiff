@@ -19,6 +19,7 @@ import { Tooltip } from "@/components/parts/tooltip";
 import { Icon } from "@/components/shell/icon";
 import { Globe } from "./tiff-panel";
 import { CompareCard } from "./compare-card";
+import { Typed } from "./typed";
 import type { LinesView } from "./quote-lines-face";
 
 /* THE LINE ITEMS: the quote by hand, on its kept lines (the engine rebuild,
@@ -37,6 +38,18 @@ import type { LinesView } from "./quote-lines-face";
    shut, its band its name and its total, and opens on a press (Isaac,
    2026-10-15: "have everything collapsed first… collapsed with the total
    next to it").
+
+   ON THE QUOTE'S OWN TAB IT IS LAID OUT AS AN IPAD'S SCREEN (`pad`; Isaac,
+   20 and 21 November 2026: "top of this section very messy", "tidy up more,
+   less noise", "pretend that this section is on an ipad", then "Build all
+   three" to https://claude.ai/artifact/EAB8Y8FsbnPbcuBXKDhT93): the options
+   a slider with a quiet Add an option beside it, the open option's name the
+   title, typed on; one Add beside the book's search; each system one row
+   that opens to its groups; and This option's rows at the foot (where a
+   line goes, who the job buys from, what's not in this option, the
+   versions and the changes), each opening what it holds. Nothing it does
+   left with the old layout: every add, the kit, the copy and each Undo are
+   a press away.
 
    Each edit goes to the route with the version the line was read at, so two
    people never overwrite each other (lines-server.ts); the price is read
@@ -230,6 +243,36 @@ export function sellEachOf(o: OptionPrice | undefined, lines: QuoteLine[]): Map<
   return out;
 }
 
+/** One of This option's rows (pad): its name, what it stands at on the
+    right, and a chevron; a menu's row waits while the quote is busy. */
+function OptRow({
+  name,
+  word,
+  open,
+  menu = false,
+  disabled = false,
+  buttonRef,
+  onClick,
+}: {
+  name: string;
+  word: string;
+  open: boolean;
+  menu?: boolean;
+  disabled?: boolean;
+  buttonRef?: React.Ref<HTMLButtonElement>;
+  onClick: () => void;
+}) {
+  return (
+    <button ref={buttonRef} type="button" className="qx-row" aria-haspopup={menu ? "menu" : undefined} aria-expanded={open} disabled={disabled} onClick={onClick}>
+      <b>{name}</b>
+      <span className="qx-r">{word}</span>
+      <span className="qx-ch" aria-hidden="true">
+        <Icon name={open && !menu ? "chevD" : "chevR"} size={16} />
+      </span>
+    </button>
+  );
+}
+
 export function QuoteLineItems({
   job,
   view,
@@ -246,6 +289,8 @@ export function QuoteLineItems({
   onOpenVersion,
   onRemove,
   swapAsk = null,
+  pad = false,
+  optionRows = [],
 }: {
   job: string;
   view: LinesView | null;
@@ -270,8 +315,28 @@ export function QuoteLineItems({
   onRemove: (lines: QuoteLine[]) => void;
   /** Swap pressed elsewhere (To confirm): this line's pick list opens */
   swapAsk?: { id: string; n: number } | null;
+  /** laid out as an iPad's screen, on the quote's own tab (Isaac, 20
+      November 2026: "pretend that this section is on an ipad"): the options
+      a slider, the open one's name the title, one Add, each system a row
+      that opens, and This option's rows at the foot */
+  pad?: boolean;
+  /** every option and its total, for the slider (pad) */
+  optionRows?: { option: number; name: string; total: string | null; on: boolean }[];
 }) {
   const [search, setSearch] = useState("");
+  /* pad: the one menu open, and which of This option's rows are */
+  const [menu, setMenu] = useState<"add" | "option" | "system" | "supplier" | null>(null);
+  const [shown, setShown] = useState<ReadonlySet<string>>(() => new Set());
+  const flip = (key: string) =>
+    setShown((was) => {
+      const next = new Set(was);
+      if (!next.delete(key)) next.add(key);
+      return next;
+    });
+  const addRef = useRef<HTMLButtonElement>(null);
+  const optRef = useRef<HTMLButtonElement>(null);
+  const sysRef = useRef<HTMLButtonElement>(null);
+  const supRef = useRef<HTMLButtonElement>(null);
   const [hits, setHits] = useState<BookHit[] | null>(null);
   const [system, setSystem] = useState("");
   const [kitOpen, setKitOpen] = useState(false);
@@ -405,8 +470,214 @@ export function QuoteLineItems({
     </tr>
   ) : null;
 
+  const hitsList = hits && (
+    <ul className="ql-hits">
+      {hits.length === 0 && <li className="none">Nothing in your book like that.</li>}
+      {hits.map((h) => (
+        <li key={h.product.key}>
+          <button type="button" disabled={busy} onClick={() => addFromBook(h)}>
+            <span>
+              {h.product.name}
+              <small>{`${offerFor(h.product, view?.supplier ?? null)?.code ?? ""}, ${h.why.toLowerCase()}`}</small>
+            </span>
+            <b>{offerFor(h.product, view?.supplier ?? null) ? fmtAud(offerFor(h.product, view?.supplier ?? null)!.netCents) : "–"}</b>
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+  const kitForm = kitOpen && (
+    <KitForm
+      busy={busy}
+      system={system}
+      packs={view?.packs ?? []}
+      onAdd={(k) => {
+        setKitOpen(false);
+        void adding({ op: "kit", optionIndex: at, ...k });
+      }}
+    />
+  );
+  const addLoading = () => {
+    if (!labourAt) return;
+    onGroups([groupKey(labourAt)], true);
+    setLoad({ pct: 10, reason: "" });
+  };
+  const copyFirst = () => {
+    const to = options;
+    void act({ op: "copy", from: 0, to }).then(() => onOption(to));
+  };
+  const canCopy = all.some((l) => l.optionIndex === 0);
+  const colHead = (
+    <table className="ql-lt ql-colh">
+      <Cols money={money} />
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th className="n">Qty</th>
+          {money && <th className="n">Cost each</th>}
+          {money && <th className="n">Sell each</th>}
+          {money && <th className="n">Total</th>}
+          <th aria-label="Swap or remove" />
+        </tr>
+      </thead>
+    </table>
+  );
+  const missing = at !== base ? missingFromFirst(at, all, base) : [];
+  const changes = view?.changes ?? [];
+  const versionsList = (
+    <ul className="ql-chg" aria-label="Versions">
+      {versions.map((v) => (
+        <li key={v.n}>
+          <span>
+            <b>{`Version ${v.n}`}</b>
+            <small>{v.options.map((x) => `${x.name}: ${fmtAud(x.incGstCents)} inc GST`).join(", ")}</small>
+          </span>
+          <button type="button" className="ql-undo" onClick={() => onOpenVersion(v.n)}>
+            Open
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+  const changesList = (
+    <ul className="ql-chg" aria-label={pad ? "Changes" : undefined}>
+      {changes.slice(0, 30).map((c) => {
+        const who = c.madeBy === view?.me ? "You" : c.madeBy === "tiff" ? "Tiff" : (view?.names[c.madeBy] ?? "Someone");
+        const name = (c.after?.name ?? c.before?.name ?? "a line") as string;
+        const what =
+          c.action === "add"
+            ? `added ${name}`
+            : c.action === "remove"
+              ? `took off ${name}`
+              : `changed ${Object.keys(c.after ?? {})
+                  .filter((k) => k !== "source")
+                  .map((k) => (k === "qty" ? "qty" : k === "costCents" ? "cost" : k === "sellCents" ? "sell" : k))
+                  .join(", ")}`;
+        return (
+          <li key={c.id}>
+            <span>
+              <b>{who}</b> {what}
+              {c.why ? <small>{c.why}</small> : null}
+            </span>
+            <button type="button" className="ql-undo" disabled={busy} onClick={() => void act({ op: "undo", change: c.id })}>
+              Undo
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
   return (
     <>
+      {pad ? (
+        <>
+          <div className="qx-opts">
+            {optionRows.length > 1 && (
+              /* every option and its total, one of a few (rule 30): the
+                 chosen one filled white on the tray */
+              <div className="qx-seg" role="tablist" aria-label="Options">
+                {optionRows.map((r) => (
+                  <button key={r.option} type="button" role="tab" aria-selected={r.on} className={r.on ? "on" : undefined} onClick={() => onOption(r.option)}>
+                    {r.name}
+                    {r.total && <span>{r.total}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+            <Button
+              ref={optRef}
+              kind="quiet"
+              icon="plus"
+              disabled={busy}
+              aria-haspopup={canCopy ? "menu" : undefined}
+              aria-expanded={canCopy ? menu === "option" : undefined}
+              onClick={() => (canCopy ? setMenu(menu === "option" ? null : "option") : onOption(options))}
+            >
+              Add an option
+            </Button>
+            <Menu
+              open={menu === "option"}
+              anchor={optRef}
+              align="end"
+              label="Add an option"
+              onClose={() => setMenu(null)}
+              onSelect={(k) => {
+                setMenu(null);
+                if (k === "copy") copyFirst();
+                else onOption(options);
+              }}
+              items={[
+                { key: "new", label: "A new option" },
+                { key: "copy", label: "Copy option 1 to a new option" },
+              ]}
+            />
+          </div>
+          {variation ? (
+            <h2 className="qx-title">{`Variation ${variation.n}${variation.what ? `: ${variation.what}` : ""}`}</h2>
+          ) : (
+            all.length > 0 && (
+              /* the option's name is its title, typed on where it sits, as
+                 the Proposal is typed on */
+              <Typed
+                key={at}
+                as="h2"
+                className="qx-title"
+                label={`Option ${at + 1}, as the proposal names it`}
+                empty="Name it for the proposal"
+                value={view?.optionNames?.[at] ?? ""}
+                onSave={(name) => void act({ op: "name", option: at, name })}
+              />
+            )
+          )}
+          <section className="ql-add qx-add" aria-label="Add a line">
+            <div className={money ? "qx-addrow" : "qx-addrow qx-addrow--one"}>
+              {/* the book carries prices: its search is for those who see money */}
+              {money && (
+                <input
+                  className="wb2-fi"
+                  value={search}
+                  placeholder="Add a line from your book"
+                  aria-label="Search your book for a line to add"
+                  onChange={(e) => void find(e.target.value)}
+                />
+              )}
+              <Button ref={addRef} size={36} disabled={busy} aria-haspopup="menu" aria-expanded={menu === "add"} onClick={() => setMenu(menu === "add" ? null : "add")}>
+                Add
+                <span className="jp-chev" aria-hidden="true">
+                  <Icon name="chevD" size={16} />
+                </span>
+              </Button>
+              <Menu
+                open={menu === "add"}
+                anchor={addRef}
+                align="end"
+                label="Add to this option"
+                onClose={() => setMenu(null)}
+                onSelect={(k) => {
+                  setMenu(null);
+                  if (k === "hand") addByHand("material");
+                  if (k === "labour") addByHand("labour");
+                  if (k === "provisional") addProvisional();
+                  if (k === "loading") addLoading();
+                  if (k === "kit") setKitOpen(true);
+                }}
+                items={[
+                  { key: "hand", label: "A line by hand" },
+                  { key: "labour", label: "Labour" },
+                  ...(money ? [{ key: "provisional", label: "A provisional sum" }] : []),
+                  /* 10%: the low end of Isaac's own "10 to 15%"; not applied until
+                     it says why, typed on its row: Labour opens to show it */
+                  ...(money && labourAt && !loading ? [{ key: "loading", label: "A loading on labour" }] : []),
+                  { key: "kit", label: "A kit" },
+                ]}
+              />
+            </div>
+            {hitsList}
+            {kitForm}
+          </section>
+        </>
+      ) : (
+      <>
       <div className="ql-sumrow">
         {all.length > 0 && !variation && (
           <TextBox
@@ -456,22 +727,7 @@ export function QuoteLineItems({
             ))}
           </select>
         </div>
-        {hits && (
-          <ul className="ql-hits">
-            {hits.length === 0 && <li className="none">Nothing in your book like that.</li>}
-            {hits.map((h) => (
-              <li key={h.product.key}>
-                <button type="button" disabled={busy} onClick={() => addFromBook(h)}>
-                  <span>
-                    {h.product.name}
-                    <small>{`${offerFor(h.product, view?.supplier ?? null)?.code ?? ""}, ${h.why.toLowerCase()}`}</small>
-                  </span>
-                  <b>{offerFor(h.product, view?.supplier ?? null) ? fmtAud(offerFor(h.product, view?.supplier ?? null)!.netCents) : "–"}</b>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
+        {hitsList}
         <div className="ql-adds">
           <Button size={32} icon="plus" disabled={busy} onClick={() => addByHand("material")}>
             Add a line by hand
@@ -487,15 +743,7 @@ export function QuoteLineItems({
           {money && labourAt && !loading && (
             /* 10%: the low end of Isaac's own "10 to 15%"; not applied until
                it says why, typed on its row: Labour opens to show it */
-            <Button
-              size={32}
-              icon="plus"
-              disabled={busy}
-              onClick={() => {
-                onGroups([groupKey(labourAt)], true);
-                setLoad({ pct: 10, reason: "" });
-              }}
-            >
+            <Button size={32} icon="plus" disabled={busy} onClick={addLoading}>
               Add a loading
             </Button>
           )}
@@ -505,62 +753,58 @@ export function QuoteLineItems({
           <Button size={32} icon="plus" disabled={busy} onClick={() => onOption(options)}>
             Add an option
           </Button>
-          {all.some((l) => l.optionIndex === 0) && (
-            <Button
-              disabled={busy}
-              size={32}
-              onClick={() => {
-                const to = options;
-                void act({ op: "copy", from: 0, to }).then(() => onOption(to));
-              }}
-            >
+          {canCopy && (
+            <Button disabled={busy} size={32} onClick={copyFirst}>
               Copy option 1 to a new option
             </Button>
           )}
         </div>
-        {kitOpen && (
-          <KitForm
-            busy={busy}
-            system={system}
-            packs={view?.packs ?? []}
-            onAdd={(k) => {
-              setKitOpen(false);
-              void adding({ op: "kit", optionIndex: at, ...k });
-            }}
-          />
-        )}
+        {kitForm}
       </section>
+      </>
+      )}
 
       {/* a line's compare is its group's: shut, the group hides it too */}
       {compared && open.has(groupKey(compared)) && (
         <CompareCard key={compared.id} job={job} lineId={compared.id} onClose={() => setComparing(null)} onChanged={onCompared} />
       )}
 
-      <table className="ql-lt ql-colh">
-        <Cols money={money} />
-        <thead>
-          <tr>
-            <th>Item</th>
-            <th className="n">Qty</th>
-            {money && <th className="n">Cost each</th>}
-            {money && <th className="n">Sell each</th>}
-            {money && <th className="n">Total</th>}
-            <th aria-label="Swap or remove" />
-          </tr>
-        </thead>
-      </table>
+      {!pad && colHead}
 
+      {pad && systems.length > 0 && <h2 className="qx-head">Line items</h2>}
       {systems.length === 0 && <p className="qp-none">No lines yet.</p>}
+      <div className={pad && systems.length > 0 ? "qx-card qx-systems" : "qx-plain"}>
       {systems.map((sys, si) => {
         const mine = lines.filter((l) => l.system === sys);
         const groups = [...new Set(mine.map((l) => l.group))];
         const sysTotal = mine.reduce((n, l) => n + Math.round((sells.get(l.id) ?? 0) * l.qty), 0);
+        /* pad: a system is one row, its groups named under it and its
+           total said once; pressed, it opens to its groups and their lines */
+        const keys = groups.map((g) => groupKey({ system: sys, group: g }));
+        const sysOpen = keys.some((k) => open.has(k));
+        const hours = Math.round(mine.filter((l) => l.kind === "labour").reduce((n, l) => n + l.qty, 0) * 100) / 100;
+        const under = groups.map((g) => (g === "Labour" && hours > 0 ? `Labour, ${hours} ${hours === 1 ? "hour" : "hours"}` : g)).join(", ");
         return (
-          <section key={sys || "_"} className="ql-sys" aria-label={sys || "Quote"}>
+          <section key={sys || "_"} className={pad ? (sysOpen ? "ql-sys qx-sys on" : "ql-sys qx-sys") : "ql-sys"} aria-label={sys || "Quote"}>
+            {pad ? (
+              <button type="button" className="qx-sysbtn" aria-expanded={sysOpen} onClick={() => onGroups(keys, !sysOpen)}>
+                <span className="qx-sysw">
+                  <b>{sys || "Quote"}</b>
+                  <em>{under}</em>
+                </span>
+                <strong>{money ? cents2(sysTotal) : `${mine.length} ${mine.length === 1 ? "line" : "lines"}`}</strong>
+                <span className="qx-ch" aria-hidden="true">
+                  <Icon name={sysOpen ? "chevD" : "chevR"} size={16} />
+                </span>
+              </button>
+            ) : (
             <header className="ql-sys-h">
               <h3>{sys || "Quote"}</h3>
               {money && <b>{cents2(sysTotal)}</b>}
             </header>
+            )}
+            {pad && sysOpen && colHead}
+            {(!pad || sysOpen) && (
             <table className="ql-lt">
               <Cols money={money} />
               {groups.map((g, gi) => {
@@ -754,68 +998,82 @@ export function QuoteLineItems({
                 ];
               })}
             </table>
+            )}
           </section>
         );
       })}
-
-      {at !== base && missingFromFirst(at, all, base).length > 0 && (
-        <p className="qp-none">{`Not in this option: ${missingFromFirst(at, all, base)
-          .map((l) => l.name)
-          .join(", ")}`}</p>
-      )}
-
-
-      {/* the quote's history, under its lines: it was the rail's, beside Tiff */}
-      <div className="ql-hist">
-        {versions.length > 0 && (
-          <section>
-            <h2 className="hd-ls-grp">Versions</h2>
-            <ul className="ql-chg" aria-label="Versions">
-              {versions.map((v) => (
-                <li key={v.n}>
-                  <span>
-                    <b>{`Version ${v.n}`}</b>
-                    <small>{v.options.map((x) => `${x.name}: ${fmtAud(x.incGstCents)} inc GST`).join(", ")}</small>
-                  </span>
-                  <button type="button" className="ql-undo" onClick={() => onOpenVersion(v.n)}>
-                    Open
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-        <section>
-          <h2 className="hd-ls-grp">Changes</h2>
-          {(view?.changes ?? []).length === 0 && <p className="qp-none">Nothing changed yet.</p>}
-          <ul className="ql-chg">
-            {(view?.changes ?? []).slice(0, 30).map((c) => {
-              const who = c.madeBy === view?.me ? "You" : c.madeBy === "tiff" ? "Tiff" : (view?.names[c.madeBy] ?? "Someone");
-              const name = (c.after?.name ?? c.before?.name ?? "a line") as string;
-              const what =
-                c.action === "add"
-                  ? `added ${name}`
-                  : c.action === "remove"
-                    ? `took off ${name}`
-                    : `changed ${Object.keys(c.after ?? {})
-                        .filter((k) => k !== "source")
-                        .map((k) => (k === "qty" ? "qty" : k === "costCents" ? "cost" : k === "sellCents" ? "sell" : k))
-                        .join(", ")}`;
-              return (
-                <li key={c.id}>
-                  <span>
-                    <b>{who}</b> {what}
-                    {c.why ? <small>{c.why}</small> : null}
-                  </span>
-                  <button type="button" className="ql-undo" disabled={busy} onClick={() => void act({ op: "undo", change: c.id })}>
-                    Undo
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
       </div>
+
+      {pad ? (
+        /* THIS OPTION, as rows that open (Isaac, 20 November 2026: "top of
+           this section very messy", "changes should be collapsed"): where a
+           new line goes, who the job buys from, what option 1 has that this
+           one doesn't, the versions kept, and every change with its Undo */
+        <>
+          <h2 className="qx-head">This option</h2>
+          <div className="qx-card qx-rows">
+            {systems.some(Boolean) && <OptRow buttonRef={sysRef} name="System" word={system || "No system"} menu disabled={busy} open={menu === "system"} onClick={() => setMenu(menu === "system" ? null : "system")} />}
+            {(view?.suppliers ?? []).length > 0 && (
+              <OptRow buttonRef={supRef} name="Buy from" word={view?.supplier ? supplierName(view.supplier) : "Any supplier"} menu disabled={busy} open={menu === "supplier"} onClick={() => setMenu(menu === "supplier" ? null : "supplier")} />
+            )}
+            {missing.length > 0 && <OptRow name="Not in this option" word={`${missing.length} ${missing.length === 1 ? "line" : "lines"}`} open={shown.has("missing")} onClick={() => flip("missing")} />}
+            {missing.length > 0 && shown.has("missing") && (
+              <ul className="qx-open qx-names" aria-label="Not in this option">
+                {missing.map((l) => (
+                  <li key={l.id}>{l.name}</li>
+                ))}
+              </ul>
+            )}
+            {versions.length > 0 && <OptRow name="Versions" word={String(versions.length)} open={shown.has("versions")} onClick={() => flip("versions")} />}
+            {versions.length > 0 && shown.has("versions") && <div className="qx-open">{versionsList}</div>}
+            <OptRow name="Changes" word={changes.length > 0 ? String(changes.length) : "None yet"} open={shown.has("changes")} onClick={() => flip("changes")} />
+            {shown.has("changes") && <div className="qx-open">{changes.length === 0 ? <p className="qp-none">Nothing changed yet.</p> : changesList}</div>}
+          </div>
+          <Menu
+            open={menu === "system"}
+            anchor={sysRef}
+            align="end"
+            label="The system a new line goes in"
+            onClose={() => setMenu(null)}
+            onSelect={(k) => {
+              setMenu(null);
+              setSystem(k === "_none" ? "" : k);
+            }}
+            items={[{ key: "_none", label: "No system" }, ...systems.filter(Boolean).map((s) => ({ key: s, label: s }))]}
+          />
+          <Menu
+            open={menu === "supplier"}
+            anchor={supRef}
+            align="end"
+            label="Buy from, for this job"
+            onClose={() => setMenu(null)}
+            onSelect={(k) => {
+              setMenu(null);
+              void act({ op: "supplier", key: k === "_any" ? "" : k });
+            }}
+            items={[{ key: "_any", label: "Any supplier" }, ...(view?.suppliers ?? []).map((s) => ({ key: s.key, label: `${s.name}, else the lowest` }))]}
+          />
+        </>
+      ) : (
+        <>
+          {missing.length > 0 && <p className="qp-none">{`Not in this option: ${missing.map((l) => l.name).join(", ")}`}</p>}
+
+          {/* the quote's history, under its lines: it was the rail's, beside Tiff */}
+          <div className="ql-hist">
+            {versions.length > 0 && (
+              <section>
+                <h2 className="hd-ls-grp">Versions</h2>
+                {versionsList}
+              </section>
+            )}
+            <section>
+              <h2 className="hd-ls-grp">Changes</h2>
+              {changes.length === 0 && <p className="qp-none">Nothing changed yet.</p>}
+              {changesList}
+            </section>
+          </div>
+        </>
+      )}
     </>
   );
 }

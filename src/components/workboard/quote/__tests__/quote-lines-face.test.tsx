@@ -3,6 +3,7 @@ import { priceBuildUp } from "@/lib/quotes/buildup";
 import type { QuoteLine } from "@/lib/quotes/lines";
 import { buildLineOf } from "@/lib/quotes/lines-price";
 import type { QuotePrice } from "@/lib/quotes/quote-price-server";
+import { cents2 } from "@/lib/quotes/quote-sum";
 import { QuoteLinesFace } from "../quote-lines-face";
 
 /* The quote by hand on its kept lines (the engine rebuild, slice 2.3, to
@@ -602,7 +603,7 @@ describe("the proposal (7.1)", () => {
   /* THE PHONE'S THREE TABS (the Price overhaul, 18 November 2026): Build,
      Breakdown and Proposal across the quote, All ex GST at their right; the
      total beside Build and Breakdown, Proposal the page at full width */
-  it("in its own tab, lays Build, Breakdown and Proposal across the quote, Proposal the page at full width", async () => {
+  it("in its own tab, lays Build, Breakdown and Proposal across the quote, the panel beside each", async () => {
     (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => ({ json: async () => view([indoor]) }));
     render(<QuoteLinesFace job="job-3377" views price={pricedWhole} onPriced={jest.fn()} meta={{ title: "Air conditioning for 12 Smith St", client: "Jo Bloggs", site: "12 Smith St", jobNumber: "3377" }} />);
     const tabs = await screen.findByRole("tablist", { name: "The quote" });
@@ -614,7 +615,15 @@ describe("the proposal (7.1)", () => {
     expect(screen.queryByRole("button", { name: "Preview quote" })).toBeNull();
     fireEvent.click(within(tabs).getByRole("tab", { name: "Proposal" }));
     expect(screen.getByRole("article", { name: "The proposal" })).toHaveTextContent("Jo Bloggs");
-    expect(screen.queryByRole("complementary", { name: "On this quote" })).toBeNull();
+    /* beside the Proposal the panel stays ("Build all three", 21 November
+       2026): the total alone, then the paper's own choices as rows */
+    const panel = within(screen.getByRole("complementary", { name: "On this quote" }));
+    expect(within(panel.getByRole("region", { name: "The quote" })).queryByText(/^Labour/)).toBeNull();
+    const choices = within(panel.getByRole("region", { name: "The proposal's choices" }));
+    expect(choices.getAllByRole("button").map((b) => b.textContent)).toEqual(["Customer picksOne option", "PaymentHome, small job", "NotesNone"]);
+    /* a row opens the paper's own editor */
+    fireEvent.click(choices.getByRole("button", { name: /^Payment/ }));
+    expect(screen.getByRole("combobox", { name: "The payment stages" })).toBeInTheDocument();
     fireEvent.click(within(tabs).getByRole("tab", { name: "Breakdown" }));
     expect(screen.queryByRole("article", { name: "The proposal" })).not.toBeInTheDocument();
     expect(screen.getByRole("complementary", { name: "On this quote" })).toBeInTheDocument();
@@ -640,6 +649,123 @@ describe("the proposal (7.1)", () => {
     await waitFor(() => expect(onStage).toHaveBeenLastCalledWith(expect.objectContaining({ word: "Customer accepted", good: true })));
     expect(onStage.mock.calls.at(-1)![0]).not.toHaveProperty("title");
     expect(typeof onStage.mock.calls.at(-1)![0].undo).toBe("function");
+  });
+
+  /* THE QUOTE'S TAB AS AN IPAD AND AN IPHONE (Isaac, 20 and 21 November
+     2026: "pretend that this section is on an ipad", "and the right panel
+     is on an iphone", "B but better", "Build all three" to
+     https://claude.ai/artifact/EAB8Y8FsbnPbcuBXKDhT93) */
+  describe("the quote's own tab, laid out as an iPad and an iPhone", () => {
+    const second = line({ id: "o2", optionIndex: 1, system: "Existing system", group: "Pipe, power and controls", name: "Refrigerant", code: "R-10", kind: "material", costCents: 5000 });
+    const twoBuilds = [wholeBuild, priceBuildUp([buildLineOf(second)], [{ stage: "Commissioning", people: 1, days: 0.625 }], settings)];
+    const two: QuotePrice = { ok: true, chargeOutCents: 14000, options: twoBuilds.map((b, i) => ({ name: `Option ${i + 1}`, build: b, unpriced: [], rows: 1, labourFrom: "you", profit: { costCents: 1, profitCents: 26688, pct: 20, targetPct: 20, hourCostCents: 11200, short: null } })) };
+    const open = (answer: Record<string, unknown> = {}) => {
+      (global as unknown as { fetch: unknown }).fetch = jest.fn(async (_url: string, init?: { body?: string }) => {
+        if (init?.body) posted.push(JSON.parse(init.body));
+        return { json: async () => ({ ...view([indoor, second]), optionNames: ["Ducted, downstairs", "Repair the existing system"], suppliers: [{ key: "reece", name: "Reece" }], supplier: null, ...answer }) };
+      });
+      render(<QuoteLinesFace job="job-3377" views price={two} onPriced={jest.fn()} meta={{ title: "Quote", client: "Bloggs, Jo", site: "12 Smith St", jobNumber: "3377" }} />);
+    };
+
+    it("says the total on one card, every figure in a column, and no Units row at $0", async () => {
+      open();
+      const slider = await screen.findByRole("tablist", { name: "Options" });
+      fireEvent.click(within(slider).getByRole("tab", { name: /^Option 2/ }));
+      const card = within(screen.getByRole("region", { name: "The quote" }));
+      expect(card.getByText("Total ex GST").nextElementSibling).toHaveTextContent(cents2(twoBuilds[1]!.exGstCents));
+      expect(card.getByText("Inc GST").nextElementSibling).toHaveTextContent(cents2(twoBuilds[1]!.incGstCents));
+      /* option 2 has no units: the row isn't drawn; option 1 has */
+      expect(card.queryByText("Units")).toBeNull();
+      expect(card.getByText("Materials")).toBeInTheDocument();
+      expect(card.getByText("Labour")).toBeInTheDocument();
+      /* at its target the profit says its figure and no more */
+      expect(card.getByText("Profit in that, 20%").nextElementSibling).toHaveClass("good");
+      expect(card.queryByText(/your 20%/)).toBeNull();
+      fireEvent.click(within(slider).getByRole("tab", { name: /^Option 1/ }));
+      expect(card.getByText("Units")).toBeInTheDocument();
+    });
+
+    it("says where it's up to as rows: the last step done, what needs a look, what's next", async () => {
+      open({ approved: true, proposal: null });
+      const where = within(await screen.findByRole("region", { name: "Where it's up to" }));
+      await where.findByText("Ready to send");
+      const rows = where.getAllByRole("listitem").map((li) => li.textContent);
+      expect(rows[0]).toMatch(/^Ready to send/);
+      expect(rows.at(-1)).toBe("SentNot yet");
+      /* not all seven: Brief, Scope and Priced are behind it */
+      expect(where.queryByText("Brief")).toBeNull();
+      expect(where.queryByText("Priced")).toBeNull();
+    });
+
+    it("picks an option on Breakdown's slider, each with its total, and adds one from the quiet button beside it", async () => {
+      open();
+      const slider = within(await screen.findByRole("tablist", { name: "Options" }));
+      expect(slider.getAllByRole("tab").map((t) => t.textContent)).toEqual([`Option 1${cents2(twoBuilds[0]!.exGstCents)}`, `Option 2${cents2(twoBuilds[1]!.exGstCents)}`]);
+      expect(slider.getByRole("tab", { name: /^Option 1/ })).toHaveAttribute("aria-selected", "true");
+      /* the open option's name is the title, typed on */
+      expect(screen.getByRole("heading", { name: "Ducted, downstairs" })).toHaveAttribute("contenteditable");
+      fireEvent.click(slider.getByRole("tab", { name: /^Option 2/ }));
+      expect(screen.getByRole("heading", { name: "Repair the existing system" })).toBeInTheDocument();
+      /* the rail's own list of options isn't drawn twice */
+      expect(screen.queryByRole("region", { name: "Options" })).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "Add an option" }));
+      await act(async () => {
+        fireEvent.click(screen.getByRole("menuitem", { name: "Copy option 1 to a new option" }));
+      });
+      expect(posted).toContainEqual({ job: "job-3377", op: "copy", from: 0, to: 2 });
+    });
+
+    it("adds from one Add beside the book search, and draws no column heads until a system opens", async () => {
+      open();
+      await screen.findByRole("tablist", { name: "Options" });
+      expect(screen.queryByRole("columnheader", { name: "Qty" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Add a line by hand" })).toBeNull();
+      fireEvent.click(within(screen.getByRole("region", { name: "Add a line" })).getByRole("button", { name: "Add" }));
+      expect(screen.getAllByRole("menuitem").map((m) => m.textContent)).toEqual(["A line by hand", "Labour", "A provisional sum", "A kit"]);
+      await act(async () => {
+        fireEvent.click(screen.getByRole("menuitem", { name: "A line by hand" }));
+      });
+      expect(posted).toContainEqual(expect.objectContaining({ op: "add", line: expect.objectContaining({ name: "A line by hand", source: "by_hand" }) }));
+      /* a system is one row, its groups under its name and its total once */
+      const system = screen.getByRole("button", { name: /^Downstairs/, expanded: false });
+      expect(system).toHaveTextContent(/^DownstairsUnits\$/);
+      fireEvent.click(system);
+      expect(screen.getByRole("columnheader", { name: "Qty" })).toBeInTheDocument();
+      expect(screen.getByText("Ducted indoor, under the floor")).toBeInTheDocument();
+    });
+
+    it("keeps where a line goes, who it buys from, what's missing and the changes as This option's rows, each opening", async () => {
+      open();
+      const slider = await screen.findByRole("tablist", { name: "Options" });
+      fireEvent.click(within(slider).getByRole("tab", { name: /^Option 2/ }));
+      expect(screen.getByRole("button", { name: /^System/ })).toHaveTextContent("SystemNo system");
+      fireEvent.click(screen.getByRole("button", { name: /^Buy from/ }));
+      await act(async () => {
+        fireEvent.click(screen.getByRole("menuitem", { name: "Reece, else the lowest" }));
+      });
+      expect(posted).toContainEqual({ job: "job-3377", op: "supplier", key: "reece" });
+      /* what option 1 has that this one doesn't: one row that opens to the names */
+      const missing = screen.getByRole("button", { name: /^Not in this option/ });
+      expect(missing).toHaveTextContent("Not in this option1 line");
+      expect(screen.queryByRole("list", { name: "Not in this option" })).toBeNull();
+      fireEvent.click(missing);
+      expect(screen.getByRole("list", { name: "Not in this option" })).toHaveTextContent("Ducted indoor, under the floor");
+      /* Changes is shut as the page opens, and opens to every change and its Undo */
+      const changes = screen.getByRole("button", { name: /^Changes/ });
+      expect(changes).toHaveTextContent("Changes2");
+      expect(changes).toHaveAttribute("aria-expanded", "false");
+      expect(screen.queryByRole("list", { name: "Changes" })).toBeNull();
+      fireEvent.click(changes);
+      expect(within(screen.getByRole("list", { name: "Changes" })).getAllByRole("button", { name: "Undo" })).toHaveLength(2);
+    });
+
+    it("names who a sent quote went to in the Update dialog: the given name of \"Bloggs, Jo\"", async () => {
+      const { sentTo } = jest.requireActual("../quote-lines-face") as typeof import("../quote-lines-face");
+      expect(sentTo("Bloggs, Jo")).toBe("Jo");
+      expect(sentTo("Example Building Co")).toBe("Example Building Co");
+      expect(sentTo("Jo Bloggs")).toBe("Jo Bloggs");
+      expect(sentTo(null)).toBe("the customer");
+    });
   });
 
   /* layout B (Isaac, 21 October 2026): "Price on top, buttons pinned" */
@@ -987,9 +1113,9 @@ describe("a variation to the accepted quote", () => {
     });
     render(<QuoteLinesFace job="job-3377" price={priceFor([indoor, diffuser])} onPriced={jest.fn()} />);
     fireEvent.click(await screen.findByRole("button", { name: "Update quote" }));
-    const dialog = screen.getByRole("dialog", { name: "Update quote" });
-    expect(within(dialog).getByText(/is accepted, so this is a variation/)).toBeInTheDocument();
-    fireEvent.change(within(dialog).getByLabelText("What's changing"), { target: { value: "Client wants the upstairs hallway done too." } });
+    const dialog = screen.getByRole("dialog", { name: "Update the quote" });
+    expect(within(dialog).getByText(/^The quote is accepted and stays as it is\. This starts a variation, priced as the difference, which the customer accepts on its own\.$/)).toBeInTheDocument();
+    fireEvent.change(within(dialog).getByLabelText("What to change"), { target: { value: "Client wants the upstairs hallway done too." } });
     await act(async () => {
       fireEvent.click(within(dialog).getByRole("button", { name: "Start variation 1" }));
     });
@@ -1052,9 +1178,11 @@ describe("version 2 before it's accepted", () => {
   it("starts from Update quote on an approved quote nobody has accepted", async () => {
     mount({ approved: true });
     fireEvent.click(await screen.findByRole("button", { name: "Update quote" }));
-    const dialog = screen.getByRole("dialog", { name: "Update quote" });
-    expect(within(dialog).getByText(/is approved, so this is version 2\. Version 1 is kept as it stands, the approval comes off/)).toBeInTheDocument();
-    fireEvent.change(within(dialog).getByLabelText("What's changing"), { target: { value: "Client wants a bigger unit in the lounge." } });
+    const dialog = screen.getByRole("dialog", { name: "Update the quote" });
+    /* two short sentences, in the steps' own names (wording A; "wording is weird") */
+    expect(within(dialog).getByText("Version 1 is marked ready to send and stays as it stands. Version 2 starts from it and goes out through Mark ready to send and Send to ServiceM8.")).toBeInTheDocument();
+    expect(dialog).not.toHaveTextContent(/Approve and Send/);
+    fireEvent.change(within(dialog).getByLabelText("What to change"), { target: { value: "Client wants a bigger unit in the lounge." } });
     await act(async () => {
       fireEvent.click(within(dialog).getByRole("button", { name: "Start version 2" }));
     });
@@ -1505,9 +1633,10 @@ describe("after it's sent", () => {
 
   it("opens Update quote from Since the quote, written in, and has Tiff price version 2", async () => {
     render(<QuoteLinesFace job="job-3377" price={price} onPriced={jest.fn()} update />);
-    const dialog = within(await screen.findByRole("dialog", { name: "Update quote" }));
-    expect(dialog.getByText(/^The quote was sent on Wed 28 Oct and isn't accepted, so this is version 2\./)).toBeInTheDocument();
-    expect(dialog.getByLabelText("What's changing")).toHaveValue("Concealed fan coil unit next to the Study (Anna Vaughan's email, Tue 3 Nov).");
+    const dialog = within(await screen.findByRole("dialog", { name: "Update the quote" }));
+    /* who it went to and the day, then where version 2 goes; nobody named on the job is the customer */
+    expect(dialog.getByText("Version 1 went to the customer on Wed 28 Oct and stays as it was sent. Version 2 starts from it and goes out through Mark ready to send and Send to ServiceM8.")).toBeInTheDocument();
+    expect(dialog.getByLabelText("What to change")).toHaveValue("Concealed fan coil unit next to the Study (Anna Vaughan's email, Tue 3 Nov).");
     await act(async () => {
       fireEvent.click(dialog.getByRole("button", { name: "Start version 2" }));
     });
@@ -1520,11 +1649,11 @@ describe("after it's sent", () => {
     render(<QuoteLinesFace job="job-3377" price={price} onPriced={jest.fn()} />);
     expect(await screen.findByRole("heading", { name: "1 added since it was sent" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Price them" })).toBeNull();
-    expect(screen.queryByRole("dialog", { name: "Update quote" })).toBeNull();
+    expect(screen.queryByRole("dialog", { name: "Update the quote" })).toBeNull();
     /* one Update quote: the rail's, with what's landed written in */
     expect(screen.getAllByRole("button", { name: "Update quote" })).toHaveLength(1);
     fireEvent.click(within(screen.getByRole("region", { name: "1 added since it was sent" })).getByRole("button", { name: "Update quote" }));
-    expect(within(screen.getByRole("dialog", { name: "Update quote" })).getByLabelText("What's changing")).toHaveValue(
+    expect(within(screen.getByRole("dialog", { name: "Update the quote" })).getByLabelText("What to change")).toHaveValue(
       "Concealed fan coil unit next to the Study (Anna Vaughan's email, Tue 3 Nov).",
     );
   });

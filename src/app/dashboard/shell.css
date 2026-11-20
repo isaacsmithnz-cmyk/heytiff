@@ -6355,8 +6355,8 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    Breakdown and Proposal). One row of head: ‹ Job, the job's number in its
    colour, the client, the site and the quote's name faded where they run
    out, then its state word and Actions. Under it the quote's three tabs
-   across the page, All ex GST at their right, then what's open, its total
-   beside it; Proposal is the page at full width. */
+   across the page, All ex GST at their right, then what's open, its panel
+   beside it (the iPad and the iPhone, further down). */
 .fg .jp-doc { display:flex; flex-direction:column; gap:12px; }
 .fg .jd-head { display:flex; align-items:center; gap:16px; min-width:0; min-height:40px; }
 .fg .jd-back { margin:0; align-self:center; }
@@ -6371,7 +6371,110 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jpr-doctabs { position:relative; flex:none; margin:0 0 16px; padding:0; border-bottom:0; }
 .fg .jpr-amt--q { font-weight:500; color:var(--q); }
 .fg .qc-gst { position:absolute; right:0; bottom:8px; font-size:13px; line-height:18px; color:var(--q); }
-.fg .qc-body--full { grid-template-columns:minmax(0, 1fr); }
+/* THE QUOTE'S TAB AS AN IPAD AND AN IPHONE (Isaac, 20 and 21 November 2026:
+   "pretend that this section is on an ipad", "and the right panel is on an
+   iphone", "much better", "B but better", then "Build all three" to
+   https://claude.ai/artifact/EAB8Y8FsbnPbcuBXKDhT93). Under the tabs the
+   soft ground; on it the main column and, behind a hairline, a panel 400
+   wide beside Build, Breakdown and the Proposal. Everything on the ground
+   is a white card with no shadow and no edge: rows 44 high, 56 where a row
+   has a second line, and the one next step 44 at the panel's foot. Those
+   sizes are the phone's, kept here on his word (rule 28's exception). */
+.fg .jpr-quote .qc-views--tabs { margin:0 0 4px; }
+.fg .jpr-quote .qc-body { gap:0; border-radius:var(--r-card); background:var(--soft); overflow:hidden; }
+.fg .jpr-quote .qc-main { padding:24px 24px 0; border-radius:0; background:none; box-shadow:none; }
+.fg .jpr-quote .qc-rail { padding:0; border-radius:0; border-left:1px solid var(--line); background:none; box-shadow:none; }
+.fg .jpr-quote .qc-scroll { gap:24px; padding:16px 16px 24px; }
+.fg .jpr-quote .qc-dock { padding:12px 16px 24px; border-top:0; background:none; }
+.fg .jpr-quote .qc-dock .pt-btn { height:44px; font-size:16px; }
+.fg .jpr-quote .qc-given, .fg .jpr-quote .qc-taken { min-height:44px; }
+.fg .jpr-quote .qc-sm8, .fg .jpr-quote .qc-added, .fg .jpr-quote .qx-panel .qc-rs, .fg .jpr-quote .qx-panel .wb2-jcsec { padding:12px 16px 16px; border:0; border-radius:var(--r-card); background:var(--paper); }
+.fg .jpr-quote .qx-panel .qb { margin:0 16px 12px; }
+.fg .qx-sec { display:flex; flex-direction:column; }
+.fg .qx-head { margin:0 16px 8px; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.fg .qx-card { border-radius:var(--r-card); background:var(--paper); overflow:hidden; }
+/* the total: Total ex GST and the screen's one big figure across the card,
+   Inc GST under it, then its parts, every figure in the one column */
+.fg .qx-top { display:flex; flex-direction:column; padding:12px 16px; }
+.fg .qx-opt { font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.fg .qx-pick { display:inline-flex; align-items:center; gap:4px; padding:0; border:0; border-radius:var(--r-control); background:none; font:inherit; color:inherit; cursor:pointer; }
+.fg .qx-pick:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .qx-r1 { display:flex; align-items:baseline; justify-content:space-between; gap:16px; }
+.fg .qx-r1 b { font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+.fg .qx-r1 strong { font-size:32px; line-height:40px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .qx-r1 .qc-wait { font-size:16px; font-weight:600; color:var(--q); }
+.fg .qx-r2 { display:flex; justify-content:space-between; gap:16px; font-size:14px; line-height:20px; color:var(--q); font-variant-numeric:tabular-nums; }
+.fg .qx-line { display:flex; align-items:center; justify-content:space-between; gap:16px; min-height:44px; padding:8px 16px; border-top:1px solid var(--line); font-size:16px; line-height:24px; color:var(--ink); }
+.fg .qx-line b { font-weight:600; font-variant-numeric:tabular-nums; }
+.fg .qx-line b.good { color:var(--green-w); }
+.fg .qx-line b.look { color:var(--orange-w); }
+.fg .qx-under { padding:0 16px 12px; font-size:13px; line-height:18px; }
+/* a row: its name, what it stands at on the right, and a chevron where it opens */
+.fg .qx-rows { display:flex; flex-direction:column; }
+.fg .qx-rows > * + *, .fg .qx-steps > li + li, .fg .qx-ask > * + * { border-top:1px solid var(--line); }
+.fg .qx-row { display:flex; align-items:center; gap:12px; width:100%; min-height:44px; padding:8px 16px; border:0; border-radius:0; background:none; font:inherit; font-size:16px; line-height:24px; color:var(--ink); text-align:left; }
+.fg button.qx-row { cursor:pointer; }
+.fg button.qx-row:hover:not(:disabled) { background:var(--hov); }
+.fg button.qx-row:focus-visible, .fg .qx-sysbtn:focus-visible, .fg .qx-seg button:focus-visible { outline:2px solid var(--ink); outline-offset:-2px; }
+.fg .qx-row > b { flex:1 1 auto; min-width:0; font-weight:400; }
+.fg .qx-r { flex:none; max-width:60%; font-size:14px; line-height:20px; color:var(--q); text-align:right; }
+.fg .qx-ch { flex:none; display:flex; color:var(--q); }
+.fg .qx-open { padding:4px 16px 8px; }
+.fg .qx-names { margin:0; list-style:none; display:flex; flex-direction:column; gap:4px; padding-top:12px; padding-bottom:12px; font-size:14px; line-height:20px; color:var(--ink); }
+/* where it's up to: a dot and a word (rule 17), what it's waiting on at the right */
+.fg .qx-steps { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; }
+.fg .qx-dot { flex:none; width:10px; height:10px; margin:0 4px; border-radius:50%; background:var(--grey); }
+.fg .qx-step.done .qx-dot { background:var(--green); }
+.fg .qx-step.look .qx-dot { background:var(--orange); }
+.fg .qx-step.look .qx-r { color:var(--orange-w); }
+.fg .qx-rows .ql-checks { margin:0; }
+.fg .qx-rows .ql-checks li { grid-template-columns:auto minmax(0, 1fr); gap:12px; align-items:start; padding:12px 16px; font-size:16px; line-height:24px; color:var(--ink); }
+.fg .qx-rows .ql-checks li + li { border-top:1px solid var(--line); }
+.fg .qx-rows .ql-checks li > i { width:10px; height:10px; margin:8px 4px 0; }
+.fg .qx-rows .ql-checks li.info > i { background:var(--grey); }
+.fg .qx-rows .ql-checks li.due > i { background:var(--orange); }
+.fg .qx-rows .ql-checks li.ok > i { background:var(--green); }
+.fg .qx-rows .ql-chkacts { grid-column:2; }
+/* Breakdown: the options a slider, the open one's name the title, one Add */
+.fg .jpr-quote .qc-lines > .ql-face { padding:0 0 24px; }
+.fg .qx-opts { display:flex; align-items:center; gap:8px; }
+.fg .qx-seg { flex:1 1 auto; min-width:0; display:flex; padding:2px; border-radius:var(--r-button); background:var(--tint-2); overflow-x:auto; }
+.fg .qx-seg button { flex:1 1 0; min-width:max-content; height:36px; display:flex; align-items:center; justify-content:center; gap:8px; padding:0 12px; border:0; border-radius:var(--r-control); background:none; font:inherit; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); white-space:nowrap; cursor:pointer; }
+.fg .qx-seg button.on { background:var(--paper); }
+.fg .qx-seg button span { font-weight:500; color:var(--q); font-variant-numeric:tabular-nums; }
+.fg .qx-seg button.on span { font-weight:600; color:var(--ink); }
+.fg .qx-opts > .pt-btn { flex:none; margin-left:auto; }
+.fg .qx-title { margin:16px 0 0; padding:4px 8px; font-size:24px; line-height:32px; font-weight:600; color:var(--ink); text-wrap:balance; }
+.fg .qx-title.lp-typed:focus { background:var(--paper); }
+.fg .qx-add { padding:12px 8px 0; }
+.fg .qx-addrow { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:12px; align-items:center; }
+.fg .qx-addrow--one { grid-template-columns:auto; justify-content:start; }
+.fg .qx-addrow .wb2-fi { height:36px; background:var(--paper); }
+.fg .ql-face > .qx-head { margin-top:24px; }
+.fg .qx-systems { display:flex; flex-direction:column; }
+.fg .qx-systems > .ql-sys { margin:0; border:0; border-radius:0; background:none; }
+.fg .qx-systems > .ql-sys + .ql-sys { border-top:1px solid var(--line); }
+.fg .qx-sysbtn { display:flex; align-items:center; gap:12px; width:100%; min-height:56px; padding:8px 16px; border:0; background:none; font:inherit; color:var(--ink); text-align:left; cursor:pointer; }
+.fg .qx-sysbtn:hover { background:var(--hov); }
+.fg .qx-sysw { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; }
+.fg .qx-sysw b { font-size:16px; line-height:24px; font-weight:600; }
+.fg .qx-sysw em { font-style:normal; font-size:14px; line-height:20px; color:var(--q); }
+.fg .qx-sysbtn strong { flex:none; font-size:16px; line-height:24px; font-weight:600; font-variant-numeric:tabular-nums; }
+.fg .qx-sys .ql-colh { position:static; }
+/* Build: the talk one reading column in the middle, her questions groups of answers */
+.fg .jpr-quote .qc-thread { padding:0 0 16px; }
+.fg .jpr-quote .qc-col { max-width:720px; width:100%; margin:0 auto; }
+.fg .jpr-quote .qc-comp { padding:8px 0 24px; }
+.fg .qx-asks { display:flex; flex-direction:column; gap:12px; padding-left:32px; }
+.fg .qx-askq { margin:0; padding:12px 16px; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+.fg .qx-askput { margin:0; padding:8px 16px; font-size:14px; line-height:20px; color:var(--q); }
+.fg .qx-ask .qx-row.picked > b { font-weight:600; }
+.fg .qx-ask .qx-row:disabled { cursor:default; }
+.fg .qx-tick { flex:none; display:flex; color:var(--press); }
+/* Proposal: the page in the middle of the ground, Saved over it */
+.fg .jpr-quote .lp-desk { margin:0; padding:0 0 48px; background:none; }
+.fg .jpr-quote .lp-paper { border:0; border-radius:var(--r-card); box-shadow:var(--shadow-card); }
+.fg .jpr-quote .qc-fmt { justify-content:flex-start; max-width:800px; width:100%; min-height:32px; margin:0 auto; padding:0 8px 8px; }
 /* the quote's paper on the Price tab, read only: Open quote changes it */
 .fg .lp-ro .lp-edit { display:none; }
 .fg .jpr-body.jpr-body--one { grid-template-columns:minmax(0, 1fr); }

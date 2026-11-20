@@ -496,6 +496,10 @@ export function TiffPanel({
   }
   const asking = new Set(latestAsked(events));
   const settled = events.filter((e) => e.kind === "question" && asking.has(e.id) && questions[e.id]?.answered);
+  /* in the talk itself, where the page holds the faces (the quote's own
+     tab): every question still open, and while one is, the ones of the same
+     asking already answered, ticked */
+  const asks = faceAsked !== undefined && open.length > 0 ? events.filter((e) => e.kind === "question" && (!questions[e.id]?.answered || asking.has(e.id))) : [];
 
   /* her name over what she says, and when, once for a run of it, as a chat
      names a speaker; what she did stands as she did it, a run of steps together */
@@ -777,6 +781,47 @@ export function TiffPanel({
             </section>
           )}
           {thread.length > 0 && <div className="qt-thread">{thread}</div>}
+          {asks.length > 0 && (
+            /* HER QUESTIONS, ANSWERED WHERE THEY STAND (the quote's own tab,
+               Isaac, 21 November 2026, "Build all three" to
+               https://claude.ai/artifact/EAB8Y8FsbnPbcuBXKDhT93): each a
+               white group of answers to tap, the one picked ticked; typing
+               in the box answers them too */
+            <section className="qx-asks" aria-label="Tiff's questions">
+              {asks.map((q) => {
+                const answers = (Array.isArray(q.body.answers) ? q.body.answers : []) as Answer[];
+                const deltas = questions[q.id]?.deltas ?? [];
+                const put = typeof q.body.put === "string" ? q.body.put : "";
+                const done = questions[q.id]?.answered ?? null;
+                const among = done ? answers.findIndex((a) => a.label === done.label) : -1;
+                const tick = (
+                  <span className="qx-tick">
+                    <Icon name="check" size={16} />
+                  </span>
+                );
+                return (
+                  <div key={q.id} className={`qx-card qx-ask${landed(q.id)}`}>
+                    <p className="qx-askq">{String(q.body.question ?? "")}</p>
+                    {put && !done && <p className="qx-askput">{`I've put ${put}`}</p>}
+                    {answers.map((a, i) => (
+                      <button key={i} type="button" className={i === among ? "qx-row picked" : "qx-row"} aria-pressed={done ? i === among : undefined} disabled={busy || !!done || deltas[i] === null} onClick={() => void answer(q.id, i)}>
+                        <b>{a.label}</b>
+                        {deltaWords(deltas[i]) && <span className="qx-r">{deltaWords(deltas[i])}</span>}
+                        {i === among && tick}
+                      </button>
+                    ))}
+                    {done && among < 0 && (
+                      <div className="qx-row picked">
+                        <b>{done.label}</b>
+                        <span className="qx-r">{done.typed ? "From your message" : "Tapped"}</span>
+                        {tick}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </section>
+          )}
           {working && (
             <TimeLeft
               since={turnStartOf(events)}

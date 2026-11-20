@@ -53,6 +53,49 @@ it("has nothing of its own while Tiff is off, and tells the page so", async () =
   expect(screen.queryByText("Core hole: not known yet")).toBeNull();
 });
 
+/* THE QUOTE'S OWN TAB (Isaac, 21 November 2026, "Build all three" to
+   https://claude.ai/artifact/EAB8Y8FsbnPbcuBXKDhT93): the page holds the
+   faces there, so her questions are answered in the talk itself, each a
+   group of answers to tap */
+it("on the quote's own tab, puts her open questions in the talk as groups of answers to tap", async () => {
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async (_url: string, init?: { body?: string }) => {
+    if (init?.body) posted.push(JSON.parse(init.body));
+    return respond(thread);
+  });
+  render(<TiffPanel job="j" face="talk" onFace={jest.fn()} onChanged={jest.fn()} />);
+  const asks = within(await screen.findByRole("region", { name: "Tiff's questions" }));
+  expect(asks.getByText("Single or three phase?")).toBeInTheDocument();
+  expect(asks.getAllByRole("button").map((b) => b.textContent)).toEqual(["Single phase", "Three phase+$520"]);
+  /* her words come first, the questions under them, then the box */
+  const said = screen.getByText("A 12.5 kW ducted, priced from your book.");
+  expect((said.compareDocumentPosition(asks.getByText("Single or three phase?")) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0).toBe(true);
+  await act(async () => {
+    fireEvent.click(asks.getByRole("button", { name: /^Three phase/ }));
+  });
+  expect(posted).toContainEqual({ job: "j", op: "answer", event: 3, answer: 1 });
+});
+
+it("on the quote's own tab, ticks the answer picked while another of the same asking is open, and draws none once all are answered", async () => {
+  const two = {
+    ...thread,
+    events: [...thread.events.slice(0, 3), { id: 6, turnId: "t1", kind: "question", author: "tiff", at: "", body: { question: "Roof or ground?", answers: [{ label: "Roof" }, { label: "Ground" }] } }, thread.events[3]!],
+    questions: { 3: { deltas: [0, 51996], answered: { label: "Three phase", typed: false } }, 6: { deltas: [0, 0], answered: null } },
+  };
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => respond(two));
+  const { unmount } = render(<TiffPanel job="j" face="talk" onFace={jest.fn()} onChanged={jest.fn()} />);
+  const asks = within(await screen.findByRole("region", { name: "Tiff's questions" }));
+  const picked = asks.getByRole("button", { name: /^Three phase/ });
+  expect(picked).toHaveClass("picked");
+  expect(picked).toHaveAttribute("aria-pressed", "true");
+  expect(picked).toBeDisabled();
+  expect(asks.getByRole("button", { name: "Roof" })).toBeEnabled();
+  unmount();
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => respond({ ...two, questions: { 3: two.questions[3], 6: { deltas: [0, 0], answered: { label: "Roof", typed: true } } } }));
+  render(<TiffPanel job="j" face="talk" onFace={jest.fn()} onChanged={jest.fn()} />);
+  await screen.findByText("A 12.5 kW ducted, priced from your book.");
+  expect(screen.queryByRole("region", { name: "Tiff's questions" })).toBeNull();
+});
+
 it("reads as off when her thread can't be read, rather than leaving the page waiting", async () => {
   (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => {
     throw new Error("offline");

@@ -11,7 +11,6 @@ const base = {
   variation: null,
   approved: false,
   sending: false,
-  pdf: false,
   acceptable: false,
   accepted: false,
   update: false,
@@ -23,19 +22,19 @@ describe("panelFoot", () => {
     expect(panelFoot(base)).toEqual({ step: "approve", moved: [] });
   });
 
-  it("is Send to ServiceM8 once ready; Customer accepted, Update quote and the PDF go to Actions", () => {
-    expect(panelFoot({ ...base, approved: true, sending: true, pdf: true, acceptable: true, update: true })).toEqual({
+  it("is Send to ServiceM8 once ready; Customer accepted and Update quote go to Actions", () => {
+    expect(panelFoot({ ...base, approved: true, sending: true, acceptable: true, update: true })).toEqual({
       step: "send",
-      moved: ["accept", "update", "pdf"],
+      moved: ["accept", "update"],
     });
   });
 
   it("is Customer accepted once it's sent", () => {
-    expect(panelFoot({ ...base, approved: true, pdf: true, acceptable: true, update: true })).toEqual({ step: "accept", moved: ["update", "pdf"] });
+    expect(panelFoot({ ...base, approved: true, acceptable: true, update: true })).toEqual({ step: "accept", moved: ["update"] });
   });
 
   it("is Update quote once the customer accepted", () => {
-    expect(panelFoot({ ...base, approved: true, pdf: true, acceptable: true, accepted: true, update: true })).toEqual({ step: "update", moved: ["pdf"] });
+    expect(panelFoot({ ...base, approved: true, acceptable: true, accepted: true, update: true })).toEqual({ step: "update", moved: [] });
   });
 
   it("offers no Update quote over the Proposal, as before", () => {

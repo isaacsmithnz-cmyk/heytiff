@@ -6475,6 +6475,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jpr-quote .lp-desk { margin:0; padding:0 0 48px; background:none; }
 .fg .jpr-quote .lp-paper { border:0; border-radius:var(--r-card); box-shadow:var(--shadow-card); }
 .fg .jpr-quote .qc-fmt { justify-content:flex-start; max-width:800px; width:100%; min-height:32px; margin:0 auto; padding:0 8px 8px; }
+.fg .jpr-quote .qc-share { display:flex; align-items:center; gap:8px; margin-left:auto; }
 /* the quote's paper on the Price tab, read only: Open quote changes it */
 .fg .lp-ro .lp-edit { display:none; }
 .fg .jpr-body.jpr-body--one { grid-template-columns:minmax(0, 1fr); }

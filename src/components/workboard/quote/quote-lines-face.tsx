@@ -30,7 +30,7 @@ import { QuoteLineItems, RemoveLine, groupKey, sellEachOf } from "./quote-line-i
 import { optionsWords, twinsOf } from "@/lib/quotes/line-twins";
 import { AddedRows, InServiceM8, OptionPick, OptionRows, QuoteCard, QuoteRail, QuoteTotal, WhereUpTo, signed } from "./quote-rail";
 import { changingWords, pastQuote as goneToClient, priceThemWords, withoutAdded, type JobScopeRead, type ScopeAdded, type ScopeQuoted } from "@/lib/jobs/job-scope";
-import { LinesButton, panelFoot, QuoteActions, type Moved } from "./quote-actions";
+import { LinesButton, panelFoot, QuoteActions, Share, type Moved } from "./quote-actions";
 import { sm8JobUrl } from "@/lib/integrations/sm8-links";
 import { Dialog } from "@/components/parts/dialog";
 import { Button } from "@/components/parts/button";
@@ -815,20 +815,18 @@ export function QuoteLinesFace({
           variation,
           approved: view?.approved ?? false,
           sending: !!toSm8 && !sentAt,
-          pdf: !!pdfHref,
           acceptable,
           accepted: accepted.includes(at),
           update: updateOffered,
           paper,
         }).moved
       : [];
-  const movedLabel: Record<Moved, string> = { accept: acceptWords, update: "Update quote", pdf: "Download PDF" };
+  const movedLabel: Record<Moved, string> = { accept: acceptWords, update: "Update quote" };
   const moveAct = useRef<(key: string) => void>(() => undefined);
   useEffect(() => {
     moveAct.current = (key) => {
       if (key === "accept") void accept();
       if (key === "update") setUpdating("");
-      if (key === "pdf" && pdfHref) window.location.assign(pdfHref);
     };
   });
 
@@ -944,9 +942,21 @@ export function QuoteLinesFace({
           {paper ? (
             <div className="hd-face qp-face ql-face qc-fill">
               {/* the page saves itself as you type on it, and says so */}
-              {views && !shown && !variation && (busy || savedAt) && (
-                <div className="qc-fmt" role="status">
-                  <StateWord tone="info">{busy ? "Saving" : `Saved, ${fmtAuTime(new Date(savedAt!))}`}</StateWord>
+              {/* and Share at the bar's right, over the page it shares, as a
+                  document's is (Isaac, 21 November 2026: "share could be in
+                  proposal view?") */}
+              {views && !shown && !variation && (busy || savedAt || pdfHref) && (
+                <div className="qc-fmt">
+                  {(busy || savedAt) && (
+                    <span role="status">
+                      <StateWord tone="info">{busy ? "Saving" : `Saved, ${fmtAuTime(new Date(savedAt!))}`}</StateWord>
+                    </span>
+                  )}
+                  {pdfHref && (
+                    <span className="qc-share">
+                      <Share pdf={pdfHref} size={32} />
+                    </span>
+                  )}
                 </div>
               )}
               <div className="lp-desk">

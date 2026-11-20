@@ -24,7 +24,9 @@ export function fitHeight(scrollerHeight: number, offsetTop: number, floor = FIT
   return Math.max(floor, Math.floor(scrollerHeight - offsetTop - foot));
 }
 
-export function useFitHeight<T extends HTMLElement>(floor = FIT_FLOOR) {
+/** `again`: measure afresh when it changes, for a page that takes its
+    fitted element away and brings it back (Home's card after a chat). */
+export function useFitHeight<T extends HTMLElement>(floor = FIT_FLOOR, again?: unknown) {
   const ref = useRef<T | null>(null);
   const [height, setHeight] = useState<number | null>(null);
   useLayoutEffect(() => {
@@ -44,6 +46,6 @@ export function useFitHeight<T extends HTMLElement>(floor = FIT_FLOOR) {
     const page = el.closest<HTMLElement>(".wrap") ?? el.parentElement;
     if (page) seen.observe(page);
     return () => seen.disconnect();
-  }, [floor]);
+  }, [floor, again]);
   return [ref, height] as const;
 }

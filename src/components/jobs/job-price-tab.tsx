@@ -262,9 +262,23 @@ export function JobPriceTab({
       <Empty
         what="No quote on this job yet"
         action={
-          <Button kind="quote" onClick={newQuote}>
-            New quote
-          </Button>
+          <>
+            <Button kind="quote" onClick={newQuote}>
+              New quote
+            </Button>
+            {/* bug 62: with nothing on the job there's no list beside the
+                page, so New invoice stands with New quote */}
+            {offerInvoice && (
+              <Button
+                onClick={() => {
+                  setInvoicing(true);
+                  setPicked("new-invoice");
+                }}
+              >
+                New invoice
+              </Button>
+            )}
+          </>
         }
       />
     );
@@ -300,7 +314,10 @@ export function JobPriceTab({
           list as the customer sees it; under the list what can be made now:
           New quote while the job has none, Add a variation once it's
           accepted, New invoice for whoever sees money (decision 8) */}
-      {(shownCards.length > 0 || offerNew || offerInvoice) && (
+      {/* nothing on the job: no list, the empty page says it once and holds
+          its doors (bug 62, 20 November 2026: "weird positioning", a tall
+          empty list beside a page saying No quote) */}
+      {shownCards.length > 0 && (
         <section className="jpr-list" aria-label="Quotes and invoices">
           <h2 className="jpr-listname">Quotes and invoices</h2>
           <RowList label="The job's prices">

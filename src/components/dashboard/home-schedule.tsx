@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent } from "react";
 import Link from "next/link";
 import { Button } from "@/components/parts/button";
 import { Fade } from "@/components/parts/fade";
@@ -114,14 +114,51 @@ function JobRow({ job, view, today, hot, onHot }: { job: TeamJob; view: People; 
   );
 }
 
+/** The map's least height, and its height until the card is fitted to the window. */
 const MAP_H = 368;
 const MAP_MAX_W = 640;
+/** THE PICTURE IS ALWAYS 640 SQUARE, the most Google draws, centred on the
+    view and cut to the map's box: one picture per view whatever the box's
+    size, so it is asked for once, kept a day by the browser, and a box that
+    changes size asks for nothing (bug 61, 20 November 2026: "map loads
+    slowly"; the box's first width asked for a second picture, and every
+    pixel of a resize another). */
+const PIC = 640;
 
-const mapSrc = (v: MapView, w: number, h: number) => `/api/home/day-map?lat=${v.lat}&lng=${v.lng}&z=${v.zoom}&w=${w}&h=${h}`;
+const mapSrc = (v: MapView) => `/api/home/day-map?lat=${v.lat}&lng=${v.lng}&z=${v.zoom}&w=${PIC}&h=${PIC}`;
 
 /** First letters for a person beside a job: "J", or how many where more
     than one is there. */
 const herePeople = (here: readonly string[]) => (here.length > 1 ? String(here.length) : (here[0] ?? "").charAt(0).toUpperCase());
+
+type MapProps = { jobs: readonly TeamJob[]; whereNow?: readonly LivePerson[]; hot: string | null; onHot: (id: string | null) => void };
+
+/** The map's box, measured before it is drawn: as wide as its column, 640
+    at most, and as tall as the card lets it be, 368 to 640. */
+function DayMap(props: MapProps) {
+  const box = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const measure = (width: number, height: number) => {
+      const w = Math.max(160, Math.min(MAP_MAX_W, Math.round(width)));
+      const h = Math.max(MAP_H, Math.min(PIC, Math.round(height)));
+      setSize((was) => (was && was.w === w && was.h === h ? was : { w, h }));
+    };
+    const r = el.getBoundingClientRect();
+    measure(r.width, r.height);
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(([e]) => measure(e!.contentRect.width, e!.contentRect.height));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return (
+    <div className="hm-map" ref={box}>
+      {size && <DayMapView {...props} w={size.w} h={size.h} />}
+    </div>
+  );
+}
 
 /** THE MAP. Google's picture of the view under the page's own pins: a job
     still to do in its colour with its number, a done one a grey dot, who's
@@ -129,18 +166,7 @@ const herePeople = (here: readonly string[]) => (here.length > 1 ? String(here.l
     facing it, with how far it is. Drag to move it, + and − to zoom, Show
     all to fit every job. Jobs too close to read join into one count;
     pressing it zooms in. */
-function DayMap({ jobs, whereNow = [], hot, onHot }: { jobs: readonly TeamJob[]; whereNow?: readonly LivePerson[]; hot: string | null; onHot: (id: string | null) => void }) {
-  const box = useRef<HTMLDivElement>(null);
-  const [w, setW] = useState(MAP_MAX_W);
-  const h = MAP_H;
-  useEffect(() => {
-    const el = box.current;
-    if (!el || typeof ResizeObserver === "undefined") return;
-    const ro = new ResizeObserver(([e]) => setW(Math.max(160, Math.min(MAP_MAX_W, Math.round(e!.contentRect.width)))));
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
+function DayMapView({ jobs, whereNow = [], hot, onHot, w, h }: MapProps & { w: number; h: number }) {
   const placed = jobs.filter((j): j is TeamJob & { at: LatLng } => j.at !== null);
   const far = farOnes(placed.map((j) => j.at));
   const near = placed.filter((_, i) => !far[i]);
@@ -154,8 +180,8 @@ function DayMap({ jobs, whereNow = [], hot, onHot }: { jobs: readonly TeamJob[];
     if (shown.lat === view.lat && shown.lng === view.lng && shown.zoom === view.zoom) return;
     const img = new Image();
     img.onload = () => setShown(view);
-    img.src = mapSrc(view, w, h);
-  }, [view, w, h, shown]);
+    img.src = mapSrc(view);
+  }, [view, shown]);
 
   /* dragging: the picture and the pins follow the hand, and the view moves
      when it lets go */
@@ -212,7 +238,7 @@ function DayMap({ jobs, whereNow = [], hot, onHot }: { jobs: readonly TeamJob[];
   };
 
   return (
-    <div className="hm-map" ref={box}>
+    <>
       <div
         className="hm-map-view"
         style={{ height: h }}
@@ -232,12 +258,12 @@ function DayMap({ jobs, whereNow = [], hot, onHot }: { jobs: readonly TeamJob[];
           ref={(el) => {
             if (el && el.complete && el.naturalWidth === 0 && !blank) setBlank(true);
           }}
-          src={mapSrc(shown, w, h)}
+          src={mapSrc(shown)}
           alt=""
           draggable={false}
-          width={w}
-          height={h}
-          style={{ transform: `translate(${c.x - w / 2}px, ${c.y - h / 2}px) scale(${k})` }}
+          width={PIC}
+          height={PIC}
+          style={{ transform: `translate(${c.x - PIC / 2}px, ${c.y - PIC / 2}px) scale(${k})` }}
         />
         {/* where the team is now, as their phones said, where the business has it on */}
         {whereNow
@@ -332,7 +358,7 @@ function DayMap({ jobs, whereNow = [], hot, onHot }: { jobs: readonly TeamJob[];
           </span>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 

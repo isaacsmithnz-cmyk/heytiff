@@ -231,19 +231,59 @@ async function copySource(orgId: string, file: FileAt, kind: "pdf" | "image"): P
 
 const DRAW_MS = 240_000;
 
-/** One visit of the headless browser to /print/plan-pages. */
-async function draw(ticket: PlanPagesTicket, origin: string): Promise<PlanPagesAnswer> {
+/** The set's own copy, as the server holds it, to hand to the browser. */
+export type SourceFile = { bytes: Buffer; type: string };
+
+async function sourceFile(sourceRef: string, kind: "pdf" | "image"): Promise<SourceFile> {
+  const { data, error } = await supabaseAdmin.storage.from(PLANS_BUCKET).download(sourceRef);
+  if (error || !data) throw new Error("The file couldn't be fetched");
+  const type = kind === "pdf" ? "application/pdf" : /\.jpe?g$/i.test(sourceRef) ? "image/jpeg" : "image/png";
+  return { bytes: Buffer.from(await data.arrayBuffer()), type };
+}
+
+/** What a failed request in the headless browser said, its address cut to its path. */
+const failedLine = (url: string, why: string) => {
+  try {
+    const u = new URL(url);
+    return `${u.host}${u.pathname.slice(0, 60)}: ${why}`;
+  } catch {
+    return why;
+  }
+};
+
+/** One visit of the headless browser to /print/plan-pages. The file itself
+    is handed to the page from here: the page asks for its signed address,
+    and the browser is answered with the bytes the server already holds, so
+    nothing rides the headless browser's own network but the page. Fetched
+    by Vercel's Chromium, an 11 MB set (Luke's 307 Coonawarra Rd, bug 51,
+    19 November 2026) failed in under a second with "Failed to fetch" while
+    Supabase logged its 200; every plan read in production till then was a
+    photo under 1 MB. A request that fails anyway is named in the error. */
+export async function draw(ticket: PlanPagesTicket, origin: string, file?: SourceFile): Promise<PlanPagesAnswer> {
   const browser = await launchHeadless();
   try {
     const page = await browser.newPage();
     page.setDefaultTimeout(DRAW_MS);
+    const failures: string[] = [];
+    page.on("requestfailed", (r) => {
+      if (r.url() !== ticket.url || !file) failures.push(failedLine(r.url(), r.failure()?.errorText ?? "failed"));
+    });
+    if (file) {
+      await page.setRequestInterception(true);
+      page.on("request", (r) => {
+        if (r.isInterceptResolutionHandled()) return;
+        if (r.url() === ticket.url && r.method() === "GET")
+          void r.respond({ status: 200, contentType: file.type, headers: { "access-control-allow-origin": "*", "cache-control": "no-store" }, body: file.bytes });
+        else void r.continue();
+      });
+    }
     const url = new URL("/print/plan-pages", printBase(origin));
     url.searchParams.set("t", signPlanPagesTicket(ticket));
     const res = await page.goto(url.toString(), { waitUntil: "load", timeout: 60_000 });
     if (!res || !res.ok()) throw new Error(`the plan page answered ${res?.status() ?? "nothing"}`);
     await page.waitForFunction("window.__htPdfReady === true", { timeout: DRAW_MS });
     const out = (await page.evaluate("({ pages: window.__htPlanPages ?? null, error: window.__htPlanPagesError ?? null })")) as { pages: PlanPagesAnswer | null; error: string | null };
-    if (out.error) throw new Error(out.error);
+    if (out.error) throw new Error(failures.length ? `${out.error} (${failures.slice(0, 3).join("; ")})` : out.error);
     if (!out.pages) throw new Error("the pages didn't come back");
     return out.pages;
   } finally {
@@ -576,7 +616,8 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
     /* 2 to 4: the pages, which are the floors, and the floors in full */
     let pages = plan.pages;
     if (!pages.some((p) => p.kind === "floor" && p.ref)) {
-      const drawn = await draw({ orgId, url: signed.signedUrl, kind: plan.sourceKind }, origin);
+      const source = await sourceFile(sourceRef, plan.sourceKind);
+      const drawn = await draw({ orgId, url: signed.signedUrl, kind: plan.sourceKind }, origin, source);
       const previews = drawn.previews ?? [];
       if (previews.length === 0) return failed("No pages could be drawn from the file.");
       const guesses = await classify(plan.sourceKind, previews, client);
@@ -599,7 +640,7 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
           if (error || !slot) return failed("A page's place in storage couldn't be made.");
           slots.push({ n: f.n, ref, token: slot.token });
         }
-        full = (await draw({ orgId, url: signed.signedUrl, kind: plan.sourceKind, full: slots }, origin)).full ?? [];
+        full = (await draw({ orgId, url: signed.signedUrl, kind: plan.sourceKind, full: slots }, origin, source)).full ?? [];
       }
       const fullOf = new Map(full.map((f) => [f.n, f]));
       pages = previews.map((pv): JobPlanPage => {

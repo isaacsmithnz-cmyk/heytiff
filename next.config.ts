@@ -115,10 +115,17 @@ const nextConfig: NextConfig = {
     /* Chromium's brotli archives are read off disk at run time, so the
        tracer never sees them: name them, or the first PDF dies looking */
     "/api/studio/design-pdf": ["./node_modules/@sparticuz/chromium/bin/**/*"],
-    "/api/studio/design-to-job": ["./node_modules/@sparticuz/chromium/bin/**/*"],
+    "/api/studio/design-to-job": ["./node_modules/@sparticuz/chromium/bin/**/*", "./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs"],
     /* a job's plans are drawn in the same browser (lib/jobs/plans-server.ts):
        from the Plans read, and from a quote's turn when Tiff has one read */
-    "/api/jobs/plans/read": ["./node_modules/@sparticuz/chromium/bin/**/*"],
+    "/api/jobs/plans/read": ["./node_modules/@sparticuz/chromium/bin/**/*", "./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs"],
+    /* every PDF that lands on a job is sorted by its own words in Node
+       (lib/jobs/take-in-server.ts), from a server action on any dashboard
+       page, the phone's papers and a design sent to its job: untraced, each
+       sort died on "Setting up fake worker failed" (bug 51, 19 November
+       2026) and the file was kept as one that couldn't be read */
+    "/dashboard/**": ["./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs"],
+    "/api/mobile/jobs/**": ["./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs"],
     // the print page builds the same sheet the live link does, off the packs
     "/print/design": ["./data/packs/**/*"],
   },

@@ -50,6 +50,8 @@ const PHOTO_EDGE = 1568;
 const PHOTO_PIXELS = 1.4e6;
 /** How long a photo's request waits for the reply to start, and how many goes it gets. */
 const PHOTO_WAIT = { timeout: 120_000, tries: 2 };
+/** the most room an answer is ever given: what a cut-off one is asked again with, at most */
+const MOST_TOKENS = 64_000;
 
 /** How much a sheet is shrunk for the model: under both caps, never grown. */
 export function readScale(width: number, height: number, photo = false): number {
@@ -208,8 +210,8 @@ export type SheetToRead = {
 
 let client: Anthropic | null = null;
 
-type Block = Anthropic.Messages.ContentBlockParam;
-const pngBlock = (image: Buffer): Block => ({ type: "image", source: { type: "base64", media_type: "image/png", data: image.toString("base64") } });
+export type Block = Anthropic.Messages.ContentBlockParam;
+export const pngBlock = (image: Buffer): Block => ({ type: "image", source: { type: "base64", media_type: "image/png", data: image.toString("base64") } });
 
 type Wait = { timeout: number; tries: number };
 
@@ -220,16 +222,17 @@ async function ask(image: Buffer, text: string, schema: Json, maxTokens: number,
 /** One read. With `wait`, the request is given up on when its reply hasn't
     started in that time, and goes again only up to its tries (the SDK's own
     retries off, so they don't multiply); without, as the SDK and three goes. */
-async function askWith(blocks: Block[], text: string, schema: Json, maxTokens: number, wait?: Wait): Promise<Raw> {
+export async function askWith(blocks: Block[], text: string, schema: Json, maxTokens: number, wait?: Wait): Promise<Raw> {
   client = client ?? new Anthropic();
   let tries = 0;
+  let room = maxTokens;
   for (;;) {
     try {
       const msg = await client.messages
         .stream(
           {
             model: MODEL,
-            max_tokens: maxTokens,
+            max_tokens: room,
             output_config: { effort: "high", format: { type: "json_schema", schema } },
             messages: [{ role: "user", content: [...blocks, { type: "text", text }] }],
           },
@@ -237,6 +240,14 @@ async function askWith(blocks: Block[], text: string, schema: Json, maxTokens: n
         )
         .finalMessage();
       if (msg.stop_reason === "refusal") throw new Error("Tiff declined to read this plan");
+      /* cut off before her answer was whole (a roof and a site were lost this
+         way on 3570, 21 November 2026): once more with twice the room,
+         instead of half an answer that reads as none */
+      if (msg.stop_reason === "max_tokens") {
+        if (room >= MOST_TOKENS) throw new Error("Tiff's answer was too long to finish");
+        room = Math.min(MOST_TOKENS, room * 2);
+        continue;
+      }
       const block = [...msg.content].reverse().find((b) => b.type === "text");
       if (!block || block.type !== "text") throw new Error("Tiff found nothing to read");
       return JSON.parse(block.text) as Raw;

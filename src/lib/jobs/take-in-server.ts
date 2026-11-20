@@ -150,9 +150,12 @@ export async function takeInFiles(orgId: string, jobUuid: string, picks: readonl
       await supabaseAdmin.from("job_file_reads").insert({ ...row, sha256, sort: sorted.sort, why: sorted.why, plan_id: planId });
     } catch (e) {
       console.error(`[take-in] ${k.id}: ${String(e)}`);
+      /* the reason kept on the row: the log is the only other place it went,
+         and every file sorted this way had failed with nothing to say why */
+      const reason = (e instanceof Error ? e.message : String(e)).replace(/\s+/g, " ").trim().slice(0, 160);
       await supabaseAdmin
         .from("job_file_reads")
-        .insert({ id: newId("jread"), org_id: orgId, job_uuid: jobUuid, [k.col]: k.id, file_name: "File", sort: "failed", why: "It couldn't be read" })
+        .insert({ id: newId("jread"), org_id: orgId, job_uuid: jobUuid, [k.col]: k.id, file_name: "File", sort: "failed", why: reason ? `It couldn't be read: ${reason}` : "It couldn't be read" })
         .then(
           () => {},
           () => {},

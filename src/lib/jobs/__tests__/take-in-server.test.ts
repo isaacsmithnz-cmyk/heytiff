@@ -57,6 +57,7 @@ const PAGES: Record<string, { w: number; h: number; text: string }[]> = {
 };
 jest.mock("@/lib/tiff/extract", () => ({
   openPdf: async (bytes: Uint8Array) => {
+    if (new TextDecoder().decode(bytes) === "broken") throw new Error('Setting up fake worker failed: "Cannot find module pdf.worker.mjs".');
     const pages = PAGES[new TextDecoder().decode(bytes)] ?? [];
     return {
       numPages: pages.length,
@@ -88,7 +89,7 @@ beforeEach(() => {
   tables.organizations = [{ id: "org-1", trading_name: "Diamond Air Solutions", name: "Diamond Air Solutions Pty Ltd" }];
   tables.sm8_jobs = [{ org_id: "org-1", uuid: "job-2845", job_address: "7 Cutler Rd\nClontarf NSW 2093" }];
   added.length = 0;
-  Object.assign(bytesOf, { "d-set": "set-g", "d-spec": "spec", "d-inv": "invoice", "d-cert": "cert", "d-set-again": "set-g" });
+  Object.assign(bytesOf, { "d-set": "set-g", "d-spec": "spec", "d-inv": "invoice", "d-cert": "cert", "d-set-again": "set-g", "d-broken": "broken" });
 });
 
 describe("taking a job's PDFs in", () => {
@@ -124,5 +125,10 @@ describe("taking a job's PDFs in", () => {
     expect(out.planIds).toEqual([]);
     expect(added).toHaveLength(0);
     expect(reads()).toEqual([["d-cert", "drawings", "Put in Plans by hand", "jplan-hand"]]);
+  });
+
+  it("keeps why a file couldn't be read on its row", async () => {
+    await takeInFiles("org-1", "job-2845", [{ documentId: "d-broken" }], null);
+    expect(reads()).toEqual([["d-broken", "failed", 'It couldn\'t be read: Setting up fake worker failed: "Cannot find module pdf.worker.mjs".', undefined]]);
   });
 });

@@ -818,6 +818,8 @@ it("offers Read again on a set that couldn't be read, and says why where it can'
   face({ documents: [suttor], plans: [readPlan({ state: "failed", said: "Failed to fetch", reading: null, pages: [] })], onReadPlanAgain });
   const row = within(group("Plans")).getByText(suttor.name).closest(".pt-row") as HTMLElement;
   expect(within(row).getByText("Not read")).toBeInTheDocument();
+  /* the reason whole, on a line of its own under the row, never faded at its edge */
+  expect(row.querySelector(".jpl-below .pt-row-line")).toHaveTextContent("Couldn't be read: Failed to fetch");
   await userEvent.click(within(row).getByRole("button", { name: "Read again" }));
   expect(onReadPlanAgain).toHaveBeenCalledWith("jplan_1");
   onReadPlanAgain.mockResolvedValueOnce("That plan isn't waiting to be read again.");

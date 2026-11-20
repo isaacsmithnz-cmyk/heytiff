@@ -264,6 +264,9 @@ const DRAW_MS = 240_000;
 /** The set's own copy, as the server holds it, to hand to the browser. */
 export type SourceFile = { bytes: Buffer; type: string };
 
+/** How much of a set goes to the headless page at a time. */
+const FILE_CHUNK = 2 * 1024 * 1024;
+
 async function sourceFile(sourceRef: string, kind: "pdf" | "image"): Promise<SourceFile> {
   const { data, error } = await supabaseAdmin.storage.from(PLANS_BUCKET).download(sourceRef);
   if (error || !data) throw new Error("The file couldn't be fetched");
@@ -299,6 +302,12 @@ export async function draw(ticket: PlanPagesTicket, origin: string, file?: Sourc
       if (r.url() !== ticket.url || !file) failures.push(failedLine(r.url(), r.failure()?.errorText ?? "failed"));
     });
     if (file) {
+      /* the set's bytes handed to the page in pieces, off the network
+         altogether: on Vercel's headless Chrome an 11 MB body couldn't be
+         taken in, fetched (#1621's "Failed to fetch") or handed over whole
+         ("reading the file: Failed to fetch", 3570, 20 November 2026) */
+      await page.exposeFunction("__htFileSize", () => file.bytes.length);
+      await page.exposeFunction("__htFileChunk", (i: number) => file.bytes.subarray(i * FILE_CHUNK, (i + 1) * FILE_CHUNK).toString("base64"));
       await page.setRequestInterception(true);
       page.on("request", (r) => {
         if (r.isInterceptResolutionHandled()) return;

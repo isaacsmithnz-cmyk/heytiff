@@ -651,13 +651,18 @@ async function wordsOf(page: TextPage, viewport: TextViewport): Promise<{ text: 
 
 type PdfPage = Awaited<ReturnType<Awaited<ReturnType<typeof import("pdfjs-dist")["getDocument"]>["promise"]>["getPage"]>>;
 
-async function openPdf(file: File) {
+/** A PDF to draw: a File picked on screen, or its bytes as the headless
+    page holds them (never a Blob there: see print/plan-pages fileOf). */
+export type PdfSource = File | ArrayBuffer;
+
+async function openPdf(file: PdfSource) {
   const pdfjs = await import("pdfjs-dist");
   pdfjs.GlobalWorkerOptions.workerSrc = new URL(
     "pdfjs-dist/build/pdf.worker.min.mjs",
     import.meta.url
   ).toString();
-  const task = pdfjs.getDocument({ data: await file.arrayBuffer() });
+  /* a copy of bytes held: pdf.js takes the buffer it's given to its worker */
+  const task = pdfjs.getDocument({ data: file instanceof ArrayBuffer ? file.slice(0) : await file.arrayBuffer() });
   const doc = await task.promise;
   /* pdf.js 6 closes a file on its loading task, not on the document: each
      opening's worker and its copy of the file are let go when it's done */
@@ -680,7 +685,8 @@ const fullScale = (pageWidth: number) => Math.min(Math.max(MAX_RENDER_WIDTH / pa
     drawing stays, so the Studio never freezes while a set draws. */
 type DrawOpts = { print?: boolean };
 
-async function renderPage(page: PdfPage, n: number, preview: File | null, draw: DrawOpts = {}): Promise<PageImage> {
+/** `preview` draws the page small; a File there is kept as what it's a preview of. */
+async function renderPage(page: PdfPage, n: number, preview: PdfSource | null, draw: DrawOpts = {}): Promise<PageImage> {
   const base = page.getViewport({ scale: 1 });
   const scale = preview ? PREVIEW_WIDTH / base.width : fullScale(base.width);
   const viewport = page.getViewport({ scale });
@@ -702,7 +708,7 @@ async function renderPage(page: PdfPage, n: number, preview: File | null, draw: 
       thumbUrl: URL.createObjectURL(blob),
       width: canvas.width,
       height: canvas.height,
-      previewOf: preview,
+      ...(preview instanceof File ? { previewOf: preview } : {}),
     };
   }
   const trim = trimOf(ctx, canvas.width, canvas.height);
@@ -751,7 +757,7 @@ export type PreviewWithWords = { preview: PageImage; width: number; height: numb
     draw every page in full just for its words, opening the file again for
     each: 3570's 27 A1 sheets (11 MB, 19 November 2026) took more than the
     server's four minutes and never came back. */
-export async function pdfPreviewsWithWords(file: File, onProgress?: (done: number, total: number) => void, draw: DrawOpts = {}): Promise<PreviewWithWords[]> {
+export async function pdfPreviewsWithWords(file: PdfSource, onProgress?: (done: number, total: number) => void, draw: DrawOpts = {}): Promise<PreviewWithWords[]> {
   const doc = await openPdf(file);
   try {
     const out: PreviewWithWords[] = [];
@@ -772,7 +778,7 @@ export async function pdfPreviewsWithWords(file: File, onProgress?: (done: numbe
 
 /** Some of a PDF's pages, by number, drawn in full. */
 export async function pdfPagesAt(
-  file: File,
+  file: PdfSource,
   numbers: number[],
   onProgress?: (done: number, total: number) => void,
   draw: DrawOpts = {}

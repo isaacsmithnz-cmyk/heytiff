@@ -31,6 +31,8 @@ const request = (url: string, fails?: string): FakeRequest => ({
   failure: () => (fails ? { errorText: fails } : null),
 });
 const sent: FakeRequest[] = [];
+/* what the server handed the page to call */
+const exposed: Record<string, (...a: unknown[]) => unknown> = {};
 
 jest.mock("server-only", () => ({}));
 jest.mock("@/lib/supabase-server", () => ({ supabaseAdmin: {} }));
@@ -41,6 +43,9 @@ jest.mock("@/lib/studio/pdf-render", () => ({
     close: async () => {},
     newPage: async () => ({
       setDefaultTimeout: () => {},
+      exposeFunction: async (name: string, fn: (...a: unknown[]) => unknown) => {
+        exposed[name] = fn;
+      },
       on: (ev: string, fn: Handler) => (handlers[ev] ??= []).push(fn),
       setRequestInterception: async (on: boolean) => {
         intercepting = on;
@@ -96,4 +101,14 @@ it("names a request that failed in the page's error", async () => {
 it("says the page's error alone when nothing failed on the way", async () => {
   pageResult = { pages: null, error: "page 3 didn't draw" };
   await expect(draw({ orgId: "o", url: FILE, kind: "pdf" }, "https://app.test")).rejects.toThrow(/^page 3 didn't draw$/);
+});
+
+it("hands the set to the page in pieces, off the network", async () => {
+  /* 3570, 20 November 2026: the 11 MB set handed over whole failed to be taken in */
+  const bytes = Buffer.alloc(5 * 1024 * 1024, 7);
+  await draw({ orgId: "o", url: FILE, kind: "pdf" }, "https://app.test", { bytes, type: "application/pdf" });
+  expect(exposed.__htFileSize!()).toBe(bytes.length);
+  const pieces = [0, 1, 2, 3].map((i) => Buffer.from(exposed.__htFileChunk!(i) as string, "base64"));
+  expect(pieces.map((p) => p.length)).toEqual([2 * 1024 * 1024, 2 * 1024 * 1024, 1024 * 1024, 0]);
+  expect(Buffer.concat(pieces).equals(bytes)).toBe(true);
 });

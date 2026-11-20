@@ -511,7 +511,10 @@ export function JobDocumentsFace({
     /* a set a later one replaced keeps its row, grey, with nothing under it to act on */
     const replaced = replacedBy(p, planList);
     const state = planStateWord(p, replaced);
-    const facts = [file ? docLine(file) : null, planLine(p, day, replaced)].filter(Boolean).join(". ");
+    /* why a set couldn't be read goes on a line of its own, whole: a reason
+       faded out at the row's edge can't be read (Isaac, 20 November 2026) */
+    const failedWhy = p.state === "failed" && !replaced ? planLine(p, day, replaced) : null;
+    const facts = [file ? docLine(file) : null, failedWhy ? null : planLine(p, day, replaced)].filter(Boolean).join(". ");
     const pages = p.state === "reading" || replaced ? [] : floorPagesOf(p).filter((pg) => p.thumbs[pg.n]);
     /* a page with no scale to be had asks for one; one resting on a single figure can be checked */
     const asks = onSetScale && onPageForScale && !replaced ? scaleAsks(p) : [];
@@ -532,8 +535,9 @@ export function JobDocumentsFace({
         end={<StateWord tone={state.tone}>{state.word}</StateWord>}
         onClick={open}
         below={
-          pages.length > 0 || choose || again || subfloor ? (
+          pages.length > 0 || choose || again || subfloor || failedWhy ? (
             <span className="jpl-below">
+              {failedWhy && <span className="pt-row-line">{failedWhy}</span>}
               {subfloor && <span className="pt-row-line">{subfloor}</span>}
               {pages.length > 0 && (
                 <span className="jpl-pages">

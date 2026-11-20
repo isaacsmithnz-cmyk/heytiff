@@ -24,13 +24,12 @@ const QUOTE = [
 ];
 
 describe("answers from a quote's lines", () => {
-  it("reads the bracket, the drain and pump, the electrical and the controls", () => {
+  it("reads the bracket, the drain and pump, and the controls", () => {
     expect(answersFromQuote(QUOTE)).toEqual({
       "outdoor-sits": ["wall"],
       "wall-bracket": ["heavy-bracket"],
       controls: ["wireless"],
       condensate: ["gravity", "pump"],
-      "electrical-work": ["yes"],
     });
   });
 
@@ -56,11 +55,13 @@ describe("answers from a quote's lines", () => {
     const answers = installAnswers(d, sys);
     expect(answers["outdoor-sits"]).toEqual(["wall"]);
     expect(answers["wall-bracket"]).toEqual(["heavy-bracket"]);
-    expect(answers["electrical-work"]).toEqual(["yes"]);
+    // an isolator and cable don't say whose the electrical is (Isaac, 21
+    // November 2026: "Not always"): it stays to answer
+    expect(answers["electrical-work"]).toBeUndefined();
     const quoted = sys.settings.installQuoted as Record<string, string[]>;
     expect(stillQuoted(quoted["outdoor-sits"], answers["outdoor-sits"])).toBe(true);
     // changed since: no longer the quote's
-    expect(stillQuoted(quoted["electrical-work"], ["no"])).toBe(false);
+    expect(stillQuoted(quoted.controls, ["wired"])).toBe(false);
   });
 });
 

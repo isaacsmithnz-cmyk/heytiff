@@ -149,6 +149,9 @@ describe("Install details", () => {
     expect(within(outdoor).getByText("Quoted")).toBeInTheDocument();
     const fixings = screen.getByText("Heads fix to").closest(".ds-stack-row") as HTMLElement;
     expect(within(fixings).getByText("To answer")).toBeInTheDocument();
+    // the isolator on the quote doesn't answer the electrical
+    const electrical = screen.getByText("Electrical").closest(".ds-stack-row") as HTMLElement;
+    expect(within(electrical).getByText("To answer")).toBeInTheDocument();
     // a second answer reads on in lower case
     const water = screen.getByText("Condensate").closest(".ds-stack-row") as HTMLElement;
     expect(within(water).getByText("Gravity, outside and pump")).toBeInTheDocument();

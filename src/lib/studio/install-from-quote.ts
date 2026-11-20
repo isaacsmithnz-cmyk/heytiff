@@ -3,8 +3,10 @@
    it" to the mock, 21 November 2026). A quote's option already says much of
    how its system goes in: a wall bracket says where the outdoor sits (a
    250 kg one, a heavy-duty bracket), a condensate pump and drain hose say how
-   the water goes, an isolator and cable say the electrical is ours, and a
-   quote with no controller on it means the remotes the heads come with.
+   the water goes, and a quote with no controller on it means the remotes the
+   heads come with. An isolator and cable don't settle the electrical: the
+   electrician may bring them, and job 3517's quote has both with Electrical
+   answered No (Isaac, 21 November 2026: "Not always"), so it stays to answer.
    Adding the option to a design answers those questions from its lines, and
    keeps what the quote said, so Install details can say Quoted while the
    answer is still the quote's. What the quote doesn't say stays to answer.
@@ -63,8 +65,6 @@ export function answersFromQuote(materials: readonly QuotedMaterial[]): Record<s
   const gravity = has(/\bdrain\b/i);
   if (pump || gravity) out.condensate = [...(gravity ? ["gravity"] : []), ...(pump ? ["pump"] : [])];
 
-  /* the electrical, ours where the quote has an isolator or the cable */
-  if (has(/\bisolator\b|\btps\b|\bcable\b/i)) out["electrical-work"] = ["yes"];
   return out;
 }
 
@@ -80,7 +80,7 @@ export function answerFromQuote(doc: DesignDocument, systemId: string, materials
   const kept: Record<string, string[]> = {};
   /* a question's own answer first, then its follow-up, which needs its
      parent's tick to be kept */
-  for (const id of ["outdoor-sits", "wall-bracket", "roof-frame", "ground-base", "controls", "condensate", "electrical-work"]) {
+  for (const id of ["outdoor-sits", "wall-bracket", "roof-frame", "ground-base", "controls", "condensate"]) {
     const ticks = quoted[id];
     if (!ticks || (already[id] ?? []).length) continue;
     d = answerInstall(d, systemId, id, ticks);

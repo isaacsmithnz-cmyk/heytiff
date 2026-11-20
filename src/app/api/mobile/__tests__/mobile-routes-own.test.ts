@@ -57,6 +57,12 @@ jest.mock("@/lib/workboard/job-media-query", () => ({
     return { photos: [{ remoteId: "p1", url: "https://signed/p1" }], documents: [], elsewhere: [], truncated: false };
   },
 }));
+jest.mock("@/app/actions/workboard-media", () => ({
+  cacheJobFiles: async (id: string) => {
+    asked.push(`bring ${id}`);
+    return { ok: true, cached: 6, remaining: 2, media: { photos: [] }, note: null };
+  },
+}));
 jest.mock("@/lib/org/query", () => ({ orgExpiryWindow: async () => ({ warnDays: 30, email: false }) }));
 jest.mock("@/lib/staff/query", () => ({
   getStaff: async (orgId: string, staffId: string, opts: unknown, warnDays: number) => {
@@ -87,7 +93,7 @@ jest.mock("@/lib/timepay/leave-page", () => ({
   },
 }));
 
-import { GET as media } from "../jobs/[id]/media/route";
+import { GET as media, POST as bring } from "../jobs/[id]/media/route";
 import { GET as card, POST as cardPost } from "../card/route";
 import { GET as leave } from "../leave/route";
 import { MOBILE_AUDIENCE } from "@/lib/mobile/token";
@@ -148,6 +154,21 @@ test("a job's photos are read in the member's workspace, a claim's with its job"
   const body = await (await media(req("jobs/claim-7/media", "auth0|lyle"), params("claim-7"))).json();
   expect(body.photos).toEqual([{ remoteId: "p1", url: "https://signed/p1" }]);
   expect(asked).toEqual(["resolve org-diamond claim-7", "claims org-diamond job-3342", "media org-diamond job-3342 +1"]);
+});
+
+test("a job's ServiceM8 photos are brought across for the phone, a claim's with its job, without the media in the answer", async () => {
+  const post = new Request("https://go.hey-tiff.com/api/mobile/jobs/claim-7/media", { method: "POST", headers: req("x", "auth0|lyle").headers });
+  const body = await (await bring(post, params("claim-7"))).json();
+  expect(body).toEqual({ ok: true, cached: 6, remaining: 2, note: null });
+  expect(asked).toEqual(["resolve org-diamond claim-7", "bring job-3342"]);
+});
+
+test("bringing photos across needs the board, and a token", async () => {
+  expect((await bring(new Request("https://go.hey-tiff.com/api/mobile/jobs/job-3342/media", { method: "POST" }), params("job-3342"))).status).toBe(401);
+  members[0]!.permissions = { workboard: false };
+  const post = new Request("https://go.hey-tiff.com/api/mobile/jobs/job-3342/media", { method: "POST", headers: req("x", "auth0|lyle").headers });
+  expect((await bring(post, params("job-3342"))).status).toBe(403);
+  expect(asked).toEqual([]);
 });
 
 test("your card is your own, without pay or notes, with your vehicle", async () => {

@@ -187,4 +187,7 @@ it("leaves ServiceM8's country off, so the street isn't put over \"Australia\" (
   expect(withoutCountry("14/8 Example Crescent, Fairlight NSW, Australia")).toBe("14/8 Example Crescent, Fairlight NSW");
   expect(withoutCountry("12 Australia Street, Camperdown NSW 2050")).toBe("12 Australia Street, Camperdown NSW 2050");
   expect(withoutCountry("Camperdown NSW 2050, Australia ")).toBe("Camperdown NSW 2050");
+  expect(withoutCountry("5 Hay Street, Perth, Western Australia")).toBe("5 Hay Street, Perth, Western Australia");
+  expect(withoutCountry("5 King William St\nAdelaide\nSouth Australia")).toBe("5 King William St\nAdelaide\nSouth Australia");
+  expect(withoutCountry("5 Hay Street, Perth WA 6000, AUSTRALIA")).toBe("5 Hay Street, Perth WA 6000");
 });

@@ -87,11 +87,9 @@ describe("the button itself", () => {
     );
     const el = screen.getByLabelText("Ask or tell Tiff about Server room CRACs");
     expect(el).toHaveClass("tiffbtn-sheet");
-    /* A white face on a white sheet is nothing: on paper the face takes the
-       brand gradient, and the depth goes a step darker. */
-    const face = el.querySelector(".tiffbtn-ly.face path");
-    expect(face).toHaveAttribute("stroke", "url(#tiffFacePaper)");
-    expect(el.querySelectorAll(".tiffbtn-ly")).toHaveLength(10);
+    /* the mark on a sheet is the same chevron and boomerang; the place's
+       class is what gives it the paper's ink (the stylesheet, below) */
+    expect(el.querySelectorAll(".tiffbtn-chev path, .tiffbtn-spin path")).toHaveLength(2);
   });
 
   /* THE BOX VARIANT. At the end of an entry box it is on paper, so it wears
@@ -108,14 +106,13 @@ describe("the button itself", () => {
     const el = screen.getByRole("button", { name: "Talk to Tiff" });
     expect(el).toHaveClass("tiffbtn-box");
     expect(el).not.toHaveAttribute("title");
-    expect(el.querySelector(".tiffbtn-ly.face path")).toHaveAttribute("stroke", "url(#tiffFacePaper)");
+    expect(el.querySelector(".tiffbtn-chev path")).not.toBeNull();
   });
 
   /* THE SKIN IS A CLASS BUILT FROM THE PLACE, `tiffbtn-${where}`, and a
      dead-CSS sweep cannot see a class built that way: #681's deleted every
      `.tiffbtn-sheet` rule and the sheet's button went 0×0. So every place
-     has its size rule, read off the stylesheet, and a paper place its
-     paper light. */
+     has its size rule, read off the stylesheet, and its ground's ink. */
   it("has a size rule in the stylesheet for every place it stands", () => {
     const css = readFileSync(join(process.cwd(), "src/app/dashboard/shell.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
     const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => [m[1]!.split(",").map((s) => s.trim()), m[2]!] as const);
@@ -124,8 +121,8 @@ describe("the button itself", () => {
       const sized = rules.some(([sels, body]) => sels.includes(`.tiffbtn-${place}`) && /--tb\s*:\s*\d+px/.test(body));
       expect(`${place}: ${sized}`).toBe(`${place}: true`);
     }
-    const lit = (place: string) => rules.some(([sels, body]) => sels.includes(`.tiffbtn-${place}`) && /--tiffbtn-sheen\s*:/.test(body));
-    for (const place of TIFF_BUTTON_PLACES) expect(`${place}: ${lit(place)}`).toBe(`${place}: true`);
+    const inked = (place: string) => rules.some(([sels, body]) => sels.includes(`.tiffbtn-${place}`) && /--mk-fg\s*:\s*var\(--ink\)/.test(body));
+    for (const place of TIFF_BUTTON_PLACES) expect(`${place}: ${inked(place)}`).toBe(`${place}: true`);
     const size = (place: string) =>
       rules.find(([sels, body]) => sels.includes(`.tiffbtn-${place}`) && /--tb\s*:/.test(body))![1].match(/--tb\s*:\s*(\d+)px/)![1];
     expect(size("box")).toBe("36");
@@ -137,24 +134,23 @@ describe("the button itself", () => {
     mount();
     const el = btn();
     expect(el).toHaveClass("tiffbtn-topbar");
-    expect(el.querySelector(".tiffbtn-ly.face path")).toHaveAttribute("stroke", "url(#tiffFacePaper)");
-    expect(el.querySelector(".tiffbtn-ly:not(.face) path")).toHaveAttribute("stroke", "url(#tiffDepthPaper)");
+    // no stroke of its own: the place's class gives it the page's ink
+    expect(el.querySelector(".tiffbtn-chev path")).not.toHaveAttribute("stroke");
   });
 
-  /* THE GIMBAL (Isaac, 2026-09-25). Two rings, each with its run of light,
-     around the mark in both places — and nothing around the rings: the
-     aura went on his word ("aura looks too generic ai"), and law 5 took the
-     sparkle long before. */
-  it("is the mark in two gimbals, with no halo and no sparkle", () => {
+  /* THE BOOMERANG (Isaac, 20 November 2026). The chevron and its small mark
+     as a boomerang, still at rest, and nothing around them: the aura went
+     on his word ("aura looks too generic ai"), and law 5 took the sparkle
+     long before. The gimbal rings it replaced are gone. */
+  it("is the chevron and its boomerang, at rest, with no rings, halo or sparkle", () => {
     mount();
     const el = btn();
-    expect(el.querySelectorAll(".tiffbtn-gim")).toHaveLength(2);
-    // each gimbal: its faint ring, its run at rest, and its run in colour while Tiff works (v2, rule 8)
-    expect(el.querySelectorAll(".tiffbtn-arc circle")).toHaveLength(6);
-    expect(el.querySelectorAll(".tiffbtn-arc circle.tiffbtn-runw")).toHaveLength(2);
-    expect(el.querySelector(".tiffbtn-halo, .tiffbtn-spark, .tiffbtn-core")).toBeNull();
-    // the band of light is cut to the logo's own shape, passed in from the one geometry
-    expect(el.style.getPropertyValue("--tiffbtn-mask")).toMatch(/^url\("data:image\/svg\+xml,/);
+    const st = el.querySelector(".tiffbtn-st")!;
+    expect(st).toHaveClass("rest");
+    expect(st.querySelector(".tiffbtn-chev")).not.toBeNull();
+    // the flight, the lean into the curve and the spin, one wrapper each
+    expect(st.querySelector(".tiffbtn-lift > .tiffbtn-boom > .tiffbtn-bank > .tiffbtn-spin")).not.toBeNull();
+    expect(el.querySelector(".tiffbtn-gim, .tiffbtn-arc, .tiffbtn-halo, .tiffbtn-spark, .tiffbtn-core, .tiffbtn-burst")).toBeNull();
   });
 
   it("says what it does rather than naming an icon", () => {

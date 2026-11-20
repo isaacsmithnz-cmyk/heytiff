@@ -325,7 +325,7 @@ export function TiffModal({
         <header className="tm-head">
           <span className="tm-who">
             <span className="tm-hmark" aria-hidden="true">
-              <TiffGlyph ground="ink" quiet size={24} />
+              <TiffGlyph ground="ink" size={24} />
             </span>
             {context && <Fade className="tm-ctx">{context}</Fade>}
             {c.aimed && c.targetLabel && (

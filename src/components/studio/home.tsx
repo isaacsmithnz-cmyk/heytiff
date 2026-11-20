@@ -231,7 +231,7 @@ export function DesignHome({
               <span className="ds2-sr" role="status">
                 Loading your designs
               </span>
-              <TiffGlyph size={48} alive working />
+              <TiffGlyph size={48} working />
             </div>
           ) : visible.length > 0 ? (
             <>

@@ -258,7 +258,9 @@ it("draws a teammate's note on the left with their name, and Tiff with her mark 
   await userEvent.click(screen.getByRole("button", { name: "Tiff" }));
   const tiff = screen.getByText("Done. A task for Lyle.").closest(".jc-tiffturn") as HTMLElement;
   expect(tiff.querySelector(".jc-bubble")).toBeNull();
-  expect(tiff.querySelector(".tiffmk.alive")).not.toBeNull();
+  // her mark beside her name, still at rest: only Home's is alive (rule 8)
+  expect(tiff.querySelector(".tiffmk")).not.toBeNull();
+  expect(tiff.querySelector(".tiffmk.alive")).toBeNull();
   expect(within(tiff).getByText("Tiff")).toBeInTheDocument();
 });
 

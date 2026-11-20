@@ -21,7 +21,7 @@ export function Empty({ what, line, action }: { what: ReactNode; line?: ReactNod
 const SHOW_AFTER = 500;
 
 /* LOADING (rule 41, law 27): nothing for half a second, so a fast answer
-   never flashes, then Tiff's mark, turning at her working speed, in the
+   never flashes, then Tiff's mark, its boomerang in the air, in the
    middle of where the thing will be. Never a skeleton (Isaac, 20 October
    2026: "the skeleton loading screens never seem to match what the actual
    content is… a Tiff logo spinning quickly instead"; 25 October: the
@@ -41,7 +41,7 @@ export function Loading({ what }: { /** what is coming, as the wait says it: "Lo
           <span className="pt-load-sr" role="status">
             {what}
           </span>
-          <TiffGlyph size={32} alive working />
+          <TiffGlyph size={32} working />
         </>
       )}
     </div>

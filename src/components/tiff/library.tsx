@@ -1176,7 +1176,7 @@ function DocRow({
       />
     </>
   ) : ready ? (
-    <Button kind="quiet" size={32} icon={<TiffGlyph quiet />} aria-label={`Ask Tiff about ${doc.title}`} onClick={onAsk}>
+    <Button kind="quiet" size={32} icon={<TiffGlyph />} aria-label={`Ask Tiff about ${doc.title}`} onClick={onAsk}>
       Ask Tiff
     </Button>
   ) : null;
@@ -1284,7 +1284,7 @@ function DocRow({
           </>
         ) : (
           ready && (
-            <Button kind="quiet" size={32} icon={<TiffGlyph quiet />} aria-label={`Ask Tiff about ${doc.title}`} onClick={onAsk}>
+            <Button kind="quiet" size={32} icon={<TiffGlyph />} aria-label={`Ask Tiff about ${doc.title}`} onClick={onAsk}>
               Ask Tiff
             </Button>
           )

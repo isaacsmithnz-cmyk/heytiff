@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useId, useState, type CSSProperties } from "react";
+import { useId } from "react";
 import { useTiff } from "@/components/tiff/modal/tiff-context";
 import type { TiffRoom } from "@/lib/workboard/note-turns";
-import { MARK_MASK, TiffGlyph, TiffMark } from "./tiff-mark";
+import { TiffGlyph, TiffMark } from "./tiff-mark";
 import { useNoteScope } from "./note-context";
 
 /* THE TIFF BUTTON — one way in, wherever you are.
@@ -41,19 +41,15 @@ import { useNoteScope } from "./note-context";
    `topbar`  beside the bell, on the app's black frame. It floated
              bottom-right first and covered the page it sat on; a control
              that is always present has to live somewhere that is always
-             empty. The mark is bare on the frame: no disc, no halo. Its
-             two gimbal rings are its edge and the light on them is the
-             separation (the halo went with the gimbal redesign, 2026-09-25:
-             "aura looks too generic ai").
+             empty. The mark is bare: no disc, no halo ("aura looks too
+             generic ai", 2026-09-25), the chevron and its boomerang.
 
    `sheet`   in a sheet's own header. A sheet is a white surface with a
              scrim under it, and nothing outside that scrim can be clicked —
              which is why the topbar button is unreachable the moment a job
              opens, and why the tag could never do the one job it exists for.
              Isaac's fix, and it is the right one: put a button ON the sheet.
-             Here the ground is white, so the skin inverts: the face takes
-             the brand gradient and the rings go a step deeper (see
-             ./tiff-mark).
+             Here the ground is white, so the mark is ink (see ./tiff-mark).
 
    `box`     at the end of an entry box (components/tiff/modal/tiff-box).
              Paper, like a sheet, so the sheet's skin, at 36px beside the
@@ -64,7 +60,7 @@ import { useNoteScope } from "./note-context";
              Calendar box's day, so what you say names a day or goes on it.
 
    Everything inside is sized OFF THE BUTTON, in the stylesheet: the mark is
-   56% of it, the rings 86% and 72%. The button is 36px on the frame and in
+   56% of it, and the boomerang's flight is sized off the mark. The button is 36px on the frame and in
    a box, as Isaac's prototype drew it, and 30px in a sheet, beside the 30px
    close ×. It carries no sparkle (law 5).
 
@@ -99,18 +95,12 @@ export function TiffButton({ where = "topbar", room, day }: { where?: Where; roo
       expanded. */
   const id = useId();
 
-  /* The press, made visible: the mark turns once on its own point and a ring
-     leaves the button's edge while the modal grows from the same place — the
-     modal is not a thing that appears, it is the button, grown.
-     State-driven rather than :active because the turn outlives the press (a
-     tap is ~100ms; the turn is 800). Cleared on a timer, not animationend:
-     with motion reduced the animation never runs and the class would stick. */
-  const [lit, setLit] = useState(false);
-  useEffect(() => {
-    if (!lit) return;
-    const t = setTimeout(() => setLit(false), 850);
-    return () => clearTimeout(t);
-  }, [lit]);
+  /* THE PRESS THROWS THE BOOMERANG. Opening means listening, and while
+     the conversation this button opened is open, Tiff is listening or
+     working: her small mark is in the air, circling, and it comes home when
+     the conversation closes (Isaac, 20 November 2026). It replaced the
+     press's turn and the ring that left the edge. */
+  const listening = tiff.isOpen && tiff.openedBy === id;
 
   /* A sheet says what it is about, so its button can say what it will do
      with what you say — the topbar's cannot, because the topbar is nowhere
@@ -125,26 +115,23 @@ export function TiffButton({ where = "topbar", room, day }: { where?: Where; roo
   return (
     <button
       type="button"
-      className={`tiffbtn tiffbtn-${where}${lit ? " lit" : ""}`}
+      className={`tiffbtn tiffbtn-${where}`}
       aria-label={label}
       aria-haspopup="dialog"
       aria-expanded={tiff.openedBy === id}
-      style={{ "--tiffbtn-mask": MARK_MASK } as CSSProperties}
       onClick={(e) => {
         /* The modal measures where it grew from itself, in this click
            (../tiff/modal/tiff-host) — read in the handler, never in render.
            A click with no pointer behind it (`detail` 0) came from the
            keyboard, and a keyboard press moves nothing (law 8): not the
-           modal's blossom, and not this button's own turn. */
+           modal's blossom. */
         const keyboard = e.detail === 0;
-        if (!keyboard) setLit(true);
         tiff.open({ from: e.currentTarget, id, keyboard, room, day });
       }}
     >
-      <span className="tiffbtn-burst" aria-hidden="true" />
       {/* v2: the header is on the white page (rule 2), so every Tiff button
           stands on paper and the mark is black (rule 8). */}
-      <TiffMark ground="paper" />
+      <TiffMark working={listening} />
     </button>
   );
 }

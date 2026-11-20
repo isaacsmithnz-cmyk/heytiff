@@ -7,7 +7,7 @@ import { TiffGlyph } from "@/components/notes/tiff-mark";
 export default function Loading() {
   return (
     <div className="pg-hold st2-hold" aria-busy="true" aria-live="polite">
-      <TiffGlyph size={72} alive working label="Loading" />
+      <TiffGlyph size={72} working label="Loading" />
     </div>
   );
 }

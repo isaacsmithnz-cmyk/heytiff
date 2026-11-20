@@ -4976,23 +4976,21 @@ html[data-wb-display] .fg .wb2-vtabs,
 html[data-wb-display] .fg .wb2-mckey,
 html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 
-/* ── THE TIFF BUTTON: GIMBAL LIGHT (Isaac, 2026-09-25) ──
-   The logo as a gyroscope: a solid chevron that leans and circles, inside two
-   gimbal rings with light running along them. No disc, no halo, no sparkle —
-   the rings are its edge ("aura looks too generic ai"). The markup and the
-   reasons are in components/notes/tiff-mark.tsx; docs/design.md, "The Tiff
-   button", records what it is exempt from and why.
+/* ── TIFF'S MARK: THE CHEVRON AND ITS BOOMERANG (Isaac, 20 November 2026) ──
+   The logo's chevron stands still and its small mark is a boomerang. When
+   Tiff starts working she throws it; it circles the mark's head, out into
+   the distance and round in front, for as long as she works, and comes home
+   on the lap after she's done ("it should stay in air while thinking", on
+   https://claude.ai/artifact/6DK1HJY1QWYFYE6JDFecEm). It replaced the
+   gimbal rings. Black and grey only ("black only", "and grey"): the chevron
+   in the ground's ink, the boomerang in the logo's own grey, in the air too.
 
-   It is gently alive at rest, which law 18 does not allow anything else:
-   Isaac's override, 2026-09-24 ("make it gently alive all the time"). Every
-   loop below is named in the loops table and stops under reduced motion.
-
-   Every motion is a transform or an opacity, so the compositor carries it.
-   Sizes come off one number, `--tb`, the button's width.
-
-   TWO PLACES, AND THE GROUND DECIDES THE SKIN. The frame is ink and a sheet
-   is paper; the component picks the strokes, and this sheet picks the light.
-   No `.fg` scope: sheets portal to body, and the tokens live on :root. */
+   Still at rest everywhere (rule 8) but Home's mark, which throws one slow
+   lap now and then; and a Tiff button lifts the boomerang under the pointer
+   (rule 18's named exemption). The markup and the clock that runs the
+   phases are in components/notes/tiff-mark.tsx; the flight itself is
+   generated below by scripts/tiff-flight.mjs. Every motion is a transform.
+   Sizes come off one number, `--tb`, the button's width. */
 .tiffbtn { --tb:36px; position:relative; flex:none; width:var(--tb); height:var(--tb); padding:0; border:0;
   border-radius:50%; background:none; cursor:pointer; transition:transform var(--t-fast) var(--ease); }
 .tiffbtn-topbar { --tb:36px; }
@@ -5000,160 +4998,275 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .tiffbtn-sheet { --tb:30px; }
 /* at the end of an entry box and of the modal's reply box, beside a 36px Save */
 .tiffbtn-box { --tb:36px; }
-.tiffbtn-topbar, .tiffbtn-sheet, .tiffbtn-box, .tiffmk-paper {
-  --tiffbtn-sheen:color-mix(in srgb, var(--paper) 90%, transparent); --tiffbtn-sheen-hi:var(--paper);
-  --tiffbtn-burst:color-mix(in srgb, var(--mark-blue) 70%, transparent); }
-/* after the paper skin, so a box's button on ink (the Tiff modal's dock) and
-   the modal's header mark take the frame's */
-.tiffbtn-onink, .tiffmk-ink {
-  --tiffbtn-sheen:color-mix(in srgb, var(--mark-teal) 85%, transparent); --tiffbtn-sheen-hi:var(--mark-core);
-  --tiffbtn-burst:color-mix(in srgb, var(--mark-core) 90%, transparent); }
+/* THE GROUND DECIDES THE SKIN: ink on paper, paper on the ink. No `.fg`
+   scope: sheets portal to body, and the tokens live on :root. */
+.tiffbtn-topbar, .tiffbtn-sheet, .tiffbtn-box, .tiffmk-paper { --mk-fg:var(--ink); --mk-gr:var(--paper); }
+.tiffbtn-onink, .tiffmk-ink { --mk-fg:var(--paper); --mk-gr:var(--ink); }
 .tiffbtn:active { transform:translateY(1px); }
 .tiffbtn:focus-visible { outline:none; box-shadow:var(--ring); }
-.tiffbtn-defs { position:absolute; width:0; height:0; overflow:hidden; }
 
-/* the 3D space: one perspective, then one wrapper per motion */
-.tiffbtn-st { position:absolute; inset:0; perspective:calc(var(--tb) * 3); pointer-events:none; }
-.tiffbtn-root, .tiffbtn-flip, .tiffbtn-pre, .tiffbtn-nod, .tiffbtn-gw, .tiffbtn-gim {
-  position:absolute; inset:0; transform-style:preserve-3d; }
-.tiffbtn-root { transition:transform var(--t-move) var(--ease); }
+/* the logo's own box: 56% of a button, 74% of a label's mark. `--orb`
+   scales the flight; `--lap` is one lap at the working pace. */
+.tiffbtn-st { --art:calc(var(--tb) * .56); --lap:3s; --orb:1; position:absolute; left:50%; top:50%;
+  width:var(--art); height:var(--art); margin:calc(var(--art) / -2) 0 0 calc(var(--art) / -2);
+  perspective:calc(var(--art) * 2.4); pointer-events:none; }
+.tiffbtn-st svg { position:absolute; inset:0; width:100%; height:100%; display:block; overflow:visible; }
+.tiffbtn-chev { z-index:1; }
+.tiffbtn-chev path { stroke:var(--mk-fg); }
+.tiffbtn-lift, .tiffbtn-boom, .tiffbtn-bank { position:absolute; inset:0; }
+/* every turn and lean is about the boomerang's own middle */
+.tiffbtn-lift, .tiffbtn-boom, .tiffbtn-bank, .tiffbtn-spin { transform-origin:68% 31%; }
+.tiffbtn-boom { transform-style:preserve-3d; }
+/* the logo draws its small mark at 55%; solid here, so it never shows the
+   chevron through it as it passes in front */
+.tiffbtn-spin path { stroke:color-mix(in srgb, var(--mk-fg) 55%, var(--mk-gr)); }
+/* Home's lap at rest goes slower */
+.tiffbtn-st.fly-slow { --lap:5.1s; }
+/* the catch: the chevron gives a little as the boomerang lands */
+.tiffbtn-st.caught .tiffbtn-chev { animation:tiffCatch 380ms var(--ease); }
+@keyframes tiffCatch { 30% { transform:translateX(-1.6%); } }
+/* THE LIFT (rule 18's named exemption, Isaac, 20 November 2026): the
+   pointer on a Tiff button raises the boomerang off its place, tipped back
+   as if about to be thrown, and it settles when the pointer leaves. From
+   the pointer only: the keyboard moves nothing (law 8). */
+.tiffbtn-lift { transition:transform var(--t-fast) var(--ease); }
+.tiffbtn:hover .tiffbtn-st.rest .tiffbtn-lift { transform:translate(1.5%, -6%) rotate(-14deg); }
 
-/* the solid: ten copies of the mark in depth, the face at the front */
-.tiffbtn-ly, .tiffbtn-sheen { position:absolute; left:50%; top:50%; width:calc(var(--tb) * .56); height:calc(var(--tb) * .56);
-  margin:calc(var(--tb) * -.28) 0 0 calc(var(--tb) * -.28); }
-.tiffbtn-ly { display:block; overflow:visible; transform:translateZ(calc(var(--tb) * var(--z))); }
-.tiffbtn-ly.face { color:var(--paper); }
-/* precession: the lean is an axis that travels round, so the face traces a
-   cone and the chevron keeps pointing right; the three functions interpolate
-   one by one, which is what makes the circle smooth */
-.tiffbtn-pre { animation:tiffGyro 6s linear infinite; }
-@keyframes tiffGyro {
-  from { transform:rotateZ(0deg) rotateY(18deg) rotateZ(0deg); }
-  to { transform:rotateZ(360deg) rotateY(18deg) rotateZ(-360deg); } }
-.tiffbtn-nod { animation:tiffNod 1.5s ease-in-out infinite alternate; }
-@keyframes tiffNod { from { transform:rotateX(-3deg); } to { transform:rotateX(3deg); } }
-/* a band of light across the face, once a turn, cut to the mark's shape */
-.tiffbtn-sheen { overflow:hidden; transform:translateZ(calc(var(--tb) * .061));
-  -webkit-mask:var(--tiffbtn-mask) center / 100% 100% no-repeat; mask:var(--tiffbtn-mask) center / 100% 100% no-repeat; }
-.tiffbtn-sheen::before { content:""; position:absolute; top:-20%; bottom:-20%; left:0; width:60%;
-  background:linear-gradient(100deg, transparent, var(--tiffbtn-sheen) 40%, var(--tiffbtn-sheen-hi) 55%, transparent);
-  animation:tiffSheen 6s ease-in-out infinite; }
-@keyframes tiffSheen { 0%, 30% { transform:translateX(-120%); } 62%, 100% { transform:translateX(260%); } }
+/* ── THE BOOMERANG'S FLIGHT, GENERATED by scripts/tiff-flight.mjs: change the script, not these ── */
+.tiffbtn-st.fly-throw .tiffbtn-boom { animation:tiffThrow calc(var(--lap) * 0.7762) linear both; }
+.tiffbtn-st.fly-throw .tiffbtn-bank { animation:tiffThrowBank calc(var(--lap) * 0.7762) linear both; }
+.tiffbtn-st.fly-throw .tiffbtn-spin { animation:tiffThrowSpin calc(var(--lap) * 0.7762) linear both; }
+.tiffbtn-st.fly-orbit .tiffbtn-boom { animation:tiffOrbit var(--lap) linear infinite; }
+.tiffbtn-st.fly-orbit .tiffbtn-bank { animation:tiffOrbitBank var(--lap) linear infinite; }
+.tiffbtn-st.fly-orbit .tiffbtn-spin { animation:tiffOrbitSpin var(--lap) linear infinite; }
+.tiffbtn-st.fly-land .tiffbtn-boom { animation:tiffLand calc(var(--lap) * 0.2238) linear both; }
+.tiffbtn-st.fly-land .tiffbtn-bank { animation:tiffLandBank calc(var(--lap) * 0.2238) linear both; }
+.tiffbtn-st.fly-land .tiffbtn-spin { animation:tiffLandSpin calc(var(--lap) * 0.2238) linear both; }
+@keyframes tiffThrow {
+  0% { transform:translate3d(calc(var(--orb) * 0%), calc(var(--orb) * 0%), calc(var(--art) * var(--orb) * 0)); z-index:0; }
+  2.71% { transform:translate3d(calc(var(--orb) * 0.34%), calc(var(--orb) * 0.16%), calc(var(--art) * var(--orb) * 0.003)); z-index:0; }
+  5.46% { transform:translate3d(calc(var(--orb) * 1.42%), calc(var(--orb) * 0.51%), calc(var(--art) * var(--orb) * 0.007)); z-index:0; }
+  8.23% { transform:translate3d(calc(var(--orb) * 3.12%), calc(var(--orb) * 0.85%), calc(var(--art) * var(--orb) * 0.004)); z-index:0; }
+  11.03% { transform:translate3d(calc(var(--orb) * 5.13%), calc(var(--orb) * 1.05%), calc(var(--art) * var(--orb) * -0.041)); z-index:0; }
+  13.87% { transform:translate3d(calc(var(--orb) * 7.01%), calc(var(--orb) * 1%), calc(var(--art) * var(--orb) * -0.146)); z-index:0; }
+  16.76% { transform:translate3d(calc(var(--orb) * 8.27%), calc(var(--orb) * 0.67%), calc(var(--art) * var(--orb) * -0.305)); z-index:0; }
+  19.77% { transform:translate3d(calc(var(--orb) * 8.45%), calc(var(--orb) * 0.06%), calc(var(--art) * var(--orb) * -0.51)); z-index:0; }
+  22.96% { transform:translate3d(calc(var(--orb) * 7.2%), calc(var(--orb) * -0.76%), calc(var(--art) * var(--orb) * -0.743)); z-index:0; }
+  26.44% { transform:translate3d(calc(var(--orb) * 4.36%), calc(var(--orb) * -1.68%), calc(var(--art) * var(--orb) * -0.984)); z-index:0; }
+  30.37% { transform:translate3d(calc(var(--orb) * 0%), calc(var(--orb) * -2.59%), calc(var(--art) * var(--orb) * -1.203)); z-index:0; }
+  34.93% { transform:translate3d(calc(var(--orb) * -5.55%), calc(var(--orb) * -3.34%), calc(var(--art) * var(--orb) * -1.373)); z-index:0; }
+  40.23% { transform:translate3d(calc(var(--orb) * -11.68%), calc(var(--orb) * -3.8%), calc(var(--art) * var(--orb) * -1.467)); z-index:0; }
+  46.18% { transform:translate3d(calc(var(--orb) * -17.91%), calc(var(--orb) * -3.99%), calc(var(--art) * var(--orb) * -1.498)); z-index:0; }
+  52.33% { transform:translate3d(calc(var(--orb) * -24.18%), calc(var(--orb) * -3.95%), calc(var(--art) * var(--orb) * -1.492)); z-index:0; }
+  58.1% { transform:translate3d(calc(var(--orb) * -30.35%), calc(var(--orb) * -3.69%), calc(var(--art) * var(--orb) * -1.449)); z-index:0; }
+  63.15% { transform:translate3d(calc(var(--orb) * -36.27%), calc(var(--orb) * -3.22%), calc(var(--art) * var(--orb) * -1.37)); z-index:0; }
+  67.47% { transform:translate3d(calc(var(--orb) * -41.79%), calc(var(--orb) * -2.55%), calc(var(--art) * var(--orb) * -1.258)); z-index:0; }
+  71.24% { transform:translate3d(calc(var(--orb) * -46.77%), calc(var(--orb) * -1.69%), calc(var(--art) * var(--orb) * -1.115)); z-index:0; }
+  74.61% { transform:translate3d(calc(var(--orb) * -51.09%), calc(var(--orb) * -0.66%), calc(var(--art) * var(--orb) * -0.944)); z-index:0; }
+  77.72% { transform:translate3d(calc(var(--orb) * -54.64%), calc(var(--orb) * 0.5%), calc(var(--art) * var(--orb) * -0.75)); z-index:0; }
+  80.69% { transform:translate3d(calc(var(--orb) * -57.34%), calc(var(--orb) * 1.77%), calc(var(--art) * var(--orb) * -0.538)); z-index:0; }
+  83.56% { transform:translate3d(calc(var(--orb) * -59.13%), calc(var(--orb) * 3.13%), calc(var(--art) * var(--orb) * -0.312)); z-index:0; }
+  86.38% { transform:translate3d(calc(var(--orb) * -59.95%), calc(var(--orb) * 4.53%), calc(var(--art) * var(--orb) * -0.079)); z-index:0; }
+  89.17% { transform:translate3d(calc(var(--orb) * -59.78%), calc(var(--orb) * 5.94%), calc(var(--art) * var(--orb) * 0.047)); z-index:2; }
+  91.93% { transform:translate3d(calc(var(--orb) * -58.64%), calc(var(--orb) * 7.33%), calc(var(--art) * var(--orb) * 0.116)); z-index:2; }
+  94.67% { transform:translate3d(calc(var(--orb) * -56.54%), calc(var(--orb) * 8.66%), calc(var(--art) * var(--orb) * 0.183)); z-index:2; }
+  97.37% { transform:translate3d(calc(var(--orb) * -53.55%), calc(var(--orb) * 9.9%), calc(var(--art) * var(--orb) * 0.245)); z-index:2; }
+  100% { transform:translate3d(calc(var(--orb) * -49.73%), calc(var(--orb) * 11.02%), calc(var(--art) * var(--orb) * 0.301)); z-index:2; }
+}
+@keyframes tiffThrowBank {
+  0% { transform:rotateX(0deg) rotateY(0deg); }
+  2.71% { transform:rotateX(-0.2deg) rotateY(-0.4deg); }
+  5.46% { transform:rotateX(-0.3deg) rotateY(-1.7deg); }
+  8.23% { transform:rotateX(-0.2deg) rotateY(-3.7deg); }
+  11.03% { transform:rotateX(1.7deg) rotateY(-6.2deg); }
+  13.87% { transform:rotateX(6.2deg) rotateY(-8.7deg); }
+  16.76% { transform:rotateX(13deg) rotateY(-11deg); }
+  19.77% { transform:rotateX(21.7deg) rotateY(-12.6deg); }
+  22.96% { transform:rotateX(31.7deg) rotateY(-13.2deg); }
+  26.44% { transform:rotateX(42deg) rotateY(-12.7deg); }
+  30.37% { transform:rotateX(51.3deg) rotateY(-11.1deg); }
+  34.93% { transform:rotateX(58.6deg) rotateY(-8.4deg); }
+  40.23% { transform:rotateX(62.6deg) rotateY(-5deg); }
+  46.18% { transform:rotateX(63.9deg) rotateY(-1.3deg); }
+  52.33% { transform:rotateX(63.6deg) rotateY(2.5deg); }
+  58.1% { transform:rotateX(61.8deg) rotateY(6.2deg); }
+  63.15% { transform:rotateX(58.5deg) rotateY(9.8deg); }
+  67.47% { transform:rotateX(53.7deg) rotateY(13.1deg); }
+  71.24% { transform:rotateX(47.6deg) rotateY(16.1deg); }
+  74.61% { transform:rotateX(40.3deg) rotateY(18.7deg); }
+  77.72% { transform:rotateX(32deg) rotateY(20.8deg); }
+  80.69% { transform:rotateX(22.9deg) rotateY(22.4deg); }
+  83.56% { transform:rotateX(13.3deg) rotateY(23.5deg); }
+  86.38% { transform:rotateX(3.3deg) rotateY(24deg); }
+  89.17% { transform:rotateX(-2.3deg) rotateY(23.9deg); }
+  91.93% { transform:rotateX(-5.7deg) rotateY(23.2deg); }
+  94.67% { transform:rotateX(-8.9deg) rotateY(21.9deg); }
+  97.37% { transform:rotateX(-12deg) rotateY(20.1deg); }
+  100% { transform:rotateX(-14.7deg) rotateY(17.8deg); }
+}
+@keyframes tiffThrowSpin {
+  0% { transform:rotate(0deg); }
+  100% { transform:rotate(-1080deg); }
+}
+@keyframes tiffOrbit {
+  0% { transform:translate3d(calc(var(--orb) * -49.73%), calc(var(--orb) * 11.02%), calc(var(--art) * var(--orb) * 0.301)); z-index:2; }
+  2.2% { transform:translate3d(calc(var(--orb) * -44.63%), calc(var(--orb) * 12.09%), calc(var(--art) * var(--orb) * 0.355)); z-index:2; }
+  4.3% { transform:translate3d(calc(var(--orb) * -38.78%), calc(var(--orb) * 12.95%), calc(var(--art) * var(--orb) * 0.397)); z-index:2; }
+  6.32% { transform:translate3d(calc(var(--orb) * -32.36%), calc(var(--orb) * 13.56%), calc(var(--art) * var(--orb) * 0.428)); z-index:2; }
+  8.28% { transform:translate3d(calc(var(--orb) * -25.57%), calc(var(--orb) * 13.91%), calc(var(--art) * var(--orb) * 0.446)); z-index:2; }
+  10.2% { transform:translate3d(calc(var(--orb) * -18.6%), calc(var(--orb) * 13.99%), calc(var(--art) * var(--orb) * 0.45)); z-index:2; }
+  12.14% { transform:translate3d(calc(var(--orb) * -11.68%), calc(var(--orb) * 13.8%), calc(var(--art) * var(--orb) * 0.44)); z-index:2; }
+  14.12% { transform:translate3d(calc(var(--orb) * -5.02%), calc(var(--orb) * 13.34%), calc(var(--art) * var(--orb) * 0.417)); z-index:2; }
+  16.17% { transform:translate3d(calc(var(--orb) * 1.2%), calc(var(--orb) * 12.63%), calc(var(--art) * var(--orb) * 0.382)); z-index:2; }
+  18.31% { transform:translate3d(calc(var(--orb) * 6.77%), calc(var(--orb) * 11.69%), calc(var(--art) * var(--orb) * 0.334)); z-index:2; }
+  20.54% { transform:translate3d(calc(var(--orb) * 11.52%), calc(var(--orb) * 10.54%), calc(var(--art) * var(--orb) * 0.277)); z-index:2; }
+  22.84% { transform:translate3d(calc(var(--orb) * 15.32%), calc(var(--orb) * 9.23%), calc(var(--art) * var(--orb) * 0.211)); z-index:2; }
+  25.19% { transform:translate3d(calc(var(--orb) * 18.04%), calc(var(--orb) * 7.78%), calc(var(--art) * var(--orb) * 0.139)); z-index:2; }
+  27.57% { transform:translate3d(calc(var(--orb) * 19.61%), calc(var(--orb) * 6.25%), calc(var(--art) * var(--orb) * 0.063)); z-index:2; }
+  29.97% { transform:translate3d(calc(var(--orb) * 19.98%), calc(var(--orb) * 4.69%), calc(var(--art) * var(--orb) * -0.052)); z-index:0; }
+  32.41% { transform:translate3d(calc(var(--orb) * 19.13%), calc(var(--orb) * 3.13%), calc(var(--art) * var(--orb) * -0.312)); z-index:0; }
+  34.89% { transform:translate3d(calc(var(--orb) * 17.09%), calc(var(--orb) * 1.63%), calc(var(--art) * var(--orb) * -0.562)); z-index:0; }
+  37.46% { transform:translate3d(calc(var(--orb) * 13.92%), calc(var(--orb) * 0.23%), calc(var(--art) * var(--orb) * -0.795)); z-index:0; }
+  40.2% { transform:translate3d(calc(var(--orb) * 9.73%), calc(var(--orb) * -1.02%), calc(var(--art) * var(--orb) * -1.004)); z-index:0; }
+  43.22% { transform:translate3d(calc(var(--orb) * 4.63%), calc(var(--orb) * -2.09%), calc(var(--art) * var(--orb) * -1.182)); z-index:0; }
+  46.69% { transform:translate3d(calc(var(--orb) * -1.22%), calc(var(--orb) * -2.95%), calc(var(--art) * var(--orb) * -1.324)); z-index:0; }
+  50.8% { transform:translate3d(calc(var(--orb) * -7.64%), calc(var(--orb) * -3.56%), calc(var(--art) * var(--orb) * -1.427)); z-index:0; }
+  55.61% { transform:translate3d(calc(var(--orb) * -14.43%), calc(var(--orb) * -3.91%), calc(var(--art) * var(--orb) * -1.485)); z-index:0; }
+  60.89% { transform:translate3d(calc(var(--orb) * -21.4%), calc(var(--orb) * -3.99%), calc(var(--art) * var(--orb) * -1.499)); z-index:0; }
+  66.04% { transform:translate3d(calc(var(--orb) * -28.32%), calc(var(--orb) * -3.8%), calc(var(--art) * var(--orb) * -1.467)); z-index:0; }
+  70.57% { transform:translate3d(calc(var(--orb) * -34.98%), calc(var(--orb) * -3.34%), calc(var(--art) * var(--orb) * -1.391)); z-index:0; }
+  74.4% { transform:translate3d(calc(var(--orb) * -41.2%), calc(var(--orb) * -2.63%), calc(var(--art) * var(--orb) * -1.272)); z-index:0; }
+  77.67% { transform:translate3d(calc(var(--orb) * -46.77%), calc(var(--orb) * -1.69%), calc(var(--art) * var(--orb) * -1.115)); z-index:0; }
+  80.57% { transform:translate3d(calc(var(--orb) * -51.52%), calc(var(--orb) * -0.54%), calc(var(--art) * var(--orb) * -0.923)); z-index:0; }
+  83.23% { transform:translate3d(calc(var(--orb) * -55.32%), calc(var(--orb) * 0.77%), calc(var(--art) * var(--orb) * -0.704)); z-index:0; }
+  85.76% { transform:translate3d(calc(var(--orb) * -58.04%), calc(var(--orb) * 2.22%), calc(var(--art) * var(--orb) * -0.464)); z-index:0; }
+  88.21% { transform:translate3d(calc(var(--orb) * -59.61%), calc(var(--orb) * 3.75%), calc(var(--art) * var(--orb) * -0.209)); z-index:0; }
+  90.63% { transform:translate3d(calc(var(--orb) * -59.98%), calc(var(--orb) * 5.31%), calc(var(--art) * var(--orb) * 0.016)); z-index:2; }
+  93.03% { transform:translate3d(calc(var(--orb) * -59.13%), calc(var(--orb) * 6.87%), calc(var(--art) * var(--orb) * 0.094)); z-index:2; }
+  95.39% { transform:translate3d(calc(var(--orb) * -57.09%), calc(var(--orb) * 8.37%), calc(var(--art) * var(--orb) * 0.169)); z-index:2; }
+  97.73% { transform:translate3d(calc(var(--orb) * -53.92%), calc(var(--orb) * 9.77%), calc(var(--art) * var(--orb) * 0.238)); z-index:2; }
+  100% { transform:translate3d(calc(var(--orb) * -49.73%), calc(var(--orb) * 11.02%), calc(var(--art) * var(--orb) * 0.301)); z-index:2; }
+}
+@keyframes tiffOrbitBank {
+  0% { transform:rotateX(-14.7deg) rotateY(17.8deg); }
+  2.2% { transform:rotateX(-17.3deg) rotateY(14.8deg); }
+  4.3% { transform:rotateX(-19.4deg) rotateY(11.3deg); }
+  6.32% { transform:rotateX(-20.9deg) rotateY(7.4deg); }
+  8.28% { transform:rotateX(-21.8deg) rotateY(3.3deg); }
+  10.2% { transform:rotateX(-22deg) rotateY(-0.8deg); }
+  12.14% { transform:rotateX(-21.5deg) rotateY(-5deg); }
+  14.12% { transform:rotateX(-20.4deg) rotateY(-9deg); }
+  16.17% { transform:rotateX(-18.7deg) rotateY(-12.7deg); }
+  18.31% { transform:rotateX(-16.3deg) rotateY(-16.1deg); }
+  20.54% { transform:rotateX(-13.5deg) rotateY(-18.9deg); }
+  22.84% { transform:rotateX(-10.3deg) rotateY(-21.2deg); }
+  25.19% { transform:rotateX(-6.8deg) rotateY(-22.8deg); }
+  27.57% { transform:rotateX(-3.1deg) rotateY(-23.8deg); }
+  29.97% { transform:rotateX(2.2deg) rotateY(-24deg); }
+  32.41% { transform:rotateX(13.3deg) rotateY(-23.5deg); }
+  34.89% { transform:rotateX(24deg) rotateY(-22.3deg); }
+  37.46% { transform:rotateX(33.9deg) rotateY(-20.4deg); }
+  40.2% { transform:rotateX(42.8deg) rotateY(-17.8deg); }
+  43.22% { transform:rotateX(50.4deg) rotateY(-14.8deg); }
+  46.69% { transform:rotateX(56.5deg) rotateY(-11.3deg); }
+  50.8% { transform:rotateX(60.9deg) rotateY(-7.4deg); }
+  55.61% { transform:rotateX(63.4deg) rotateY(-3.3deg); }
+  60.89% { transform:rotateX(64deg) rotateY(0.8deg); }
+  66.04% { transform:rotateX(62.6deg) rotateY(5deg); }
+  70.57% { transform:rotateX(59.3deg) rotateY(9deg); }
+  74.4% { transform:rotateX(54.3deg) rotateY(12.7deg); }
+  77.67% { transform:rotateX(47.6deg) rotateY(16.1deg); }
+  80.57% { transform:rotateX(39.4deg) rotateY(18.9deg); }
+  83.23% { transform:rotateX(30deg) rotateY(21.2deg); }
+  85.76% { transform:rotateX(19.8deg) rotateY(22.8deg); }
+  88.21% { transform:rotateX(8.9deg) rotateY(23.8deg); }
+  90.63% { transform:rotateX(-0.8deg) rotateY(24deg); }
+  93.03% { transform:rotateX(-4.6deg) rotateY(23.5deg); }
+  95.39% { transform:rotateX(-8.2deg) rotateY(22.3deg); }
+  97.73% { transform:rotateX(-11.7deg) rotateY(20.4deg); }
+  100% { transform:rotateX(-14.7deg) rotateY(17.8deg); }
+}
+@keyframes tiffOrbitSpin {
+  0% { transform:rotate(0deg); }
+  100% { transform:rotate(-1440deg); }
+}
+@keyframes tiffLand {
+  0% { transform:translate3d(calc(var(--orb) * -49.73%), calc(var(--orb) * 11.02%), calc(var(--art) * var(--orb) * 0.301)); z-index:2; }
+  6.67% { transform:translate3d(calc(var(--orb) * -45.85%), calc(var(--orb) * 11.63%), calc(var(--art) * var(--orb) * 0.335)); z-index:2; }
+  13.16% { transform:translate3d(calc(var(--orb) * -40.82%), calc(var(--orb) * 11.88%), calc(var(--art) * var(--orb) * 0.355)); z-index:2; }
+  19.46% { transform:translate3d(calc(var(--orb) * -35.06%), calc(var(--orb) * 11.77%), calc(var(--art) * var(--orb) * 0.361)); z-index:2; }
+  25.59% { transform:translate3d(calc(var(--orb) * -28.97%), calc(var(--orb) * 11.31%), calc(var(--art) * var(--orb) * 0.354)); z-index:2; }
+  31.57% { transform:translate3d(calc(var(--orb) * -22.92%), calc(var(--orb) * 10.54%), calc(var(--art) * var(--orb) * 0.335)); z-index:2; }
+  37.44% { transform:translate3d(calc(var(--orb) * -17.24%), calc(var(--orb) * 9.52%), calc(var(--art) * var(--orb) * 0.305)); z-index:2; }
+  43.24% { transform:translate3d(calc(var(--orb) * -12.18%), calc(var(--orb) * 8.31%), calc(var(--art) * var(--orb) * 0.267)); z-index:2; }
+  49.04% { transform:translate3d(calc(var(--orb) * -7.91%), calc(var(--orb) * 6.98%), calc(var(--art) * var(--orb) * 0.224)); z-index:2; }
+  54.89% { transform:translate3d(calc(var(--orb) * -4.54%), calc(var(--orb) * 5.6%), calc(var(--art) * var(--orb) * 0.179)); z-index:2; }
+  60.84% { transform:translate3d(calc(var(--orb) * -2.1%), calc(var(--orb) * 4.27%), calc(var(--art) * var(--orb) * 0.134)); z-index:2; }
+  66.93% { transform:translate3d(calc(var(--orb) * -0.54%), calc(var(--orb) * 3.03%), calc(var(--art) * var(--orb) * 0.094)); z-index:2; }
+  73.2% { transform:translate3d(calc(var(--orb) * 0.28%), calc(var(--orb) * 1.96%), calc(var(--art) * var(--orb) * 0.059)); z-index:2; }
+  79.65% { transform:translate3d(calc(var(--orb) * 0.51%), calc(var(--orb) * 1.1%), calc(var(--art) * var(--orb) * 0.032)); z-index:2; }
+  86.28% { transform:translate3d(calc(var(--orb) * 0.39%), calc(var(--orb) * 0.48%), calc(var(--art) * var(--orb) * 0.013)); z-index:2; }
+  93.07% { transform:translate3d(calc(var(--orb) * 0.14%), calc(var(--orb) * 0.12%), calc(var(--art) * var(--orb) * 0.003)); z-index:0; }
+  100% { transform:translate3d(calc(var(--orb) * 0%), calc(var(--orb) * 0%), calc(var(--art) * var(--orb) * 0)); z-index:0; }
+}
+@keyframes tiffLandBank {
+  0% { transform:rotateX(-14.7deg) rotateY(17.8deg); }
+  6.67% { transform:rotateX(-16.4deg) rotateY(15.6deg); }
+  13.16% { transform:rotateX(-17.4deg) rotateY(13deg); }
+  19.46% { transform:rotateX(-17.7deg) rotateY(10.1deg); }
+  25.59% { transform:rotateX(-17.3deg) rotateY(7.3deg); }
+  31.57% { transform:rotateX(-16.4deg) rotateY(4.5deg); }
+  37.44% { transform:rotateX(-14.9deg) rotateY(2.1deg); }
+  43.24% { transform:rotateX(-13.1deg) rotateY(0.2deg); }
+  49.04% { transform:rotateX(-10.9deg) rotateY(-1.3deg); }
+  54.89% { transform:rotateX(-8.7deg) rotateY(-2.2deg); }
+  60.84% { transform:rotateX(-6.6deg) rotateY(-2.5deg); }
+  66.93% { transform:rotateX(-4.6deg) rotateY(-2.5deg); }
+  73.2% { transform:rotateX(-2.9deg) rotateY(-2deg); }
+  79.65% { transform:rotateX(-1.6deg) rotateY(-1.4deg); }
+  86.28% { transform:rotateX(-0.7deg) rotateY(-0.7deg); }
+  93.07% { transform:rotateX(-0.1deg) rotateY(-0.2deg); }
+  100% { transform:rotateX(0deg) rotateY(0deg); }
+}
+@keyframes tiffLandSpin {
+  0% { transform:rotate(0deg); }
+  86% { transform:rotate(-374deg); animation-timing-function:ease-out; }
+  100% { transform:rotate(-360deg); }
+}
+/* ── end of the generated flight ── */
 
-/* the gimbals: two rings on their own axes, a run of light along each */
-.tiffbtn-gw { opacity:.85; transition:opacity var(--t-fast) var(--ease); }
-.tiffbtn-gim-a { animation:tiffGimbalA 7s linear infinite; }
-.tiffbtn-gim-b { animation:tiffGimbalB 5s linear infinite; }
-@keyframes tiffGimbalA { from { transform:rotateZ(-20deg) rotateY(0deg); } to { transform:rotateZ(-20deg) rotateY(360deg); } }
-@keyframes tiffGimbalB { from { transform:rotateZ(25deg) rotateX(0deg); } to { transform:rotateZ(25deg) rotateX(360deg); } }
-.tiffbtn-arc { --r:calc(var(--tb) * var(--k)); position:absolute; left:50%; top:50%; width:var(--r); height:var(--r);
-  margin:calc(var(--r) / -2) 0 0 calc(var(--r) / -2); animation:tiffArc 2.6s linear infinite; }
-.tiffbtn-gim-a .tiffbtn-arc { --k:.86; }
-.tiffbtn-gim-b .tiffbtn-arc { --k:.72; }
-@keyframes tiffArc { to { transform:rotate(360deg); } }
-.tiffbtn-arc svg { display:block; width:100%; height:100%; overflow:visible; }
-.tiffbtn-arc circle { fill:none; stroke-width:max(1.2px, calc(var(--tb) * .022)); }
-.tiffbtn-ring { stroke-opacity:.18; }
-
-/* hover, and keyboard focus with it: the rings brighten and the mark comes forward */
-.tiffbtn:is(:hover, :focus-visible) .tiffbtn-gw { opacity:1; }
-.tiffbtn:is(:hover, :focus-visible) .tiffbtn-root { transform:scale(1.07); }
-
-/* the press: one turn on the chevron's own point, and a ring leaves the edge */
-.tiffbtn-burst { position:absolute; inset:0; border-radius:50%; pointer-events:none; opacity:0;
-  border:max(1px, calc(var(--tb) * .025)) solid var(--tiffbtn-burst); }
-.tiffbtn.lit .tiffbtn-flip { animation:tiffTurn .8s var(--ease); }
-@keyframes tiffTurn { from { transform:rotateX(0deg); } to { transform:rotateX(360deg); } }
-.tiffbtn.lit .tiffbtn-burst { animation:tiffBurst .8s var(--ease); }
-@keyframes tiffBurst { from { opacity:.9; transform:scale(1); } to { opacity:0; transform:scale(2.1); } }
-
-/* ── THE MARK OUTSIDE THE BUTTON (`TiffGlyph`, 2026-09-25) ──
-   Wherever the chevron stands for Tiff it is the gimbal, moving at rest the
-   way the button does (Isaac: "round end, moving, no dark background"). No
-   new loop: it runs the button's six, quickened while Tiff works, paused
-   when QUIET until its control is hovered or focused. It is small, so the
-   logo fills more of it: 74%, with the rings pushed out to its edge. */
+/* ── THE MARK OUTSIDE THE BUTTON (`TiffGlyph`) ──
+   Wherever the chevron stands for Tiff it is the same mark, still at rest
+   and thrown while she works. It is small, so the logo fills more of it,
+   and a small one flies a smaller circle so it stays near its own square. */
 .tiffmk { --tb:24px; position:relative; display:inline-block; flex:none; width:var(--tb); height:var(--tb);
   vertical-align:middle; }
-.tiffmk :is(.tiffbtn-ly, .tiffbtn-sheen) { width:calc(var(--tb) * .74); height:calc(var(--tb) * .74);
-  margin:calc(var(--tb) * -.37) 0 0 calc(var(--tb) * -.37); }
-.tiffmk .tiffbtn-gim-a .tiffbtn-arc { --k:1; }
-.tiffmk .tiffbtn-gim-b .tiffbtn-arc { --k:.9; }
-/* A flatter lens than the button's: at label size the near side of a ring
-   swung toward you under the button's perspective grew past its own box. */
-.tiffmk .tiffbtn-st { perspective:calc(var(--tb) * 6); }
-/* a pseudo-element cannot sit inside :is(), so the band of light gets its own selector */
-.tiffmk.working .tiffbtn-pre, .tiffmk.working .tiffbtn-sheen::before { animation-duration:2.4s; }
-.tiffmk.working .tiffbtn-nod { animation-duration:.5s; }
-.tiffmk.working .tiffbtn-gim-a { animation-duration:2.8s; }
-.tiffmk.working .tiffbtn-gim-b { animation-duration:2s; }
-.tiffmk.working .tiffbtn-arc { animation-duration:1s; }
-/* V2: STILL AT REST, TURNING WHILE SHE WORKS (docs/design.md, rule 8;
-   Isaac, 17 October 2026: "The mark does not turn at rest. It can stay
-   still."). Every mark, the button's and the label's, holds its pose until
-   it is working; then its loops run at the working pace above and its rings
-   take the colours. A quiet mark is one more resting mark. */
-:is(.tiffbtn, .tiffmk) :is(.tiffbtn-pre, .tiffbtn-nod, .tiffbtn-gim-a, .tiffbtn-gim-b, .tiffbtn-arc),
-:is(.tiffbtn, .tiffmk) .tiffbtn-sheen::before { animation-play-state:paused; }
-:is(.tiffbtn, .tiffmk).working :is(.tiffbtn-pre, .tiffbtn-nod, .tiffbtn-gim-a, .tiffbtn-gim-b, .tiffbtn-arc),
-:is(.tiffbtn, .tiffmk).working .tiffbtn-sheen::before { animation-play-state:running; }
-/* the colours: the runs swap to the cycling gradients, and the faint rings
-   take the same cycle, a little thicker so the colour reads at 24px */
-.tiffbtn-runw { display:none; }
-:is(.tiffbtn, .tiffmk).working .tiffbtn-run { display:none; }
-:is(.tiffbtn, .tiffmk).working .tiffbtn-runw { display:inline; }
-.tiffcyc { animation:tiffCyc 4s linear infinite; }
-.tiffcyc2 { animation:tiffCyc 4s linear -2s infinite; }
-:is(.tiffbtn, .tiffmk).working .tiffbtn-gim-a .tiffbtn-ring, .tiffmk.alive .tiffbtn-gim-a .tiffbtn-ring { stroke-opacity:.35; animation:tiffCycRing 4s linear infinite; }
-:is(.tiffbtn, .tiffmk).working .tiffbtn-gim-b .tiffbtn-ring, .tiffmk.alive .tiffbtn-gim-b .tiffbtn-ring { stroke-opacity:.35; animation:tiffCycRing 4s linear -2s infinite; }
-:is(.tiffbtn, .tiffmk).working .tiffbtn-arc circle { stroke-width:max(1.6px, calc(var(--tb) * .045)); }
-/* HOME'S MARK IS ALIVE (Isaac, 20 October 2026: "move at all times, even
-   in standby, and then it can just go faster when it's spinning. And let's
-   put the colors on it, even in standby"). Its loops run at rest at the
-   button's own pace, in the colours, and `.working` above quickens them. */
-.tiffmk.alive :is(.tiffbtn-pre, .tiffbtn-nod, .tiffbtn-gim-a, .tiffbtn-gim-b, .tiffbtn-arc),
-.tiffmk.alive .tiffbtn-sheen::before { animation-play-state:running; }
-.tiffmk.alive .tiffbtn-run { display:none; }
-.tiffmk.alive .tiffbtn-runw { display:inline; }
-.tiffmk.alive .tiffbtn-arc circle { stroke-width:max(1.6px, calc(var(--tb) * .03)); }
-/* the boards' order: blue, purple, pink, red, orange, yellow, green */
-@keyframes tiffCyc { 0%, 100% { stop-color:var(--mark-cyc-1); } 14.3% { stop-color:var(--mark-cyc-2); } 28.6% { stop-color:var(--mark-cyc-3); } 42.9% { stop-color:var(--mark-cyc-4); }
-  57.1% { stop-color:var(--mark-cyc-5); } 71.4% { stop-color:var(--mark-cyc-6); } 85.7% { stop-color:var(--mark-cyc-7); } }
-@keyframes tiffCycRing { 0%, 100% { stroke:var(--mark-cyc-1); } 14.3% { stroke:var(--mark-cyc-2); } 28.6% { stroke:var(--mark-cyc-3); } 42.9% { stroke:var(--mark-cyc-4); }
-  57.1% { stroke:var(--mark-cyc-5); } 71.4% { stroke:var(--mark-cyc-6); } 85.7% { stroke:var(--mark-cyc-7); } }
+.tiffmk .tiffbtn-st { --art:calc(var(--tb) * .74); }
+.tiffmk.small .tiffbtn-st { --orb:.7; }
 
 /* ── A TIFF CONTROL HAS A ROUND END (Isaac, 2026-09-25: "circle into
    rectangle … round end, moving, no dark background") ──
    The logo lives in the button's own round left end, concentric with it and
-   2px inside the border; the rest of the button is what it always was. No
-   disc: the rings are the circle. `button.` for weight over each button's own
-   padding and radius, wherever its sheet puts them. */
+   2px inside the border; the rest of the button is what it always was.
+   `button.` for weight over each button's own padding and radius, wherever
+   its sheet puts them. */
 /* `.wb2 .pbtn.ghost` (0,3,0) set the fleet's radius and padding over the first
    version of this rule, and the toolbar makes that button 38px, not 44: the
-   mark filled it edge to edge and its rings ran past the border (Isaac, on
-   prod: "doesnt quite fit"). So the wb2 spelling is named, and the mark is the
-   button's height less 8: its border and a 3px ring of air on every side. */
+   mark filled it edge to edge (Isaac, on prod: "doesnt quite fit"). So the
+   wb2 spelling is named, and the mark is the button's height less 8: its
+   border and a 3px ring of air on every side. */
 .fg button.tiffkey, .fg .wb2 button.pbtn.tiffkey { border-radius:999px var(--r-button) var(--r-button) 999px; padding-left:2px; }
 .fg .fl-valuebtn.tiffkey .tiffmk { --tb:30px; }
-/* Inside a round end the rings sit a little in from its edge, so their
-   near side, swung toward you, never crosses the border. */
-.tiffkey .tiffmk .tiffbtn-gim-a .tiffbtn-arc { --k:.94; }
-.tiffkey .tiffmk .tiffbtn-gim-b .tiffbtn-arc { --k:.82; }
 
 @media (prefers-reduced-motion:reduce) {
-  /* Every loop above stops by name, and the button holds one still pose that
-     still reads as the object: the mark leaning, the rings tipped. */
-  .tiffbtn, .tiffbtn-root { transition:none; }
-  .tiffbtn-pre, .tiffbtn-nod, .tiffbtn-gim-a, .tiffbtn-gim-b, .tiffbtn-arc,
-  .tiffbtn.lit .tiffbtn-flip, .tiffbtn.lit .tiffbtn-burst { animation:none; }
-  /* the working colours hold still too: the runs and rings keep their first colour */
-  .tiffcyc, .tiffcyc2, :is(.tiffbtn, .tiffmk).working .tiffbtn-gim-a .tiffbtn-ring, :is(.tiffbtn, .tiffmk).working .tiffbtn-gim-b .tiffbtn-ring,
-  .tiffmk.alive .tiffbtn-gim-a .tiffbtn-ring, .tiffmk.alive .tiffbtn-gim-b .tiffbtn-ring { animation:none; }
-  .tiffbtn-pre { transform:rotateY(18deg); }
-  .tiffbtn-sheen { display:none; }
-  .tiffbtn-gim-a { transform:rotateZ(-20deg) rotateY(60deg); }
-  .tiffbtn-gim-b { transform:rotateZ(25deg) rotateX(60deg); }
-  .tiffbtn:is(:hover, :focus-visible) .tiffbtn-root { transform:none; }
+  /* Every phase stops by name and the mark holds its own still pose: the
+     boomerang in its place, as the logo draws it. */
+  .tiffbtn, .tiffbtn-lift { transition:none; }
+  .tiffbtn-st.fly-throw .tiffbtn-boom, .tiffbtn-st.fly-throw .tiffbtn-bank, .tiffbtn-st.fly-throw .tiffbtn-spin,
+  .tiffbtn-st.fly-orbit .tiffbtn-boom, .tiffbtn-st.fly-orbit .tiffbtn-bank, .tiffbtn-st.fly-orbit .tiffbtn-spin,
+  .tiffbtn-st.fly-land .tiffbtn-boom, .tiffbtn-st.fly-land .tiffbtn-bank, .tiffbtn-st.fly-land .tiffbtn-spin,
+  .tiffbtn-st.caught .tiffbtn-chev { animation:none; }
+  .tiffbtn:hover .tiffbtn-st.rest .tiffbtn-lift { transform:none; }
 }
 
 /* ══════════════════ THE TIFF MODAL (.tm-*) ══════════════════

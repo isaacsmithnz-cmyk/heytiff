@@ -38,6 +38,25 @@ const SHAPES: Record<MapShape, { width: number; height: number; zoom: number; gr
 };
 export const mapShape = (raw: string | null | undefined): MapShape => (raw === "head" ? "head" : "card");
 
+/* THE HEAD'S MAP DRAWN TO ITS CARD (bug 52, Isaac, 20 November 2026: "map
+   misaligned"): the map stands in the head's right column, as wide as the
+   Scope tab's column under it and as tall as the words' card beside it
+   (rule 31: "the same height and corners"), so the picture is asked for at
+   the card's own size to the pixel, so nothing of Google's mark is cut,
+   never past Google's 640. Its width is set by the page and its height moves
+   only a line of words at a time, so few sizes are ever asked for. A size
+   that isn't a number is the wide picture's. */
+const HEAD_W = { min: 160, max: 640 };
+const HEAD_H = { min: 96, max: 400 };
+const snapTo = (raw: number, { min, max }: { min: number; max: number }) => Math.min(max, Math.max(min, Math.round(raw)));
+/** The size the head's picture is drawn at: its card's, whole pixels, kept in Google's bounds. */
+export function headMapSize(w: unknown, h: unknown): { width: number; height: number } {
+  const wn = Number(w);
+  const hn = Number(h);
+  if (!Number.isFinite(wn) || !Number.isFinite(hn) || wn <= 0 || hn <= 0) return { ...HEAD_MAP_SIZE };
+  return { width: snapTo(wn, HEAD_W), height: snapTo(hn, HEAD_H) };
+}
+
 const HUES = new Set<string>(Object.keys(PIN));
 export const pinHue = (raw: string | null | undefined): Hue => (raw && HUES.has(raw) ? (raw as Hue) : "grey");
 
@@ -49,8 +68,9 @@ export function mapAddress(job: { address?: string | null; geoLine?: string | nu
 }
 
 /** Static Maps' address for one job's picture. The key stays on the server. */
-export function staticMapUrl(address: string, hue: Hue, key: string, shape: MapShape = "card"): string {
-  const { width, height, zoom, grey } = SHAPES[shape];
+export function staticMapUrl(address: string, hue: Hue, key: string, shape: MapShape = "card", size?: { width: number; height: number }): string {
+  const { zoom, grey } = SHAPES[shape];
+  const { width, height } = shape === "head" && size ? size : SHAPES[shape];
   const p = new URLSearchParams();
   p.set("size", `${width}x${height}`);
   p.set("scale", "2");

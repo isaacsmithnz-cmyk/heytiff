@@ -1,13 +1,13 @@
 "use client";
 
-import { useId, useState, type ReactNode } from "react";
+import { useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/parts/button";
 import { Initials } from "@/components/parts/initials";
 import { StateWord } from "@/components/parts/state";
 import { Icon } from "@/components/shell/icon";
 import type { NextVisit } from "@/lib/jobs/job-conversation";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
-import { HEAD_MAP_SIZE } from "@/lib/jobs/job-map";
+import { HEAD_MAP_SIZE, headMapSize } from "@/lib/jobs/job-map";
 import { SiteNotes } from "./site-notes";
 
 /* THE FACTS CARD, ON THE LEFT OF A JOB'S OVERVIEW (Isaac, 13 and 14 November
@@ -130,20 +130,46 @@ export function directionsHref(address: string): string {
     of the address and the streets round it, 640 by 112, through our own route
     so the key stays on the server (api/workboard/job-map), fading into the
     head where the words are. Pressed, it is the directions to the site, in a
-    new tab. A picture that won't load takes its room away. */
+    new tab. A picture that won't load takes its room away.
+
+    Its card stands in the head's right column, as wide as the Scope tab's
+    column under it and as tall as the words' card beside it (bug 52, Isaac,
+    20 November 2026: "map misaligned"; rule 31, "the same height"), and the
+    picture is asked for at that size once the card is measured, so it is
+    drawn whole with Google's mark and data line on it. Where nothing can be
+    measured it is the wide picture. */
 export function JobHeadMap({ jobUuid, hue, address }: { jobUuid: string; hue: string; address: string }) {
   const [gone, setGone] = useState(false);
+  const box = useRef<HTMLAnchorElement>(null);
+  /* undefined until measured; null where the card has no size to read */
+  const [size, setSize] = useState<{ width: number; height: number } | null | undefined>(undefined);
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const read = () => {
+      const next = el.clientWidth > 0 && el.clientHeight > 0 ? headMapSize(el.clientWidth, el.clientHeight) : null;
+      setSize((was) => (was && next && was.width === next.width && was.height === next.height ? was : next));
+    };
+    read();
+    if (typeof ResizeObserver === "undefined") return;
+    const watch = new ResizeObserver(read);
+    watch.observe(el);
+    return () => watch.disconnect();
+  }, [gone]);
   if (gone) return null;
+  const drawn = size ?? HEAD_MAP_SIZE;
   return (
-    <a className="jp-map" href={directionsHref(address)} target="_blank" rel="noopener noreferrer" aria-label={`Directions to ${address.replace(/\s*\n\s*/g, ", ")}`}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={`/api/workboard/job-map?job=${encodeURIComponent(jobUuid)}&hue=${encodeURIComponent(hue)}&shape=head`}
-        alt=""
-        width={HEAD_MAP_SIZE.width}
-        height={HEAD_MAP_SIZE.height}
-        onError={() => setGone(true)}
-      />
+    <a ref={box} className="jp-map" href={directionsHref(address)} target="_blank" rel="noopener noreferrer" aria-label={`Directions to ${address.replace(/\s*\n\s*/g, ", ")}`}>
+      {size !== undefined && (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img
+          src={`/api/workboard/job-map?job=${encodeURIComponent(jobUuid)}&hue=${encodeURIComponent(hue)}&shape=head${size ? `&w=${size.width}&h=${size.height}` : ""}`}
+          alt=""
+          width={drawn.width}
+          height={drawn.height}
+          onError={() => setGone(true)}
+        />
+      )}
     </a>
   );
 }

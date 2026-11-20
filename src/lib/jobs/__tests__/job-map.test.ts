@@ -1,4 +1,4 @@
-import { mapAddress, mapShape, pinHue, staticMapUrl } from "../job-map";
+import { HEAD_MAP_SIZE, headMapSize, mapAddress, mapShape, pinHue, staticMapUrl } from "../job-map";
 
 /* The map over a job's address (Isaac, 14 November 2026: "Yes, add the map") */
 it("asks for the address as written, its lines joined, else the suburb line", () => {
@@ -39,4 +39,18 @@ it("draws the head's map in colour and the card's grey", () => {
   expect(styles("head")).not.toContain("saturation:-100");
   expect(styles("card")).toContain("saturation:-100");
   expect(styles("head")).toContain("feature:poi|visibility:off");
+});
+
+/* the head's map drawn to its card (bug 52, Isaac, 20 November 2026: "map misaligned") */
+it("asks for the head's picture at its card's size, whole pixels, in Google's bounds, and the wide one without a size", () => {
+  expect(headMapSize(380, 164)).toEqual({ width: 380, height: 164 });
+  expect(headMapSize("380.4", "119.6")).toEqual({ width: 380, height: 120 });
+  expect(headMapSize(2000, 20)).toEqual({ width: 640, height: 96 });
+  expect(headMapSize(null, 120)).toEqual(HEAD_MAP_SIZE);
+  expect(headMapSize("wide", "tall")).toEqual(HEAD_MAP_SIZE);
+  const sized = new URL(staticMapUrl("3 Surrey St", "purple", "k", "head", { width: 380, height: 164 }));
+  expect(sized.searchParams.get("size")).toBe("380x164");
+  expect(sized.searchParams.get("zoom")).toBe("15");
+  /* a size is the head's only: the card keeps its own */
+  expect(new URL(staticMapUrl("3 Surrey St", "purple", "k", "card", { width: 380, height: 164 })).searchParams.get("size")).toBe("320x96");
 });

@@ -1,4 +1,4 @@
-import { looksLikeDesignWords, looksLikeQuestion, priceIntent } from "../intent";
+import { looksLikeQuestion, looksLikeWorkForSomeone, priceIntent } from "../intent";
 
 /* The question/note split. The asymmetry these pin: a false "question" EATS
    A NOTE — the words go to the answer loop and nothing is saved — while a
@@ -120,12 +120,18 @@ describe("notes in the other languages, however question-shaped", () => {
 /* With a design open, words about its building go to Tiff (Isaac, 20
    October 2026): "the kitchen ceiling is 2.7, fix it" was offered as a task. */
 describe("a design's words", () => {
-  it.each([["The 3D is wrong: the kitchen ceiling is 2.7 m, please fix it"], ["make it a hip roof at 25 degrees"], ["the eaves are 450"], ["Bed 2 is raked"]])(
-    "%j is about the design",
-    (text) => expect(looksLikeDesignWords(text)).toBe(true),
-  );
-  it.each([["remind me to call Jack tomorrow"], ["Lyle has the head on the ute"]])("%j is not", (text) =>
-    expect(looksLikeDesignWords(text)).toBe(false),
+  it.each([
+    ["The 3D is wrong: the kitchen ceiling is 2.7 m, please fix it"],
+    ["make it a hip roof at 25 degrees"],
+    ["the eaves are 450"],
+    ["Bed 2 is raked"],
+    /* bug 67: no part of the building named, and still about the design */
+    ["gF is floating above ground"],
+    ["the lounge looks too small"],
+  ])("%j goes to her", (text) => expect(looksLikeWorkForSomeone(text)).toBe(false));
+  it.each([["remind me to call Jack tomorrow"], ["tell Dane the head goes in the hall"], ["order the 7kW for this one"], ["follow up the builder on the roof height"]])(
+    "%j is a note",
+    (text) => expect(looksLikeWorkForSomeone(text)).toBe(true),
   );
 });
 

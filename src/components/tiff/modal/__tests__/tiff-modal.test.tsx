@@ -843,6 +843,29 @@ describe("with a design open", () => {
     expect(askBrain).toHaveBeenCalledWith(expect.objectContaining({ question: "The 3D is wrong: the kitchen ceiling is 2.7 m, please fix it" }), expect.anything());
     expect(routeNote).not.toHaveBeenCalled();
   });
+
+  /* bug 67 (21 November 2026): "gF is floating above ground" named no part
+     of the building, so it was written up as a site finding and a warning */
+  it("asks her about anything said over the design", async () => {
+    askBrain.mockImplementationOnce((_input, h) => {
+      h.onDelta("The lawn is drawn at the lowest floor.");
+      h.onDone();
+    });
+    const user = await openModal({ voice: false, extra: <OnDesign /> });
+    await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "gF is floating above ground{Enter}");
+    await flush();
+    expect(askBrain).toHaveBeenCalledWith(expect.objectContaining({ question: "gF is floating above ground" }), expect.anything());
+    expect(routeNote).not.toHaveBeenCalled();
+  });
+
+  it("still files work for someone as a note", async () => {
+    routeNote.mockResolvedValueOnce(routed({ say: "Who should tell him?", tasks: [task("Tell Dane the head goes in the hall", null)] }));
+    const user = await openModal({ voice: false, extra: <OnDesign /> });
+    await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "tell Dane the head goes in the hall{Enter}");
+    await flush();
+    expect(askBrain).not.toHaveBeenCalled();
+    expect(routeNote).toHaveBeenCalledWith(expect.objectContaining({ transcript: "tell Dane the head goes in the hall" }));
+  });
 });
 
 describe("leaving", () => {

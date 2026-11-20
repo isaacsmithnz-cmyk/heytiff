@@ -265,18 +265,23 @@ export function looksLikeMove(text: string): boolean {
   return parseMove(text) !== null;
 }
 
-/* ON DESIGN, THE DESIGN'S WORDS GO TO HER (Isaac, 20 October 2026: "she
-   should also be able to revise 3d renderings… you should just be able to
-   open up the TIFF button. And talk to it"). "The kitchen ceiling is 2.7,
-   fix it" carries no question mark, so the note flow took it and offered
-   to make it a task. With a design open, words about the building it draws
-   go to the ask loop, which holds the design and can correct its 3D. */
-const DESIGN_WORDS =
-  /\b(3d|roof|roofs|ceiling|ceilings|pitch|pitched|eave|eaves|rafter|rafters|raked|rake|skillion|hip|gable|framing|frame|joist|joists|void|storey|storeys|floor height|ceiling height)\b/i;
+/* ON DESIGN, THE WORDS GO TO HER (Isaac, 20 October 2026: "she should also
+   be able to revise 3d renderings… you should just be able to open up the
+   TIFF button. And talk to it"). With a design open, what's said is about
+   the design: bug 67 (21 November 2026), "gF is floating above ground"
+   typed over the 3D, matched no word on a list of the building's parts, so
+   the note flow wrote it up as a site finding and a warning and asked which
+   job. So the list is gone: with a design open, words go to the ask loop,
+   which holds the design and can correct its 3D, unless they make work for
+   someone ("remind me…", "tell Dane…", "order the…"), which is still a note,
+   on the design's job. */
+const WORK_FOR_SOMEONE =
+  /\b(remind|reminder|task|tasks|to ?do|follow ?up|chase|note (?:that|down|it)|write (?:it|that|this) (?:up|down)|log (?:it|that|this)|tell|ring|call|phone|email|text|order|book|invoice|pick up|tomorrow|tonight|next week|by (?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|today|the end of))\b/i;
 
-/** With a design open: are these words about the building it draws? */
-export function looksLikeDesignWords(text: string): boolean {
-  return DESIGN_WORDS.test(text);
+/** With a design open: do these words make work for someone, a note to
+    file? Everything else said over a design goes to her. */
+export function looksLikeWorkForSomeone(text: string): boolean {
+  return WORK_FOR_SOMEONE.test(text);
 }
 
 /* A PRICE NOW, OR A TASK? (Isaac, 21 October 2026: Luke asked "can you give

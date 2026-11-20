@@ -6,7 +6,7 @@
    one action at the foot. Systems, a system, a room, the air and Edit system
    are all screens of this one column. */
 
-import type { ReactNode } from "react";
+import type { DragEvent, ReactNode } from "react";
 import { Fade } from "@/components/parts/fade";
 import { Icon } from "@/components/shell/icon";
 
@@ -27,6 +27,7 @@ export function StackHead({
   back,
   onBack,
   action,
+  nav,
 }: {
   name: ReactNode;
   sub?: ReactNode;
@@ -35,15 +36,30 @@ export function StackHead({
   onBack?: () => void;
   /** one small action level with the title */
   action?: ReactNode;
+  /** the screen's one action, top right in blue words over the title, where a
+      phone keeps it (Edit, Add system, Rename; the bar and panel mock, 21
+      November 2026) */
+  nav?: { label: string; onPress: () => void };
 }) {
+  const backButton =
+    back && onBack ? (
+      <button type="button" className="ds-stack-back" onClick={onBack}>
+        <Icon name="chevL" size={16} />
+        {back}
+      </button>
+    ) : null;
   return (
     <header className="ds-stack-head">
-      {back && onBack ? (
-        <button type="button" className="ds-stack-back" onClick={onBack}>
-          <Icon name="chevL" size={16} />
-          {back}
-        </button>
-      ) : null}
+      {nav ? (
+        <div className="ds-stack-nav">
+          {backButton ?? <span />}
+          <button type="button" className="ds-stack-navact" onClick={nav.onPress}>
+            {nav.label}
+          </button>
+        </div>
+      ) : (
+        backButton
+      )}
       <div className="ds-stack-titlerow">
         <h2 className="ds-stack-title">{name}</h2>
         {action}
@@ -74,6 +90,11 @@ export function StackRow({
   label,
   lit,
   children,
+  blue,
+  danger,
+  strong,
+  drag,
+  held,
 }: {
   lead?: ReactNode;
   name: ReactNode;
@@ -91,6 +112,18 @@ export function StackRow({
   lit?: boolean;
   /** the row's own control, at its right: a tray or a field */
   children?: ReactNode;
+  /** an action row, its words in blue (Add zones, Add to the design) */
+  blue?: boolean;
+  /** a row that ends something, its words in red (Delete zone) or saying
+      what's wrong (Not a valid combination) */
+  danger?: boolean;
+  /** the value in ink: a figure the row is for (Heat load) */
+  strong?: boolean;
+  /** a row picked up and dragged onto the plan: its handle at the row's end,
+      where a phone keeps it */
+  drag?: { onDragStart: (e: DragEvent<HTMLElement>) => void; onDragEnd: () => void };
+  /** dragged out right now: the row stays, filled as a selection is */
+  held?: boolean;
 }) {
   const inner = (
     <>
@@ -100,8 +133,15 @@ export function StackRow({
         {sub ? <Fade className="ds-stack-row-s">{sub}</Fade> : null}
         {more ? <Fade className="ds-stack-row-s">{more}</Fade> : null}
       </span>
-      {value != null && value !== "" ? <span className={`ds-stack-row-v${tone ? ` ${tone === "good" ? "ok" : tone}` : ""}`}>{value}</span> : null}
+      {value != null && value !== "" ? (
+        <span className={`ds-stack-row-v${tone ? ` ${tone === "good" ? "ok" : tone}` : strong ? " ink" : ""}`}>{value}</span>
+      ) : null}
       {children}
+      {drag ? (
+        <span className="ds-stack-grip" aria-hidden="true">
+          <Icon name="menu" size={16} />
+        </span>
+      ) : null}
       {chevron ? (
         <span className="ds-stack-chev" aria-hidden="true">
           <Icon name="chevR" size={16} />
@@ -109,12 +149,16 @@ export function StackRow({
       ) : null}
     </>
   );
+  const cls = `ds-stack-row${onPress ? " press" : ""}${lit || held ? " lit" : ""}${blue ? " blue" : ""}${danger ? " danger" : ""}${drag ? " drag" : ""}`;
+  const dragProps = drag ? { draggable: true, onDragStart: drag.onDragStart, onDragEnd: drag.onDragEnd } : {};
   return onPress ? (
-    <button type="button" className={`ds-stack-row press${lit ? " lit" : ""}`} aria-label={label} aria-current={lit || undefined} onClick={onPress}>
+    <button type="button" className={cls} aria-label={label} aria-current={lit || undefined} onClick={onPress} {...dragProps}>
       {inner}
     </button>
   ) : (
-    <div className={`ds-stack-row${lit ? " lit" : ""}`}>{inner}</div>
+    <div className={cls} {...dragProps}>
+      {inner}
+    </div>
   );
 }
 

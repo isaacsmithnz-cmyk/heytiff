@@ -14,7 +14,6 @@
    each change its own undo, the load beside them the Studio's own
    (loads-room.ts), the same number the plan wears. */
 
-import { Fade } from "@/components/parts/fade";
 import { Tray } from "@/components/parts/tabs";
 import type { DesignDocument } from "@/lib/studio/document";
 import { boundsOfPoints, formatArea, isAxisAlignedRect, polygonArea, unitsToMeters } from "@/lib/studio/geometry";
@@ -23,18 +22,10 @@ import { roomAreaM2, roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
 import { canJoin, readHeightOf } from "@/lib/studio/room-edit";
 import type { Suggestion } from "@/lib/studio/rooms-from-reading";
 import { zoneIdsOf } from "@/lib/studio/zones";
-import { Icon } from "@/components/shell/icon";
-
-/** the column's way back: it names the screen behind */
-function Back({ to, onBack }: { to?: string; onBack?: () => void }) {
-  if (!to || !onBack) return null;
-  return (
-    <button type="button" className="ds-stack-back" onClick={onBack}>
-      <Icon name="chevL" size={16} />
-      {to}
-    </button>
-  );
-}
+import { useRef } from "react";
+import { Tick } from "@/components/parts/tick";
+import { leftOutRooms } from "@/lib/studio/left-out";
+import { StackDot, StackGroup, StackHead, StackRow, StackScreen } from "./stack";
 
 const KIND_WORD: Partial<Record<Suggestion["kind"], string>> = {
   wet: "wet",
@@ -52,11 +43,14 @@ export function RoomsPanel({
   showAll,
   onShowAll,
   picked,
+  onPick,
   onKeep,
   onOpen,
   onJoin,
   onApart,
-  onDraw,
+  onPutBack,
+  combining,
+  onCombining,
   onDone,
   back,
 }: {
@@ -68,14 +62,18 @@ export function RoomsPanel({
   /** every room she found, or the living spaces only (the plan shows the same) */
   showAll: boolean;
   onShowAll: (all: boolean) => void;
-  /** rooms picked together with Shift */
+  /** zones picked to combine, here or on the plan */
   picked: readonly string[];
+  onPick: (ids: string[]) => void;
   onKeep: (keys: string[]) => void;
   onOpen: (roomId: string) => void;
   onJoin: () => void;
   onApart: () => void;
-  /** arm the room tool, to draw one */
-  onDraw: () => void;
+  /** these left-out zones back on the design (left-out.ts) */
+  onPutBack: (ids: string[]) => void;
+  /** Combine is on: a tick on each zone */
+  combining: boolean;
+  onCombining: (on: boolean) => void;
   onDone: () => void;
 }) {
   const floor = doc.floors.find((f) => f.id === floorId);
@@ -86,110 +84,101 @@ export function RoomsPanel({
   const lived = found.filter((s) => s.keep);
   const listed = showAll ? found : lived;
   const joinable = pickedRooms.length >= 2 && canJoin(doc, pickedRooms.map((r) => r.id));
+  const out = leftOutRooms(doc).filter((o) => o.floorId === floorId);
   const m2 = (s: Suggestion) => (mm ? formatArea((polygonArea(s.points) * mm * mm) / 1e6) : "");
+  const colourOf = (id: string) => doc.systems.find((x) => zoneIdsOf(x).includes(id))?.colour ?? null;
+  const name = (r: { props: Record<string, unknown> }) => String(r.props.name ?? "Zone");
+
+  /* COMBINE (Isaac, 20 November 2026: "combine rooms/areas button", "zones
+     sorry", then "combine could be ticks"): a tick on each zone, here or on
+     the plan, and Combine makes them one zone with one load */
+  if (combining) {
+    const toggle = (id: string, on: boolean) => onPick(on ? [...picked.filter((x) => x !== id), id] : picked.filter((x) => x !== id));
+    return (
+      <StackScreen
+        label="Combine zones"
+        foot={
+          <button type="button" className="ds-stack-main" disabled={!joinable} onClick={onJoin}>
+            {pickedRooms.length >= 2 ? `Combine ${pickedRooms.length} zones` : "Combine"}
+          </button>
+        }
+      >
+        <StackHead
+          name="Zones"
+          nav={{
+            label: "Cancel",
+            onPress: () => {
+              onApart();
+              onCombining(false);
+            },
+          }}
+        />
+        {pickedRooms.length >= 2 && !joinable ? (
+          <StackGroup>
+            <StackRow danger name={pickedRooms.length === 2 ? "These two don't touch" : "These don't all touch"} />
+          </StackGroup>
+        ) : null}
+        <StackGroup>
+          {rooms.map((r) => (
+            <StackRow
+              key={r.id}
+              lead={<Tick checked={picked.includes(r.id)} onChange={(on) => toggle(r.id, on)} label={<span className="sr-only">{name(r)}</span>} />}
+              name={name(r)}
+              value={kw(roomLoadKw(doc, r))}
+            />
+          ))}
+        </StackGroup>
+      </StackScreen>
+    );
+  }
 
   return (
-    <section className="ds-su ds-rp" aria-label="Rooms">
-      <Back to={back} onBack={onDone} />
-      <div className="ds-su-head">
-        <h2>Rooms</h2>
-      </div>
-      <p className="ds-su-sub">{floor.name}</p>
-
-      {pickedRooms.length >= 2 && (
-        <div className="ds-su-grp">
-          <div className="ds-su-row">
-            <span className="v">
-              <b>{pickedRooms.map((r) => String(r.props.name ?? "Room")).join(" and ")}</b>
-            </span>
-          </div>
-          <div className="ds-su-row">
-            <span className="v">
-              {joinable
-                ? `${mm ? `${formatArea(pickedRooms.reduce((t, r) => t + (roomAreaM2(doc, r) ?? 0), 0))} as one, ` : ""}named ${String(pickedRooms[0].props.name ?? "Room")}`
-                : pickedRooms.length === 2
-                  ? "These two don't touch"
-                  : "These don't all touch"}
-            </span>
-          </div>
-          <div className="ds-su-acts">
-            {joinable && (
-              <button type="button" className="ds-su-main" onClick={onJoin}>
-                Join as one room
-              </button>
-            )}
-            <button type="button" className="ds-su-second" onClick={onApart}>
-              Keep them apart
-            </button>
-          </div>
-        </div>
+    <StackScreen label="Zones">
+      <StackHead back={back} onBack={onDone} name="Zones" nav={rooms.length >= 2 ? { label: "Combine", onPress: () => onCombining(true) } : undefined} />
+      {rooms.length > 0 && (
+        <StackGroup>
+          {rooms.map((r) => {
+            const c = colourOf(r.id);
+            return (
+              <StackRow
+                key={r.id}
+                lead={c ? <StackDot colour={c} /> : <span className="ds-stack-dot" aria-hidden="true" />}
+                name={name(r)}
+                value={kw(roomLoadKw(doc, r))}
+                chevron
+                onPress={() => onOpen(r.id)}
+              />
+            );
+          })}
+        </StackGroup>
       )}
-
-      <div className="ds-su-grp">
-        <h3 className="ds-rp-h">On the plan</h3>
-        {rooms.length ? (
-          <ul className="ds-rp-list">
-            {rooms.map((r) => (
-              <li key={r.id}>
-                <button type="button" className="ds-rp-row" onClick={() => onOpen(r.id)}>
-                  <span className="n">
-                    <Fade>{String(r.props.name ?? "Room")}</Fade>
-                  </span>
-                  <span className="f">
-                    {[roomAreaM2(doc, r) != null ? formatArea(roomAreaM2(doc, r)!) : "", kw(roomLoadKw(doc, r))].filter(Boolean).join(", ")}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="ds-rp-none">No rooms yet</p>
-        )}
-        <div className="ds-su-acts">
-          <button type="button" className="ds-su-second" onClick={onDraw}>
-            Draw a room
-          </button>
-        </div>
-      </div>
-
       {found.length > 0 && (
-        <div className="ds-su-grp">
-          <h3 className="ds-rp-h">Tiff found</h3>
-          {lived.length > 0 && (
-            <div className="ds-su-acts">
-              <button type="button" className="ds-su-main" disabled={!mm} onClick={() => onKeep(lived.map((s) => s.key))}>
-                {lived.length === 1 ? `Keep ${lived[0].name}` : `Keep the ${lived.length} living spaces`}
+        <StackGroup>
+          {lived.length > 1 && <StackRow blue name={`Add the ${lived.length} living spaces Tiff read`} onPress={() => onKeep(lived.map((x) => x.key))} />}
+          {listed.map((x) => (
+            <StackRow key={x.key} name={x.name} sub={["Read by Tiff, not drawn", m2(x), KIND_WORD[x.kind]].filter(Boolean).join(", ")}>
+              <button type="button" className="ds-stack-navact" disabled={!mm} onClick={() => onKeep([x.key])}>
+                Add
               </button>
-            </div>
-          )}
-          <ul className="ds-rp-list">
-            {listed.map((s) => (
-              <li key={s.key} className="ds-rp-found">
-                <span className="n">
-                  <Fade>{s.name}</Fade>
-                </span>
-                <span className="f">{[m2(s), KIND_WORD[s.kind]].filter(Boolean).join(", ")}</span>
-                <button type="button" className="ds-rp-keep" disabled={!mm} onClick={() => onKeep([s.key])}>
-                  Keep
-                </button>
-              </li>
-            ))}
-          </ul>
+            </StackRow>
+          ))}
           {found.length > lived.length && (
-            <div className="ds-su-acts">
-              <button type="button" className="ds-su-second" onClick={() => onShowAll(!showAll)}>
-                {showAll ? "Living spaces only" : `Show all ${found.length} Tiff found`}
-              </button>
-            </div>
+            <StackRow blue name={showAll ? "Living spaces only" : `All ${found.length} Tiff read`} onPress={() => onShowAll(!showAll)} />
           )}
-        </div>
+        </StackGroup>
       )}
-
-      <div className="ds-su-fill" />
-      <button type="button" className="ds-su-main" onClick={onDone}>
-        Done
-      </button>
-    </section>
+      {out.length > 0 && (
+        <StackGroup>
+          {out.map((o) => (
+            <StackRow key={o.id} name={name(o)} sub="Left out">
+              <button type="button" className="ds-stack-navact" onClick={() => onPutBack([o.id])}>
+                Put back
+              </button>
+            </StackRow>
+          ))}
+        </StackGroup>
+      )}
+    </StackScreen>
   );
 }
 
@@ -239,6 +228,7 @@ export function RoomPanel({
   /** off the design, kept to put back (left-out.ts); absent on a room a system has */
   onLeaveOut?: () => void;
 }) {
+  const nameRef = useRef<HTMLInputElement>(null);
   const room = doc.objects.find((o): o is RoomObj => o.id === roomId && o.type === "room" && o.geometry.kind === "polygon");
   if (!room) return null;
   const floor = doc.floors.find((f) => f.id === room.floorId);
@@ -264,143 +254,93 @@ export function RoomPanel({
   const owner = doc.systems.find((s) => zoneIdsOf(s).includes(roomId));
   const heads = doc.objects.filter((o) => o.type === "unit" && o.props.roomId === roomId).map((o) => String(o.props.model ?? ""));
 
+  const others = owner ? doc.systems.filter((x) => x.id !== owner.id) : [];
+
+  /* A ZONE, AS A PHONE'S SCREEN (the bar and panel mock, "Yes, build it",
+     21 November 2026): its heat load first, the number every sizing is
+     checked against; its unit with Swap; what the load is made of; its
+     system, with Move or Take off; then Leave out and Delete zone. */
   return (
-    <section className="ds-su ds-rp" aria-label={String(p.name ?? "Room")}>
-      <Back to={back} onBack={onBack} />
-      <div className="ds-rp-name">
-        <input
-          className="ds-rp-name-in"
-          aria-label="Name"
-          value={String(p.name ?? "")}
-          onChange={(e) => set({ name: e.target.value })}
+    <div className="ds-zone">
+      <StackScreen label={String(p.name ?? "Zone")}>
+        <StackHead
+          back={back}
+          onBack={onBack}
+          name={<input ref={nameRef} className="ds-stack-titlein" aria-label="Name" value={String(p.name ?? "")} onChange={(e) => set({ name: e.target.value })} />}
+          nav={{ label: "Rename", onPress: () => nameRef.current?.select() }}
         />
-      </div>
-      <p className="ds-su-sub">{[floor?.name, owner?.name].filter(Boolean).join(", ")}</p>
-      <div className="ds-rp-load">
-        <b>{load != null ? kw(load) : "No load yet"}</b>
-        {load != null && area ? <span>{`${Math.round((load * 1000) / area)} W/m² on ${formatArea(area)}`}</span> : null}
-      </div>
-
-      <div className="ds-su-grp">
-        <div className="ds-su-row">
-          <span className="k">Size</span>
-          <span className="v">{size}</span>
-        </div>
-        <div className="ds-su-row">
-          <span className="k">Height</span>
-          <span className="v ds-rp-height">
-            <input
-              className="ds-rp-num"
-              aria-label="Ceiling height in metres"
-              inputMode="decimal"
-              defaultValue={height != null ? String(height) : ""}
-              placeholder="2.4"
-              key={`${roomId}-${height}`}
-              onBlur={(e) => {
-                const v = parseFloat(e.target.value);
-                if (v > 1.8 && v < 12 && v !== height) set({ ceilingHeightM: v, heightFrom: null });
-              }}
-            />
-            m
-          </span>
-        </div>
-        {height != null && p.heightFrom ? <p className="ds-rp-from">From {String(p.heightFrom)}</p> : null}
-        {read && read.m !== height && (
-          <div className="ds-su-acts">
-            <button type="button" className="ds-su-second" onClick={() => set({ ceilingHeightM: read.m, heightFrom: read.from })}>
-              Use {read.m} m, from {read.from}
-            </button>
-          </div>
-        )}
-        <div className="ds-su-row ds-rp-tray">
-          <span className="k">Above</span>
-          <span className="v">
-            <Tray
-              ariaLabel="Above the room"
-              options={ABOVE}
-              value={p.roomAbove === true ? "floor" : "roof"}
-              onChange={(v) => set({ roomAbove: v === "floor" })}
-            />
-          </span>
-        </div>
-        <div className="ds-su-row ds-rp-tray">
-          <span className="k">Glazing</span>
-          <span className="v">
-            <Tray ariaLabel="Glazing" options={GLAZING} value={(p.glazing as GlazingLevel) ?? "moderate"} onChange={(v) => set({ glazing: v })} />
-          </span>
-        </div>
-        <div className="ds-su-row ds-rp-tray">
-          <span className="k">Insulation</span>
-          <span className="v">
-            <Tray ariaLabel="Insulation" options={CONDITION} value={(p.condition as RoomCondition) ?? "standard"} onChange={(v) => set({ condition: v })} />
-          </span>
-        </div>
-      </div>
-
-      <div className="ds-su-grp">
-        <div className="ds-su-row">
-          <span className="k">Outside</span>
-          <span className="v">{walls.length ? (walls.length === 1 ? "1 wall" : `${walls.length} walls`) : "None, an inside room"}</span>
-        </div>
-        <div className="ds-su-row">
-          <span className="k">Facing</span>
-          <span className="v">{facing ? `${ORIENT_LABELS[facing]}, ×${ORIENT_MULT[facing].toFixed(2)}` : "Not set"}</span>
-        </div>
-        <div className="ds-su-acts">
-          <button type="button" className="ds-su-second" onClick={onMarkWalls}>
-            Mark walls on the plan
-          </button>
-        </div>
-      </div>
-
-      <div className="ds-su-grp">
-        <div className="ds-su-row">
-          <span className="k">Served by</span>
-          <span className="v">{heads.length ? heads.join(", ") : owner ? owner.name : "Nothing yet"}</span>
-        </div>
-        {owner && (
-          <div className="ds-su-acts">
-            <button type="button" className="ds-su-second" onClick={() => onEditSystem(owner.id)}>
-              Edit {owner.name}
-            </button>
-            {onTakeOff && (
-              <button type="button" className="ds-su-second" onClick={() => onTakeOff(owner.id)}>
-                Take off {owner.name}
-              </button>
-            )}
-            {onMove &&
-              doc.systems
-                .filter((s) => s.id !== owner.id)
-                .map((s) => (
-                  <button key={s.id} type="button" className="ds-su-second" onClick={() => onMove(owner.id, s.id)}>
-                    Move to {s.name}
+        <StackGroup>
+          <StackRow
+            name="Heat load"
+            sub={load != null && area ? `${Math.round((load * 1000) / area)} W/m² on ${formatArea(area)}` : size}
+            value={load != null ? kw(load) : "Not measured"}
+            strong
+          />
+        </StackGroup>
+        {heads.length > 0 || owner ? (
+          <StackGroup>
+            {heads.map((m, i) => (
+              <StackRow key={i} name={m || "Unit"}>
+                {owner ? (
+                  <button type="button" className="ds-stack-navact" onClick={() => onEditSystem(owner.id)}>
+                    Swap
                   </button>
-                ))}
-          </div>
-        )}
-        {!owner && onAddTo && doc.systems.length > 0 && (
-          <div className="ds-su-acts">
-            {doc.systems.map((s) => (
-              <button key={s.id} type="button" className="ds-su-second" onClick={() => onAddTo(s.id)}>
-                Add to {s.name}
-              </button>
+                ) : null}
+              </StackRow>
             ))}
-          </div>
-        )}
-      </div>
-
-      <div className="ds-su-fill" />
-      <div className="ds-rp-foot">
-        {onLeaveOut && (
-          <button type="button" className="ds-su-second" onClick={onLeaveOut}>
-            Leave out
-          </button>
-        )}
-        <button type="button" className="ds-su-second ds-rp-del" onClick={onDelete}>
-          Delete room
-        </button>
-      </div>
-    </section>
+            {heads.length === 0 && owner ? <StackRow name="No unit" tone="look" value="" /> : null}
+          </StackGroup>
+        ) : null}
+        <StackGroup>
+          <StackRow name="Size" value={size} />
+          <StackRow name="Height">
+            <span className="ds-rp-height">
+              <input
+                className="ds-rp-num"
+                aria-label="Ceiling height in metres"
+                inputMode="decimal"
+                defaultValue={height != null ? String(height) : ""}
+                placeholder="2.4"
+                key={`${roomId}-${height}`}
+                onBlur={(e) => {
+                  const v = parseFloat(e.target.value);
+                  if (v > 1.8 && v < 12 && v !== height) set({ ceilingHeightM: v, heightFrom: null });
+                }}
+              />
+              m
+            </span>
+          </StackRow>
+          {read && read.m !== height ? (
+            <StackRow blue name={`Use ${read.m} m, from ${read.from}`} onPress={() => set({ ceilingHeightM: read.m, heightFrom: read.from })} />
+          ) : null}
+          <StackRow name="Above">
+            <Tray ariaLabel="Above the zone" options={ABOVE} value={p.roomAbove === true ? "floor" : "roof"} onChange={(v) => set({ roomAbove: v === "floor" })} />
+          </StackRow>
+          <StackRow name="Glazing">
+            <Tray ariaLabel="Glazing" options={GLAZING} value={(p.glazing as GlazingLevel) ?? "moderate"} onChange={(v) => set({ glazing: v })} />
+          </StackRow>
+          <StackRow name="Insulation">
+            <Tray ariaLabel="Insulation" options={CONDITION} value={(p.condition as RoomCondition) ?? "standard"} onChange={(v) => set({ condition: v })} />
+          </StackRow>
+          <StackRow
+            name="Outside walls"
+            value={walls.length ? `${walls.length}${facing ? `, facing ${ORIENT_LABELS[facing].toLowerCase()}, ×${ORIENT_MULT[facing].toFixed(2)}` : ""}` : "None"}
+            chevron
+            onPress={onMarkWalls}
+          />
+        </StackGroup>
+        <StackGroup>
+          <StackRow name="System" value={owner ? owner.name : "None"} />
+          {owner && onTakeOff ? <StackRow blue name={`Take off ${owner.name}`} onPress={() => onTakeOff(owner.id)} /> : null}
+          {owner && onMove ? others.map((x) => <StackRow key={x.id} blue name={`Move to ${x.name}`} onPress={() => onMove(owner.id, x.id)} />) : null}
+          {!owner && onAddTo ? doc.systems.map((x) => <StackRow key={x.id} blue name={`Add to ${x.name}`} onPress={() => onAddTo(x.id)} />) : null}
+        </StackGroup>
+        <StackGroup>
+          {onLeaveOut ? <StackRow blue name="Leave out" onPress={onLeaveOut} /> : null}
+          <StackRow danger name="Delete zone" onPress={onDelete} />
+        </StackGroup>
+      </StackScreen>
+    </div>
   );
 }
 

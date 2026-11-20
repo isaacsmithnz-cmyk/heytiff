@@ -20,6 +20,7 @@ import type { RoomObj } from "./loads-room";
 import type { DataPack } from "./packs/schema";
 import type { SizingBasis } from "./loads";
 import { addMultiHead, addSplit, chooseOutdoor } from "./builder";
+import { allocationsOf, hasAllocations } from "./allocations";
 import { answerFromQuote, type QuotedMaterial } from "./install-from-quote";
 
 /** A quote's unit line, as quote_lines keeps it. */
@@ -142,6 +143,17 @@ export const canAddQuoted = (o: QuotedOption): boolean =>
 export function systemNameOf(optionName: string): string {
   const head = optionName.split(":")[0].trim();
   return head || optionName.trim();
+}
+
+/** Is the option in the design already: a system of its name, as the quote
+    words it or by its heading (systemNameOf), on its outdoor. The Systems
+    screen offers it no more (the live walk, 21 November 2026: named by its
+    heading, the 8 kW option still said Add to the design once added). */
+export function quotedInDesign(doc: DesignDocument, o: QuotedOption): boolean {
+  const names = [o.name, systemNameOf(o.name)];
+  return doc.systems.some(
+    (sys) => names.includes(sys.name) && hasAllocations(sys) && allocationsOf(sys).some((a) => a.role === "odu" && a.model === o.outdoor?.model),
+  );
 }
 
 /** The option as a system: a split for one head, a multi for more, named

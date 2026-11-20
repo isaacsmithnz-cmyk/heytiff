@@ -81,7 +81,7 @@ import { claimZone, newSystem, toggleZone, zoneIdsOf } from "@/lib/studio/zones"
 import { doneBlockers, systemFindings } from "@/lib/studio/verdict";
 import { SystemsPanel } from "./systems-panel";
 import { canLeaveOut, leaveOut, putBack } from "@/lib/studio/left-out";
-import { addQuotedOption, canAddQuoted, quotedOptions, type QuotedLine } from "@/lib/studio/from-quote";
+import { addQuotedOption, canAddQuoted, quotedInDesign, quotedOptions, type QuotedLine } from "@/lib/studio/from-quote";
 import { SystemScreen, SystemsList } from "./systems-stack";
 import { AirPanel, type AirShow } from "./air-panel";
 import { airRows, airTags } from "@/lib/studio/air-view";
@@ -98,7 +98,7 @@ import { measuredForJob, setupNeeds, shareAcrossSet } from "@/lib/studio/plan-se
 import { InstallQuestions } from "./install-questions";
 import { isAirCapable, moduleFor } from "@/lib/studio/modules";
 import { SystemBuilder, ZoneStanding } from "./system-builder";
-import { allocationsOf, deleteZone, hasAllocations, releaseSystem, releaseZones, moveZone, removeZone } from "@/lib/studio/builder";
+import { deleteZone, releaseSystem, releaseZones, moveZone, removeZone } from "@/lib/studio/builder";
 import { roomAtPoint, roomCoverage, roomsServedBy, systemPairKw } from "@/lib/studio/coverage";
 import { nextMoveZones, type NextMove } from "@/lib/studio/next-move";
 import { StudioHelp } from "./studio-help";
@@ -1774,11 +1774,7 @@ function Editor({
     /* the accepted ones where one is marked, else every option; one already
        in the design (a system of its name on its outdoor) is said no more */
     const shown = all.some((o) => o.accepted) ? all.filter((o) => o.accepted) : all;
-    return shown.filter(
-      (o) =>
-        canAddQuoted(o) &&
-        !doc.systems.some((sys) => sys.name === o.name && hasAllocations(sys) && allocationsOf(sys).some((a) => a.role === "odu" && a.model === o.outdoor?.model)),
-    );
+    return shown.filter((o) => canAddQuoted(o) && !quotedInDesign(doc, o));
   }, [doc, pack, quotedRead, quoteJob]);
 
   /* arm (or null-disarm) unit placement — armed by dragging a unit card */

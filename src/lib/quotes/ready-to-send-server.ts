@@ -14,6 +14,7 @@
 
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { localNow } from "@/lib/integrations/sm8-booking-plan";
+import { sentStands } from "./lines-job";
 import { approvalStands } from "./lines-proposal";
 import { namesBySignIn } from "./lines-server";
 
@@ -27,8 +28,10 @@ type DraftRow = {
   sent: unknown;
 };
 
-/** Sent to ServiceM8 as a quote, not a trial run of it. */
-const sentForReal = (sent: unknown) => !!sent && typeof sent === "object" && !(sent as { trial?: unknown }).trial;
+/** Sent to ServiceM8 as a quote, not a trial run of it, and since it was
+    last approved (sentStands): a send of the version before doesn't count. */
+const sentForReal = (sent: unknown, approvedAt: string) =>
+  !!sent && typeof sent === "object" && !(sent as { trial?: unknown }).trial && typeof (sent as { at?: unknown }).at === "string" && sentStands(sent as { at: string }, approvedAt);
 
 /** The drafts whose approval stands and that HeyTiff hasn't sent, by job
     uuid, with who marked each. Pure: the read and the test agree. */
@@ -36,7 +39,7 @@ export function readyOf(drafts: readonly DraftRow[], lineTimes: ReadonlyMap<stri
   const out = new Map<string, { at: string; by: string | null }>();
   for (const d of drafts) {
     const p = d.proposal;
-    if (!p?.approvedAt || sentForReal(d.sent)) continue;
+    if (!p?.approvedAt || sentForReal(d.sent, p.approvedAt)) continue;
     const proposal = { approvedAt: p.approvedAt, updatedAt: p.updatedAt ?? "" };
     if (!approvalStands(proposal, lineTimes.get(d.sm8_job_uuid) ?? [])) continue;
     out.set(d.sm8_job_uuid, { at: p.approvedAt, by: p.approvedBy ?? null });

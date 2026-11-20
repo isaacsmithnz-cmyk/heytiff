@@ -64,7 +64,7 @@ const ROUTE = "/api/workboard/quote-lines";
     November 2026): `settle` needs a look, `good` is ready, sent or the
     customer's yes, `undo` takes the yes back, and `title` is the proposal's
     name, for the head of the quote's own tab. */
-export type QuoteStage = { word: string; settle: boolean; good?: boolean; undo?: (() => void) | null; title?: string | null };
+export type QuoteStage = { word: string; settle: boolean; good?: boolean; undo?: (() => void) | null };
 
 export type LinesView = {
   ok: boolean;
@@ -391,10 +391,12 @@ export function QuoteLinesFace({
             : all.length > 0
               ? { word: "Draft", settle: false }
               : { word: "Not started", settle: false };
-  const quoteTitle = view?.proposal?.title || meta?.title || null;
   const undoable = yesUndoable && accepted.length > 0;
-  const stageKey = stage ? `${stage.word}|${stage.settle}|${undoable}|${quoteTitle ?? ""}` : "";
-  const tellStage = useEffectEvent(() => onStage?.(stage ? { ...stage, title: quoteTitle, undo: undoable ? () => void acceptNow.current() : null } : null));
+  /* where it's up to, and no title: the proposal's title is written to the
+     customer ("Air conditioning for your apartment…"), and the head beside
+     the client's name says plain facts (Isaac, 20 November 2026, bug 57) */
+  const stageKey = stage ? `${stage.word}|${stage.settle}|${undoable}` : "";
+  const tellStage = useEffectEvent(() => onStage?.(stage ? { ...stage, undo: undoable ? () => void acceptNow.current() : null } : null));
   useEffect(() => {
     tellStage();
   }, [stageKey]);

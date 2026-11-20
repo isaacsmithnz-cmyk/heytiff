@@ -459,7 +459,7 @@ const docStageOf = (st: QuoteStage): DocStage & { title: string | null } => ({
   word: st.word,
   tone: st.settle ? "look" : st.good ? "good" : "info",
   undo: st.undo ?? null,
-  title: st.title ?? null,
+  title: null,
 });
 
 /* THE QUOTE ON THE PRICE TAB (the Price overhaul, 18 November 2026): its

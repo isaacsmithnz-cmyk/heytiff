@@ -14,13 +14,16 @@ describe("which quotes are ready to send", () => {
         draft("sent", { approvedAt: "2026-11-05T03:31:25.534Z", updatedAt: "2026-11-05T03:14:40.184Z" }, { at: "2026-11-05T04:00:00Z", by: "auth0|lyle", trial: false }),
         draft("trial", { approvedAt: "2026-11-05T03:31:25.534Z", updatedAt: "2026-11-05T03:14:40.184Z" }, { at: "2026-11-05T04:00:00Z", by: "auth0|lyle", trial: true }),
         draft("never", { approvedAt: null, updatedAt: "2026-11-05T03:14:40.184Z" }),
+        /* bug 59: sent, changed, and marked ready again since: ready to send */
+        draft("again", { approvedAt: "2026-11-20T05:52:02.506Z", updatedAt: "2026-11-20T05:45:56.633Z" }, { at: "2026-11-12T02:52:49.734Z", by: "auth0|isaac", trial: false }),
       ],
       new Map([
         ["stands", ["2026-11-05T03:31:14.036Z"]],
         ["changed", ["2026-10-21T01:22:18.258Z"]],
+        ["again", ["2026-11-20T05:45:56.151Z"]],
       ])
     );
-    expect([...ready.keys()]).toEqual(["stands", "trial"]);
+    expect([...ready.keys()]).toEqual(["stands", "trial", "again"]);
     expect(ready.get("stands")).toEqual({ at: "2026-11-05T03:31:25.534Z", by: "auth0|lyle" });
   });
 });

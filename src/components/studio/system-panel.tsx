@@ -606,7 +606,7 @@ export function SystemPanel({
 
           <StackGroup>
             {headTypeLabel && <StackRow name={`${headTypeLabel} heads`} chevron onPress={() => push({ name: "types" })} />}
-            <StackRow name={brandName(pack, pack.meta.brand)} />
+            {view.sys.brand && <StackRow name={brandName(pack, view.sys.brand)} />}
           </StackGroup>
 
           {!(view.empty && view.zones.length === 0) && (
@@ -1448,7 +1448,7 @@ function OutdoorScreen({
         </StackGroup>
       ) : (
         <StackGroup>
-          <StackRow name={`No outdoors in ${brandName(pack, pack.meta.brand)}'s pack for this type`} />
+          <StackRow name={`No outdoors in ${brandName(pack, view.sys.brand)}'s pack for this type`} />
         </StackGroup>
       )}
       {view.oduRow && (

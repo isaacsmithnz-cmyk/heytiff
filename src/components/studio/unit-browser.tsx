@@ -804,7 +804,7 @@ export function UnitBrowser({
       <div className="ds-ub-filters">
         {/* the brand is a filter, not a fork: one pack, so one name, drawn
             locked once the system has a unit of it */}
-        {embedded && (
+        {embedded && brandName && (
           <span className={`ds-ub-brand${brandLocked ? " locked" : ""}`}>{brandName}</span>
         )}
         <input

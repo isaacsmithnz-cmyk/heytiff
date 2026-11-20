@@ -140,6 +140,7 @@ import { PlansDialog, type ChosenFloors } from "@/components/workboard/board/pla
 const ScopeColumn = dynamic(() => import("./scope-column").then((m) => m.ScopeColumn), { ssr: false });
 import type { DataPack, IndoorUnit } from "@/lib/studio/packs/schema";
 import type { LibraryManifest } from "@/lib/studio/packs/library";
+import { designBrands, joinPacks, NO_PACK } from "@/lib/studio/packs/merge";
 import { Button } from "@/components/parts/button";
 import { ConfirmDialog } from "@/components/parts/dialog";
 import { AskTiffPill } from "@/components/notes/tiff-button";
@@ -218,8 +219,9 @@ function downloadDesign(doc: DesignDocument) {
   URL.revokeObjectURL(url);
 }
 
-/** test/harness seam — defaults to the auth-gated server action */
-export type PackLoader = () => Promise<{
+/** test/harness seam — defaults to the auth-gated server action. Loads one
+    brand's pack, the newest installed. */
+export type PackLoader = (brand: string) => Promise<{
   pack: DataPack;
   version: string;
 } | null>;
@@ -300,6 +302,9 @@ export function Studio({
     () => planImages ?? new RemotePlanImages(),
     [planImages]
   );
+  /* the brands a system can be built in: every installed pack, as the
+     library lists them, in its order */
+  const brandChoices = useMemo(() => library?.brands.map((b) => ({ id: b.id, name: b.name })), [library]);
 
   /* THE LETTERHEAD IS HELD AT THE TOP, not by the sheet that prints it. Held
      here it is in hand — and its logo already fetched — before Summary is
@@ -995,6 +1000,7 @@ export function Studio({
             onRenameVariant={renameVariant}
             planImages={planImagesInst}
             packLoader={packLoader}
+            brandChoices={brandChoices}
             loadVariant={(id) => getStore().load(id)}
           />
         ) : arriving ? null : (
@@ -1223,6 +1229,7 @@ function Editor({
   onRenameVariant,
   planImages,
   packLoader,
+  brandChoices,
   loadVariant,
 }: {
   doc: DesignDocument;
@@ -1251,6 +1258,8 @@ function Editor({
   onRenameVariant: (label: string) => void;
   planImages: PlanImages;
   packLoader?: PackLoader;
+  /** the brands installed, for a system's Brand field (the route's library) */
+  brandChoices?: readonly { id: string; name: string }[];
   /** sibling variant docs for multi-option export (store-scoped) */
   loadVariant: (id: string) => Promise<DesignDocument | null>;
 }) {
@@ -1581,8 +1590,50 @@ function Editor({
     picked.length > 0 ||
     (!!found?.length && !doc.objects.some((o) => o.type === "room" && o.floorId === activeFloorId));
 
-  /* ── systems (Stage 4): product pack, active system, armed placement ── */
-  const [pack, setPack] = useState<DataPack | null>(null);
+  /* ── systems (Stage 4): product packs, active system, armed placement ──
+     THE BRANDS THE DESIGN NAMES (Isaac, 20 November 2026: "by default always
+     selects Mitsubishi Electric. That shouldn't be on there"). A system is
+     built in the brand the person chose for it; the Studio loads the pack of
+     each brand its systems name, of one chosen in the builder before its
+     first unit, and of the quote's, and the plan reads them as one
+     (packs/merge.ts). A design with no brand yet has no pack. */
+  const [loadedPacks, setLoadedPacks] = useState<Record<string, { pack: DataPack; version: string }>>({});
+  const askedBrands = useRef(new Set<string>());
+  const [wantedBrands, setWantedBrands] = useState<string[]>([]);
+  const wantBrand = useCallback((b: string) => setWantedBrands((w) => (w.includes(b) ? w : [...w, b])), []);
+  /* From the quote (from-quote.ts): the units the job's quote names, read
+     once a design has its job; not where the pack is a test's */
+  const quoteJob = doc.jobLink?.remoteId ?? null;
+  const [quotedRead, setQuotedRead] = useState<{ job: string; lines: QuotedLine[]; accepted: number[]; names: Record<number, string>; brands: string[] } | null>(null);
+  const namedBrands = designBrands(doc).join("\n");
+  const quotedBrands = quotedRead && quotedRead.job === quoteJob ? quotedRead.brands.join("\n") : "";
+  const brandsInPlay = useMemo(() => {
+    const out: string[] = [];
+    for (const b of [...namedBrands.split("\n"), ...wantedBrands, ...quotedBrands.split("\n")]) if (b && !out.includes(b)) out.push(b);
+    return out;
+  }, [namedBrands, wantedBrands, quotedBrands]);
+  useEffect(() => {
+    const load = packLoader ?? ((b: string) => packActions().then((a) => a.loadStudioPack(b)));
+    for (const b of brandsInPlay) {
+      if (askedBrands.current.has(b)) continue;
+      askedBrands.current.add(b);
+      load(b)
+        .then((r) => {
+          if (r) setLoadedPacks((cur) => ({ ...cur, [b]: r }));
+        })
+        .catch(() => {
+          /* offline — proposals unavailable, drawing still works; asked again next time */
+          askedBrands.current.delete(b);
+        });
+    }
+  }, [brandsInPlay, packLoader]);
+  const pack = useMemo(
+    () => joinPacks(brandsInPlay.flatMap((b) => (loadedPacks[b] ? [loadedPacks[b].pack] : []))),
+    [brandsInPlay, loadedPacks]
+  );
+  /** one brand's own pack: what a system of it is offered */
+  const packFor = useCallback((b: string): DataPack | null => loadedPacks[b]?.pack ?? null, [loadedPacks]);
+  const packVersion = pack?.meta.version ?? "2026.1";
   useEffect(() => {
     packRef.current = pack;
   }, [pack]);
@@ -1594,7 +1645,6 @@ function Editor({
         : null,
     [view3d, doc, flow, pack]
   );
-  const [packVersion, setPackVersion] = useState<string>("2026.1");
   const [activeSystemId, setActiveSystemId] = useState<string | null>(null);
   const [placing, setPlacing] = useState<PlacingUnit | null>(null);
   /* the system builder (spec: Studio System Builder) — open, and on which unit
@@ -1621,30 +1671,8 @@ function Editor({
       ? activeSystemId
       : (doc.systems[0]?.id ?? null);
 
-  useEffect(() => {
-    let on = true;
-    const load =
-      packLoader ??
-      (() => packActions().then((a) => a.loadStudioPack("mitsubishi-electric")));
-    load()
-      .then((r) => {
-        if (on && r) {
-          setPack(r.pack);
-          setPackVersion(r.version);
-        }
-      })
-      .catch(() => {
-        /* offline — proposals unavailable, drawing still works */
-      });
-    return () => {
-      on = false;
-    };
-  }, [packLoader]);
 
-  /* From the quote (from-quote.ts): the units the job's quote names, read
-     once a design has its job; not where the pack is a test's */
-  const quoteJob = doc.jobLink?.remoteId ?? null;
-  const [quotedRead, setQuotedRead] = useState<{ job: string; lines: QuotedLine[]; accepted: number[]; names: Record<number, string> } | null>(null);
+
   useEffect(() => {
     if (!quoteJob || packLoader) return;
     let on = true;
@@ -2685,11 +2713,14 @@ function Editor({
           streamline it"): the next flow opens it too, in its new layout
           ("Build", 7 November 2026), where it had opened a side column that
           lost the schematic, Compare and the spec sheet */}
-      {builderOpen && pack && (
+      {builderOpen && (
         <SystemBuilder
           next={flow === "next"}
           doc={doc}
-          pack={pack}
+          pack={pack ?? NO_PACK}
+          packFor={packFor}
+          brands={brandChoices}
+          onWantBrand={wantBrand}
           focus={builderOpen.focus}
           systemId={builderOpen.systemId ?? null}
           start={builderOpen.start}
@@ -2705,7 +2736,7 @@ function Editor({
       {installOpen && pack && (
         <InstallQuestions
           doc={doc}
-          pack={pack}
+          pack={packFor(doc.systems.find((x) => x.id === installOpen)?.brand ?? "") ?? pack}
           systemId={installOpen}
           onCommit={(answered) => {
             mutate(() => answered);

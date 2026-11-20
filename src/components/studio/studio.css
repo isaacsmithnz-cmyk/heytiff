@@ -10694,6 +10694,10 @@ html:not([data-ds-display]) .fg:has(#fg-topbar) .dstudio.editing:has(> .ds-edito
 .ds-sb-colsub { margin: 0; font: 500 13px/18px var(--font); color: var(--q); }
 .ds-sb-collist { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 4px 48px; }
 .ds-sb-colfoot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--line); }
+/* a system with no brand yet: the Brand field leads, alone, where the units
+   will be (Isaac, 20 November 2026: no brand nobody chose) */
+.ds-sb-brandpick { display: flex; padding: 12px 16px; }
+.ds-sb-brandpick > .pt-field { width: 280px; }
 
 /* a group of rows: its name, a chevron, a hairline; no count (rule 29) */
 .ds-sb-colgroup,

@@ -191,12 +191,12 @@ export function ductLines(doc: DesignDocument, pack: DataPack, sys: DesignSystem
     const zones = zonesOf(air, z);
     if (!zones.length) continue;
     dampers += zones.length;
-    controls.push(...zoneKit(pack, z, zones).lines);
+    controls.push(...zoneKit(pack, z, zones, sys.brand).lines);
   }
   const damperLines: DuctLine[] = dampers
     ? [{ shelf: "ductwork", name: "Zone damper", sub: "Motorised, one on each zone's run", qty: String(dampers) }]
     : [];
-  if (dampers) controls.push({ shelf: "controls", name: "Zone damper cable", sub: damperCableSub(pack), qty: String(dampers) });
+  if (dampers) controls.push({ shelf: "controls", name: "Zone damper cable", sub: damperCableSub(pack, sys.brand), qty: String(dampers) });
 
   /* a unit under the floor: a hatch to get to it */
   const hatches = mine.filter(isUnderFloor).length;

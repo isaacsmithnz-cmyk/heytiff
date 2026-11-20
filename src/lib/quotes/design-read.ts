@@ -147,8 +147,9 @@ export function designRead(doc: DesignDocument, pack: DataPack | null): DesignRe
 }
 
 function systemRead(doc: DesignDocument, pack: DataPack | null, sys: DesignSystem, shown: SummarySystem): DesignSystemRead {
-  /* only a pack that knows the brand can check, size and charge it */
-  const book = pack && pack.brands.some((b) => b.id === sys.brand) ? pack : null;
+  /* only a pack that knows the brand can check, size and charge it; a
+     system with no brand chosen yet has no units for one to read */
+  const book = pack && (!sys.brand || pack.brands.some((b) => b.id === sys.brand)) ? pack : null;
   const allocs = hasAllocations(sys) ? allocationsOf(sys) : [];
   const mine = doc.objects.filter((o) => o.systemId === sys.id);
   const oduId = allocs.find((a) => a.role === "odu")?.id ?? mine.find((o) => o.type === "unit" && o.props.role === "odu")?.id ?? null;

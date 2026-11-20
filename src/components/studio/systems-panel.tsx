@@ -388,7 +388,7 @@ function SystemCard({
             </button>
             {kind !== "empty" && <span className="ds-zp-kind">{KIND_WORD[kind]}</span>}
           </div>
-          {pack && <span className="ds-zp-brand">{brandName(pack, sys.brand)}</span>}
+          {pack && sys.brand && <span className="ds-zp-brand">{brandName(pack, sys.brand)}</span>}
         </div>
         {open && (
           <button className="ds-zp-x" onClick={onDelete} aria-label={`Delete ${sys.name}`}>

@@ -116,13 +116,14 @@ export const toggleZone = (doc: DesignDocument, systemId: string, zoneId: string
     ? unclaimZone(doc, systemId, zoneId)
     : claimZone(doc, systemId, zoneId);
 
-const BRAND = "mitsubishi-electric";
-
 /** a system with no zones and no units, ready to be given zones. The type is
-    a placeholder until the units say what it is (systemTypeFor). */
+    a placeholder until the units say what it is (systemTypeFor). Its brand
+    is the one the person chose for it, and empty until they choose one:
+    never a brand nobody picked (Isaac, 20 November 2026). */
 export function newSystem(
   doc: DesignDocument,
-  packVersion: string
+  packVersion: string,
+  brand = ""
 ): { doc: DesignDocument; systemId: string } {
   const id = newId("sys");
   let names = 0;
@@ -133,7 +134,7 @@ export function newSystem(
   const sys: DesignSystem = {
     id,
     type: "split",
-    brand: BRAND,
+    brand,
     colour: nextSystemColour(doc.systems),
     name: `System ${Math.max(names, doc.systems.length) + 1}`,
     settings: { zoneIds: [], roomIds: [] },
@@ -142,12 +143,22 @@ export function newSystem(
     doc: {
       ...doc,
       systems: [...doc.systems, sys],
-      packPins: {
-        ...doc.packPins,
-        [BRAND]: doc.packPins[BRAND] ?? packVersion,
-      },
+      packPins: brand ? { ...doc.packPins, [brand]: doc.packPins[brand] ?? packVersion } : doc.packPins,
     },
     systemId: id,
+  };
+}
+
+/** the brand a system is built in, chosen before its first unit. A system
+    with units keeps its brand: a system is one brand, and its units are
+    of it. */
+export function chooseBrand(doc: DesignDocument, systemId: string, brand: string, packVersion: string): DesignDocument {
+  const sys = doc.systems.find((s) => s.id === systemId);
+  if (!sys || !brand || sys.brand === brand || allocationsOf(sys).some((a) => a.model)) return doc;
+  return {
+    ...doc,
+    systems: doc.systems.map((s) => (s.id === systemId ? { ...s, brand } : s)),
+    packPins: { ...doc.packPins, [brand]: doc.packPins[brand] ?? packVersion },
   };
 }
 

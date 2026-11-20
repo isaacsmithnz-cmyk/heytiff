@@ -1,4 +1,11 @@
-import { findWalls, gridOf, scaleWalls, wallSizes, withoutStripes, type WallSeg } from "../walls";
+import {
+  findWalls,
+  gridOf,
+  scaleWalls,
+  wallSizes,
+  withoutStripes,
+  type WallSeg,
+} from "../walls";
 
 /* a drawing made here: white paper, 20 mm a pixel, things drawn as filled boxes */
 const W = 900;
@@ -6,8 +13,16 @@ const H = 700;
 const MM = 20;
 function paper() {
   const px = new Uint8Array(W * H * 4).fill(255);
-  const box = (x0: number, y0: number, x1: number, y1: number, grey: number) => {
-    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) px.fill(grey, (y * W + x) * 4, (y * W + x) * 4 + 3);
+  const box = (
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+    grey: number,
+  ) => {
+    for (let y = y0; y < y1; y++)
+      for (let x = x0; x < x1; x++)
+        px.fill(grey, (y * W + x) * 4, (y * W + x) * 4 + 3);
   };
   /** a house of two rooms: outside walls 300 mm (15 px), the wall between them 200 mm (10 px), a door gap in it */
   const house = (grey: number) => {
@@ -29,9 +44,13 @@ describe("the walls off a drawing", () => {
     expect(w.shade).toBe(128);
     expect(w.grid).toEqual({ x: [107, 399.5, 692], y: [107, 492] });
     /* the wall between the rooms is two pieces, either side of its door */
-    expect(w.segs.filter((s) => s.dir === "v" && Math.abs(s.c - 399.5) < 1).map((s) => [s.a, s.b, s.t])).toEqual([
-      [115, 249, 10],
-      [300, 484, 10],
+    expect(
+      w.segs
+        .filter((s) => s.dir === "v" && Math.abs(s.c - 399.5) < 1)
+        .map((s) => [s.a, s.b, s.t]),
+    ).toEqual([
+      [100, 249, 10],
+      [300, 499, 10],
     ]);
   });
 
@@ -57,7 +76,9 @@ describe("the walls off a drawing", () => {
     p.house(128);
     /* the floor above ghosted over the top wall: a stretch of it a little paler */
     p.box(200, 100, 300, 115, 140);
-    const top = findWalls(p.px, W, H, MM)!.segs.find((s) => s.dir === "h" && s.c < 120)!;
+    const top = findWalls(p.px, W, H, MM)!.segs.find(
+      (s) => s.dir === "h" && s.c < 120,
+    )!;
     expect([top.a, top.b]).toEqual([100, 699]);
   });
 
@@ -76,7 +97,10 @@ describe("the walls off a drawing", () => {
 describe("the sizes a wall is judged by", () => {
   it("come from the scale, and without one take the sheet as A1 at 1:100", () => {
     expect(wallSizes(4768, 17.64).thin).toBeCloseTo(3.97, 1);
-    expect(wallSizes(4768, null).thin).toBeCloseTo(wallSizes(4768, 17.64).thin, 1);
+    expect(wallSizes(4768, null).thin).toBeCloseTo(
+      wallSizes(4768, 17.64).thin,
+      1,
+    );
   });
 });
 
@@ -84,7 +108,9 @@ describe("bars side by side", () => {
   const bar = (c: number, t = 8): WallSeg => ({ dir: "h", c, a: 0, b: 200, t });
   it("are hatching when three or more touch, and one cavity wall when two do", () => {
     expect(withoutStripes([bar(10), bar(19), bar(28), bar(37)])).toEqual([]);
-    expect(withoutStripes([bar(10), bar(19)])).toEqual([{ dir: "h", c: 14.5, a: 0, b: 200, t: 17 }]);
+    expect(withoutStripes([bar(10), bar(19)])).toEqual([
+      { dir: "h", c: 14.5, a: 0, b: 200, t: 17 },
+    ]);
     expect(withoutStripes([bar(10), bar(60)])).toHaveLength(2);
   });
 });
@@ -100,7 +126,20 @@ describe("the grid", () => {
     expect(gridOf(segs, z).x).toEqual([101]);
   });
   it("comes back to the drawing's own size from a finer one", () => {
-    const w = scaleWalls({ shade: 1, run: 400, segs: [{ dir: "h", c: 20, a: 0, b: 200, t: 8 }], grid: { x: [10], y: [20] } }, 2);
-    expect(w).toEqual({ shade: 1, run: 200, segs: [{ dir: "h", c: 10, a: 0, b: 100, t: 4 }], grid: { x: [5], y: [10] } });
+    const w = scaleWalls(
+      {
+        shade: 1,
+        run: 400,
+        segs: [{ dir: "h", c: 20, a: 0, b: 200, t: 8 }],
+        grid: { x: [10], y: [20] },
+      },
+      2,
+    );
+    expect(w).toEqual({
+      shade: 1,
+      run: 200,
+      segs: [{ dir: "h", c: 10, a: 0, b: 100, t: 4 }],
+      grid: { x: [5], y: [10] },
+    });
   });
 });

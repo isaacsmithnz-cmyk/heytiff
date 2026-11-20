@@ -14,7 +14,13 @@
    hatch, a scan) finds none and says so, and the read goes on by picture. */
 
 /** A straight piece of wall: `c` its centre across, `a` to `b` its run, `t` its thickness; all pixels. */
-export type WallSeg = { dir: "h" | "v"; c: number; a: number; b: number; t: number };
+export type WallSeg = {
+  dir: "h" | "v";
+  c: number;
+  a: number;
+  b: number;
+  t: number;
+};
 
 /** The numbered lines the long walls stand on: x for upright walls, y for level ones. */
 export type WallGrid = { x: number[]; y: number[] };
@@ -47,7 +53,14 @@ export type WallSizes = {
 export function wallSizes(width: number, mmPerPx: number | null): WallSizes {
   const mm = mmPerPx && mmPerPx > 0 ? mmPerPx : 84100 / width;
   const px = (v: number) => v / mm;
-  return { thin: Math.max(3, px(70)), thick: Math.max(8, px(600)), short: Math.max(10, px(450)), long: Math.max(16, px(880)), line: Math.max(24, px(1400)), near: Math.max(3, px(180)) };
+  return {
+    thin: Math.max(3, px(70)),
+    thick: Math.max(8, px(600)),
+    short: Math.max(10, px(450)),
+    long: Math.max(16, px(880)),
+    line: Math.max(24, px(1400)),
+    near: Math.max(3, px(180)),
+  };
 }
 
 const SAT = 14;
@@ -60,7 +73,11 @@ const WHITE = 240;
 const PALE = 225;
 
 /** The greys a wall fill could be: the commonest unsaturated shades that aren't the paper. */
-export function shadesOf(rgba: Uint8Array | Uint8ClampedArray, width: number, height: number): number[] {
+export function shadesOf(
+  rgba: Uint8Array | Uint8ClampedArray,
+  width: number,
+  height: number,
+): number[] {
   const hist = new Float64Array(256);
   const n = width * height;
   /* one pixel in four is plenty to count shades by */
@@ -94,7 +111,8 @@ export function shadesOf(rgba: Uint8Array | Uint8ClampedArray, width: number, he
     /* a shade on fewer than one pixel in 2,500 holds no building's walls */
     if (best < 0 || most < n / 4 / 1250) break;
     out.push(best);
-    for (let d = -SPREAD - 1; d <= SPREAD + 1; d++) if (best + d >= 0 && best + d < 256) taken[best + d] = 1;
+    for (let d = -SPREAD - 1; d <= SPREAD + 1; d++)
+      if (best + d >= 0 && best + d < 256) taken[best + d] = 1;
   }
   return out;
 }
@@ -102,7 +120,12 @@ export function shadesOf(rgba: Uint8Array | Uint8ClampedArray, width: number, he
 type Run = { row: number; a: number; b: number };
 
 /** One shade's pixels as a mask, row by row: 2 the shade itself, 1 near it. */
-function maskOf(rgba: Uint8Array | Uint8ClampedArray, width: number, height: number, shade: number): Uint8Array {
+function maskOf(
+  rgba: Uint8Array | Uint8ClampedArray,
+  width: number,
+  height: number,
+  shade: number,
+): Uint8Array {
   const m = new Uint8Array(width * height);
   for (let i = 0, o = 0; i < m.length; i++, o += 4) {
     const r = rgba[o];
@@ -122,9 +145,22 @@ function maskOf(rgba: Uint8Array | Uint8ClampedArray, width: number, height: num
     (a row for level walls, a column for upright ones). A piece is a band of
     long runs stacked on one another: its thickness is how many lines it
     spans, which is what tells a wall from a slab of fill. */
-function bands(lines: number, len: number, at: (line: number, i: number) => number, z: WallSizes): { c: number; a: number; b: number; t: number }[] {
+function bands(
+  lines: number,
+  len: number,
+  at: (line: number, i: number) => number,
+  z: WallSizes,
+): { c: number; a: number; b: number; t: number }[] {
   /* every run of the band, until it is plainly too thick to be a wall */
-  type Band = { as: number[]; bs: number[]; a: number; b: number; first: number; last: number; open: boolean };
+  type Band = {
+    as: number[];
+    bs: number[];
+    a: number;
+    b: number;
+    first: number;
+    last: number;
+    open: boolean;
+  };
   const done: Band[] = [];
   let live: Band[] = [];
   const keep = z.thick + 2;
@@ -141,14 +177,21 @@ function bands(lines: number, len: number, at: (line: number, i: number) => numb
         }
         if (v === 2) sure++;
       } else if (start >= 0) {
-        if (i - start >= z.short && sure >= 0.5 * (i - start)) runs.push({ row: line, a: start, b: i - 1 });
+        if (i - start >= z.short && sure >= 0.5 * (i - start))
+          runs.push({ row: line, a: start, b: i - 1 });
         start = -1;
       }
     }
     const next: Band[] = [];
     for (const r of runs) {
       /* the band this run carries on: one over it that it mostly covers */
-      const over = live.find((b) => b.open && b.last === line - 1 && Math.min(b.b, r.b) - Math.max(b.a, r.a) >= 0.6 * Math.min(b.b - b.a, r.b - r.a));
+      const over = live.find(
+        (b) =>
+          b.open &&
+          b.last === line - 1 &&
+          Math.min(b.b, r.b) - Math.max(b.a, r.a) >=
+            0.6 * Math.min(b.b - b.a, r.b - r.a),
+      );
       if (over) {
         over.a = r.a;
         over.b = r.b;
@@ -159,7 +202,16 @@ function bands(lines: number, len: number, at: (line: number, i: number) => numb
         over.last = line;
         over.open = false;
         next.push(over);
-      } else next.push({ as: [r.a], bs: [r.b], a: r.a, b: r.b, first: line, last: line, open: false });
+      } else
+        next.push({
+          as: [r.a],
+          bs: [r.b],
+          a: r.a,
+          b: r.b,
+          first: line,
+          last: line,
+          open: false,
+        });
     }
     for (const b of live) if (!next.includes(b)) done.push(b);
     for (const b of next) b.open = true;
@@ -177,7 +229,9 @@ function bands(lines: number, len: number, at: (line: number, i: number) => numb
     const a = mid(b.as);
     const e = mid(b.bs);
     const slack = Math.max(2, t * 0.5);
-    const alike = b.as.filter((v, i) => Math.abs(v - a) <= slack && Math.abs(b.bs[i] - e) <= slack).length;
+    const alike = b.as.filter(
+      (v, i) => Math.abs(v - a) <= slack && Math.abs(b.bs[i] - e) <= slack,
+    ).length;
     if (alike < 0.6 * b.as.length) continue;
     if (e - a + 1 < z.short || e - a + 1 < 1.5 * t) continue;
     out.push({ c: (b.first + b.last) / 2, a, b: e, t });
@@ -188,7 +242,12 @@ function bands(lines: number, len: number, at: (line: number, i: number) => numb
 /** Whether a bar has its own shade along both sides, a few pixels off: then
     it is a strip of some wider fill cut by drawn lines (paving, roof
     sheeting, a hatched slab), not a wall. A wall has a room on one side. */
-function flanked(mask: Uint8Array, width: number, height: number, s: WallSeg): boolean {
+function flanked(
+  mask: Uint8Array,
+  width: number,
+  height: number,
+  s: WallSeg,
+): boolean {
   const off = Math.ceil(s.t / 2) + 4;
   const side = (c: number): number => {
     if (c < 0 || c >= (s.dir === "h" ? height : width)) return 0;
@@ -200,12 +259,23 @@ function flanked(mask: Uint8Array, width: number, height: number, s: WallSeg): b
     }
     return all ? on / all : 0;
   };
-  return side(Math.round(s.c - off)) >= 0.5 && side(Math.round(s.c + off)) >= 0.5;
+  return (
+    side(Math.round(s.c - off)) >= 0.5 && side(Math.round(s.c + off)) >= 0.5
+  );
 }
 
-function segsOf(mask: Uint8Array, width: number, height: number, z: WallSizes): WallSeg[] {
-  const h = bands(height, width, (y, x) => mask[y * width + x], z).map((b): WallSeg => ({ dir: "h", ...b }));
-  const v = bands(width, height, (x, y) => mask[y * width + x], z).map((b): WallSeg => ({ dir: "v", ...b }));
+function segsOf(
+  mask: Uint8Array,
+  width: number,
+  height: number,
+  z: WallSizes,
+): WallSeg[] {
+  const h = bands(height, width, (y, x) => mask[y * width + x], z).map(
+    (b): WallSeg => ({ dir: "h", ...b }),
+  );
+  const v = bands(width, height, (x, y) => mask[y * width + x], z).map(
+    (b): WallSeg => ({ dir: "v", ...b }),
+  );
   return [...h, ...v].filter((s) => !flanked(mask, width, height, s));
 }
 
@@ -214,12 +284,19 @@ function segsOf(mask: Uint8Array, width: number, height: number, z: WallSizes): 
     of wall to count (a lone short return isn't one). */
 export function gridOf(segs: readonly WallSeg[], z: WallSizes): WallGrid {
   const lines = (dir: "h" | "v"): number[] => {
-    const long = segs.filter((s) => s.dir === dir && s.b - s.a + 1 >= z.long).sort((p, q) => p.c - q.c);
+    const long = segs
+      .filter((s) => s.dir === dir && s.b - s.a + 1 >= z.long)
+      .sort((p, q) => p.c - q.c);
     const out: number[] = [];
     let group: WallSeg[] = [];
     const close = () => {
       const run = group.reduce((n, s) => n + (s.b - s.a + 1), 0);
-      if (run >= z.line) out.push(Math.round((group.reduce((n, s) => n + s.c * (s.b - s.a + 1), 0) / run) * 10) / 10);
+      if (run >= z.line)
+        out.push(
+          Math.round(
+            (group.reduce((n, s) => n + s.c * (s.b - s.a + 1), 0) / run) * 10,
+          ) / 10,
+        );
       group = [];
     };
     for (const s of long) {
@@ -242,7 +319,9 @@ function wallRun(segs: readonly WallSeg[]): number {
     by.set(k, (by.get(k) ?? 0) + (s.b - s.a + 1));
   }
   /* neighbours count together: a wall is a pixel thicker one way than the other */
-  const sums = [...by.keys()].map((k) => (by.get(k) ?? 0) + (by.get(k + 1) ?? 0));
+  const sums = [...by.keys()].map(
+    (k) => (by.get(k) ?? 0) + (by.get(k + 1) ?? 0),
+  );
   return sums
     .sort((p, q) => q - p)
     .slice(0, 2)
@@ -269,7 +348,8 @@ export function withoutStripes(segs: readonly WallSeg[]): WallSeg[] {
             !row.includes(o) &&
             o.c > last.c &&
             o.c - last.c <= (o.t + last.t) / 2 + 3 &&
-            Math.min(o.b, last.b) - Math.max(o.a, last.a) >= 0.5 * Math.min(o.b - o.a, last.b - last.a),
+            Math.min(o.b, last.b) - Math.max(o.a, last.a) >=
+              0.5 * Math.min(o.b - o.a, last.b - last.a),
         );
         if (!nxt) break;
         row.push(nxt);
@@ -278,7 +358,13 @@ export function withoutStripes(segs: readonly WallSeg[]): WallSeg[] {
       if (row.length === 1) out.push(s);
       else if (row.length === 2) {
         const [p, q] = row;
-        out.push({ dir, c: (p.c - p.t / 2 + q.c + q.t / 2) / 2, a: Math.max(p.a, q.a), b: Math.min(p.b, q.b), t: q.c + q.t / 2 - (p.c - p.t / 2) });
+        out.push({
+          dir,
+          c: (p.c - p.t / 2 + q.c + q.t / 2) / 2,
+          a: Math.max(p.a, q.a),
+          b: Math.min(p.b, q.b),
+          t: q.c + q.t / 2 - (p.c - p.t / 2),
+        });
       }
     }
   }
@@ -288,11 +374,18 @@ export function withoutStripes(segs: readonly WallSeg[]): WallSeg[] {
 export type ShadeWalls = { shade: number; segs: WallSeg[]; run: number };
 
 /** Each shade a wall fill could be, with the wall it would draw: most first. */
-export function wallsByShade(rgba: Uint8Array | Uint8ClampedArray, width: number, height: number, mmPerPx: number | null): ShadeWalls[] {
+export function wallsByShade(
+  rgba: Uint8Array | Uint8ClampedArray,
+  width: number,
+  height: number,
+  mmPerPx: number | null,
+): ShadeWalls[] {
   const z = wallSizes(width, mmPerPx);
   return shadesOf(rgba, width, height)
     .map((shade) => {
-      const segs = withoutStripes(segsOf(maskOf(rgba, width, height, shade), width, height, z));
+      const segs = withoutStripes(
+        segsOf(maskOf(rgba, width, height, shade), width, height, z),
+      );
       return { shade, segs, run: wallRun(segs) };
     })
     .sort((p, q) => q.run - p.run);
@@ -300,7 +393,12 @@ export function wallsByShade(rgba: Uint8Array | Uint8ClampedArray, width: number
 
 /** The walls of a drawing, off its pixels (RGBA, row by row). Null when no
     shade on it draws walls: a scan, a sketch, or walls drawn as lines. */
-export function findWalls(rgba: Uint8Array | Uint8ClampedArray, width: number, height: number, mmPerPx: number | null): Walls | null {
+export function findWalls(
+  rgba: Uint8Array | Uint8ClampedArray,
+  width: number,
+  height: number,
+  mmPerPx: number | null,
+): Walls | null {
   const z = wallSizes(width, mmPerPx);
   const best = wallsByShade(rgba, width, height, mmPerPx)[0];
   /* a building has walls both ways and a few rooms' worth of them */
@@ -316,7 +414,13 @@ export function scaleWalls(w: Walls, k: number): Walls {
   return {
     shade: w.shade,
     run: Math.round(w.run / k),
-    segs: w.segs.map((s) => ({ dir: s.dir, c: r(s.c), a: r(s.a), b: r(s.b), t: r(s.t) })),
+    segs: w.segs.map((s) => ({
+      dir: s.dir,
+      c: r(s.c),
+      a: r(s.a),
+      b: r(s.b),
+      t: r(s.t),
+    })),
     grid: { x: w.grid.x.map(r), y: w.grid.y.map(r) },
   };
 }

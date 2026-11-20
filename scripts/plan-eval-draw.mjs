@@ -10,12 +10,18 @@ import path from "node:path";
 
 const [dir, ...pages] = process.argv.slice(2);
 if (!dir || !pages.length) {
-  console.error("usage: plan-eval-draw.mjs <folder with set.pdf> <page> [page ...]");
+  console.error(
+    "usage: plan-eval-draw.mjs <folder with set.pdf> <page> [page ...]",
+  );
   process.exit(1);
 }
 const req = createRequire(path.join(process.cwd(), "package.json"));
 const napi = req("@napi-rs/canvas");
-Object.assign(globalThis, { DOMMatrix: napi.DOMMatrix, Path2D: napi.Path2D, ImageData: napi.ImageData });
+Object.assign(globalThis, {
+  DOMMatrix: napi.DOMMatrix,
+  Path2D: napi.Path2D,
+  ImageData: napi.ImageData,
+});
 const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
 const PDFJS = path.join(process.cwd(), "node_modules", "pdfjs-dist");
 const doc = await pdfjs.getDocument({
@@ -30,18 +36,42 @@ mkdirSync(path.join(dir, "pages"), { recursive: true });
 for (const n of pages.map(Number)) {
   const page = await doc.getPage(n);
   const viewport = page.getViewport({ scale: 2 });
-  const canvas = napi.createCanvas(Math.round(viewport.width), Math.round(viewport.height));
-  await page.render({ canvas, canvasContext: canvas.getContext("2d"), viewport, intent: "print" }).promise;
+  const canvas = napi.createCanvas(
+    Math.round(viewport.width),
+    Math.round(viewport.height),
+  );
+  await page.render({
+    canvas,
+    canvasContext: canvas.getContext("2d"),
+    viewport,
+    intent: "print",
+  }).promise;
   const words = [];
   for (const it of (await page.getTextContent()).items) {
     const text = (it.str ?? "").trim();
     if (!text || !it.transform) continue;
-    const [x, y] = viewport.convertToViewportPoint(it.transform[4], it.transform[5]);
+    const [x, y] = viewport.convertToViewportPoint(
+      it.transform[4],
+      it.transform[5],
+    );
     const w = (it.width ?? 0) * viewport.scale;
     const h = (it.height ?? Math.abs(it.transform[3])) * viewport.scale;
-    words.push({ text, at: { x: Math.round(x + w / 2), y: Math.round(y - h / 2) }, w: Math.round(w), h: Math.round(h) });
+    words.push({
+      text,
+      at: { x: Math.round(x + w / 2), y: Math.round(y - h / 2) },
+      w: Math.round(w),
+      h: Math.round(h),
+    });
   }
-  writeFileSync(path.join(dir, "pages", `p${n}.png`), canvas.toBuffer("image/png"));
-  writeFileSync(path.join(dir, "pages", `p${n}.words.json`), JSON.stringify(words));
-  console.log(`page ${n}: ${canvas.width}×${canvas.height}, ${words.length} words`);
+  writeFileSync(
+    path.join(dir, "pages", `p${n}.png`),
+    canvas.toBuffer("image/png"),
+  );
+  writeFileSync(
+    path.join(dir, "pages", `p${n}.words.json`),
+    JSON.stringify(words),
+  );
+  console.log(
+    `page ${n}: ${canvas.width}×${canvas.height}, ${words.length} words`,
+  );
 }

@@ -227,19 +227,25 @@ export async function addJobPlans(orgId: string, jobUuid: string, picks: readonl
   return { ok: true, planIds, already };
 }
 
-/** A plan that couldn't be read put back to be read: its state reading,
-    its reason and its claim cleared, whatever was drawn of it kept. Only a
-    failed plan on this job; true when it was put back. The caller asks the
-    read route for it (kickPlanReads). 3570, 20 November 2026: a set that
-    failed before a fix had no way to be read again but adding it anew. */
+/** A plan put back to be read: its state reading, its reason and claim
+    cleared. One that couldn't be read keeps whatever was drawn of it, and
+    picks up there; one that was read is read afresh from its first page, so
+    a better reader reads it whole (3570, 20 November 2026: read on the old
+    floor-finding, its garage and cabana taken for the house). Not one being
+    read, nor another job's; true when it was put back. The caller asks the
+    read route for it (kickPlanReads). */
 export async function readPlanAgain(orgId: string, jobUuid: string, planId: string): Promise<boolean> {
+  const { data: row } = await supabaseAdmin.from("job_plans").select("state").eq("org_id", orgId).eq("job_uuid", jobUuid).eq("id", planId).maybeSingle();
+  const was = (row as { state: string } | null)?.state;
+  if (was !== "failed" && was !== "read" && was !== "check") return false;
+  const afresh = was === "failed" ? {} : { pages: [], reading: null, page_count: 0, read_at: null };
   const { data, error } = await supabaseAdmin
     .from("job_plans")
-    .update({ state: "reading", said: null, claimed_at: null, progress: null })
+    .update({ state: "reading", said: null, claimed_at: null, progress: null, ...afresh })
     .eq("org_id", orgId)
     .eq("job_uuid", jobUuid)
     .eq("id", planId)
-    .eq("state", "failed")
+    .eq("state", was)
     .select("id");
   return !error && (data ?? []).length > 0;
 }
@@ -648,7 +654,9 @@ export async function jobPlanRooms(orgId: string, jobUuid: string, opts: { add?:
 
 /* ── the read ── */
 
-export type ReadPlanOutcome = { ok: true; state: JobPlan["state"] } | { ok: false; error: string };
+/** `finished` when this run wrote the read: the job's scope is then written
+    again from it (api/jobs/plans/read). */
+export type ReadPlanOutcome = { ok: true; state: JobPlan["state"]; finished?: { jobUuid: string } } | { ok: false; error: string };
 
 /** A read claimed before it starts, for ten minutes: an upload's own read
     and a press of Add plans asking at once pay for one. A workspace whose
@@ -721,7 +729,10 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
   try {
     const file = await fileFor(orgId, plan.jobUuid, pick);
     if (!file) return failed("The file isn't on the job any more.");
-    if (plan.kind === "spec") return await readSpec(orgId, planId, file);
+    if (plan.kind === "spec") {
+      const out = await readSpec(orgId, planId, file);
+      return out.ok ? { ...out, finished: { jobUuid: plan.jobUuid } } : out;
+    }
     /* 1. the set's own copy */
     const sourceRef = plan.sourceRef ?? (await copySource(orgId, file, plan.sourceKind));
     if (!plan.sourceRef) await write(orgId, planId, { source_ref: sourceRef });
@@ -906,7 +917,7 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
     }
     const { state, said } = stateOfRead(pages, reading);
     await write(orgId, planId, { pages, reading, state, said, read_at: new Date().toISOString() });
-    return { ok: true, state };
+    return { ok: true, state, finished: { jobUuid: plan.jobUuid } };
   } catch (e) {
     console.error(`[job-plans] ${planId}: ${String(e)}`);
     return failed(e instanceof Error ? e.message : "The plan couldn't be read");

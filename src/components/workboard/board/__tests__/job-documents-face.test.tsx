@@ -822,9 +822,9 @@ it("offers Read again on a set that couldn't be read, and says why where it can'
   expect(row.querySelector(".jpl-below .pt-row-line")).toHaveTextContent("Couldn't be read: Failed to fetch");
   await userEvent.click(within(row).getByRole("button", { name: "Read again" }));
   expect(onReadPlanAgain).toHaveBeenCalledWith("jplan_1");
-  onReadPlanAgain.mockResolvedValueOnce("That plan isn't waiting to be read again.");
+  onReadPlanAgain.mockResolvedValueOnce("That plan is being read now.");
   await userEvent.click(within(row).getByRole("button", { name: "Read again" }));
-  expect(await within(row).findByText("That plan isn't waiting to be read again.")).toBeInTheDocument();
+  expect(await within(row).findByText("That plan is being read now.")).toBeInTheDocument();
 });
 
 it("shows how far she's got under a plan being read", () => {
@@ -835,8 +835,12 @@ it("shows how far she's got under a plan being read", () => {
   expect(within(row).getByText("Drawing page 12 of 27")).toBeInTheDocument();
 });
 
-it("offers no Read again on a plan that read, or where it can't be asked", () => {
+it("offers Read again on a plan that read, but not on one being read, or where it can't be asked", () => {
+  /* a set read on an older reader is read again whole (3570, 20 November 2026) */
   face({ documents: [suttor], plans: [readPlan()], onReadPlanAgain: async () => null });
+  expect(screen.getByRole("button", { name: "Read again" })).toBeInTheDocument();
+  cleanup();
+  face({ documents: [suttor], plans: [readPlan({ state: "reading", reading: null, pages: [] })], onReadPlanAgain: async () => null });
   expect(screen.queryByRole("button", { name: "Read again" })).toBeNull();
   cleanup();
   face({ documents: [suttor], plans: [readPlan({ state: "failed", said: "x", reading: null, pages: [] })] });

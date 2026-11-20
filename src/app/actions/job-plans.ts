@@ -53,7 +53,7 @@ export async function readPlanAgainOnJob(jobUuid: string, planId: string): Promi
   const job = trim(jobUuid);
   const plan = trim(planId);
   if (!ctx || !job || !plan) return "You can't read plans on jobs.";
-  return (await readPlanAgain(ctx.orgId, job, plan)) ? null : "That plan isn't waiting to be read again.";
+  return (await readPlanAgain(ctx.orgId, job, plan)) ? null : "That plan is being read now.";
 }
 
 const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);

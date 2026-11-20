@@ -283,9 +283,7 @@ export async function draw(ticket: PlanPagesTicket, origin: string, file?: Sourc
     if (!res || !res.ok()) throw new Error(`the plan page answered ${res?.status() ?? "nothing"}`);
     await page.waitForFunction("window.__htPdfReady === true", { timeout: DRAW_MS });
     const out = (await page.evaluate("({ pages: window.__htPlanPages ?? null, error: window.__htPlanPagesError ?? null })")) as { pages: PlanPagesAnswer | null; error: string | null };
-    /* the step said with the page's own words, so a failed plan says where
-       it stopped (3570, 19 November 2026, said only "Failed to fetch") */
-    if (out.error) throw new Error(`Drawing the pages: ${failures.length ? `${out.error} (${failures.slice(0, 3).join("; ")})` : out.error}`);
+    if (out.error) throw new Error(failures.length ? `${out.error} (${failures.slice(0, 3).join("; ")})` : out.error);
     if (!out.pages) throw new Error("the pages didn't come back");
     return out.pages;
   } finally {

@@ -6697,6 +6697,14 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    under the heading, as on Home (rule 40), not 48 down and out of sight
    below the card's foot (bug 52: "plans and designs too") */
 .fg .jst-rail .pt-empty { min-height:0; padding:16px; }
+/* the plans give way before the designs under them, never under 160, and
+   their pages stand two or three to a row at the column's width, so a set
+   put on the job doesn't push the designs out of the card (bug 63, 21
+   November 2026: "pages uploaded push it all down") */
+.fg .jst-rail > .wb2-jcface[aria-label="Plans"]:has(~ .wb2-jcface:not([hidden])) { flex-shrink:8; min-height:160px; }
+.fg .jst-rail .jpl-pages { align-self:stretch; display:grid; grid-template-columns:repeat(auto-fill, minmax(120px, 1fr)); gap:12px 8px; }
+.fg .jst-rail .jpl-page { width:auto; min-width:0; }
+.fg .jst-rail .jpl-page img { width:100%; height:auto; aspect-ratio:160 / 113; }
 .fg .jst .jsc { max-width:none; }
 /* To do: a task's tick, and its words as the door to its own form (Isaac, 24 October 2026) */
 .fg .jov-task { justify-content:flex-start; align-items:flex-start; gap:8px; padding:8px 0; }
@@ -7416,6 +7424,16 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .hm-sub-end { margin-left:auto; }
 .fg .hm-feed--tab { height:424px; overflow-y:auto; }
 .fg .hm-feed--tab > .hm-sub { position:sticky; top:0; z-index:1; background:var(--paper); }
+/* FITTED TO THE WINDOW (bug 60, 20 November 2026: "show more when it
+   can"): the card runs to 16 over the page's foot, never under 544, and
+   the tab shown takes what's under the tabs: the feed scrolls in all of it,
+   the day's list and the map stand its full height, the map up to 640 */
+.fg .wrap.hm:has(.hm-card--fit) { padding-bottom:16px; }
+.fg .hm-card--fit { height:var(--fit-h); }
+.fg .hm-card--fit > .hm-tabpanel { flex:1 1 0; min-height:0; display:flex; flex-direction:column; }
+.fg .hm-card--fit > .hm-feed--tab { height:auto; }
+.fg .hm-card--fit .hm-sd { flex:1 1 0; min-height:0; grid-template-rows:minmax(0,1fr); align-items:stretch; }
+.fg .hm-card--fit .hm-sd-list { height:auto; max-height:none; min-height:0; }
 /* SCHEDULE: the day's jobs on the left, one row each, as tall as the map
    beside them and scrolling inside; the map 640 at most */
 .fg .hm-sd { display:grid; grid-template-columns:minmax(320px,1fr) minmax(0,640px); gap:16px; align-items:start; }

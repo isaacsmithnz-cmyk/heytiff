@@ -265,6 +265,14 @@ it("offers New quote, orange, on a job with no price, and starts it at the reply
   expect(push).toHaveBeenCalledWith(`/dashboard/jobs/${JOB}/quote?start=1`);
 });
 
+it("draws no empty list on a job with no price: New invoice stands with New quote (bug 62)", async () => {
+  status = { ok: true, facts: facts({ lines: 0, talked: false }), landing: null };
+  draw({ billing: null, claims: [] });
+  expect(await screen.findByText("No quote on this job yet")).toBeInTheDocument();
+  expect(screen.queryByRole("region", { name: "Quotes and invoices" })).toBeNull();
+  expect(screen.getByRole("button", { name: "New invoice" })).toBeInTheDocument();
+});
+
 it("opens the quote's own tab on what a door asked: the start, an option, Update quote", async () => {
   status = { ok: true, facts: facts({ lines: 0, talked: false }), landing: null };
   const { unmount } = draw({ ask: { start: true, n: 1 } });

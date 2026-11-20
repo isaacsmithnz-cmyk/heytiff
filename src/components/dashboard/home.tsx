@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { CvBox } from "@/components/conversations/box";
 import { appendSpoken, useDictation } from "@/components/notes/dictation";
@@ -15,6 +15,7 @@ import { HomeReplyContext } from "./home-todo";
 import { HomeFeed } from "./home-feed";
 import { HomeSchedule, useKept } from "./home-schedule";
 import { TaskForm } from "@/components/making/task-form";
+import { useFitHeight } from "@/components/jobs/use-fit-height";
 import type { FeedItem } from "@/lib/dashboard/your-feed";
 
 /* HOME, v2 (the board v2-board-home; docs/design.md rules 8, 13, 22, 26,
@@ -88,6 +89,10 @@ function HomeBox({ voice, onStart }: { voice: boolean; onStart: (words: string) 
 
 type HomeTab = "schedule" | "feed";
 
+/** The card's least height: its tabs, the line under them and the feed's
+    424, as it was before it grew to the window. */
+const CARD_FLOOR = 544;
+
 export function HomeScreen({
   today,
   todo,
@@ -125,6 +130,11 @@ export function HomeScreen({
   /* THE CONVERSATION TAKES THE PAGE once you have said something (Isaac, 20
      October, the board's frame 2); Back to Home brings the columns back. */
   const [chat, setChat] = useState<{ words: string; n: number } | null>(null);
+  /* THE CARD TAKES THE WINDOW DOWN TO ITS FOOT, so a tall screen shows more
+     of the day and the feed, and never less than it did (bug 60, 20
+     November 2026: "screen should be responsive to show more when it can") */
+  const [cardRef, cardH] = useFitHeight<HTMLElement>(CARD_FLOOR, !!chat);
+  const cardFit = cardH == null ? undefined : ({ "--fit-h": `${cardH}px` } as CSSProperties);
   const [kept, setTab] = useKept<HomeTab>("heytiff.home.tab.v1", ["schedule", "feed"], "schedule");
   /* a mention's Reply opens on the feed, where its box is */
   const tab: HomeTab = !team || asked ? "feed" : kept;
@@ -152,7 +162,7 @@ export function HomeScreen({
         {/* one card, two tabs (Isaac, 17 November 2026): Schedule, the
             team's day on a map; the Activity feed, To do first in it */}
         <HomeReplyContext.Provider value={(id) => setAsked((a) => ({ id, n: (a?.n ?? 0) + 1 }))}>
-          <section className="hm-card" aria-label="Today">
+          <section className={cardFit ? "hm-card hm-card--fit" : "hm-card"} aria-label="Today" ref={cardRef} style={cardFit}>
             <div className="hm-card-tabs">
               <SectionTabs
                 items={tabs}

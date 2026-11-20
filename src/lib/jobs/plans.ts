@@ -109,7 +109,32 @@ export type JobPlan = {
   addedBy: string | null;
   addedAt: string;
   readAt: string | null;
+  /** how far a read has got, written as it goes; null before one starts */
+  progress?: PlanProgress | null;
 };
+
+/** A read's place: the pages drawn small, the floors found among them,
+    the floors drawn in full, then each floor read with the roof and the site. */
+export type PlanProgress = { step: "drawing" | "finding" | "floors" | "reading"; done: number; total: number };
+
+/** The bar under a plan being read: how far along, and in words. Each step
+    has its share of the bar, the reading the most since it takes longest.
+    Null before the read has said anything. Pure. */
+export function planProgressOf(p: PlanProgress | null | undefined): { percent: number; words: string } | null {
+  if (!p) return null;
+  const part = p.total > 0 ? Math.min(1, Math.max(0, p.done / p.total)) : 0;
+  const of = p.total > 0 ? `${Math.min(p.done + 1, p.total)} of ${p.total}` : "";
+  switch (p.step) {
+    case "drawing":
+      return { percent: Math.round(2 + 33 * part), words: p.total > 0 ? `Drawing page ${of}` : "Opening the set" };
+    case "finding":
+      return { percent: 38, words: "Finding the floors" };
+    case "floors":
+      return { percent: Math.round(40 + 10 * part), words: p.total > 0 ? `Drawing the floors in full, ${of}` : "Drawing the floors in full" };
+    case "reading":
+      return { percent: Math.round(50 + 48 * part), words: p.done >= p.total ? "Putting the read together" : `Reading the floors, roof and site, ${p.done} of ${p.total} done` };
+  }
+}
 
 /** A plan as a screen reads it: its thumbnails signed, and how many designs took it. */
 export type JobPlanRead = JobPlan & {

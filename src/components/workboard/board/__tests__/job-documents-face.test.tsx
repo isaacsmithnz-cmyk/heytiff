@@ -827,6 +827,14 @@ it("offers Read again on a set that couldn't be read, and says why where it can'
   expect(await within(row).findByText("That plan isn't waiting to be read again.")).toBeInTheDocument();
 });
 
+it("shows how far she's got under a plan being read", () => {
+  face({ documents: [suttor], plans: [readPlan({ state: "reading", reading: null, pages: [], progress: { step: "drawing", done: 11, total: 27 } })] });
+  const row = within(group("Plans")).getByText(suttor.name).closest(".pt-row") as HTMLElement;
+  const bar = within(row).getByRole("progressbar", { name: "Reading the plans" });
+  expect(bar).toHaveAttribute("aria-valuetext", "Drawing page 12 of 27");
+  expect(within(row).getByText("Drawing page 12 of 27")).toBeInTheDocument();
+});
+
 it("offers no Read again on a plan that read, or where it can't be asked", () => {
   face({ documents: [suttor], plans: [readPlan()], onReadPlanAgain: async () => null });
   expect(screen.queryByRole("button", { name: "Read again" })).toBeNull();

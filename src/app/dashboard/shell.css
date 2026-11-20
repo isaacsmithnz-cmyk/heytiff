@@ -8514,6 +8514,8 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jpl-page .pt-btn { align-self:flex-start; margin-top:4px; }
 /* under a set she isn't sure of: its pages, then Choose floors */
 .fg .jpl-below { display:flex; flex-direction:column; align-items:flex-start; gap:12px; position:relative; z-index:var(--z-raised); }
+/* the bar under a plan Tiff is reading: its words, then how far, the row's width */
+.fg .jpl-progress { display:flex; flex-direction:column; gap:4px; align-self:stretch; }
 .pt-dialog .jpl-add { display:flex; flex-direction:column; gap:16px; }
 .pt-dialog .jpl-add .pt-rows { border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
 .pt-dialog .jpl-add .pt-row { padding-left:0; padding-right:0; }

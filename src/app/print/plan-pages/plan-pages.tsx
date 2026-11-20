@@ -64,6 +64,11 @@ async function fileOf(t: PlanPagesTicket): Promise<PdfSource> {
   return new File([blob], "plan.png", { type: blob.type || "image/png" });
 }
 
+/** Each page drawn, said to the server for the bar under the plan. */
+const report = (done: number, total: number) => {
+  void (window as unknown as { __htProgress?: (d: number, t: number) => Promise<void> }).__htProgress?.(done, total);
+};
+
 /** A picture's file: always one already, since only a PDF comes as bytes. */
 const pictureOf = (f: PdfSource): File => (f instanceof File ? f : new File([f], "plan.png", { type: "image/png" }));
 
@@ -79,7 +84,7 @@ async function previewsOf(file: PdfSource, kind: PlanPagesTicket["kind"]): Promi
     return [{ n: 1, width: p.width, height: p.height, jpeg: await asDataUrl(p.blob!) }];
   }
   const out: DrawnPreview[] = [];
-  for (const { preview, width, height, words } of await pdfPreviewsWithWords(file, undefined, { print: true })) {
+  for (const { preview, width, height, words } of await pdfPreviewsWithWords(file, report, { print: true })) {
     out.push({ n: preview.pageNumber ?? out.length + 1, width, height, ...(words.length ? { words } : {}), jpeg: await asDataUrl(preview.blob!) });
     if (preview.thumbUrl) URL.revokeObjectURL(preview.thumbUrl);
   }
@@ -90,7 +95,7 @@ async function fullOf(file: PdfSource, kind: PlanPagesTicket["kind"], slots: Non
   const { supabaseBrowser } = await import("@/lib/supabase-browser");
   const out: DrawnFull[] = [];
   /* the floors drawn in full from one opening of the file */
-  const drawn = kind === "image" ? [] : await pdfPagesAt(file, slots.map((s) => s.n), undefined, { print: true });
+  const drawn = kind === "image" ? [] : await pdfPagesAt(file, slots.map((s) => s.n), report, { print: true });
   for (const [i, slot] of slots.entries()) {
     const page = kind === "image" ? await imageToPage(pictureOf(file)) : drawn[i];
     if (!page?.blob) throw new Error(`page ${slot.n} didn't draw`);

@@ -3,11 +3,11 @@
    mark's own clock to fall back on if an animation event never comes (a
    mark inside something hidden runs no animation at all). */
 
-/** One lap of the orbit at the working pace. */
-export const LAP_MS = 3000;
-/** The throw, as a share of a lap. */
-export const THROW_SHARE = 0.7762;
-/** The landing, as a share of a lap. */
-export const LAND_SHARE = 0.2238;
-/** Home's lap at rest is this much slower. */
-export const IDLE_SLOW = 1.7;
+/** The opening: one quick lap and home. */
+export const OPEN_MS = 1600;
+/** Thinking begins: out onto the loop. */
+export const THROW_MS = 2359;
+/** One lap of the thinking loop. */
+export const LAP_MS = 3149;
+/** Thinking ends: home from the loop. */
+export const LAND_MS = 521;

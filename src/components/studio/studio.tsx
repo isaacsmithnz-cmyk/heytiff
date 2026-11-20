@@ -127,7 +127,8 @@ import { RoomModal } from "./room-modal";
 import { ReferenceViewer } from "./reference-viewer";
 import { SimPresentMode } from "./sim-present";
 import { SimRuntime } from "@/lib/studio/sim-runtime";
-import type { JobPrefill } from "@/lib/studio/job-link";
+import type { JobPrefill, StudioJobHit } from "@/lib/studio/job-link";
+import { Fade } from "@/components/parts/fade";
 import { suggestedRooms, withChecks, type PlanReading } from "@/lib/studio/reading";
 import { designFromPlans, type JobPlanRead } from "@/lib/jobs/plans";
 import { PLAN_POLL_MS } from "@/lib/jobs/plans-client";
@@ -1193,7 +1194,7 @@ function newDesignFor(name: string, mode: "plan" | "blank", job?: JobPrefill): D
     the design keeps this one (Isaac, 21 October 2026: "open job and new tab
     button… so that you can quickly go back to the job if there isn't a tab
     already open for it"). */
-function OpenJob({ jobUuid, jobNumber }: { jobUuid: string; jobNumber: string | null }) {
+function OpenJob({ jobUuid, jobNumber, inCard = false }: { jobUuid: string; jobNumber: string | null; inCard?: boolean }) {
   const { tabs } = useSyncExternalStore(subscribeTabs, tabsSnapshot, tabsServerSnapshot);
   const href = jobPageHref(jobUuid);
   /* the tab that holds the job goes on holding it, on the section it was left on */
@@ -1201,11 +1202,82 @@ function OpenJob({ jobUuid, jobNumber }: { jobUuid: string; jobNumber: string | 
   return (
     <Link
       href={held?.href ?? href}
-      className="ds-save ds-reading-open"
+      className={`ds-save ds-reading-open${inCard ? " ds-jobcard-open" : ""}`}
       onClick={() => void openInTab(href, `${window.location.pathname}${window.location.search}`)}
     >
-      {jobNumber ? `Open job ${jobNumber}` : "Open the job"}
+      {inCard ? (
+        <>
+          Open job
+          <Icon name="arrowUR" size={14} />
+        </>
+      ) : jobNumber ? (
+        `Open job ${jobNumber}`
+      ) : (
+        "Open the job"
+      )}
     </Link>
+  );
+}
+
+/* THE JOB, AS THE JOBS LIST DRAWS IT (Isaac, 18 November 2026: "stop
+   doubling up the top left… make it one big pill like the job cards on
+   other pages, with Open job at its end opening the job in a new tab"; the
+   bar and panel mock, https://claude.ai/artifact/66ykUj2YGgQ1Y5DWWyWKa1,
+   then "Yes, build it", 21 November 2026). Its number in the 40-high block
+   of the job's colour, the client as ServiceM8 has it over the kind and the
+   suburb, and the job's two doors inside its end: Scope, and Open job. The
+   card's words arrive once the job is read; until then it is the number and
+   the client the design was made with. Out here, not in the component: the
+   React Compiler takes no import() inside one. */
+const readJobCard = (jobUuid: string): Promise<StudioJobHit | null> =>
+  import("@/app/actions/studio")
+    .then((a) => a.readStudioJobs([jobUuid]))
+    .then((r) => r[0] ?? null)
+    .catch(() => null);
+
+function JobCard({
+  jobUuid,
+  jobNumber,
+  client,
+  scopeOpen,
+  onScope,
+}: {
+  jobUuid: string;
+  jobNumber: string | null;
+  client: string;
+  scopeOpen: boolean;
+  onScope: () => void;
+}) {
+  const [read, setRead] = useState<StudioJobHit | null>(null);
+  useEffect(() => {
+    let live = true;
+    void readJobCard(jobUuid).then((hit) => {
+      if (live) setRead(hit);
+    });
+    return () => {
+      live = false;
+    };
+  }, [jobUuid]);
+  const number = ((read ? read.jobNumber : null) ?? jobNumber ?? "").trim();
+  const name = ((read ? read.clientName : null) ?? client).trim() || "Job";
+  const sub = read ? [(read.kind ?? "").trim(), (read.suburb ?? "").trim()].filter(Boolean).join(", ") : "";
+  return (
+    <div className="ds-jobcard">
+      <span className={`jl-card jl-card--${read?.hue ?? "grey"}`}>
+        {number ? <span className="jl-cn">{number}</span> : null}
+        <span className="jl-cb">
+          <Fade className="jl-name">{name}</Fade>
+          {sub ? <Fade className="jl-sub">{sub}</Fade> : null}
+        </span>
+      </span>
+      <span className="ds-jobcard-end">
+        <button type="button" className={`ds-save ds-reading-open ds-scope-go${scopeOpen ? " on" : ""}`} aria-expanded={scopeOpen} onClick={onScope}>
+          <Icon name="file" size={14} />
+          Scope
+        </button>
+        <OpenJob jobUuid={jobUuid} jobNumber={jobNumber} inCard />
+      </span>
+    </div>
   );
 }
 
@@ -2167,25 +2239,37 @@ function Editor({
             onSettings={(patch) =>
               mutate((d) => ({ ...d, settings: { ...d.settings, ...patch } }))
             }
+            name={flow === "next" && doc.jobLink ? doc.meta.name : undefined}
+            onName={(name) => mutate((d) => ({ ...d, meta: { ...d.meta, name } }))}
           />
           <div className="ds-id">
-            <input
-              className="ds-title-input"
-              value={doc.meta.name}
-              aria-label="Design name"
-              onChange={(e) =>
-                mutate((d) => ({
-                  ...d,
-                  meta: { ...d.meta, name: e.target.value },
-                }))
-              }
-            />
+            {flow === "next" && doc.jobLink ? (
+              <JobCard
+                jobUuid={doc.jobLink.remoteId}
+                jobNumber={doc.jobLink.jobNumber}
+                client={doc.meta.client}
+                scopeOpen={scopeOpen}
+                onScope={() => setScopeOpen((o) => !o)}
+              />
+            ) : (
+              <input
+                className="ds-title-input"
+                value={doc.meta.name}
+                aria-label="Design name"
+                onChange={(e) =>
+                  mutate((d) => ({
+                    ...d,
+                    meta: { ...d.meta, name: e.target.value },
+                  }))
+                }
+              />
+            )}
             {/* back to the job (Isaac, 21 October 2026): its tab if one holds
                 it, else a new tab, so the design keeps this one */}
-            {doc.jobLink && <OpenJob jobUuid={doc.jobLink.remoteId} jobNumber={doc.jobLink.jobNumber} />}
+            {doc.jobLink && flow !== "next" && <OpenJob jobUuid={doc.jobLink.remoteId} jobNumber={doc.jobLink.jobNumber} />}
             {/* the job's Scope, the Overview's own word and pink file, open
                 in a column beside the plan to refer to while drawing */}
-            {doc.jobLink && (
+            {doc.jobLink && flow !== "next" && (
               <button type="button" className={`ds-save ds-reading-open ds-scope-go${scopeOpen ? " on" : ""}`} aria-expanded={scopeOpen} onClick={() => setScopeOpen((o) => !o)}>
                 <Icon name="file" size={14} />
                 Scope
@@ -2887,7 +2971,12 @@ function StudioMenu({
   onDelete,
   settings,
   onSettings,
+  name,
+  onName,
 }: {
+  /** a design on a job: its name, typed here, as the bar shows the job */
+  name?: string;
+  onName?: (name: string) => void;
   onNew: () => void;
   onOpen: () => void;
   onSave: () => void;
@@ -2953,6 +3042,15 @@ function StudioMenu({
       </button>
       {open && (
         <div className="ds-menu-pop" role="menu">
+          {name !== undefined && onName && (
+            <>
+              <label className="ds-menu-set-row ds-menu-name">
+                <span>Design name</span>
+                <input value={name} aria-label="Design name" onChange={(e) => onName(e.target.value)} />
+              </label>
+              <div className="ds-menu-sep" />
+            </>
+          )}
           {item("plus", "New", onNew)}
           {item("folder", "Open", onOpen)}
           {item("save", "Save", onSave)}

@@ -10438,6 +10438,16 @@ html:not([data-ds-display]) .fg:has(#fg-topbar) .dstudio.editing:has(> .ds-edito
 .dstudio .ds-editor.clean .ds-menu-btn:hover { background: var(--hov); }
 .dstudio .ds-editor.clean .ds-id { flex-direction: row; justify-content: flex-start; align-items: center; gap: 8px; min-width: 0; }
 .dstudio .ds-editor.clean .ds-id > .ds-save { flex-shrink: 0; white-space: nowrap; }
+/* the job, as the Jobs list draws it (lib/workboard/jobs-list: the number in
+   its colour, the client over the kind and the suburb), the job's two doors,
+   Scope and Open job, inside its end (Isaac, 18 November 2026, then "Yes,
+   build it", 21 November 2026) */
+.dstudio .ds-editor.clean .ds-jobcard { display: flex; align-items: center; gap: 12px; height: 48px; padding: 2px 4px 2px 2px; border: 1px solid var(--edge); border-radius: var(--r-card); background: var(--paper); min-width: 0; }
+.dstudio .ds-jobcard .jl-cb { max-width: 220px; }
+.dstudio .ds-jobcard-end { display: flex; align-items: center; gap: 4px; height: 32px; padding-left: 8px; border-left: 1px solid var(--line); }
+.dstudio .ds-jobcard-end > .ds-save { white-space: nowrap; }
+.dstudio .ds-jobcard-open { display: inline-flex; align-items: center; gap: 4px; }
+.dstudio .ds-menu-name input { width: 100%; height: 30px; padding: 0 8px; border: 1px solid var(--ds-border); border-radius: var(--r-control); background: var(--paper); font: inherit; font-size: 13px; font-weight: 600; color: var(--ink); }
 /* the left flank keeps what it holds (title, Open job, Scope, Tiff's rooms):
    equal flanks still centre Plan/3D on a wide screen, and on a 13-inch the
    right flank gives way instead of the job's buttons running under Plan */

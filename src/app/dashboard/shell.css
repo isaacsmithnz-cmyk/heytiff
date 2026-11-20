@@ -5012,7 +5012,11 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
   perspective:calc(var(--art) * 2.4); pointer-events:none; }
 .tiffbtn-st svg { position:absolute; inset:0; width:100%; height:100%; display:block; overflow:visible; }
 .tiffbtn-chev { z-index:1; }
-.tiffbtn-chev path { stroke:var(--mk-fg); }
+/* SOLID: the chevron is filled with the ground it stands on, so the boomerang
+   passing behind her is hidden by all of her, not seen through her middle
+   (Isaac, 20 November 2026: "make tiff opaque on the white so bomerang cant
+   be seen through her") */
+.tiffbtn-chev path { stroke:var(--mk-fg); fill:var(--mk-gr); }
 .tiffbtn-lift, .tiffbtn-boom, .tiffbtn-bank { position:absolute; inset:0; }
 /* every turn and lean is about the boomerang's own middle */
 .tiffbtn-lift, .tiffbtn-boom, .tiffbtn-bank, .tiffbtn-spin { transform-origin:68% 31%; }

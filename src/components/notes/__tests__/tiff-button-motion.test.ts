@@ -77,6 +77,12 @@ describe("the Tiff mark's motion", () => {
     expect(CSS).not.toMatch(/@keyframes tiffCyc/);
   });
 
+  /* "make tiff opaque on the white so bomerang cant be seen through her" */
+  it("fills the chevron with its ground, so the boomerang behind it is hidden", () => {
+    const chev = blocks.find(([sel]) => sel === ".tiffbtn-chev path");
+    expect(chev?.[1]).toMatch(/fill\s*:\s*var\(--mk-gr\)/);
+  });
+
   it("wears no rings, halo, disc or sparkle", () => {
     for (const gone of [".tiffbtn-gim", ".tiffbtn-arc", ".tiffbtn-sheen", ".tiffbtn-halo", ".tiffbtn-face", ".tiffbtn-core", ".tiffbtn-spark", ".tiffbtn-burst"]) {
       expect(CSS).not.toContain(gone);

@@ -18,6 +18,7 @@ import { fitDesignRead } from "@/lib/quotes/design-read";
 import { readAnyDesign } from "@/lib/quotes/design-read-server";
 import { askSubfloor, reviseDesignRoof } from "@/lib/studio/revise-server";
 import { quickPriceFor } from "@/lib/quotes/quick-price-server";
+import { MAX_DIARY_DAYS, readDiary } from "./diary";
 import type { Outcome, TiffTool } from "./types";
 
 const str = { type: "string" } as const;
@@ -286,6 +287,43 @@ export const READS: readonly TiffTool[] = [
       additionalProperties: false,
     },
     run: async (viewer, input) => result(await openTaskLoad(viewer.orgId, String(input.today ?? ""))),
+  },
+  /* The diary (Isaac, 20 November 2026, on the phone: "What's booked on
+     Monday?", which she couldn't read). The Schedule's own day read, a day
+     or up to a week of them, everyone's as the Schedule shows anyone who
+     holds the board (./diary). */
+  {
+    name: "schedule_days",
+    label: "Reading the diary",
+    risk: "read",
+    gate: { capability: "workboard" },
+    description:
+      "The diary (the Schedule): what's booked on a day or a run of up to " + MAX_DIARY_DAYS + " days, and who's away. " +
+      "Use it for any question about what's booked, who's on a job, where someone is working, or who's free or off on a day " +
+      "(\"what's booked Monday\", \"who's on 3432 tomorrow\", \"is Luke free Thursday\"). " +
+      "`from` and `to` are the business's own dates (YYYY-MM-DD), worked out from today's date: Monday means the coming Monday unless they say otherwise; " +
+      "leave `to` out for one day. Each day comes back with its weekday, so check it's the day they meant. " +
+      "Give `person` (a name as they said it) to see only that person's bookings and time off. " +
+      "Each booking has the job's number, client, suburb, street, what it's for, its start and end on the business's clock, and who's on it; " +
+      "its id and kind \"job\" go to job_history. `away` is time off (leave, TAFE, RDOs, blocked-out time); `closed` is a public holiday or closed day; " +
+      "`free` and `free_after` are the scheduled team with nothing booked, or room after their last booking. " +
+      "Someone with no booking and no time off that day has nothing on the diary. Say the times as the result gives them.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        from: { type: "string", description: "The first day, YYYY-MM-DD, the business's own date" },
+        to: { type: "string", description: `The last day, YYYY-MM-DD, at most ${MAX_DIARY_DAYS} days on; leave out for one day` },
+        person: { type: "string", description: "One person's name, to see only theirs" },
+      },
+      required: ["from"],
+      additionalProperties: false,
+    },
+    run: async (viewer, input) => {
+      const from = typeof input.from === "string" && input.from.trim() ? input.from.trim() : viewer.today;
+      const to = typeof input.to === "string" && input.to.trim() ? input.to.trim() : from;
+      const person = typeof input.person === "string" ? input.person : null;
+      return result(await readDiary(viewer.orgId, viewer.tz, { from, to, person }));
+    },
   },
   {
     name: "issue_log",

@@ -723,6 +723,34 @@ to edit it from there using TIFF").
   rewritten the one way it is today. No microphone in the column: the
   Studio's is in Tiff's pill. Its tray is Quoted and Supplied only: at 400
   wide there is no room for Side by side (11 November 2026).
+- **The column on the right is a phone's screens** (`systems-stack.tsx`,
+  `rooms-panel.tsx`, `stack.tsx`), as mocked on
+  https://claude.ai/artifact/6bStBGUPe4zXDMjWbuQ52d and, in the real sheets
+  at 1440, https://claude.ai/artifact/66ykUj2YGgQ1Y5DWWyWKa1 (Isaac, 20
+  November 2026: "pretend the right panel is an iphone screen", "look hard
+  into what needs to be there and what doesnt", then "Yes, build it", 21
+  November 2026). It holds what you use while designing and nothing else: no
+  line under a title, no label one-liner, no maker nobody chose; no Draw
+  button, as the toolbar draws ("we have a tool bar for that"); no "Next:",
+  as Help teaches the order ("a help guide will do the teaching"). Its word
+  is zone, never room. A screen's one action is at the top right of its
+  head: Add system on Systems, Edit on a system, Combine on Zones, Rename on
+  a zone. A system says what it is and its Heat load, then its outdoor and a
+  row a zone with the one thing it's missing in orange (To place, No pipe,
+  No unit, No grille); Install details and Air are rows. Until it's built a
+  system is its zones, a switch each, its load as you go and Build system at
+  its foot. Zones are combined by ticks ("combine could be ticks"). A unit
+  to place is picked up by the handle at its row's end, and what moves with
+  the pointer is the plan's own unit at its real size, never the row ("its
+  hard to place with it being th whle card").
+- **The quote answers Install details** (`lib/studio/install-from-quote.ts`;
+  Isaac, 20 November 2026: "does the quote talk to install details", then
+  "Yes, add it"). Adding a quote's option to a design ticks what its lines
+  settle: a wall bracket and how heavy, the condensate by its drain hose and
+  pumps, the electrical by an isolator or cable, and the remotes where no
+  controller is quoted. Each question is a row by its short name with its
+  answer, Quoted while the answer is still the quote's, To answer in orange
+  where nothing is.
 
 ### Named exemptions
 

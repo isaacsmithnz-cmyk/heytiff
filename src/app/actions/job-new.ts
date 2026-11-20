@@ -70,12 +70,18 @@ export async function searchNewJobClients(q: string): Promise<ClientHit[]> {
     .ilike("name", like(text))
     .order("name")
     .limit(8);
-  const hits = (data ?? []) as { uuid: string; name: string | null; address: string | null }[];
+  return clientHits(g.orgId, (data ?? []) as CompanyRow[]);
+}
+
+type CompanyRow = { uuid: string; name: string | null; address: string | null };
+
+/** Clients as the form shows them: a builder's sites counted, their first few contacts. */
+async function clientHits(orgId: string, hits: CompanyRow[]): Promise<ClientHit[]> {
   if (hits.length === 0) return [];
   const ids = hits.map((h) => h.uuid);
   const [{ data: sites }, { data: contacts }] = await Promise.all([
-    supabaseAdmin.from("sm8_companies").select("parent_company_uuid").eq("org_id", g.orgId).eq("active", 1).in("parent_company_uuid", ids),
-    supabaseAdmin.from("sm8_company_contacts").select("company_uuid, first, last, mobile, phone, email").eq("org_id", g.orgId).eq("active", 1).in("company_uuid", ids).limit(40),
+    supabaseAdmin.from("sm8_companies").select("parent_company_uuid").eq("org_id", orgId).eq("active", 1).in("parent_company_uuid", ids),
+    supabaseAdmin.from("sm8_company_contacts").select("company_uuid, first, last, mobile, phone, email").eq("org_id", orgId).eq("active", 1).in("company_uuid", ids).limit(40),
   ]);
   const siteCount = new Map<string, number>();
   for (const s of (sites ?? []) as { parent_company_uuid: string }[]) siteCount.set(s.parent_company_uuid, (siteCount.get(s.parent_company_uuid) ?? 0) + 1);
@@ -94,6 +100,60 @@ export async function searchNewJobClients(q: string): Promise<ClientHit[]> {
     sites: siteCount.get(h.uuid) ?? 0,
     contacts: byCompany.get(h.uuid) ?? [],
   }));
+}
+
+/** How near a job's place has to be to count as where you're standing. */
+const HERE_M = 150;
+
+/** The site you're standing at: the nearest place we've had a job, within a
+    short walk, as the customer and site the form would pick for it — a
+    builder's site under its builder, anyone else's as themselves (the
+    phone's New › Job, Isaac, 20 November 2026: "Yes, build it" to
+    https://claude.ai/artifact/JLF86oYMASuBt4gKDRr1VR). */
+export async function nearNewJobSite(lat: number, lng: number): Promise<{ client: ClientHit; site: SiteHit | null } | null> {
+  const g = await gate();
+  if ("error" in g) return null;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+  const dLat = HERE_M / 111_320;
+  const dLng = HERE_M / (111_320 * Math.max(Math.cos((lat * Math.PI) / 180), 0.01));
+  const { data } = await supabaseAdmin
+    .from("sm8_jobs")
+    .select("company_uuid, lat, lng")
+    .eq("org_id", g.orgId)
+    .not("company_uuid", "is", null)
+    .gte("lat", lat - dLat)
+    .lte("lat", lat + dLat)
+    .gte("lng", lng - dLng)
+    .lte("lng", lng + dLng)
+    .limit(40);
+  const jobs = (data ?? []) as { company_uuid: string; lat: number | null; lng: number | null }[];
+  const near = jobs
+    .filter((j) => j.lat !== null && j.lng !== null)
+    .map((j) => ({ uuid: j.company_uuid, m: metresBetween(lat, lng, j.lat!, j.lng!) }))
+    .filter((j) => j.m <= HERE_M)
+    .sort((a, b) => a.m - b.m);
+  for (const { uuid } of near) {
+    const { data: co } = await supabaseAdmin.from("sm8_companies").select("uuid, name, address, parent_company_uuid").eq("org_id", g.orgId).eq("uuid", uuid).eq("active", 1).maybeSingle();
+    const row = co as (CompanyRow & { parent_company_uuid: string | null }) | null;
+    if (!row) continue;
+    if (!row.parent_company_uuid) {
+      const [client] = await clientHits(g.orgId, [row]);
+      return client ? { client, site: null } : null;
+    }
+    const { data: p } = await supabaseAdmin.from("sm8_companies").select("uuid, name, address").eq("org_id", g.orgId).eq("uuid", row.parent_company_uuid).eq("active", 1).maybeSingle();
+    if (!p) continue;
+    const [client] = await clientHits(g.orgId, [p as CompanyRow]);
+    const [site] = await withLastJobs(g.orgId, [{ uuid: row.uuid, name: row.name, address: row.address, parentName: client?.name ?? null }]);
+    if (client) return { client, site: site ?? null };
+  }
+  return null;
+}
+
+function metresBetween(aLat: number, aLng: number, bLat: number, bLng: number): number {
+  const r = (d: number) => (d * Math.PI) / 180;
+  const x = r(bLng - aLng) * Math.cos(r((aLat + bLat) / 2));
+  const y = r(bLat - aLat);
+  return Math.sqrt(x * x + y * y) * 6_371_000;
 }
 
 export type SiteHit = { uuid: string; name: string; address: string | null; parentName: string | null; lastJob: string | null };

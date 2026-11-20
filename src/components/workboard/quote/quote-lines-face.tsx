@@ -13,8 +13,9 @@ import { cents2 } from "@/lib/quotes/quote-sum";
 import { QuoteStepsLine, leftOn, priceState } from "./quote-parts";
 import { TiffPanel, type QuoteFace } from "./tiff-panel";
 import { LinesProposalPaper } from "./lines-proposal-paper";
-import type { LinesProposal } from "@/lib/quotes/lines-proposal";
-import type { PaymentPreset, PaymentStage } from "@/lib/quotes/payment";
+import { proposalOf, type LinesProposal } from "@/lib/quotes/lines-proposal";
+import { PAYMENT_PRESETS, type PaymentPreset, type PaymentStage } from "@/lib/quotes/payment";
+import { Icon } from "@/components/shell/icon";
 import type { QuoteNote } from "@/lib/templates/settings";
 import { buildProgress, type PlannedPart } from "@/lib/quotes/build-progress";
 import type { Variation } from "@/lib/quotes/lines-job";
@@ -27,7 +28,7 @@ import type { JobMediaItem } from "@/lib/workboard/job-media";
 import type { Sm8Quote } from "./sm8-quote-of";
 import { QuoteLineItems, RemoveLine, groupKey, sellEachOf } from "./quote-line-items";
 import { optionsWords, twinsOf } from "@/lib/quotes/line-twins";
-import { AddedRows, InServiceM8, OptionRows, QuoteCard, QuoteRail, signed } from "./quote-rail";
+import { AddedRows, InServiceM8, OptionPick, OptionRows, QuoteCard, QuoteRail, QuoteTotal, WhereUpTo, signed } from "./quote-rail";
 import { changingWords, pastQuote as goneToClient, priceThemWords, withoutAdded, type JobScopeRead, type ScopeAdded, type ScopeQuoted } from "@/lib/jobs/job-scope";
 import { LinesButton, QuoteActions } from "./quote-actions";
 import { sm8JobUrl } from "@/lib/integrations/sm8-links";
@@ -50,6 +51,13 @@ import { fmtAuTime } from "@/lib/au-dates";
    the option is priced and nothing is open, then Send to ServiceM8. Where
    Tiff isn't on for the business there is no conversation: the line items
    are the left, and the rail lists what's To confirm.
+
+   ON THE QUOTE'S OWN TAB (`views`) it is laid out as an iPad and an iPhone
+   (Isaac, 20 and 21 November 2026, "Build all three" to
+   https://claude.ai/artifact/EAB8Y8FsbnPbcuBXKDhT93): the soft ground under
+   the tabs, the main column, and the panel beside Build, Breakdown and the
+   Proposal (quote-rail.tsx's panel: the total, where it's up to, the next
+   step). The options are Breakdown's slider and the panel's quiet word.
 
    This file holds the quote's state, read once and after every change, and
    every act on it. Each edit goes to the route with the version the line
@@ -147,6 +155,16 @@ export function useQuoteLines(job: string, enabled: boolean) {
   return { view, post, reload: () => setRev((n) => n + 1) };
 }
 
+/** Who a quote went to, as the Update dialog says it: "Bloggs, Jo" is Jo,
+    any other name as it's written (a business has no first name), and the
+    customer where the job names nobody. */
+export const sentTo = (client: string | null | undefined): string => {
+  const name = (client ?? "").trim();
+  if (!name) return "the customer";
+  const [, given] = name.split(/,\s*/);
+  return given?.trim().split(/\s+/)[0] || name;
+};
+
 /** An option's labour hours as the card counts them: its priced labour
     lines', and the duct contingency's. */
 const hoursIn = (lines: QuoteLine[], option: number, contingencyHours: number) =>
@@ -222,6 +240,9 @@ export function QuoteLinesFace({
   const [paper, setPaper] = useState(false);
   /* the Proposal typed on: when it last saved itself, for the bar over it */
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  /* one of the Proposal's own choices pressed in the panel: its editor
+     opens on the paper */
+  const [paperAsk, setPaperAsk] = useState<{ block: "choice" | "payment" | "notes"; n: number } | null>(null);
   /* what fills the left while Tiff is on for the business: the
      conversation, or the line items, switched from the rail */
   const [tab, setTab] = useState<"chat" | "lines">("chat");
@@ -621,7 +642,7 @@ export function QuoteLinesFace({
      conversation, or in the rail where there is none */
   const confirm =
     checks.length > 0 ? (
-      <ul className="ql-checks">
+      <ul className="ql-checks" aria-label={views ? confirmTitle : undefined}>
         {checks.map((c, i) => (
           <li key={i} className={c.tone}>
             <i aria-hidden="true" />
@@ -657,9 +678,37 @@ export function QuoteLinesFace({
       </ul>
     ) : null;
 
+  /* every option and its total, to pick from: the rail's rows, and on the
+     quote's own tab the Breakdown's slider and the panel's quiet word */
+  const optionRows = Array.from({ length: options }, (_, i) => {
+    const v = (view?.variations ?? []).find((x) => x.option === i);
+    const mine = price && price.ok ? price.options[i] : undefined;
+    const of = v && price && price.ok ? price.options[v.of] : undefined;
+    return {
+      option: i,
+      on: i === at,
+      name: v ? `Variation ${v.n}` : `Option ${i + 1}`,
+      line: v ? v.what : (view?.optionNames?.[i] ?? ""),
+      total: !money ? null : !mine ? "–" : v && of ? signed(mine.build.exGstCents - of.build.exGstCents) : cents2(mine.build.exGstCents),
+    };
+  });
+
   /* the card's figures, for the option open */
   const contingencyHours = (b: { contingency: { hours: number } | null } | undefined) => b?.contingency?.hours ?? 0;
-  const card = money ? (
+  const card = !money ? null : views ? (
+    /* the quote's own tab: one white card the panel's width; on the
+       Proposal, the total alone */
+    <QuoteTotal
+      price={price}
+      option={priced ?? undefined}
+      optionLabel={options > 1 ? <OptionPick rows={optionRows} onPick={setAt} pick={paper || !linesUp} /> : null}
+      left={left}
+      hours={hoursIn(all, at, contingencyHours(o?.build))}
+      variation={variation && baseOpt ? { n: variation.n, of: baseOpt, hours: hoursIn(all, base, contingencyHours(baseOpt.build)) } : null}
+      building={building}
+      parts={!paper}
+    />
+  ) : (
     <QuoteCard
       price={price}
       option={priced ?? undefined}
@@ -669,7 +718,7 @@ export function QuoteLinesFace({
       variation={variation && baseOpt ? { n: variation.n, of: baseOpt, hours: hoursIn(all, base, contingencyHours(baseOpt.build)) } : null}
       building={building}
     />
-  ) : null;
+  );
 
   const lineItems = (
     <QuoteLineItems
@@ -694,8 +743,37 @@ export function QuoteLinesFace({
       }}
       onRemove={(ls) => void removeLines(ls)}
       swapAsk={swapAsk}
+      pad={views}
+      optionRows={optionRows}
     />
   );
+
+  /* THE PROPOSAL'S OWN CHOICES, in the panel beside it: how the customer
+     picks, the payment stages and the notes, each a row that opens its
+     editor on the paper */
+  const words = view?.proposal ?? proposalOf({});
+  const notesOn = (view?.noteLibrary ?? []).filter((n) => n.always || words.notes.includes(n.key)).length;
+  const askPaper = (block: "choice" | "payment" | "notes") => setPaperAsk((was) => ({ block, n: (was?.n ?? 0) + 1 }));
+  const paperRow = (block: "choice" | "payment" | "notes", name: string, word: string) => (
+    <button type="button" className="qx-row" disabled={busy} onClick={() => askPaper(block)}>
+      <b>{name}</b>
+      <span className="qx-r">{word}</span>
+      <span className="qx-ch" aria-hidden="true">
+        <Icon name="chevR" size={16} />
+      </span>
+    </button>
+  );
+  const proposalRows =
+    views && paper && !shown && !variation ? (
+      <section className="qx-sec" aria-label="The proposal's choices">
+        <h2 className="qx-head">The proposal</h2>
+        <div className="qx-card qx-rows">
+          {paperRow("choice", "Customer picks", words.choice === "any" ? "Any they want" : "One option")}
+          {paperRow("payment", "Payment", (view?.paymentTerms ?? PAYMENT_PRESETS)[words.payment.preset]?.label ?? "")}
+          {paperRow("notes", "Notes", notesOn === 0 ? "None" : `${notesOn} ${notesOn === 1 ? "note" : "notes"}`)}
+        </div>
+      </section>
+    ) : null;
 
   /* what's left before Approve can be pressed, said once under it (layout
      B, 21 October 2026): her questions still open, and what's left to
@@ -774,7 +852,7 @@ export function QuoteLinesFace({
           {money && <span className="qc-gst">All ex GST</span>}
         </div>
       )}
-      <div className={views && paper ? "qc-body qc-body--full" : "qc-body"}>
+      <div className="qc-body">
         <div className="qc-main">
           {note && <p className="wb2-sherr qc-note">{note}</p>}
           {/* mounted whatever is up: her work lands, and the page learns
@@ -847,6 +925,7 @@ export function QuoteLinesFace({
                     jobNumber={meta?.jobNumber ?? null}
                     preparedBy={view?.names[view?.me ?? ""] ?? null}
                     busy={busy}
+                    editAsk={paperAsk}
                     onSave={(patch) => void act({ op: "proposal", patch }).then((v) => v?.ok && setSavedAt(new Date().toISOString()))}
                   />
                 )}
@@ -864,7 +943,7 @@ export function QuoteLinesFace({
             Dialog, portalled to the body so it darkens the whole page */}
         <Dialog
           open={updating != null}
-          heading="Update quote"
+          heading="Update the quote"
           width={560}
           onClose={() => {
             setUpdating(null);
@@ -896,47 +975,40 @@ export function QuoteLinesFace({
         >
           <div className="ql-vbody">
             <p>
+              {/* two short sentences, in the steps' own names (Isaac, 20
+                  November 2026, on Update quote: "wording is weird") */}
               {accepted.length > 0
-                ? `${options > 1 ? `Option ${(accepted[0] ?? 0) + 1}` : "The quote"} is accepted, so this is a variation. The accepted quote stays as it is. The variation is priced as the difference, and the client approves it on its own.`
+                ? `${options > 1 ? `Option ${(accepted[0] ?? 0) + 1}` : "The quote"} is accepted and stays as it is. This starts a variation, priced as the difference, which ${sentTo(meta?.client)} accepts on its own.`
                 : gone?.quoted
-                  ? `The quote was sent on ${gone.quoted.on} and isn't accepted, so this is version ${version + 1}. Version ${version} is kept as it was sent, and version ${version + 1} goes through Approve and Send.`
-                  : `The quote is approved, so this is version ${version + 1}. Version ${version} is kept as it stands, the approval comes off, and it goes back through Approve and Send.`}
+                  ? `Version ${version} went to ${sentTo(meta?.client)} on ${gone.quoted.on} and stays as it was sent. Version ${version + 1} starts from it and goes out through Mark ready to send and Send to ServiceM8.`
+                  : `Version ${version} is marked ready to send and stays as it stands. Version ${version + 1} starts from it and goes out through Mark ready to send and Send to ServiceM8.`}
             </p>
-            <Field label="What's changing">
+            <Field label="What to change">
               <NoteToken as="field" className="ql-vwhat" label="what's changing" offer={false} rows={3} value={updating ?? ""} disabled={busy} box={{ "data-autofocus": true }} onChange={setUpdating} />
             </Field>
           </div>
         </Dialog>
-        {/* Proposal is the page at full width, with no total beside it (the mock's) */}
-        {!(views && paper) && (
+        {/* the panel stands beside Build, Breakdown and the Proposal (Isaac,
+            21 November 2026, "Build all three" to the mock) */}
         <QuoteRail
+          panel={views}
+          proposal={proposalRows}
           progress={
-            <QuoteStepsLine
-              steps={steps}
-              list={views}
-              /* on the Price tab the client's yes is said once, here, with Undo beside it, not again at the foot */
-              onUndoAccepted={views && money && !variation && !shown && accepted.includes(at) ? () => void accept() : undefined}
-              busy={busy}
-            />
+            views ? (
+              <WhereUpTo
+                steps={steps}
+                /* the customer's yes is said once, here, with Undo beside it, not again at the foot */
+                onUndoAccepted={money && !variation && !shown && accepted.includes(at) ? () => void accept() : undefined}
+                busy={busy}
+              >
+                {tiff !== null ? confirm : null}
+              </WhereUpTo>
+            ) : (
+              <QuoteStepsLine steps={steps} />
+            )
           }
           priceFirst={views}
-          options={
-            <OptionRows
-              onPick={setAt}
-              rows={Array.from({ length: options }, (_, i) => {
-                const v = (view?.variations ?? []).find((x) => x.option === i);
-                const mine = price && price.ok ? price.options[i] : undefined;
-                const of = v && price && price.ok ? price.options[v.of] : undefined;
-                return {
-                  option: i,
-                  on: i === at,
-                  name: v ? `Variation ${v.n}` : `Option ${i + 1}`,
-                  line: v ? v.what : (view?.optionNames?.[i] ?? ""),
-                  total: !money ? null : !mine ? "–" : v && of ? signed(mine.build.exGstCents - of.build.exGstCents) : cents2(mine.build.exGstCents),
-                };
-              })}
-            />
-          }
+          options={views ? null : <OptionRows onPick={setAt} rows={optionRows} />}
           added={
             chat ? (
               <AddedRows
@@ -968,7 +1040,7 @@ export function QuoteLinesFace({
           /* the conversation holds what's to confirm, except where there is
              none, or the paper is up in its place: before approving, the
              review stands beside the paper (11.1) */
-          confirm={tiff !== null && (views || !chat || paper) ? confirm : null}
+          confirm={tiff !== null && !views && (!chat || paper) ? confirm : null}
           confirmTitle={confirmTitle}
           card={card}
           building={building}
@@ -993,7 +1065,6 @@ export function QuoteLinesFace({
             />
           }
         />
-        )}
       </div>
     </>
   );

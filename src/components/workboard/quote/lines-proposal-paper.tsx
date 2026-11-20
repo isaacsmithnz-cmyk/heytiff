@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Letterhead } from "@/components/org/letterhead";
 import { useOrgBrand } from "@/components/studio/summary/use-org-brand";
 import type { OrgBrand } from "@/lib/org/brand";
@@ -42,6 +42,9 @@ type Props = {
   onSave: (patch: Partial<LinesProposal>) => void;
   /** drawn to read, not to type on: the Price tab's preview and the PDF */
   readOnly?: boolean;
+  /** one of the paper's own choices pressed beside it (the quote tab's
+      panel): its editor opens here, and comes into view */
+  editAsk?: { block: "choice" | "payment" | "notes"; n: number } | null;
   /** the business's brand as the server read it: the PDF's print page has
       no session to ask for it with (app/print/quote) */
   brand?: OrgBrand;
@@ -72,6 +75,18 @@ export function LinesProposalPaper(props: Props) {
   const ro = !!props.readOnly;
   const brand = useOrgBrand(props.brand);
   const [editing, setEditing] = useState<Block | null>(null);
+  const [asked, setAsked] = useState(0);
+  const paperRef = useRef<HTMLElement>(null);
+  const ask = props.editAsk ?? null;
+  if (ask && !ro && ask.n !== asked) {
+    setAsked(ask.n);
+    setEditing(ask.block);
+  }
+  const askedBlock = ask?.block ?? null;
+  useEffect(() => {
+    if (asked === 0 || !askedBlock) return;
+    paperRef.current?.querySelector(`[data-block="${askedBlock}"]`)?.scrollIntoView?.({ block: "center" });
+  }, [asked, askedBlock]);
   const p = props.proposal ?? proposalOf({});
   const options = Math.max(1, ...lines.map((l) => l.optionIndex + 1));
   const priced = price && price.ok ? price.options : [];
@@ -86,7 +101,7 @@ export function LinesProposalPaper(props: Props) {
   const terms = props.paymentTerms ?? PAYMENT_PRESETS;
 
   return (
-    <article className="lp-paper" aria-label="The proposal" style={themeVars(brand.color)}>
+    <article ref={paperRef} className="lp-paper" aria-label="The proposal" style={themeVars(brand.color)}>
       <header className="lp-lh">
         <Letterhead brand={brand} />
         <div className="lp-lh-r">
@@ -209,7 +224,7 @@ export function LinesProposalPaper(props: Props) {
         );
       })}
 
-      <section className="lp-sec" aria-label="Your choice">
+      <section className="lp-sec" aria-label="Your choice" data-block="choice">
         <Editable
           readOnly={ro}
           label="how the client chooses"
@@ -261,7 +276,7 @@ export function LinesProposalPaper(props: Props) {
         <TypedList className="lp-ex" items={p.notIncluded} label="What isn't included" empty="Not written yet." readOnly={ro} onSave={(notIncluded) => save({ notIncluded })} />
       </section>
 
-      <section className="lp-sec" aria-label="Payment">
+      <section className="lp-sec" aria-label="Payment" data-block="payment">
         <Editable
           readOnly={ro}
           label="the payment stages"
@@ -318,7 +333,7 @@ export function LinesProposalPaper(props: Props) {
         </table>
       </section>
 
-      <section className="lp-sec" aria-label="Notes">
+      <section className="lp-sec" aria-label="Notes" data-block="notes">
         <Editable
           readOnly={ro}
           label="the notes"

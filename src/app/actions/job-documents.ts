@@ -48,7 +48,7 @@ export async function attachJobDocument(documentId: string, jobUuid: string): Pr
 
   const { data } = await supabaseAdmin
     .from("documents")
-    .select("id, kind, uploaded_at, uploaded_by, sm8_job_uuid, storage_ref")
+    .select("id, kind, uploaded_at, uploaded_by, sm8_job_uuid, storage_ref, file_name, size_bytes")
     .eq("org_id", ctx.orgId)
     .eq("id", id)
     .maybeSingle();
@@ -59,6 +59,8 @@ export async function attachJobDocument(documentId: string, jobUuid: string): Pr
     uploaded_by: string | null;
     sm8_job_uuid: string | null;
     storage_ref: string;
+    file_name: string | null;
+    size_bytes: number | null;
   } | null;
   if (!doc || doc.kind !== "job_document" || !doc.uploaded_at) {
     return { ok: false, error: "That upload didn't land." };
@@ -81,6 +83,28 @@ export async function attachJobDocument(documentId: string, jobUuid: string): Pr
        goes now rather than sitting in the bucket, invisible and billed. */
     await dropOrphan(ctx.orgId, doc.id, doc.storage_ref);
     return { ok: false, error: "That job isn't in ServiceM8's copy any more." };
+  }
+
+  /* THE SAME FILE TWICE: one already on this job with the same name and
+     size is this file again (3570, 19 November 2026: Luke's plan set went on
+     twice, two minutes apart, and into Plans twice). The new copy goes, and
+     the face says the file is there already. */
+  if (doc.file_name && doc.size_bytes) {
+    const { data: twin } = await supabaseAdmin
+      .from("documents")
+      .select("id")
+      .eq("org_id", ctx.orgId)
+      .eq("sm8_job_uuid", job)
+      .eq("kind", "job_document")
+      .eq("file_name", doc.file_name)
+      .eq("size_bytes", doc.size_bytes)
+      .neq("id", doc.id)
+      .limit(1)
+      .maybeSingle();
+    if (twin) {
+      await dropOrphan(ctx.orgId, doc.id, doc.storage_ref);
+      return { ok: false, error: `${doc.file_name} is already on this job.` };
+    }
   }
 
   /* `is null` in the write as well as the read: two presses racing can't

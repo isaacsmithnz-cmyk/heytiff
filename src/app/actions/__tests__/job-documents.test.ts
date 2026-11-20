@@ -17,6 +17,8 @@ jest.mock("@/lib/jobs/take-in-server", () => ({ takeInAfter: (...a: unknown[]) =
 let capWorkboard = true;
 let jobRow: Record<string, unknown> | null = { uuid: "job-1" };
 let docRow: Record<string, unknown> | null = null;
+/* a file already on the job with the same name and size */
+let twinRow: Record<string, unknown> | null = null;
 let updated: Record<string, unknown>[] = [{ id: "d-9" }];
 
 type Op = { table: string; op: string; filters: [string, string, unknown][]; values?: unknown };
@@ -43,11 +45,16 @@ jest.mock("@/lib/supabase-server", () => ({
         op.filters.push(["eq", col, val]);
         return q;
       };
+      q.neq = (col: string, val: unknown) => {
+        op.filters.push(["neq", col, val]);
+        return q;
+      };
+      q.limit = () => q;
       q.is = (col: string, val: unknown) => {
         op.filters.push(["is", col, val]);
         return q;
       };
-      q.maybeSingle = async () => ({ data: table === "sm8_jobs" ? jobRow : docRow });
+      q.maybeSingle = async () => ({ data: table === "sm8_jobs" ? jobRow : op.filters.some(([o]) => o === "neq") ? twinRow : docRow });
       q.then = (res: (v: unknown) => unknown) =>
         Promise.resolve(op.op === "update" ? { data: updated, error: null } : { error: null }).then(res);
       return q;
@@ -87,6 +94,7 @@ beforeEach(() => {
   capWorkboard = true;
   jobRow = { uuid: "job-1" };
   docRow = landed();
+  twinRow = null;
   updated = [{ id: "d-9" }];
   ops.length = 0;
   removed.length = 0;
@@ -109,6 +117,26 @@ describe("putting an upload on a job", () => {
         ["is", "sm8_job_uuid", null],
       ])
     );
+  });
+
+  it("keeps no second copy of a file already on the job, and says so", async () => {
+    /* 3570, 19 November 2026: Luke's plan set went on twice, two minutes apart */
+    docRow = landed({ file_name: "307 Coonawarra Rd_CDC.pdf", size_bytes: 11271429 });
+    twinRow = { id: "d-1" };
+    expect(await attachJobDocument("d-9", "job-1")).toEqual({ ok: false, error: "307 Coonawarra Rd_CDC.pdf is already on this job." });
+    const twinRead = ops.find((o) => o.filters.some(([op]) => op === "neq"))!;
+    expect(twinRead.filters).toEqual(
+      expect.arrayContaining([
+        ["eq", "sm8_job_uuid", "job-1"],
+        ["eq", "file_name", "307 Coonawarra Rd_CDC.pdf"],
+        ["eq", "size_bytes", 11271429],
+        ["neq", "id", "d-9"],
+      ]),
+    );
+    /* the new copy goes, row and bytes; nothing is taken in */
+    expect(removed).toEqual([["org/org-1/job_document/d-9.pdf"]]);
+    expect(writes().some((w) => w.op === "update")).toBe(false);
+    expect(takeInAfter).not.toHaveBeenCalled();
   });
 
   it("is the card's own tier", async () => {

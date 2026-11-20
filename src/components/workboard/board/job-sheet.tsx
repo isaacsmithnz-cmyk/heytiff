@@ -28,8 +28,8 @@ import { readBilling } from "@/lib/workboard/job-billing";
 import { buildJobStory, storyStamp } from "@/lib/workboard/job-story";
 import { JobMoneyBlock } from "./job-money-block";
 import { cacheJobFiles } from "@/app/actions/workboard-media";
-import { addPlansToJob, chooseFloorsOnPlan, pageForScale, readPlansOnJob, setScaleOnPlan } from "@/app/actions/job-plans";
-import { kickPlanReads, PLAN_POLL_MS } from "@/lib/jobs/plans-client";
+import { addPlansToJob, chooseFloorsOnPlan, pageForScale, readPlanAgainOnJob, readPlansOnJob, setScaleOnPlan } from "@/app/actions/job-plans";
+import { kickPlanReads, PLAN_POLL_MS, PLAN_STUCK_MS } from "@/lib/jobs/plans-client";
 import type { JobPlanRead, PlanPick } from "@/lib/jobs/plans";
 import { fileOnJob } from "@/lib/documents/file-on-job";
 import { readJobPhotos } from "@/app/actions/photo-readings";
@@ -550,6 +550,30 @@ export function JobSheet({
     if (media) setMedia(media);
     return null;
   };
+
+  /* Read again on a plan that couldn't be read: put back to reading, the
+     read asked for, and the plans read again so the row says so. */
+  const readPlanAgain = async (planId: string): Promise<string | null> => {
+    if (!cardId) return "The job isn't known yet.";
+    const why = await readPlanAgainOnJob(cardId, planId).catch(() => "The plan couldn't be read again. Try again.");
+    if (why) return why;
+    kickPlanReads([planId]);
+    const fresh = await readPlansOnJob(cardId).catch(() => null);
+    if (fresh) setPlans(fresh);
+    return null;
+  };
+
+  /* A plan left reading longer than a read takes was dropped on the way
+     (a deploy, a timeout, or put back by hand): asked for once more while
+     the job is open. The read route's claim means a read still going isn't
+     started twice. */
+  const plansKicked = useRef(new Set<string>());
+  useEffect(() => {
+    const stuck = (plans ?? []).filter((p) => p.state === "reading" && Date.now() - new Date(p.addedAt).getTime() > PLAN_STUCK_MS && !plansKicked.current.has(p.id)).map((p) => p.id);
+    if (stuck.length === 0) return;
+    for (const id of stuck) plansKicked.current.add(id);
+    kickPlanReads(stuck);
+  }, [plans]);
 
   /* Set scale on a plan's page: saved on the job's plan, and the plans read
      again so the row says what its sizes now rest on. */
@@ -1953,6 +1977,7 @@ export function JobSheet({
               /* offered once the job's plans have been read: a workspace whose
                  Plans table isn't there yet shows Documents as it was */
               onAddPlans={cardId && plans !== null ? addPlans : undefined}
+              onReadPlanAgain={cardId ? readPlanAgain : undefined}
               onUploadForPlans={cardId ? (file) => fileOnJob(file, cardId) : undefined}
               onPageForScale={cardId ? (planId, n) => pageForScale(cardId, planId, n) : undefined}
               onSetScale={cardId ? setPlanScale : undefined}
@@ -1976,6 +2001,7 @@ export function JobSheet({
           onOpen={(item) => setViewer({ kind: "paper", id: item.remoteId })}
           plans={plans}
           onAddPlans={cardId && plans !== null ? addPlans : undefined}
+              onReadPlanAgain={cardId ? readPlanAgain : undefined}
           onUploadForPlans={cardId ? (file) => fileOnJob(file, cardId) : undefined}
           onPageForScale={cardId ? (planId, n) => pageForScale(cardId, planId, n) : undefined}
           onSetScale={cardId ? setPlanScale : undefined}

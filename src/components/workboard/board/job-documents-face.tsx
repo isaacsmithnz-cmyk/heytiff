@@ -246,6 +246,7 @@ export function JobDocumentsFace({
   sendHold = null,
   plans = null,
   onAddPlans,
+  onReadPlanAgain,
   onUploadForPlans,
   onPageForScale,
   onSetScale,
@@ -310,6 +311,8 @@ export function JobDocumentsFace({
   /** Press the picked files into Plans; null once they're in, or the reason.
       Absent until the page knows which job it is. */
   onAddPlans?: (picks: PlanPick[]) => Promise<string | null>;
+  /** A plan that couldn't be read, read again; null once it's asked, or the reason. */
+  onReadPlanAgain?: (planId: string) => Promise<string | null>;
   /** A file dropped into Add plans, onto the job first. */
   onUploadForPlans?: UploadForPlans;
   /** A plan's page for Set scale: its full picture. */
@@ -333,6 +336,19 @@ export function JobDocumentsFace({
   const [addingPlans, setAddingPlans] = useState(false);
   /* Set scale or Check scale, open over the page on one of a plan's pages */
   const [choosingFloors, setChoosingFloors] = useState<string | null>(null);
+  /* Read again on a plan that couldn't be read: the one being asked, and why one couldn't be */
+  const [againBusy, setAgainBusy] = useState<string | null>(null);
+  const [againWhy, setAgainWhy] = useState<Record<string, string>>({});
+  const readAgain = async (planId: string) => {
+    if (!onReadPlanAgain) return;
+    setAgainBusy(planId);
+    const why = await onReadPlanAgain(planId).catch(() => "The plan couldn't be read again. Try again.");
+    setAgainBusy(null);
+    setAgainWhy((w) => {
+      const { [planId]: _gone, ...rest } = w;
+      return why ? { ...rest, [planId]: why } : rest;
+    });
+  };
   const [scaling, setScaling] = useState<{ planId: string; page: JobPlanPage; ask: "set" | "check" } | null>(null);
   const [adding, setAdding] = useState(false);
   const addRef = useRef<HTMLButtonElement>(null);
@@ -499,6 +515,8 @@ export function JobDocumentsFace({
     const asks = onSetScale && onPageForScale && !replaced ? scaleAsks(p) : [];
     /* a set she isn't sure of offers its floors to be chosen */
     const choose = !!onChooseFloors && !replaced && p.state === "check" && choosablePages(p).length > 0;
+    /* a set that couldn't be read can be read again, as it is */
+    const again = !!onReadPlanAgain && !replaced && p.state === "failed";
     /* what she read of a subfloor, on a line of its own that never fades */
     const subfloor = p.state === "reading" || replaced ? null : subfloorLine(p);
     const url = file?.url;
@@ -512,7 +530,7 @@ export function JobDocumentsFace({
         end={<StateWord tone={state.tone}>{state.word}</StateWord>}
         onClick={open}
         below={
-          pages.length > 0 || choose || subfloor ? (
+          pages.length > 0 || choose || again || subfloor ? (
             <span className="jpl-below">
               {subfloor && <span className="pt-row-line">{subfloor}</span>}
               {pages.length > 0 && (
@@ -537,6 +555,14 @@ export function JobDocumentsFace({
                 <Button size={32} onClick={() => setChoosingFloors(p.id)}>
                   Choose floors
                 </Button>
+              )}
+              {again && (
+                <>
+                  {againWhy[p.id] && <span className="pt-row-line">{againWhy[p.id]}</span>}
+                  <Button size={32} disabled={againBusy === p.id} onClick={() => void readAgain(p.id)}>
+                    Read again
+                  </Button>
+                </>
               )}
             </span>
           ) : undefined

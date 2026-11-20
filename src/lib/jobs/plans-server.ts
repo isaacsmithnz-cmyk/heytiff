@@ -133,7 +133,7 @@ export async function readJobPlan(orgId: string, planId: string): Promise<JobPla
 
 export type { PlanPick };
 
-export type FileAt = { name: string; ref: string; mime: string | null };
+export type FileAt = { name: string; ref: string; mime: string | null; size?: number | null };
 
 /** Where the picked file's bytes are, in the documents bucket: one of ours
     on this job, or ServiceM8's cached copy. Null when the file isn't this
@@ -142,22 +142,22 @@ export async function fileFor(orgId: string, jobUuid: string, pick: PlanPick): P
   if ("documentId" in pick) {
     const { data } = await supabaseAdmin
       .from("documents")
-      .select("file_name, storage_ref, mime_type, sm8_job_uuid, uploaded_at")
+      .select("file_name, storage_ref, mime_type, size_bytes, sm8_job_uuid, uploaded_at")
       .eq("org_id", orgId)
       .eq("id", pick.documentId)
       .maybeSingle();
-    const d = data as { file_name: string | null; storage_ref: string; mime_type: string | null; sm8_job_uuid: string | null; uploaded_at: string | null } | null;
+    const d = data as { file_name: string | null; storage_ref: string; mime_type: string | null; size_bytes: number | null; sm8_job_uuid: string | null; uploaded_at: string | null } | null;
     if (!d || d.sm8_job_uuid !== jobUuid || !d.uploaded_at) return null;
-    return { name: d.file_name ?? "Plan", ref: d.storage_ref, mime: d.mime_type };
+    return { name: d.file_name ?? "Plan", ref: d.storage_ref, mime: d.mime_type, size: d.size_bytes };
   }
   const [{ data: att }, { data: cached }] = await Promise.all([
     supabaseAdmin.from("sm8_attachments").select("attachment_name, file_type").eq("org_id", orgId).eq("uuid", pick.attachmentId).maybeSingle(),
-    supabaseAdmin.from("documents").select("storage_ref, mime_type").eq("org_id", orgId).eq("source", "servicem8").eq("remote_ref", pick.attachmentId).not("uploaded_at", "is", null).maybeSingle(),
+    supabaseAdmin.from("documents").select("storage_ref, mime_type, size_bytes").eq("org_id", orgId).eq("source", "servicem8").eq("remote_ref", pick.attachmentId).not("uploaded_at", "is", null).maybeSingle(),
   ]);
   const a = att as { attachment_name: string | null; file_type: string | null } | null;
-  const c = cached as { storage_ref: string; mime_type: string | null } | null;
+  const c = cached as { storage_ref: string; mime_type: string | null; size_bytes: number | null } | null;
   if (!a || !c) return null;
-  return { name: a.attachment_name ?? "Plan", ref: c.storage_ref, mime: c.mime_type ?? (a.file_type === ".pdf" ? "application/pdf" : null) };
+  return { name: a.attachment_name ?? "Plan", ref: c.storage_ref, mime: c.mime_type ?? (a.file_type === ".pdf" ? "application/pdf" : null), size: c.size_bytes };
 }
 
 export const kindOf = (f: FileAt): "pdf" | "image" | null => {
@@ -166,6 +166,19 @@ export const kindOf = (f: FileAt): "pdf" | "image" | null => {
   if (/^image\/(png|jpe?g|webp)$/.test(m) || /\.(png|jpe?g|webp)$/i.test(f.name)) return "image";
   return null;
 };
+
+/** A plan already on the job that is this same file under another upload:
+    the same name and the same size. 3570, 20 November 2026: Luke's set went
+    in twice, two identical rows in Plans. */
+async function twinPlanOf(orgId: string, jobUuid: string, file: FileAt): Promise<string | null> {
+  if (!file.size) return null;
+  const { data } = await supabaseAdmin.from("job_plans").select("id, document_id, attachment_id").eq("org_id", orgId).eq("job_uuid", jobUuid).eq("name", file.name);
+  for (const r of (data ?? []) as { id: string; document_id: string | null; attachment_id: string | null }[]) {
+    const other = await fileFor(orgId, jobUuid, r.document_id ? { documentId: r.document_id } : { attachmentId: r.attachment_id ?? "" });
+    if (other?.size === file.size) return r.id;
+  }
+  return null;
+}
 
 export type AddPlansResult = { ok: true; planIds: string[]; already: number } | { ok: false; error: string };
 
@@ -188,7 +201,7 @@ export async function addJobPlans(orgId: string, jobUuid: string, picks: readonl
       .eq("job_uuid", jobUuid)
       .eq("documentId" in pick ? "document_id" : "attachment_id", "documentId" in pick ? pick.documentId : pick.attachmentId)
       .maybeSingle();
-    if (have.data) {
+    if (have.data || (await twinPlanOf(orgId, jobUuid, file))) {
       already++;
       continue;
     }
@@ -209,6 +222,23 @@ export async function addJobPlans(orgId: string, jobUuid: string, picks: readonl
     planIds.push(id);
   }
   return { ok: true, planIds, already };
+}
+
+/** A plan that couldn't be read put back to be read: its state reading,
+    its reason and its claim cleared, whatever was drawn of it kept. Only a
+    failed plan on this job; true when it was put back. The caller asks the
+    read route for it (kickPlanReads). 3570, 20 November 2026: a set that
+    failed before a fix had no way to be read again but adding it anew. */
+export async function readPlanAgain(orgId: string, jobUuid: string, planId: string): Promise<boolean> {
+  const { data, error } = await supabaseAdmin
+    .from("job_plans")
+    .update({ state: "reading", said: null, claimed_at: null })
+    .eq("org_id", orgId)
+    .eq("job_uuid", jobUuid)
+    .eq("id", planId)
+    .eq("state", "failed")
+    .select("id");
+  return !error && (data ?? []).length > 0;
 }
 
 /* ── reading ── */

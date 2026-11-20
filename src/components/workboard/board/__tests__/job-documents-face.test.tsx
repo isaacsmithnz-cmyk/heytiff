@@ -812,6 +812,27 @@ it("offers no Choose floors on a plan she read sure, or where it can't be saved"
   expect(screen.queryByRole("button", { name: "Choose floors" })).toBeNull();
 });
 
+it("offers Read again on a set that couldn't be read, and says why where it can't be", async () => {
+  /* 3570, 20 November 2026: a set that failed before a fix had no way back but adding it anew */
+  const onReadPlanAgain = jest.fn(async () => null as string | null);
+  face({ documents: [suttor], plans: [readPlan({ state: "failed", said: "Failed to fetch", reading: null, pages: [] })], onReadPlanAgain });
+  const row = within(group("Plans")).getByText(suttor.name).closest(".pt-row") as HTMLElement;
+  expect(within(row).getByText("Not read")).toBeInTheDocument();
+  await userEvent.click(within(row).getByRole("button", { name: "Read again" }));
+  expect(onReadPlanAgain).toHaveBeenCalledWith("jplan_1");
+  onReadPlanAgain.mockResolvedValueOnce("That plan isn't waiting to be read again.");
+  await userEvent.click(within(row).getByRole("button", { name: "Read again" }));
+  expect(await within(row).findByText("That plan isn't waiting to be read again.")).toBeInTheDocument();
+});
+
+it("offers no Read again on a plan that read, or where it can't be asked", () => {
+  face({ documents: [suttor], plans: [readPlan()], onReadPlanAgain: async () => null });
+  expect(screen.queryByRole("button", { name: "Read again" })).toBeNull();
+  cleanup();
+  face({ documents: [suttor], plans: [readPlan({ state: "failed", said: "x", reading: null, pages: [] })] });
+  expect(screen.queryByRole("button", { name: "Read again" })).toBeNull();
+});
+
 /* the plans on Scope, the papers on Files (Isaac, 15 November 2026: "Plans move too") */
 it("draws the plans alone on Scope, with Add plans, and Files without them", async () => {
   const onAddPlans = jest.fn(async () => null);

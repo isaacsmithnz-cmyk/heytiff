@@ -10,6 +10,7 @@ import { LocalDesignStore } from "@/lib/studio/store";
 import type { PageImage, PlanImages } from "@/lib/studio/plans";
 import type { PlanReading } from "@/lib/studio/reading";
 import type { DataPack } from "@/lib/studio/packs/schema";
+import type { LibraryManifest } from "@/lib/studio/packs/library";
 import { NO_BRAND } from "@/lib/org/brand";
 
 class LocalPlanImages implements PlanImages {
@@ -49,7 +50,7 @@ class LocalPlanImages implements PlanImages {
   }
 }
 
-export function StudioNext({ flow }: { flow: StudioFlow }) {
+export function StudioNext({ flow, library }: { flow: StudioFlow; library: LibraryManifest }) {
   /* browser-only: the store reads localStorage, which the server has none of */
   const [held, setHeld] = useState<{ store: LocalDesignStore; images: LocalPlanImages } | null>(null);
   useEffect(() => {
@@ -66,7 +67,8 @@ export function StudioNext({ flow }: { flow: StudioFlow }) {
       sm8Jobs={false}
       brand={NO_BRAND}
       jobSearch={async () => []}
-      packLoader={async () => (await (await fetch("/studio-next/api/pack")).json()) as { pack: DataPack; version: string } | null}
+      library={library}
+      packLoader={async (brand) => (await (await fetch(`/studio-next/api/pack?brand=${encodeURIComponent(brand)}`)).json()) as { pack: DataPack; version: string } | null}
       planReader={async (designId) => {
         const doc = await store.load(designId);
         if (!doc) return null;

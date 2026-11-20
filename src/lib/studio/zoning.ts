@@ -212,12 +212,12 @@ export interface ZoneKit {
 }
 
 /** the zoning kit for this many zones, from the brand's pack */
-export function zoneKit(pack: DataPack, z: UnitZoning, zones: Zone[]): ZoneKit {
+export function zoneKit(pack: DataPack, z: UnitZoning, zones: Zone[], brand: string = pack.meta.brand): ZoneKit {
   const n = zones.length;
   if (z.control === "off" || n === 0) return { lines: [], interfaceModel: null, problem: null };
   const temp = z.control === "temperature";
   const range: ZoningController | undefined = pack.zoning_controllers.find(
-    (c) => !c.compatible_brands?.length || c.compatible_brands.includes(pack.meta.brand)
+    (c) => !c.compatible_brands?.length || c.compatible_brands.includes(brand)
   );
   const lines: ZoneKitLine[] = [];
   const spill = zones.find((x) => x.key === z.spill);
@@ -262,7 +262,7 @@ export function zoneKit(pack: DataPack, z: UnitZoning, zones: Zone[]): ZoneKit {
 }
 
 /** what a damper's cable is, as the maker specifies it */
-export function damperCableSub(pack: DataPack): string {
-  const c = pack.zoning_controllers.find((x) => !x.compatible_brands?.length || x.compatible_brands.includes(pack.meta.brand))?.damper_cable;
+export function damperCableSub(pack: DataPack, brand: string = pack.meta.brand): string {
+  const c = pack.zoning_controllers.find((x) => !x.compatible_brands?.length || x.compatible_brands.includes(brand))?.damper_cable;
   return c ? `${c.kind}, ${c.max_m} m at most, one a damper` : "One a damper";
 }

@@ -5,8 +5,7 @@ import "@/components/studio/studio.css";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { loadLiveShare } from "@/lib/studio/live-load";
 import { liveMetadata } from "@/lib/studio/live-og";
-import { latestInstalledPack } from "@/lib/studio/packs/server";
-import { loadPackWithOverrides } from "@/lib/studio/packs/overrides-server";
+import { loadDesignPack } from "@/lib/studio/packs/design-packs-server";
 import { trimPackForLive } from "@/lib/studio/packs/live-trim";
 import type { DataPack } from "@/lib/studio/packs/schema";
 import { buildSummaryModel } from "@/lib/studio/summary";
@@ -73,7 +72,6 @@ export async function generateMetadata({
 }
 
 const BUCKET = "studio-plans";
-const BRAND = "mitsubishi-electric";
 
 export default async function LivePage({
   params,
@@ -93,14 +91,12 @@ export default async function LivePage({
   const scope = share.scope ?? LEGACY_LINK_SCOPE;
   const shows = (p: (typeof scope.parts)[number]) => scope.parts.includes(p);
 
-  /* pack: latest installed + HQ overrides, then trimmed to this design */
+  /* pack: the latest of each brand its systems name, with HQ overrides,
+     then trimmed to this design */
   let pack: DataPack | null = null;
   try {
-    const latest = await latestInstalledPack(BRAND);
-    if (latest) {
-      const loaded = await loadPackWithOverrides(BRAND, latest.version);
-      pack = trimPackForLive(loaded.pack, doc);
-    }
+    const loaded = await loadDesignPack([doc]);
+    if (loaded) pack = trimPackForLive(loaded, doc);
   } catch {
     /* no pack — the plan still renders; the sim just has no handlers */
   }

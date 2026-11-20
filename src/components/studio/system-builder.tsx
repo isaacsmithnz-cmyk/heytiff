@@ -28,6 +28,7 @@ import { Row, RowList } from "@/components/parts/row";
 import { StateWord, type Tone as StateTone } from "@/components/parts/state";
 import { Field } from "@/components/parts/field";
 import { Chooser } from "@/components/parts/chooser";
+import { NO_PACK } from "@/lib/studio/packs/merge";
 import {
   addBandUnit,
   addHead,
@@ -52,6 +53,7 @@ import {
   proposedOutdoorModel,
 } from "@/lib/studio/builder";
 import {
+  chooseBrand,
   claimZone,
   familyOf,
   KIND_WORD,
@@ -544,7 +546,10 @@ export function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingB
 
 export function SystemBuilder({
   doc,
-  pack,
+  pack: given,
+  packFor,
+  brands,
+  onWantBrand,
   focus,
   systemId = null,
   start: startFrom,
@@ -554,7 +559,19 @@ export function SystemBuilder({
   next = false,
 }: {
   doc: DesignDocument;
+  /** the design's packs as one: what the draft's other systems are read with
+      where no `packFor` is given (a test's one pack) */
   pack: DataPack;
+  /** THE SYSTEM'S OWN BRAND (Isaac, 20 November 2026: "by default always
+      selects Mitsubishi Electric. That shouldn't be on there"): the pack of
+      the brand it is built in, null while it loads. Given, the system is
+      offered only its brand's units, and none until a brand is chosen. */
+  packFor?: (brand: string) => DataPack | null;
+  /** the brands a system can be built in, for the Brand field before its
+      first unit */
+  brands?: readonly { id: string; name: string }[];
+  /** a brand chosen here, so the Studio loads its pack */
+  onWantBrand?: (brand: string) => void;
   /** open on this unit — Swap from the plan (an outdoor opens the Outdoor tab) */
   focus?: { systemId: string; allocationId: string } | null;
   /** the one system being built (its zones are given); without one, the
@@ -582,7 +599,7 @@ export function SystemBuilder({
   /* the draft starts with any split or multi made before the builder turned
      into allocations — placed units keep their ids (adoptLegacySystem) */
   const [start] = useState<DesignDocument>(() =>
-    (startFrom ?? doc).systems.reduce((d, s) => adoptLegacySystem(d, pack, s.id), startFrom ?? doc)
+    (startFrom ?? doc).systems.reduce((d, s) => adoptLegacySystem(d, given, s.id), startFrom ?? doc)
   );
   const [draft, setDraftNow] = useState<DesignDocument>(start);
   /* ⌘Z / ⇧⌘Z IN THE EDITOR (Isaac, 2026-09-29): its own history of the
@@ -623,6 +640,12 @@ export function SystemBuilder({
 
   const sysId = systemId ?? focus?.systemId ?? draft.systems[0]?.id ?? null;
   const sys = draft.systems.find((s) => s.id === sysId) ?? null;
+  /* what this system is offered: its own brand's pack, nothing before one is
+     chosen; a test's one pack where the Studio hands no packFor */
+  const pack: DataPack = packFor ? ((sys?.brand ? packFor(sys.brand) : null) ?? NO_PACK) : given;
+  /** no brand chosen yet: the Brand field leads, alone */
+  const noBrand = !!packFor && !!sys && !sys.brand;
+  const brandOptions = useMemo(() => (brands ?? []).map((b) => ({ value: b.id, label: b.name })), [brands]);
   const view = useMemo(() => (sys ? readSystem(draft, pack, basis, sys) : null), [draft, pack, basis, sys]);
 
   const [error, setError] = useState<string | null>(null);
@@ -729,6 +752,19 @@ export function SystemBuilder({
     setError(null);
     setDraft(next);
   };
+  /* THE BRAND, CHOSEN (Isaac, 20 November 2026): a system starts with none,
+     and is offered nothing until one is chosen; it can change until the
+     first unit, after which the units are of it */
+  const pickBrand = (brand: string) => {
+    if (!sys) return;
+    onWantBrand?.(brand);
+    write(chooseBrand(draft, sys.id, brand, given.meta.version || "2026.1"));
+  };
+  const brandField = (
+    <Field label="Brand">
+      <Chooser options={brandOptions} value={sys?.brand || null} placeholder="Choose a brand" onChange={pickBrand} />
+    </Field>
+  );
   const dropHead = (zoneId: string, iduModel: string) => {
     if (!sys) return;
     write(addHead(draft, pack, { systemId: sys.id, zoneId, iduModel }));
@@ -1075,7 +1111,15 @@ export function SystemBuilder({
             <>
           <section className="ds-sb-picker" aria-label="Units">
             {next && view ? (
-              side === "outdoor" ? (
+              noBrand ? (
+                <div className="ds-sb-col">
+                  <div className="ds-sb-colhead">
+                    <h3 className="ds-sb-coltitle">{colTitle}</h3>
+                    <p className="ds-sb-colsub">{colSub}</p>
+                  </div>
+                  <div className="ds-sb-brandpick">{brandField}</div>
+                </div>
+              ) : side === "outdoor" ? (
                 <OutdoorRows
                   view={view}
                   basis={basis}
@@ -1102,8 +1146,9 @@ export function SystemBuilder({
                     fitKw={ductedFamily ? null : colNeed}
                     fields={
                       <>
-                        {/* the type is chosen before the first unit; after
-                            it, it is a fact in the head */}
+                        {/* the brand and the type are chosen before the
+                            first unit; after it, they are facts */}
+                        {view.empty && packFor && brandField}
                         {view.empty && (
                           <Field label="Family">
                             <Chooser
@@ -1250,6 +1295,8 @@ export function SystemBuilder({
               <div className="ds-sb-none">
                 <p>Add a system on the panel first.</p>
               </div>
+            ) : noBrand ? (
+              <div className="ds-sb-brandpick">{brandField}</div>
             ) : side === "indoor" ? (
               <UnitBrowser
                 embedded
@@ -1474,7 +1521,7 @@ function OutdoorTable({
   return (
     <div className="ds-sb-outdoors-wrap">
       <div className="ds-sb-outdoors-bar">
-        <span className={`ds-ub-brand${view.empty ? "" : " locked"}`}>{brandName(pack, pack.meta.brand)}</span>
+        {pack.meta.brand && <span className={`ds-ub-brand${view.empty ? "" : " locked"}`}>{brandName(pack, pack.meta.brand)}</span>}
         <span className="ds-sb-outdoors-count">
           {n} {n === 1 ? "outdoor" : "outdoors"}
         </span>

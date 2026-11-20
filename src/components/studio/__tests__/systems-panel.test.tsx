@@ -229,8 +229,14 @@ describe("SystemsPanel — Add a system", () => {
 });
 
 describe("SystemsPanel — a card at rest", () => {
-  it("a new system with no zones is its name and brand, and says No zones", () => {
-    const made = newSystem(house().doc, mePack.meta.version);
+  it("a new system with no zones is its name, no brand nobody chose, and says No zones", () => {
+    const bare = newSystem(house().doc, mePack.meta.version);
+    mount(bare.doc);
+    expect(card("System 1").querySelector(".ds-zp-brand")).toBeNull();
+  });
+
+  it("a new system with no zones is its name and the brand chosen for it, and says No zones", () => {
+    const made = newSystem(house().doc, mePack.meta.version, "mitsubishi-electric");
     mount(made.doc);
     const el = card("System 1");
     expect(within(el).getByRole("button", { name: "System 1" })).toHaveAttribute("aria-expanded", "false");

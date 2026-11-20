@@ -6,6 +6,7 @@ import { TiffModalProvider } from "@/components/tiff/modal/tiff-host";
 import { isTranscriptionConfigured } from "@/lib/voice/transcribe";
 import { StudioNext } from "./studio-next";
 import { isLocal } from "./local";
+import { studioLibrary } from "@/lib/studio/packs/library-server";
 
 /* /studio-next: the Studio's next flow, on this Mac only (local.ts). */
 export default async function StudioNextPage({
@@ -24,7 +25,7 @@ export default async function StudioNextPage({
             {/* Tiff's host, as the dashboard's frame mounts it */}
             <NoteScopeProvider voiceEnabled={isTranscriptionConfigured()}>
               <TiffModalProvider>
-                <StudioNext flow={flow === "current" ? "current" : "next"} />
+                <StudioNext flow={flow === "current" ? "current" : "next"} library={await studioLibrary()} />
               </TiffModalProvider>
             </NoteScopeProvider>
           </ToastProvider>

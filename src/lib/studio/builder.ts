@@ -32,10 +32,9 @@ import { claimZone, claimedZoneIds, familyOf, newSystem, systemTypeFor, unclaimZ
 import type { SizingBasis } from "./loads";
 import type { RoomObj } from "./loads-room";
 import { BAND_KEY } from "./zoning";
+import { designBrands } from "./packs/merge";
 
 export { allocationsOf, hasAllocations, type Allocation } from "./allocations";
-
-const BRAND = "mitsubishi-electric";
 
 /* ─────────────────────────── helpers ─────────────────────────── */
 
@@ -87,7 +86,7 @@ function legacyFor(sys: DesignSystem, allocs: Allocation[]): Record<string, unkn
 /** the system with these allocations: its type is what they say it is
     (zones.ts systemTypeFor), and the older settings follow from that */
 function withAllocations(sys: DesignSystem, allocs: Allocation[], pack: DataPack | null = null): DesignSystem {
-  const typed: DesignSystem = { ...sys, type: systemTypeFor(sys, allocs, pack) };
+  const typed: DesignSystem = { ...sys, brand: sys.brand || brandOfUnits(pack, allocs), type: systemTypeFor(sys, allocs, pack) };
   return { ...typed, settings: legacyFor(typed, allocs) };
 }
 
@@ -120,11 +119,23 @@ function restampPlaced(doc: DesignDocument, pack: DataPack, a: Allocation): Desi
   };
 }
 
+/** the brand of a system's units, for a system that has none yet: the
+    person chose it by choosing the unit. Empty when no unit is in the pack. */
+function brandOfUnits(pack: DataPack | null, allocs: readonly Allocation[]): string {
+  if (!pack) return "";
+  for (const a of allocs) {
+    const row = a.role === "idu" ? iduRow(pack, a.model) : oduRow(pack, a.model);
+    if (row?.brand) return row.brand;
+  }
+  return "";
+}
+
+/** every brand the design's systems name is pinned to the edition it was
+    designed on; one pinned already keeps its pin */
 function withPin(doc: DesignDocument, pack: DataPack): DesignDocument {
-  return {
-    ...doc,
-    packPins: { ...doc.packPins, [BRAND]: doc.packPins[BRAND] ?? pack.meta.version },
-  };
+  const pins = { ...doc.packPins };
+  for (const b of designBrands(doc)) pins[b] = pins[b] ?? pack.meta.version;
+  return { ...doc, packPins: pins };
 }
 
 /* ─────────────────────────── outdoors (R12) ─────────────────────────── */
@@ -345,7 +356,7 @@ export function addSplitBeside(
   pack: DataPack,
   opts: { zoneId: string; iduModel: string }
 ): { doc: DesignDocument; systemId: string } {
-  const made = newSystem(doc, pack.meta.version);
+  const made = newSystem(doc, pack.meta.version, iduRow(pack, opts.iduModel)?.brand ?? "");
   const d = claimZone(made.doc, made.systemId, opts.zoneId);
   return { doc: addHead(d, pack, { systemId: made.systemId, zoneId: opts.zoneId, iduModel: opts.iduModel }), systemId: made.systemId };
 }
@@ -562,7 +573,7 @@ export function addSplit(
   const base: DesignSystem = {
     id,
     type: "split",
-    brand: BRAND,
+    brand: "",
     colour: nextSystemColour(doc.systems),
     name: systemName(doc),
     settings: {},
@@ -597,7 +608,7 @@ export function addMultiHead(
     const base: DesignSystem = {
       id: systemId,
       type: "multi-split",
-      brand: BRAND,
+      brand: "",
       colour: nextSystemColour(doc.systems),
       name: systemName(doc),
       settings: {},

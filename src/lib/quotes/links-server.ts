@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { latestInstalledPack, loadInstalledPack } from "@/lib/studio/packs/server";
+import { installedPacks, loadInstalledPack, type InstalledPackRef } from "@/lib/studio/packs/server";
 import { linkModels, type Decision, type ModelLink, type Proposal } from "./code-links";
 import { unitFeatures } from "./features";
 import { readLetterRules } from "./code-letters-server";
@@ -11,21 +11,26 @@ import { currentItems, readSuppliers, type BookItem } from "./price-book-server"
    for a pack model through the codes it links to. Service role; callers
    gate on `financials`. */
 
-const BRAND = "mitsubishi-electric";
-
 export type PackModel = { model: string; section: "Indoor" | "Outdoor" | "Accessory" | "Part"; label: string };
 
-/** Every model in the newest Mitsubishi Electric pack. */
+/** Every model in the newest pack of every installed brand: a business
+    links the codes of whichever brands it sells, not one brand's. */
 export async function packModels(): Promise<PackModel[]> {
-  const ref = await latestInstalledPack(BRAND);
-  if (!ref) return [];
-  const { pack } = await loadInstalledPack(ref.brand, ref.version);
+  const latest = new Map<string, InstalledPackRef>();
+  for (const ref of await installedPacks()) {
+    const cur = latest.get(ref.brand);
+    if (!cur || ref.version.localeCompare(cur.version) > 0) latest.set(ref.brand, ref);
+  }
   const kw = (v: unknown) => (typeof v === "number" ? `${v} kW` : "");
   const out: PackModel[] = [];
-  for (const u of pack.indoor_units) out.push({ model: u.model, section: "Indoor", label: [u.form_factor, kw(u.capacity_cool_kw)].filter(Boolean).join(", ") });
-  for (const u of pack.outdoor_units) out.push({ model: u.model, section: "Outdoor", label: [u.series, kw(u.capacity_cool_kw)].filter(Boolean).join(", ") });
-  for (const a of pack.accessories) out.push({ model: a.model, section: "Accessory", label: a.description ?? "" });
-  for (const p of pack.parts) out.push({ model: p.model, section: "Part", label: p.part_type.replace(/-/g, " ") });
+  for (const ref of latest.values()) {
+    const { pack } = await loadInstalledPack(ref.brand, ref.version).catch(() => ({ pack: null }));
+    if (!pack) continue;
+    for (const u of pack.indoor_units) out.push({ model: u.model, section: "Indoor", label: [u.form_factor, kw(u.capacity_cool_kw)].filter(Boolean).join(", ") });
+    for (const u of pack.outdoor_units) out.push({ model: u.model, section: "Outdoor", label: [u.series, kw(u.capacity_cool_kw)].filter(Boolean).join(", ") });
+    for (const a of pack.accessories) out.push({ model: a.model, section: "Accessory", label: a.description ?? "" });
+    for (const p of pack.parts) out.push({ model: p.model, section: "Part", label: p.part_type.replace(/-/g, " ") });
+  }
   return out;
 }
 

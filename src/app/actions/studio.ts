@@ -206,8 +206,11 @@ export async function readQuotedUnits(jobRemoteId: string): Promise<{
   lines: { optionIndex: number; system: string; name: string; code: string | null; kind: string; qty: number }[];
   accepted: number[];
   names: Record<number, string>;
+  /** the brands whose books have the quote's units: the Studio loads their
+      packs, so an option comes in as the brand it was quoted in */
+  brands: string[];
 }> {
-  const empty = { lines: [], accepted: [], names: {} };
+  const empty = { lines: [], accepted: [], names: {}, brands: [] };
   const { orgId } = await requireOrg("studio");
   if (!(await can("workboard")) || typeof jobRemoteId !== "string" || !jobRemoteId) return empty;
   const [{ readEngine, readLines }, { readByHand }] = await Promise.all([import("@/lib/quotes/lines-server"), import("@/lib/quotes/lines-job-server")]);
@@ -217,11 +220,29 @@ export async function readQuotedUnits(jobRemoteId: string): Promise<{
   byHand.names.forEach((n, i) => {
     if (n) names[i] = n;
   });
-  return {
-    lines: lines
-      .filter((l) => l.kind === "unit" && l.code)
-      .map((l) => ({ optionIndex: l.optionIndex, system: l.system, name: l.name, code: l.code, kind: l.kind, qty: l.qty })),
-    accepted: byHand.accepted,
-    names,
-  };
+  const units = lines
+    .filter((l) => l.kind === "unit" && l.code)
+    .map((l) => ({ optionIndex: l.optionIndex, system: l.system, name: l.name, code: l.code, kind: l.kind, qty: l.qty }));
+  return { lines: units, accepted: byHand.accepted, names, brands: await quotedBrands(units.map((l) => l.code!)) };
+}
+
+/** the installed brands whose books have one of these codes, newest edition */
+async function quotedBrands(codes: readonly string[]): Promise<string[]> {
+  if (codes.length === 0) return [];
+  const [{ installedPacks, loadInstalledPack }, { modelForCode }] = await Promise.all([
+    import("@/lib/studio/packs/server"),
+    import("@/lib/studio/from-quote"),
+  ]);
+  const latest = new Map<string, string>();
+  for (const r of await installedPacks()) if (r.version.localeCompare(latest.get(r.brand) ?? "") > 0) latest.set(r.brand, r.version);
+  const found: string[] = [];
+  await Promise.all(
+    [...latest].map(async ([brand, version]) => {
+      const pack = await loadInstalledPack(brand, version).then((p) => p.pack).catch(() => null);
+      if (!pack) return;
+      const models = [...pack.indoor_units, ...pack.outdoor_units].map((u) => u.model);
+      if (codes.some((c) => modelForCode(models, c))) found.push(brand);
+    })
+  );
+  return found.sort();
 }

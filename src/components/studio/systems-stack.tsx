@@ -31,6 +31,14 @@ import { VariationButton } from "./variation-menu";
 
 const kwText = (kw: number | null) => (kw == null ? "" : `${kw.toFixed(1)} kW`);
 
+
+/** the brand an option was quoted in: its outdoor's maker, off the pack */
+function quotedBrandName(pack: DataPack | null, o: QuotedOption): string {
+  const model = o.outdoor?.model ?? o.heads.find((h) => h.model)?.model ?? null;
+  const row = pack && model ? (pack.outdoor_units.find((u) => u.model === model) ?? pack.indoor_units.find((u) => u.model === model)) : null;
+  return pack && row ? brandName(pack, row.brand) : "";
+}
+
 /** a status tone in the stack's words */
 const toneOf = (tone: string): "good" | "look" | "bad" | undefined =>
   tone === "ok" || tone === "good" ? "good" : tone === "bad" ? "bad" : tone === "warn" || tone === "look" ? "look" : undefined;
@@ -104,7 +112,7 @@ export function SystemsList({
             <StackGroup key={o.index}>
               <StackRow
                 name={o.accepted ? `${o.name}, accepted` : o.name}
-                sub={[pack ? brandName(pack, pack.meta.brand) : "", o.kind].filter(Boolean).join(" ")}
+                sub={[quotedBrandName(pack, o), o.kind].filter(Boolean).join(" ")}
               >
                 <button type="button" className="ds-stack-small" onClick={() => onAddQuoted(o)}>
                   Add to design

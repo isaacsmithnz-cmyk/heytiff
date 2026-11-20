@@ -5,8 +5,7 @@ import { orgBrand } from "@/lib/org/query";
 import { migrateDesign } from "@/lib/studio/migrations";
 import type { DesignDocument } from "@/lib/studio/document";
 import { buildPrintModel, collectSheetRefs } from "@/lib/studio/export";
-import { latestInstalledPack } from "@/lib/studio/packs/server";
-import { loadPackWithOverrides } from "@/lib/studio/packs/overrides-server";
+import { loadDesignPack } from "@/lib/studio/packs/design-packs-server";
 import type { DataPack } from "@/lib/studio/packs/schema";
 import { readPdfTicket } from "@/lib/studio/pdf-request";
 import { PdfPrint } from "./pdf-print";
@@ -25,7 +24,6 @@ import { PdfPrint } from "./pdf-print";
 export const dynamic = "force-dynamic";
 
 const BUCKET = "studio-plans";
-const BRAND = "mitsubishi-electric";
 
 export default async function PrintDesignPage({
   searchParams,
@@ -56,10 +54,10 @@ export default async function PrintDesignPage({
   }
   if (docs.length === 0 || docs[0].id !== ticket.designId) notFound();
 
+  /* the packs of the brands its systems are built in (design-packs-server.ts) */
   let pack: DataPack | null = null;
   try {
-    const latest = await latestInstalledPack(BRAND);
-    if (latest) pack = (await loadPackWithOverrides(BRAND, latest.version)).pack;
+    pack = await loadDesignPack(docs);
   } catch {
     /* no pack — the document still prints, as the print window's does */
   }

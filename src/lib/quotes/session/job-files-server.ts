@@ -15,8 +15,10 @@ import type { JobFile } from "./tools-run";
    from ServiceM8 for her. Service role, by org; the route gates. */
 
 const MAX_FILES = 40;
-/** A PDF she reads at most: a plan set, not an archive. */
-const MAX_PDF_BYTES = 10 * 1024 * 1024;
+/** A PDF she reads at most: a plan set, not an archive. 18 MB is about 24
+    once encoded, under the 32 MB a request to the model may be; 10 MB
+    turned away 3570's 27-sheet A1 set (11.3 MB, 19 November 2026). */
+const MAX_PDF_BYTES = 18 * 1024 * 1024;
 /** Of a PDF's own text, what stays with her: a quote or a schedule whole,
     the first pages of a long set. */
 const PDF_TEXT_PAGES = 12;

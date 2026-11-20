@@ -657,7 +657,11 @@ async function openPdf(file: File) {
     "pdfjs-dist/build/pdf.worker.min.mjs",
     import.meta.url
   ).toString();
-  return pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+  const task = pdfjs.getDocument({ data: await file.arrayBuffer() });
+  const doc = await task.promise;
+  /* pdf.js 6 closes a file on its loading task, not on the document: each
+     opening's worker and its copy of the file are let go when it's done */
+  return Object.assign(doc, { close: () => void task.destroy() });
 }
 
 /* A preview is drawn this wide: enough to tell a floor plan from an
@@ -665,17 +669,26 @@ async function openPdf(file: File) {
    full page. */
 const PREVIEW_WIDTH = 480;
 
-async function renderPage(page: PdfPage, n: number, preview: File | null): Promise<PageImage> {
+/** The scale a page is drawn at in full: MAX_RENDER_WIDTH across, never
+    smaller than the page's own size nor more than three times it. */
+const fullScale = (pageWidth: number) => Math.min(Math.max(MAX_RENDER_WIDTH / pageWidth, 1), 3);
+
+/** How a page is drawn. `print` draws it straight through, as printing
+    does, instead of a slice a frame: a headless browser on the server
+    (print/plan-pages) gets few frames or none, and on a hidden page
+    pdf.js's display drawing never finishes at all. On screen the display
+    drawing stays, so the Studio never freezes while a set draws. */
+type DrawOpts = { print?: boolean };
+
+async function renderPage(page: PdfPage, n: number, preview: File | null, draw: DrawOpts = {}): Promise<PageImage> {
   const base = page.getViewport({ scale: 1 });
-  const scale = preview
-    ? PREVIEW_WIDTH / base.width
-    : Math.min(Math.max(MAX_RENDER_WIDTH / base.width, 1), 3);
+  const scale = preview ? PREVIEW_WIDTH / base.width : fullScale(base.width);
   const viewport = page.getViewport({ scale });
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(viewport.width);
   canvas.height = Math.round(viewport.height);
   const ctx = canvas.getContext("2d")!;
-  await page.render({ canvas, canvasContext: ctx, viewport }).promise;
+  await page.render({ canvas, canvasContext: ctx, viewport, ...(draw.print ? { intent: "print" as const } : {}) }).promise;
   const type = preview ? "image/jpeg" : "image/png";
   const blob = await new Promise<Blob>((resolve, reject) =>
     canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("render failed"))), type, 0.85)
@@ -715,27 +728,66 @@ export async function pdfToPages(
   opts: { preview?: boolean } = {}
 ): Promise<PageImage[]> {
   const doc = await openPdf(file);
-  const pages: PageImage[] = [];
-  for (let n = 1; n <= doc.numPages; n++) {
-    pages.push(await renderPage(await doc.getPage(n), n, opts.preview ? file : null));
-    onProgress?.(n, doc.numPages);
+  try {
+    const pages: PageImage[] = [];
+    for (let n = 1; n <= doc.numPages; n++) {
+      pages.push(await renderPage(await doc.getPage(n), n, opts.preview ? file : null));
+      onProgress?.(n, doc.numPages);
+    }
+    return pages;
+  } finally {
+    doc.close();
   }
-  return pages;
+}
+
+/** A drawn-small page with what its full drawing would be: the full size
+    and the words where they sit on it. */
+export type PreviewWithWords = { preview: PageImage; width: number; height: number; words: NonNullable<PageImage["words"]> };
+
+/** Every page of a PDF drawn small, each with its full drawing's size and
+    its words placed on it, from ONE opening of the file and without drawing
+    any page in full: the words come off the text layer at the full scale,
+    which needs no canvas. The job's Plans read (print/plan-pages) used to
+    draw every page in full just for its words, opening the file again for
+    each: 3570's 27 A1 sheets (11 MB, 19 November 2026) took more than the
+    server's four minutes and never came back. */
+export async function pdfPreviewsWithWords(file: File, onProgress?: (done: number, total: number) => void, draw: DrawOpts = {}): Promise<PreviewWithWords[]> {
+  const doc = await openPdf(file);
+  try {
+    const out: PreviewWithWords[] = [];
+    for (let n = 1; n <= doc.numPages; n++) {
+      const page = await doc.getPage(n);
+      const preview = await renderPage(page, n, file, draw);
+      const base = page.getViewport({ scale: 1 });
+      const viewport = page.getViewport({ scale: fullScale(base.width) });
+      out.push({ preview, width: Math.round(viewport.width), height: Math.round(viewport.height), words: await wordsOf(page, viewport) });
+      page.cleanup();
+      onProgress?.(n, doc.numPages);
+    }
+    return out;
+  } finally {
+    doc.close();
+  }
 }
 
 /** Some of a PDF's pages, by number, drawn in full. */
 export async function pdfPagesAt(
   file: File,
   numbers: number[],
-  onProgress?: (done: number, total: number) => void
+  onProgress?: (done: number, total: number) => void,
+  draw: DrawOpts = {}
 ): Promise<PageImage[]> {
   const doc = await openPdf(file);
-  const pages: PageImage[] = [];
-  for (const n of numbers) {
-    pages.push(await renderPage(await doc.getPage(n), n, null));
-    onProgress?.(pages.length, numbers.length);
+  try {
+    const pages: PageImage[] = [];
+    for (const n of numbers) {
+      pages.push(await renderPage(await doc.getPage(n), n, null, draw));
+      onProgress?.(pages.length, numbers.length);
+    }
+    return pages;
+  } finally {
+    doc.close();
   }
-  return pages;
 }
 
 export async function imageToPage(file: File): Promise<PageImage> {

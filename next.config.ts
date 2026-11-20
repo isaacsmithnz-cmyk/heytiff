@@ -98,6 +98,14 @@ const nextConfig: NextConfig = {
        be imported. Naming the whole build directory covers the cmaps and
        standard-font lookups that follow the same dynamic pattern. */
     "/api/tiff/ingest": ["./node_modules/pdfjs-dist/legacy/build/**/*"],
+    /* ...and every other door that reads a PDF's words on the server: a
+       job's Documents and the phone's uploads (take-in sorting, which failed
+       every file it ever saw, 3570's plan set on 19 November 2026 among them),
+       the email that lands on a job, the plan read's specification, the
+       quote chat's look at a file, purchases. A server action is traced with
+       the page that posts it, so naming routes one by one misses doors; the
+       worker alone (2.4 MB) goes everywhere. */
+    "/**": ["./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs"],
     /* the price book reads Mitsubishi's trade book, a PDF, the same way */
     "/api/quoting/price-book": ["./node_modules/pdfjs-dist/legacy/build/**/*"],
     /* the order-code links read the equipment pack off disk */

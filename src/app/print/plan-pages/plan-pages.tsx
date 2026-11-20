@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import type { PlanPagesTicket } from "@/lib/studio/pdf-request";
-import { imageToPage, pdfPagesAt, pdfToPages, type PageImage } from "@/lib/studio/plans";
+import { imageToPage, pdfPagesAt, pdfPreviewsWithWords, type PageImage } from "@/lib/studio/plans";
 
 /* The pages of a plan, drawn in the headless browser (page.tsx). Two visits:
    the first draws every page small and reads its words, and hands them back
@@ -33,30 +33,33 @@ const asDataUrl = (blob: Blob): Promise<string> =>
   });
 
 async function fileOf(t: PlanPagesTicket): Promise<File> {
-  const res = await fetch(t.url);
+  /* each step says its name with its error, so a failed read says where */
+  const res = await fetch(t.url).catch((e: unknown) => {
+    throw new Error(`fetching the file: ${e instanceof Error ? e.message : String(e)}`);
+  });
   if (!res.ok) throw new Error(`the file answered ${res.status}`);
-  const blob = await res.blob();
+  const blob = await res.blob().catch((e: unknown) => {
+    throw new Error(`reading the file: ${e instanceof Error ? e.message : String(e)}`);
+  });
   const type = t.kind === "pdf" ? "application/pdf" : blob.type || "image/png";
   return new File([blob], t.kind === "pdf" ? "plan.pdf" : "plan.png", { type });
 }
 
-/* The words of a PDF page come with its full render (plans.ts renderPage),
-   which is what the title block is read from; a preview carries none. So the
-   first visit draws each page full once for its words, and small for its
-   picture. A set of forty pages is forty renders; the words are what decide
-   which pages are floors, so it is spent once, here. */
+/* Each page drawn small for its picture, with its words read off the text
+   layer at the full drawing's scale (which is what the title block is read
+   from), all from one opening of the file: no page is drawn in full here.
+   Drawing every page in full for its words, the file opened again for each,
+   was minutes on a big set and ran out the server's wait (3570, 19 November
+   2026: 27 A1 sheets, 11 MB). */
 async function previewsOf(file: File, kind: PlanPagesTicket["kind"]): Promise<DrawnPreview[]> {
   if (kind === "image") {
     const p = await imageToPage(file);
     return [{ n: 1, width: p.width, height: p.height, jpeg: await asDataUrl(p.blob!) }];
   }
-  const small = await pdfToPages(file, undefined, { preview: true });
   const out: DrawnPreview[] = [];
-  for (const p of small) {
-    const n = p.pageNumber ?? out.length + 1;
-    const [full] = await pdfPagesAt(file, [n]);
-    out.push({ n, width: full.width, height: full.height, ...(full.words?.length ? { words: full.words } : {}), jpeg: await asDataUrl(p.blob!) });
-    if (full.thumbUrl) URL.revokeObjectURL(full.thumbUrl);
+  for (const { preview, width, height, words } of await pdfPreviewsWithWords(file, undefined, { print: true })) {
+    out.push({ n: preview.pageNumber ?? out.length + 1, width, height, ...(words.length ? { words } : {}), jpeg: await asDataUrl(preview.blob!) });
+    if (preview.thumbUrl) URL.revokeObjectURL(preview.thumbUrl);
   }
   return out;
 }
@@ -64,8 +67,10 @@ async function previewsOf(file: File, kind: PlanPagesTicket["kind"]): Promise<Dr
 async function fullOf(file: File, kind: PlanPagesTicket["kind"], slots: NonNullable<PlanPagesTicket["full"]>): Promise<DrawnFull[]> {
   const { supabaseBrowser } = await import("@/lib/supabase-browser");
   const out: DrawnFull[] = [];
-  for (const slot of slots) {
-    const page = kind === "image" ? await imageToPage(file) : (await pdfPagesAt(file, [slot.n]))[0];
+  /* the floors drawn in full from one opening of the file */
+  const drawn = kind === "image" ? [] : await pdfPagesAt(file, slots.map((s) => s.n), undefined, { print: true });
+  for (const [i, slot] of slots.entries()) {
+    const page = kind === "image" ? await imageToPage(file) : drawn[i];
     if (!page?.blob) throw new Error(`page ${slot.n} didn't draw`);
     const { error } = await supabaseBrowser().storage.from("studio-plans").uploadToSignedUrl(slot.ref, slot.token, page.blob, { contentType: `image/${page.ext ?? "png"}` });
     if (error) throw new Error(error.message);
@@ -74,13 +79,22 @@ async function fullOf(file: File, kind: PlanPagesTicket["kind"], slots: NonNulla
   return out;
 }
 
+/** An error passed on with the step it came from. */
+const named =
+  (step: string) =>
+  (e: unknown): never => {
+    throw new Error(`${step}: ${e instanceof Error ? e.message : String(e)}`);
+  };
+
 export function PlanPages({ ticket }: { ticket: PlanPagesTicket }) {
   useEffect(() => {
     let live = true;
     void (async () => {
       try {
         const file = await fileOf(ticket);
-        const answer: PlanPagesAnswer = ticket.full ? { full: await fullOf(file, ticket.kind, ticket.full) } : { previews: await previewsOf(file, ticket.kind) };
+        const answer: PlanPagesAnswer = ticket.full
+          ? { full: await fullOf(file, ticket.kind, ticket.full).catch(named("drawing the floors in full")) }
+          : { previews: await previewsOf(file, ticket.kind).catch(named("drawing the pages small")) };
         if (!live) return;
         window.__htPlanPages = answer;
       } catch (e) {

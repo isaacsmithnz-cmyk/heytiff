@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type * as THREE_NS from "three";
-import { WALLED, middleOf, toPlan, type Floor3D, type Grille3D, type Opening3D, type Scene3D, type Space3D, type Unit3D, type XZ } from "@/lib/studio/scene3d";
+import { WALLED, groundYOf, middleOf, toPlan, type Floor3D, type Grille3D, type Opening3D, type Scene3D, type Space3D, type Unit3D, type XZ } from "@/lib/studio/scene3d";
 import { within } from "@/lib/studio/furnish3d";
 import { clashesOf, distanceWords, roofSpaceOf, roomFor } from "@/lib/studio/checks3d";
 import { latitudeOf, sunAt, towardsSun } from "@/lib/studio/sun";
@@ -192,7 +192,9 @@ async function build(
   scene.add(sun.target);
   scene.fog = new THREE.Fog(0xffffff, d * 1.8, d * 4.5);
 
-  const groundY = Math.min(0, ...scene3.floors.map((f) => f.y0));
+  /* everything on the ground is built at nought and set down where the
+     ground is for what is shown (groundYOf), each time the look changes */
+  const groundY = 0;
   const gridSize = Math.ceil(scene3.span * 2.5);
   const grid = new THREE.GridHelper(gridSize, gridSize, C.grid, C.grid);
   (grid.material as THREE_NS.Material).opacity = 0.25;
@@ -1640,6 +1642,12 @@ async function build(
       sun.intensity = 1.7;
     }
     const out = !!l.outside;
+    const gy = groundYOf(scene3.floors, l.floor === ALL_FLOORS ? null : l.floor, !!l.apart);
+    grid.position.y = gy - 0.02;
+    catcher.position.y = gy - 0.015;
+    lawn.position.y = gy - 0.06;
+    trees.position.y = gy;
+    siteG.position.y = gy;
     grid.visible = !plans && !out;
     catcher.visible = !out;
     lawn.visible = out;

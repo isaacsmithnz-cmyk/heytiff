@@ -1,6 +1,6 @@
 import { createDesign, type DesignDocument, type DesignObject, type Floor } from "../document";
 import type { ReadSpace, SheetReading } from "../reading";
-import { lineUp, sceneOf } from "../scene3d";
+import { groundYOf, lineUp, sceneOf } from "../scene3d";
 
 /* The 3D view's arithmetic (lib/studio/scene3d): what it draws, in metres,
    and how the floors stand on each other. */
@@ -400,3 +400,22 @@ describe("a roof space (floor-spaces.ts)", () => {
   });
 });
 
+
+describe("the ground", () => {
+  /* job 3570, 21 November 2026: a lower ground floor three metres under the ground floor */
+  const floors = [
+    { id: "lower", y0: -3 },
+    { id: "ground", y0: 0 },
+    { id: "one", y0: 3.7 },
+  ];
+  it("is at the ground floor with every floor shown, so a floor below it is dug in and the house doesn't float", () => {
+    expect(groundYOf(floors, null, false)).toBe(0);
+  });
+  it("drops under a below-ground floor looked at on its own", () => {
+    expect(groundYOf(floors, "lower", false)).toBe(-3);
+    expect(groundYOf(floors, "one", false)).toBe(0);
+  });
+  it("is under the lowest floor when they are lifted apart", () => {
+    expect(groundYOf(floors, null, true)).toBe(-3);
+  });
+});

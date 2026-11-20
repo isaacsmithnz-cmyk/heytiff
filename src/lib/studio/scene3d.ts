@@ -150,6 +150,18 @@ export type Riser3D = { floorId: string; at: XZ; y0: number; y1: number; r: numb
 /** A roof part as drawn: its sheets, the walls rising to it, on the floor whose walls carry it. */
 export type Roof3D = { floorId: string; existing: boolean; faces: Mesh; fills: Mesh; finish: RoofFinish | null };
 
+/** Where the ground is drawn, metres. The ground floor stands on it and a
+    floor below it is dug in (Isaac, 21 November 2026, a house with a lower
+    ground floor: "the house floats above the ground": the lawn was laid under
+    the lowest floor, three metres down). A below-ground floor looked at on its
+    own, or the floors lifted apart, keeps the ground under what is shown. */
+export function groundYOf(floors: readonly Pick<Floor3D, "id" | "y0">[], shown: string | null, apart: boolean): number {
+  const one = shown ? floors.find((f) => f.id === shown) : undefined;
+  if (one) return Math.min(0, one.y0);
+  if (apart) return Math.min(0, ...floors.map((f) => f.y0));
+  return 0;
+}
+
 /** The site round the house, in metres on the ground (Isaac, 8 November 2026: "Paths, walkways, streets and driveways too ... neighbours property as a ghost"). */
 export type Site3D = {
   boundary: XZ[];

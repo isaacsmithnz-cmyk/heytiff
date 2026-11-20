@@ -63,6 +63,42 @@ function Taken({ words, busy, onUndo }: { words: string; busy: boolean; onUndo: 
   );
 }
 
+/* THE PANEL'S FOOT IS ONE BUTTON (Isaac, 21 November 2026, "Yes, one
+   button", on the quote in its own tab): the next step and nothing else,
+   as the phone's screen has it. Mark ready to send, then Send to ServiceM8,
+   then Customer accepted, then Update quote. What else can be done then
+   moves to the Actions at the head of the tab: Customer accepted before
+   it's next, Update quote, and Download PDF. */
+
+export type FootStep = "approve" | "send" | "accept" | "update";
+export type Moved = "accept" | "update" | "pdf";
+
+export function panelFoot(a: {
+  money: boolean;
+  lines: number;
+  kept: boolean;
+  variation: Variation | null;
+  approved: boolean;
+  /** Send to ServiceM8 is offered and it hasn't gone for real yet */
+  sending: boolean;
+  pdf: boolean;
+  acceptable: boolean;
+  accepted: boolean;
+  update: boolean;
+  paper: boolean;
+}): { step: FootStep | null; moved: Moved[] } {
+  if (!a.money || a.lines === 0 || a.kept) return { step: null, moved: [] };
+  if (a.variation) return { step: a.variation.approvedAt ? "accept" : "approve", moved: [] };
+  const accept = a.acceptable && !a.accepted;
+  const update = a.update && !a.paper;
+  const step: FootStep | null = !a.approved ? "approve" : a.sending ? "send" : accept ? "accept" : update ? "update" : null;
+  const moved: Moved[] = [];
+  if (accept && step !== "accept") moved.push("accept");
+  if (update && step !== "update") moved.push("update");
+  if (a.pdf) moved.push("pdf");
+  return { step, moved };
+}
+
 export function QuoteActions({
   money,
   lines,
@@ -82,6 +118,8 @@ export function QuoteActions({
   options,
   at,
   accepted,
+  one = false,
+  sent = false,
   onView,
   onBack,
   onApprove,
@@ -121,6 +159,10 @@ export function QuoteActions({
   at: number;
   /** the option open is the one the client took */
   accepted: boolean;
+  /** the panel's foot: the next step alone (panelFoot) */
+  one?: boolean;
+  /** it went to ServiceM8 for real: Where it's up to says so, not the foot */
+  sent?: boolean;
   onView: () => void;
   onBack: () => void;
   onApprove: () => void;
@@ -174,6 +216,17 @@ export function QuoteActions({
         Update quote
       </Button>
     ) : null;
+  if (one) {
+    const { step } = panelFoot({ money, lines, kept, variation, approved, sending: !!send && !sent, pdf: !!pdf, acceptable, accepted, update, paper });
+    const node = step === "approve" ? approve : step === "send" ? send : step === "accept" ? accept : step === "update" ? updating : null;
+    if (!node) return null;
+    return (
+      <div className="qc-dock" role="group" aria-label="The next step">
+        {node}
+        {step === "approve" && left}
+      </div>
+    );
+  }
   if (!view && !approve && !send && !pdf && !updating && !accept) return null;
   return (
     <div className="qc-dock" role="group" aria-label="The quote's buttons">

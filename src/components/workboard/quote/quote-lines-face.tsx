@@ -30,7 +30,7 @@ import { QuoteLineItems, RemoveLine, groupKey, sellEachOf } from "./quote-line-i
 import { optionsWords, twinsOf } from "@/lib/quotes/line-twins";
 import { AddedRows, InServiceM8, OptionPick, OptionRows, QuoteCard, QuoteRail, QuoteTotal, WhereUpTo, signed } from "./quote-rail";
 import { changingWords, pastQuote as goneToClient, priceThemWords, withoutAdded, type JobScopeRead, type ScopeAdded, type ScopeQuoted } from "@/lib/jobs/job-scope";
-import { LinesButton, QuoteActions } from "./quote-actions";
+import { LinesButton, panelFoot, QuoteActions, type Moved } from "./quote-actions";
 import { sm8JobUrl } from "@/lib/integrations/sm8-links";
 import { Dialog } from "@/components/parts/dialog";
 import { Button } from "@/components/parts/button";
@@ -72,7 +72,15 @@ const ROUTE = "/api/workboard/quote-lines";
     November 2026): `settle` needs a look, `good` is ready, sent or the
     customer's yes, `undo` takes the yes back, and `title` is the proposal's
     name, for the head of the quote's own tab. */
-export type QuoteStage = { word: string; settle: boolean; good?: boolean; undo?: (() => void) | null };
+export type QuoteStage = {
+  word: string;
+  settle: boolean;
+  good?: boolean;
+  undo?: (() => void) | null;
+  /** what moved off the panel's one-button foot, for the head's Actions */
+  actions?: { key: string; label: string }[];
+  act?: (key: string) => void;
+};
 
 export type LinesView = {
   ok: boolean;
@@ -416,11 +424,6 @@ export function QuoteLinesFace({
   /* where it's up to, and no title: the proposal's title is written to the
      customer ("Air conditioning for your apartment…"), and the head beside
      the client's name says plain facts (Isaac, 20 November 2026, bug 57) */
-  const stageKey = stage ? `${stage.word}|${stage.settle}|${undoable}` : "";
-  const tellStage = useEffectEvent(() => onStage?.(stage ? { ...stage, undo: undoable ? () => void acceptNow.current() : null } : null));
-  useEffect(() => {
-    tellStage();
-  }, [stageKey]);
 
   const act = async (body: Record<string, unknown>) => {
     setBusy(true);
@@ -794,6 +797,61 @@ export function QuoteLinesFace({
 
   /* the quote's buttons, pinned at the rail's foot: the paper, and the next
      step. Approve quote is the main one (layout B) */
+  const pdfHref = money && view?.approved && !variation ? `/api/workboard/quote-pdf?job=${encodeURIComponent(job)}` : null;
+  const acceptable = !!view?.approved || accepted.length > 0;
+  /* once something's landed since it was sent, the rail's own Update
+     quote, with it written in, is the one */
+  const updateOffered = (accepted.length > 0 || !!view?.approved) && !variation && !(chat && after && added.length > 0);
+  const acceptWords = options > 1 ? `Customer accepted option ${at + 1}` : "Customer accepted";
+
+  /* the panel's foot is one button; the rest go to the head's Actions
+     (Isaac, 21 November 2026: "Yes, one button") */
+  const moved =
+    views && tiff !== null
+      ? panelFoot({
+          money,
+          lines: all.length,
+          kept: !!shown,
+          variation,
+          approved: view?.approved ?? false,
+          sending: !!toSm8 && !sentAt,
+          pdf: !!pdfHref,
+          acceptable,
+          accepted: accepted.includes(at),
+          update: updateOffered,
+          paper,
+        }).moved
+      : [];
+  const movedLabel: Record<Moved, string> = { accept: acceptWords, update: "Update quote", pdf: "Download PDF" };
+  const moveAct = useRef<(key: string) => void>(() => undefined);
+  useEffect(() => {
+    moveAct.current = (key) => {
+      if (key === "accept") void accept();
+      if (key === "update") setUpdating("");
+      if (key === "pdf" && pdfHref) window.location.assign(pdfHref);
+    };
+  });
+
+  /* where it's up to, and no title: the proposal's title is written to the
+     customer ("Air conditioning for your apartment…"), and the head beside
+     the client's name says plain facts (Isaac, 20 November 2026, bug 57) */
+  const stageKey = stage ? `${stage.word}|${stage.settle}|${undoable}|${moved.join(",")}|${acceptWords}` : "";
+  const tellStage = useEffectEvent(() =>
+    onStage?.(
+      stage
+        ? {
+            ...stage,
+            undo: undoable ? () => void acceptNow.current() : null,
+            actions: moved.map((k) => ({ key: k, label: movedLabel[k] })),
+            act: (key) => moveAct.current(key),
+          }
+        : null,
+    ),
+  );
+  useEffect(() => {
+    tellStage();
+  }, [stageKey]);
+
   const actions =
     tiff === null ? null : (
       <QuoteActions
@@ -810,15 +868,15 @@ export function QuoteLinesFace({
         why={why}
         send={toSm8}
         /* the paper as a PDF, once it's approved (api/workboard/quote-pdf) */
-        pdf={money && view?.approved && !variation ? `/api/workboard/quote-pdf?job=${encodeURIComponent(job)}` : null}
+        pdf={pdfHref}
         /* the client can say yes once it's approved, or on another option */
-        acceptable={!!view?.approved || accepted.length > 0}
-        /* once something's landed since it was sent, the rail's own Update
-           quote, with it written in, is the one */
-        update={(accepted.length > 0 || !!view?.approved) && !variation && !(chat && after && added.length > 0)}
+        acceptable={acceptable}
+        update={updateOffered}
         options={options}
         at={at}
         accepted={accepted.includes(at)}
+        one={views}
+        sent={!!sentAt}
         onView={() => setPaper(true)}
         onBack={() => {
           setPaper(false);

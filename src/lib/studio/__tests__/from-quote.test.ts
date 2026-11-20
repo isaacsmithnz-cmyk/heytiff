@@ -3,7 +3,7 @@ import { join } from "path";
 import { PACK_SECTIONS, type DataPack, type PackMeta } from "../packs/schema";
 import { assemblePack, type PackSource } from "../packs/loader";
 import { createDesign, type DesignDocument, type DesignObject } from "../document";
-import { addQuotedOption, canAddQuoted, modelForCode, quotedOptions, systemNameOf, type QuotedLine } from "../from-quote";
+import { addQuotedOption, canAddQuoted, modelForCode, quotedInDesign, quotedOptions, systemNameOf, type QuotedLine } from "../from-quote";
 import { allocationsOf } from "../builder";
 
 const SEED_DIR = join(__dirname, "../../../../data/packs/mitsubishi-electric@2026.1");
@@ -101,6 +101,19 @@ describe("From the quote", () => {
         ["idu", "MSZ-AP25VGD2", "b3"],
       ]),
     );
+  });
+
+  test("once added, an option is in the design and offered no more, by its heading or its whole name", () => {
+    const d = waitara();
+    const [one, two] = quotedOptions(d, pack, QUOTE, [], { 0: "Mitsubishi Electric multi 8 kW: 5 kW living, 2.5 kW each bedroom" });
+    expect(quotedInDesign(d, one)).toBe(false);
+    const added = addQuotedOption(d, pack, "worst-of-both", one).doc;
+    expect(added.systems[0].name).toBe("Mitsubishi Electric multi 8 kW");
+    expect(quotedInDesign(added, one)).toBe(true);
+    expect(quotedInDesign(added, two)).toBe(false);
+    /* one added before a system took the option's heading */
+    const before = { ...added, systems: added.systems.map((s) => ({ ...s, name: one.name })) };
+    expect(quotedInDesign(before, one)).toBe(true);
   });
 
   test("a head with no room to go in is said, and left off", () => {

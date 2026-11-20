@@ -5,7 +5,10 @@
    pushes that system's screen, with its rooms, what's left to place, and the
    ways on: Edit system, Install details, the air. A room pushes the room's own
    screen. The next step is always the one button at the foot, in the same
-   words everywhere. */
+   words everywhere, and it says only what it does (Build system, Install
+   details), never "Next:": Help teaches the order (Isaac, 20 November 2026:
+   "remove suggestions like next build system, just say build system", "a
+   help guide will do the teaching"). */
 
 import { useState } from "react";
 import type { DesignDocument } from "@/lib/studio/document";
@@ -81,7 +84,7 @@ export function SystemsList({
       foot={
         next ? (
           <button type="button" className="ds-stack-main" onClick={onNext}>
-            {`Next: ${next.label}`}
+            {next.label}
           </button>
         ) : null
       }
@@ -252,7 +255,7 @@ export function SystemScreen({
       ) : null
     ) : next ? (
       <button type="button" className="ds-stack-main" onClick={onNext}>
-        {`Next: ${next.label}`}
+        {next.label}
       </button>
     ) : null;
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, type ReactNode } from "react";
-import { Button } from "@/components/parts/button";
+import { Button, type ControlSize } from "@/components/parts/button";
 import { Menu } from "@/components/parts/menu";
 import { StateWord } from "@/components/parts/state";
 import type { Variation } from "@/lib/quotes/lines-job";
@@ -68,10 +68,10 @@ function Taken({ words, busy, onUndo }: { words: string; busy: boolean; onUndo: 
    as the phone's screen has it. Mark ready to send, then Send to ServiceM8,
    then Customer accepted, then Update quote. What else can be done then
    moves to the Actions at the head of the tab: Customer accepted before
-   it's next, Update quote, and Download PDF. */
+   it's next, and Update quote. Share stands over the Proposal's page. */
 
 export type FootStep = "approve" | "send" | "accept" | "update";
-export type Moved = "accept" | "update" | "pdf";
+export type Moved = "accept" | "update";
 
 export function panelFoot(a: {
   money: boolean;
@@ -81,7 +81,6 @@ export function panelFoot(a: {
   approved: boolean;
   /** Send to ServiceM8 is offered and it hasn't gone for real yet */
   sending: boolean;
-  pdf: boolean;
   acceptable: boolean;
   accepted: boolean;
   update: boolean;
@@ -95,7 +94,6 @@ export function panelFoot(a: {
   const moved: Moved[] = [];
   if (accept && step !== "accept") moved.push("accept");
   if (update && step !== "update") moved.push("update");
-  if (a.pdf) moved.push("pdf");
   return { step, moved };
 }
 
@@ -217,7 +215,7 @@ export function QuoteActions({
       </Button>
     ) : null;
   if (one) {
-    const { step } = panelFoot({ money, lines, kept, variation, approved, sending: !!send && !sent, pdf: !!pdf, acceptable, accepted, update, paper });
+    const { step } = panelFoot({ money, lines, kept, variation, approved, sending: !!send && !sent, acceptable, accepted, update, paper });
     const node = step === "approve" ? approve : step === "send" ? send : step === "accept" ? accept : step === "update" ? updating : null;
     if (!node) return null;
     return (
@@ -268,7 +266,7 @@ export function QuoteActions({
 /* SHARE (Isaac, 21 October 2026: "Or maybe just a share button. You can
    download PDF or share"), once it's approved: the quote's PDF, printed as
    the paper (api/workboard/quote-pdf), or its link for someone in HeyTiff. */
-function Share({ pdf }: { pdf: string }) {
+export function Share({ pdf, size }: { pdf: string; size?: ControlSize }) {
   const [open, setOpen] = useState(false);
   const [said, setSaid] = useState<string | null>(null);
   const anchor = useRef<HTMLButtonElement | null>(null);
@@ -283,7 +281,7 @@ function Share({ pdf }: { pdf: string }) {
   };
   return (
     <>
-      <Button ref={anchor} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+      <Button ref={anchor} size={size} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         Share
       </Button>
       <Menu

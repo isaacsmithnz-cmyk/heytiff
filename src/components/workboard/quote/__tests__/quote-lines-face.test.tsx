@@ -641,8 +641,14 @@ describe("the proposal (7.1)", () => {
     const group = await screen.findByRole("group", { name: "The next step" });
     expect(group.querySelector(".qc-given, .qc-taken")).toBeNull();
     expect(within(group).getAllByRole("button").map((b) => b.textContent)).toEqual(["Update quote"]);
-    await waitFor(() => expect(onStage.mock.calls.at(-1)![0].actions).toEqual([{ key: "pdf", label: "Download PDF" }]));
+    await waitFor(() => expect(onStage.mock.calls.at(-1)![0].actions).toEqual([]));
     expect(typeof onStage.mock.calls.at(-1)![0].act).toBe("function");
+    /* Share stands over the Proposal's page, not in the foot or the head
+       (Isaac, 21 November 2026: "share could be in proposal view?") */
+    expect(within(group).queryByRole("button", { name: "Share" })).toBeNull();
+    fireEvent.click(screen.getByRole("tab", { name: "Proposal" }));
+    const bar = (await screen.findByRole("button", { name: "Share" })).closest(".qc-fmt");
+    expect(bar).not.toBeNull();
     const steps = screen.getByRole("list", { name: "Where the quote is" });
     const yes = within(steps).getByText("Customer accepted").closest("li") as HTMLElement;
     expect(yes).toHaveClass("done");

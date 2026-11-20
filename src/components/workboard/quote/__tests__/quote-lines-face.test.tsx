@@ -633,14 +633,16 @@ describe("the proposal (7.1)", () => {
      the foot is Update quote and Share; it tells the tab's head where it's
      up to, in the phone's words, and no title: the proposal's is written to
      the customer, never a fact for the head (bug 57) */
-  it("in its own tab, says Ready to send and Customer accepted only in the steps, ends the rail with Update quote and Share, and tells the head", async () => {
+  it("in its own tab, says Ready to send and Customer accepted only in the steps, ends the panel with Update quote alone, and tells the head the rest", async () => {
     (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => ({ json: async () => ({ ...view([indoor]), approved: true, accepted: [0], proposal: null }) }));
     const onStage = jest.fn();
     render(<QuoteLinesFace job="job-3377" views price={pricedWhole} onPriced={jest.fn()} onStage={onStage} meta={{ title: "Air conditioning for 12 Smith St", client: "Jo Bloggs", site: "12 Smith St", jobNumber: "3377" }} />);
-    const group = await screen.findByRole("group", { name: "The quote's buttons" });
+    /* the panel's foot is one button, the next step (Isaac, 21 November 2026: "Yes, one button") */
+    const group = await screen.findByRole("group", { name: "The next step" });
     expect(group.querySelector(".qc-given, .qc-taken")).toBeNull();
-    const pair = group.querySelector(".qc-pair--two") as HTMLElement;
-    expect(within(pair).getAllByRole("button").map((b) => b.textContent)).toEqual(["Update quote", "Share"]);
+    expect(within(group).getAllByRole("button").map((b) => b.textContent)).toEqual(["Update quote"]);
+    await waitFor(() => expect(onStage.mock.calls.at(-1)![0].actions).toEqual([{ key: "pdf", label: "Download PDF" }]));
+    expect(typeof onStage.mock.calls.at(-1)![0].act).toBe("function");
     const steps = screen.getByRole("list", { name: "Where the quote is" });
     const yes = within(steps).getByText("Customer accepted").closest("li") as HTMLElement;
     expect(yes).toHaveClass("done");

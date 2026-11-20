@@ -2496,9 +2496,11 @@ export function JobSheet({
             what={docStage?.title ?? null}
             hue={jobHue(categoryColour, status)}
             stage={docStage}
-            actions={[{ key: "link", label: "Copy the link" }, ...(sm8Href ? [{ key: "sm8", label: "Open in ServiceM8" }] : [])]}
+            /* the quote's own first: what moved off its panel's one-button foot */
+            actions={[...(docStage?.actions ?? []), { key: "link", label: "Copy the link" }, ...(sm8Href ? [{ key: "sm8", label: "Open in ServiceM8" }] : [])]}
             onAction={(key) => {
-              if (key === "sm8" && sm8Href) window.open(sm8Href, "_blank", "noopener,noreferrer");
+              if (docStage?.act && docStage.actions?.some((a) => a.key === key)) docStage.act(key);
+              else if (key === "sm8" && sm8Href) window.open(sm8Href, "_blank", "noopener,noreferrer");
               else page.onAction(key);
             }}
           />

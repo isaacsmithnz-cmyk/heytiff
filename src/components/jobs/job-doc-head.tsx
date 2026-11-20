@@ -18,7 +18,15 @@ import { openInTab } from "@/components/shell/open-tabs";
    word (rule 17) and Actions (rule 53). The job's sections aren't here: the
    document's own tabs are under it. */
 
-export type DocStage = { word: string; tone: Tone; undo?: (() => void) | null };
+export type DocStage = {
+  word: string;
+  tone: Tone;
+  undo?: (() => void) | null;
+  /** the document's own actions, first in Actions: on a quote, what moved
+      off the panel's one-button foot */
+  actions?: readonly MenuItem[];
+  act?: (key: string) => void;
+};
 
 export function JobDocHead({
   jobHref,

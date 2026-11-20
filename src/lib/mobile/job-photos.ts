@@ -85,6 +85,21 @@ export async function beginJobPdf(
   const sizeBytes = typeof file.sizeBytes === "number" ? file.sizeBytes : 0;
   /* a PDF, or another of the job's files: Word, Excel and the like (Isaac, 17 November 2026: "upload file") */
   if (!isFileType(mimeType)) return { ok: false, error: "That kind of file can't go on a job: photos, PDFs, Word, Excel, PowerPoint and text files can.", status: 400 };
+  /* the same file again (the same name and size) isn't kept twice: the web's Documents refuses it too (3570, 19 November 2026) */
+  if (fileName && sizeBytes > 0) {
+    const { data: twin } = await supabaseAdmin
+      .from("documents")
+      .select("id")
+      .eq("org_id", ctx.orgId)
+      .eq("sm8_job_uuid", job)
+      .eq("kind", "job_document")
+      .eq("file_name", fileName)
+      .eq("size_bytes", sizeBytes)
+      .not("uploaded_at", "is", null)
+      .limit(1)
+      .maybeSingle();
+    if (twin) return { ok: false, error: `${fileName} is already on this job.`, status: 409 };
+  }
   const slot = await openSlot(ctx.orgId, staffId, "job_document", { fileName, mimeType, sizeBytes }, job);
   if (!slot.ok) return { ok: false, error: slot.error, status: 400 };
   return { ok: true, value: { documentId: slot.documentId, uploadUrl: slot.signedUrl } };

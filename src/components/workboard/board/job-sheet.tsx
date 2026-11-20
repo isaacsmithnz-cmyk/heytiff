@@ -49,7 +49,7 @@ import { JobDesignFace } from "./job-design-face";
 import { JobVisits, VisitDialog, type ComingVisit } from "./job-visit-tasks";
 import { sm8QuoteOf } from "../quote/sm8-quote-of";
 import { JobProgressLine } from "./job-progress-line";
-import { JobHeadMap, JobSiteWords, siteOf } from "@/components/jobs/job-facts";
+import { JobHeadMap, JobSiteWords, siteOf, withoutCountry } from "@/components/jobs/job-facts";
 import { mapAddress } from "@/lib/jobs/job-map";
 import { JobCustomerDialog } from "./job-customer-dialog";
 import { customerEditOffered } from "@/app/actions/job-customer";
@@ -2468,7 +2468,7 @@ export function JobSheet({
             jobHref={jobPageHref(cardId ?? row.id, "price")}
             number={cardNumber}
             client={detail?.clientName?.trim() || row.clientName?.trim() || jobPlateName(detail, row)}
-            site={detail ? (detail.address ?? "").split(/\r?\n/)[0]?.trim() || detail.geoLine?.trim() || null : (row.suburb ?? null)}
+            site={detail ? withoutCountry((detail.address ?? "").split(/\r?\n/)[0] ?? "") || detail.geoLine?.trim() || null : (row.suburb ?? null)}
             what={docStage?.title ?? null}
             hue={jobHue(categoryColour, status)}
             stage={docStage}

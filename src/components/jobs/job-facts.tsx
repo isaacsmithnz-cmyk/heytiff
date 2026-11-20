@@ -105,11 +105,21 @@ function Fact({
   );
 }
 
+/** An address with ServiceM8's country left off its lines: every job is in
+    the business's own country, so ", Australia" says nothing, and it pushed
+    the street to its own line over "Australia" (Isaac, 20 November 2026,
+    on a quote's head line: "i think its actually a bug"). Only the country
+    as a part of its own, after a comma or alone on a line: "Perth, Western
+    Australia" keeps its state. */
+export function withoutCountry(where: string): string {
+  return where.replace(/(?:^|,)[ \t]*Australia[ \t]*$/gim, "").trim();
+}
+
 /** The address as two lines, the street over the rest: ServiceM8's own
     lines where it has them, else split at its last comma ("2 Krui Street,
     Fairlight", 3533: the walk of 15 November 2026). */
 export function addressLines(where: string): string[] {
-  const lines = where.split(/\s*\n\s*/).filter(Boolean);
+  const lines = withoutCountry(where).split(/\s*\n\s*/).filter(Boolean);
   if (lines.length !== 1) return lines;
   const at = lines[0]!.lastIndexOf(",");
   if (at <= 0) return lines;

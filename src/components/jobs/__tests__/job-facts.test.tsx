@@ -1,7 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
-import { JobFacts, JobHeadMap, JobSiteWords, addressLines, directionsHref, phoneWords } from "../job-facts";
+import { JobFacts, JobHeadMap, JobSiteWords, addressLines, directionsHref, phoneWords, withoutCountry } from "../job-facts";
 
 const counts: Record<string, number> = { "job-3416": 3, "job-bare": 0 };
 jest.mock("@/app/actions/site-notes", () => ({
@@ -77,7 +77,7 @@ it("asks for the head's picture at the size its card stands at", () => {
   const w = jest.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(380);
   const h = jest.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(164);
   try {
-    render(<JobHeadMap jobUuid="job-3521" hue="orange" address="807/22 Sir John Young Crescent, Woolloomooloo NSW" />);
+    render(<JobHeadMap jobUuid="job-3521" hue="orange" address="14/8 Example Crescent, Fairlight NSW" />);
     const img = screen.getByRole("link", { name: /Directions to/ }).querySelector("img");
     expect(img).toHaveAttribute("src", "/api/workboard/job-map?job=job-3521&hue=orange&shape=head&w=380&h=164");
     expect(img).toHaveAttribute("width", "380");
@@ -179,4 +179,15 @@ it("lays a one-line address over two lines at its last comma (3533)", () => {
   expect(addressLines("Unit 2, 106 Kirribilli Ave, Kirribilli NSW 2061")).toEqual(["Unit 2, 106 Kirribilli Ave", "Kirribilli NSW 2061"]);
   expect(addressLines("910/226 Victoria St\nPotts Point NSW 2011")).toEqual(["910/226 Victoria St", "Potts Point NSW 2011"]);
   expect(addressLines("Fairlight")).toEqual(["Fairlight"]);
+});
+
+it("leaves ServiceM8's country off, so the street isn't put over \"Australia\" (a quote's head)", () => {
+  expect(addressLines("14/8 Example Crescent, Fairlight NSW, Australia")).toEqual(["14/8 Example Crescent", "Fairlight NSW"]);
+  expect(addressLines("910/226 Victoria St\nPotts Point NSW 2011\nAustralia")).toEqual(["910/226 Victoria St", "Potts Point NSW 2011"]);
+  expect(withoutCountry("14/8 Example Crescent, Fairlight NSW, Australia")).toBe("14/8 Example Crescent, Fairlight NSW");
+  expect(withoutCountry("12 Australia Street, Camperdown NSW 2050")).toBe("12 Australia Street, Camperdown NSW 2050");
+  expect(withoutCountry("Camperdown NSW 2050, Australia ")).toBe("Camperdown NSW 2050");
+  expect(withoutCountry("5 Hay Street, Perth, Western Australia")).toBe("5 Hay Street, Perth, Western Australia");
+  expect(withoutCountry("5 King William St\nAdelaide\nSouth Australia")).toBe("5 King William St\nAdelaide\nSouth Australia");
+  expect(withoutCountry("5 Hay Street, Perth WA 6000, AUSTRALIA")).toBe("5 Hay Street, Perth WA 6000");
 });

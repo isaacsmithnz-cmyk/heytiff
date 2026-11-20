@@ -3,7 +3,7 @@ import { join } from "path";
 import { PACK_SECTIONS, type DataPack, type PackMeta } from "../packs/schema";
 import { assemblePack, type PackSource } from "../packs/loader";
 import { createDesign, type DesignDocument, type DesignObject } from "../document";
-import { addQuotedOption, canAddQuoted, modelForCode, quotedOptions, type QuotedLine } from "../from-quote";
+import { addQuotedOption, canAddQuoted, modelForCode, quotedOptions, systemNameOf, type QuotedLine } from "../from-quote";
 import { allocationsOf } from "../builder";
 
 const SEED_DIR = join(__dirname, "../../../../data/packs/mitsubishi-electric@2026.1");
@@ -53,6 +53,14 @@ const QUOTE: QuotedLine[] = [
   line(1, "", "Outdoor unit", "MXZ-5F100VGD-A2"),
   line(1, "Living", "Indoor unit, Living", "MSZ-AP50VGKD2-A2"),
 ];
+
+describe("a system named by its quote", () => {
+  test("takes the option's heading, the words before a colon", () => {
+    expect(systemNameOf("Mitsubishi Electric multi 8 kW: 5 kW living, 2.5 kW each bedroom")).toBe("Mitsubishi Electric multi 8 kW");
+    expect(systemNameOf("Option 1")).toBe("Option 1");
+    expect(systemNameOf(": nothing before")).toBe(": nothing before");
+  });
+});
 
 describe("the quote's codes as the book's models", () => {
   test("a supplier's code is the model it carries", () => {

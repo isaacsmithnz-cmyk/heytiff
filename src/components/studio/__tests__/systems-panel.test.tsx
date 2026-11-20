@@ -261,14 +261,15 @@ describe("SystemsPanel — a card at rest", () => {
     expect(within(el).getByText("Multi")).toHaveClass("ds-zp-kind");
     expect(within(el).getByText("Mitsubishi Electric")).toHaveClass("ds-zp-brand");
     const line = statusOf(el);
-    expect(line.textContent).toBe("6 units, 6 to place");
+    // each half kept whole by no-break spaces, so the line breaks at the comma
+    expect(line.textContent).toBe("6\u00a0units, 6\u00a0to\u00a0place");
     expect(line).toHaveClass("quiet");
   });
 
-  it("once every unit is on the plan the line reads Install details next", () => {
+  it("once every unit is on the plan the line reads Install details, with no next", () => {
     const made = fiveHeadMulti(fittedHouse().doc);
     mount(placeAll(made.doc, made.systemId));
-    expect(statusOf(card("System 1")).textContent).toBe("Install details next");
+    expect(statusOf(card("System 1")).textContent).toBe("Install details");
   });
 
   it("a short zone takes the line, in red", () => {

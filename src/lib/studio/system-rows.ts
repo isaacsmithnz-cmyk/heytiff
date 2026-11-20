@@ -114,6 +114,13 @@ export function systemRows(doc: DesignDocument, pack: DataPack | null, basis: Si
 }
 
 /** a system's heat load: the zones' own loads, summed; null when none is measured */
+/** a load in kW to a tenth; a zone too small to show a tenth says so,
+    never "0.0 kW" (the live walk, 21 November 2026: a pantry read 0.0 kW) */
+export function kwWords(kw: number | null | undefined): string {
+  if (kw == null) return "";
+  return kw < 0.05 ? "Under 0.1 kW" : `${kw.toFixed(1)} kW`;
+}
+
 export function zonesLoadKw(loads: readonly (number | null)[]): number | null {
   const known = loads.filter((v): v is number => v != null);
   return known.length ? known.reduce((t, v) => t + v, 0) : null;

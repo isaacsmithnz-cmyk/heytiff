@@ -10390,6 +10390,12 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
 .dstudio .ds-stack-nav .ds-stack-back { margin: 0 0 0 -4px; }
 .dstudio .ds-stack-navact { height: 32px; padding: 0 4px; margin-right: -4px; border: none; background: none; border-radius: var(--r-control); font: 600 14px/20px var(--font); color: var(--press); cursor: pointer; }
 .dstudio .ds-stack-navact:hover { background: var(--hov); }
+/* one line each, the back's name fading where the screen behind has a long
+   one (rule 50), and the blue words never broken ("Leave out" on two lines,
+   the live walk, 21 November 2026) */
+.dstudio .ds-stack-back { max-width: 100%; min-width: 0; }
+.dstudio .ds-stack-back-t { min-width: 0; }
+.dstudio .ds-stack-navact { flex: none; white-space: nowrap; }
 .dstudio .ds-stack-row.blue .ds-stack-row-t { color: var(--press); font-weight: 600; }
 .dstudio .ds-stack-row.blue > svg, .dstudio .ds-stack-row.blue .ds-stack-lead { color: var(--press); }
 .dstudio .ds-stack-row.danger .ds-stack-row-t { color: var(--bad-t); font-weight: 600; }
@@ -10408,7 +10414,7 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
 .dstudio .ds-install .ds-stack-row-s { white-space: normal; }
 .dstudio .ds-stack-titlein { width: 100%; min-width: 0; height: 32px; padding: 0; border: none; border-radius: var(--r-control); background: none; font: 600 24px/32px var(--font); color: var(--ink); }
 .dstudio .ds-stack-titlein:focus { outline: none; box-shadow: var(--ring); }
-.dstudio .ds-zone .ds-stack-row { flex-wrap: wrap; }
+.dstudio .ds-zone .ds-stack-row:has(> .pt-tray) { flex-wrap: wrap; }
 .dstudio .ds-zone .ds-stack-row > .pt-tray { margin-left: auto; }
 .dstudio .ds-stack-quote { flex: none; width: 24px; height: 24px; display: grid; place-items: center; border: 2px solid var(--orange); border-radius: var(--r-control); color: var(--orange); font: 600 16px/16px var(--font); }
 .dstudio .ds-stack-row.press:focus-visible { outline: none; box-shadow: inset var(--ring); }
@@ -10424,6 +10430,11 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
    Edit system's lines wrap instead (.ds-syp below), so its split stays. */
 .dstudio .ds-stack-row:has(.ds-stack-row-s):not(.ds-syp *) .ds-stack-row-l { flex: 0 1 auto; }
 .dstudio .ds-stack-row:has(.ds-stack-row-s):not(.ds-syp *) .ds-stack-row-v { flex: 1 1 0; max-width: none; }
+/* ...but a long name gives way first: the value keeps two fifths of the row
+   and balances its lines, so a system named by its quote doesn't stack "5
+   units, 4 to place" a word a line (the live walk, 21 November 2026). Not on
+   a state word, which never wraps, nor Install details, whose lines do. */
+.dstudio .ds-stack-row:has(.ds-stack-row-s):not(.ds-syp *):not(.ds-install *) .ds-stack-row-v:not(.look):not(.ink) { min-width: 40%; text-wrap: balance; }
 .dstudio .ds-stack-chev { flex: none; display: inline-flex; color: var(--line-strong, rgba(5, 5, 5, 0.3)); }
 .dstudio .ds-stack-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; }
 .dstudio .ds-stack-main,

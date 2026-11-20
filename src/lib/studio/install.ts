@@ -661,8 +661,22 @@ function wifiParts(context: Context): { rows: EquipmentRow[]; models: string[] }
   return { rows, models: unique(models) };
 }
 
+/** the pumps the quote has (install-from-quote.ts), while the condensate is
+    still the quote's answer; null once someone has changed it */
+function quotedPumps(context: Context): number | null {
+  const settings = context.sys.settings as Record<string, unknown>;
+  const n = settings.installQuotedPumps;
+  const quoted = (settings.installQuoted as Record<string, unknown> | undefined)?.condensate;
+  if (typeof n !== "number" || n <= 0 || !Array.isArray(quoted)) return null;
+  const now = installAnswers(context.doc, context.sys).condensate ?? [];
+  const same = quoted.length === now.length && quoted.every((v) => now.includes(String(v)));
+  return same ? n : null;
+}
+
 /** a pump per head: the unit's own where the pack says it is built in, the
-    pack's kit where it has one, a third-party pump otherwise */
+    pack's kit where it has one, a third-party pump otherwise; where the
+    quote has fewer third-party pumps than that, the quote's count (two for
+    four heads, the live walk, 21 November 2026) */
 function pumpParts(context: Context): { rows: EquipmentRow[]; sub: string | undefined } {
   const rows: EquipmentRow[] = [];
   const builtIn: string[] = [];
@@ -682,6 +696,12 @@ function pumpParts(context: Context): { rows: EquipmentRow[]; sub: string | unde
       rows.push({ group: "Mounting", name: THIRD_PARTY_PUMP, qty: count });
       thirdPartySeries.push(idu?.series ?? model);
     }
+  }
+  const perHead = rows.filter((r) => r.name === THIRD_PARTY_PUMP).reduce((n, r) => n + (r.qty ?? 0), 0);
+  const quoted = quotedPumps(context);
+  if (quoted != null && quoted < perHead) {
+    const others = rows.filter((r) => r.name !== THIRD_PARTY_PUMP);
+    rows.splice(0, rows.length, ...others, { group: "Mounting", name: THIRD_PARTY_PUMP, qty: quoted });
   }
   const pieces: string[] = [];
   if (builtIn.length) pieces.push(`Built in on ${joinAnd(builtIn)}`);

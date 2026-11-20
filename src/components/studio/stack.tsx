@@ -45,7 +45,7 @@ export function StackHead({
     back && onBack ? (
       <button type="button" className="ds-stack-back" onClick={onBack}>
         <Icon name="chevL" size={16} />
-        {back}
+        <Fade className="ds-stack-back-t">{back}</Fade>
       </button>
     ) : null;
   return (

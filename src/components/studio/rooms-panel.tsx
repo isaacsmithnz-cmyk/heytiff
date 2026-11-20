@@ -22,6 +22,7 @@ import { roomAreaM2, roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
 import { canJoin, readHeightOf } from "@/lib/studio/room-edit";
 import type { Suggestion } from "@/lib/studio/rooms-from-reading";
 import { zoneIdsOf } from "@/lib/studio/zones";
+import { kwWords } from "@/lib/studio/system-rows";
 import { useRef } from "react";
 import { Tick } from "@/components/parts/tick";
 import { leftOutRooms } from "@/lib/studio/left-out";
@@ -34,7 +35,7 @@ const KIND_WORD: Partial<Record<Suggestion["kind"], string>> = {
   garage: "a garage",
 };
 
-const kw = (v: number | null) => (v == null ? "" : `${v.toFixed(1)} kW`);
+const kw = kwWords;
 
 export function RoomsPanel({
   doc,

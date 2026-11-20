@@ -2308,7 +2308,7 @@ function Editor({
                 onClick={() => (flow === "next" ? setRoomsOpen(true) : setRoomsFor(activeFloor.id))}
               >
                 <span className="dot" />
-                Rooms Tiff found
+                {flow === "next" ? "Zones Tiff found" : "Rooms Tiff found"}
               </button>
             ) : null}
             {/* a newer set on the job: said here while the Scope is shut, over the Scope while it's open */}

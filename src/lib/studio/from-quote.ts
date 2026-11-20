@@ -20,6 +20,7 @@ import type { RoomObj } from "./loads-room";
 import type { DataPack } from "./packs/schema";
 import type { SizingBasis } from "./loads";
 import { addMultiHead, addSplit, chooseOutdoor } from "./builder";
+import { answerFromQuote, type QuotedMaterial } from "./install-from-quote";
 
 /** A quote's unit line, as quote_lines keeps it. */
 export type QuotedLine = { optionIndex: number; system: string; name: string; code: string | null; kind: string; qty: number };
@@ -43,6 +44,8 @@ export type QuotedOption = {
   heads: QuotedHead[];
   /** "Mitsubishi Electric multi" */
   kind: "split" | "multi" | null;
+  /** the option's material lines, by their words: Install details' answers */
+  materials: QuotedMaterial[];
 };
 
 const norm = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, "");
@@ -123,7 +126,8 @@ export function quotedOptions(
     }
     const type = outdoor?.model ? pack.outdoor_units.find((u) => u.model === outdoor!.model)?.system_type : null;
     const kind = type === "multi" || heads.length > 1 ? "multi" : type === "split" ? "split" : null;
-    return { index, name: names[index] || `Option ${index + 1}`, accepted: accepted.includes(index), outdoor, heads, kind };
+    const materials = lines.filter((l) => l.kind === "material" && l.optionIndex === index).map((l) => ({ name: l.name, qty: l.qty }));
+    return { index, name: names[index] || `Option ${index + 1}`, accepted: accepted.includes(index), outdoor, heads, kind, materials };
   });
 }
 
@@ -151,5 +155,7 @@ export function addQuotedOption(doc: DesignDocument, pack: DataPack, basis: Sizi
     d = chooseOutdoor(d, pack, basis, systemId!, o.outdoor!.model!);
   }
   d = { ...d, systems: d.systems.map((s) => (s.id === systemId ? { ...s, name: o.name } : s)) };
+  /* what the quote says of how it goes in, answered (install-from-quote.ts) */
+  if (systemId && o.materials?.length) d = answerFromQuote(d, systemId, o.materials);
   return { doc: d, systemId };
 }

@@ -223,7 +223,12 @@ export async function readQuotedUnits(jobRemoteId: string): Promise<{
   const units = lines
     .filter((l) => l.kind === "unit" && l.code)
     .map((l) => ({ optionIndex: l.optionIndex, system: l.system, name: l.name, code: l.code, kind: l.kind, qty: l.qty }));
-  return { lines: units, accepted: byHand.accepted, names, brands: await quotedBrands(units.map((l) => l.code!)) };
+  /* the materials by their words, never a price: the quote's answers to
+     Install details (install-from-quote.ts) */
+  const materials = lines
+    .filter((l) => l.kind === "material")
+    .map((l) => ({ optionIndex: l.optionIndex, system: l.system, name: l.name, code: null, kind: l.kind, qty: l.qty }));
+  return { lines: [...units, ...materials], accepted: byHand.accepted, names, brands: await quotedBrands(units.map((l) => l.code!)) };
 }
 
 /** the installed brands whose books have one of these codes, newest edition */

@@ -36,6 +36,7 @@ jest.mock("@/lib/supabase-server", () => {
 });
 
 import { addJobPlans, readPlanAgain } from "../plans-server";
+import { planProgressOf } from "../plans";
 
 const doc = (id: string, size: number): Row => ({ org_id: "org-1", id, file_name: "307 Coonawarra Rd_CDC.pdf", storage_ref: `org-1/${id}.pdf`, mime_type: "application/pdf", size_bytes: size, sm8_job_uuid: "job-3570", uploaded_at: "2026-11-19T21:47:52Z" });
 
@@ -48,7 +49,7 @@ beforeEach(() => {
 describe("reading a plan again", () => {
   it("puts a failed plan back to reading, its reason and claim cleared", async () => {
     expect(await readPlanAgain("org-1", "job-3570", "jplan_1")).toBe(true);
-    expect(tables.job_plans![0]).toMatchObject({ state: "reading", said: null, claimed_at: null });
+    expect(tables.job_plans![0]).toMatchObject({ state: "reading", said: null, claimed_at: null, progress: null });
   });
 
   it("leaves a plan that isn't failed, or is another job's", async () => {
@@ -69,5 +70,30 @@ describe("the same file into Plans twice", () => {
     const out = await addJobPlans("org-1", "job-3570", [{ documentId: "d-3" }], "staff-1");
     expect(out.ok && out.planIds).toHaveLength(1);
     expect(tables.job_plans).toHaveLength(2);
+  });
+});
+
+describe("the bar under a plan being read", () => {
+  it("says each step in words and fills the bar in order", () => {
+    expect(planProgressOf(null)).toBeNull();
+    const steps = [
+      planProgressOf({ step: "drawing", done: 0, total: 0 }),
+      planProgressOf({ step: "drawing", done: 11, total: 27 }),
+      planProgressOf({ step: "finding", done: 0, total: 1 }),
+      planProgressOf({ step: "floors", done: 1, total: 3 }),
+      planProgressOf({ step: "reading", done: 2, total: 5 }),
+      planProgressOf({ step: "reading", done: 5, total: 5 }),
+    ];
+    expect(steps.map((s) => s!.words)).toEqual([
+      "Opening the set",
+      "Drawing page 12 of 27",
+      "Finding the floors",
+      "Drawing the floors in full, 2 of 3",
+      "Reading the floors, roof and site, 2 of 5 done",
+      "Putting the read together",
+    ]);
+    const pct = steps.map((s) => s!.percent);
+    expect(pct).toEqual([...pct].sort((a, b) => a - b));
+    expect(pct.at(-1)).toBeLessThan(100);
   });
 });

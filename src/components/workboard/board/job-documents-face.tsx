@@ -33,7 +33,7 @@ import { ComplianceChooser } from "./compliance-chooser";
 import { designRowLine } from "./job-design-face";
 import { StateLine } from "./state-line";
 import { AddPlansDialog, planCandidates, type UploadForPlans } from "./add-plans-dialog";
-import { choosablePages, floorPagesOf, pageCaption, planLine, planPointsAt, planStateWord, replacedBy, scaleAsks, subfloorLine, type JobPlanPage, type JobPlanRead, type PlanPick } from "@/lib/jobs/plans";
+import { choosablePages, floorPagesOf, pageCaption, planLine, planPointsAt, planProgressOf, planStateWord, replacedBy, scaleAsks, subfloorLine, type JobPlanPage, type JobPlanRead, type PlanPick } from "@/lib/jobs/plans";
 import { SetScaleDialog, type ScalePage, type ScalePoint } from "./set-scale-dialog";
 import { PlansDialog, type ChosenFloors } from "./plans-dialog";
 import { FaceTitle } from "./face-title";
@@ -511,7 +511,12 @@ export function JobDocumentsFace({
     /* a set a later one replaced keeps its row, grey, with nothing under it to act on */
     const replaced = replacedBy(p, planList);
     const state = planStateWord(p, replaced);
-    const facts = [file ? docLine(file) : null, planLine(p, day, replaced)].filter(Boolean).join(". ");
+    /* why a set couldn't be read goes on a line of its own, whole: a reason
+       faded out at the row's edge can't be read (Isaac, 20 November 2026) */
+    const failedWhy = p.state === "failed" && !replaced ? planLine(p, day, replaced) : null;
+    /* while she reads, how far she's got (Isaac, 20 November 2026: "put progress bar on reading") */
+    const progress = p.state === "reading" && !replaced ? planProgressOf(p.progress) : null;
+    const facts = [file ? docLine(file) : null, failedWhy ? null : planLine(p, day, replaced)].filter(Boolean).join(". ");
     const pages = p.state === "reading" || replaced ? [] : floorPagesOf(p).filter((pg) => p.thumbs[pg.n]);
     /* a page with no scale to be had asks for one; one resting on a single figure can be checked */
     const asks = onSetScale && onPageForScale && !replaced ? scaleAsks(p) : [];
@@ -532,8 +537,17 @@ export function JobDocumentsFace({
         end={<StateWord tone={state.tone}>{state.word}</StateWord>}
         onClick={open}
         below={
-          pages.length > 0 || choose || again || subfloor ? (
+          pages.length > 0 || choose || again || subfloor || failedWhy || progress ? (
             <span className="jpl-below">
+              {progress && (
+                <span className="jpl-progress">
+                  <span className="pt-row-line">{progress.words}</span>
+                  <span className="qb-bar" role="progressbar" aria-label="Reading the plans" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress.percent} aria-valuetext={progress.words}>
+                    <i style={{ width: `${progress.percent}%` }} />
+                  </span>
+                </span>
+              )}
+              {failedWhy && <span className="pt-row-line">{failedWhy}</span>}
               {subfloor && <span className="pt-row-line">{subfloor}</span>}
               {pages.length > 0 && (
                 <span className="jpl-pages">

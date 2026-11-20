@@ -15,7 +15,7 @@ export function kickPlanReads(planIds: readonly string[]): void {
 }
 
 /** How often a screen asks after a plan being read. */
-export const PLAN_POLL_MS = 8_000;
+export const PLAN_POLL_MS = 4_000;
 
 /** A plan still "reading" this long after it was added was dropped on the
     way: a screen asks for its read once more. Past the read route's five

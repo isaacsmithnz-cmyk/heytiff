@@ -13,7 +13,7 @@ import { openPdf } from "@/lib/tiff/extract";
 import { airPages, plainWords } from "./take-in";
 import { staffDisplayNames } from "@/lib/workboard/job-notes-query";
 import type { DrawnFull, DrawnPreview, PlanPagesAnswer } from "@/app/print/plan-pages/plan-pages";
-import { chooseFloors, guessPageByWords, pageKey, stackLevels, stateOfRead, type JobPlan, type JobPlanKind, type SpecWords, type JobPlanPage, type JobPlanRead, type PageGuess, type PlanPageKind, type PlanPick } from "./plans";
+import { chooseFloors, guessPageByWords, pageKey, stackLevels, stateOfRead, type JobPlan, type JobPlanKind, type SpecWords, type JobPlanPage, type JobPlanRead, type PageGuess, type PlanPageKind, type PlanPick, type PlanProgress } from "./plans";
 import { planRoomsOf, planRoomsSaid, type JobPlanRooms } from "./plan-rooms";
 
 /* PLANS ON THE JOB, THE SERVER SIDE (lib/jobs/plans.ts says what a plan is).
@@ -62,8 +62,9 @@ type Row = {
   added_by: string | null;
   added_at: string;
   read_at: string | null;
+  progress?: PlanProgress | null;
 };
-const COLS = "id, org_id, job_uuid, document_id, attachment_id, name, source_ref, source_kind, kind, page_count, pages, reading, state, said, added_by, added_at, read_at";
+const COLS = "id, org_id, job_uuid, document_id, attachment_id, name, source_ref, source_kind, kind, page_count, pages, reading, state, said, added_by, added_at, read_at, progress";
 
 const planOf = (r: Row, names: Map<string, string>): JobPlan => ({
   id: r.id,
@@ -83,6 +84,7 @@ const planOf = (r: Row, names: Map<string, string>): JobPlan => ({
   addedBy: r.added_by ? (names.get(r.added_by) ?? null) : null,
   addedAt: r.added_at,
   readAt: r.read_at,
+  progress: r.progress ?? null,
 });
 
 /* ── reading the job's plans, for its Documents and the Studio ── */
@@ -232,7 +234,7 @@ export async function addJobPlans(orgId: string, jobUuid: string, picks: readonl
 export async function readPlanAgain(orgId: string, jobUuid: string, planId: string): Promise<boolean> {
   const { data, error } = await supabaseAdmin
     .from("job_plans")
-    .update({ state: "reading", said: null, claimed_at: null })
+    .update({ state: "reading", said: null, claimed_at: null, progress: null })
     .eq("org_id", orgId)
     .eq("job_uuid", jobUuid)
     .eq("id", planId)
@@ -264,6 +266,9 @@ const DRAW_MS = 240_000;
 /** The set's own copy, as the server holds it, to hand to the browser. */
 export type SourceFile = { bytes: Buffer; type: string };
 
+/** How much of a set goes to the headless page at a time. */
+const FILE_CHUNK = 2 * 1024 * 1024;
+
 async function sourceFile(sourceRef: string, kind: "pdf" | "image"): Promise<SourceFile> {
   const { data, error } = await supabaseAdmin.storage.from(PLANS_BUCKET).download(sourceRef);
   if (error || !data) throw new Error("The file couldn't be fetched");
@@ -289,16 +294,24 @@ const failedLine = (url: string, why: string) => {
     19 November 2026) failed in under a second with "Failed to fetch" while
     Supabase logged its 200; every plan read in production till then was a
     photo under 1 MB. A request that fails anyway is named in the error. */
-export async function draw(ticket: PlanPagesTicket, origin: string, file?: SourceFile): Promise<PlanPagesAnswer> {
+export async function draw(ticket: PlanPagesTicket, origin: string, file?: SourceFile, onProgress?: (done: number, total: number) => void): Promise<PlanPagesAnswer> {
   const browser = await launchHeadless();
   try {
     const page = await browser.newPage();
     page.setDefaultTimeout(DRAW_MS);
+    /* the page says each page it has drawn, for the bar under the plan */
+    if (onProgress) await page.exposeFunction("__htProgress", (done: number, total: number) => onProgress(Number(done) || 0, Number(total) || 0));
     const failures: string[] = [];
     page.on("requestfailed", (r) => {
       if (r.url() !== ticket.url || !file) failures.push(failedLine(r.url(), r.failure()?.errorText ?? "failed"));
     });
     if (file) {
+      /* the set's bytes handed to the page in pieces, off the network
+         altogether: on Vercel's headless Chrome an 11 MB body couldn't be
+         taken in, fetched (#1621's "Failed to fetch") or handed over whole
+         ("reading the file: Failed to fetch", 3570, 20 November 2026) */
+      await page.exposeFunction("__htFileSize", () => file.bytes.length);
+      await page.exposeFunction("__htFileChunk", (i: number) => file.bytes.subarray(i * FILE_CHUNK, (i + 1) * FILE_CHUNK).toString("base64"));
       await page.setRequestInterception(true);
       page.on("request", (r) => {
         if (r.isInterceptResolutionHandled()) return;
@@ -319,6 +332,45 @@ export async function draw(ticket: PlanPagesTicket, origin: string, file?: Sourc
   } finally {
     await browser.close();
   }
+}
+
+/* ── how far a read has got ── */
+
+/** How far a read has got, written for the bar under the plan: never fails
+    the read, and the page drawing's many reports go at most every second
+    and a half, with the last always written. */
+function progressWriter(orgId: string, planId: string): (p: PlanProgress) => void {
+  let last = 0;
+  let queued: PlanProgress | null = null;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const send = (p: PlanProgress) => {
+    last = Date.now();
+    void supabaseAdmin
+      .from("job_plans")
+      .update({ progress: { ...p, at: new Date().toISOString() } })
+      .eq("org_id", orgId)
+      .eq("id", planId)
+      .then(
+        () => {},
+        () => {},
+      );
+  };
+  return (p) => {
+    const finalOne = p.total > 0 && p.done >= p.total;
+    if (finalOne || Date.now() - last >= 1500) {
+      if (timer) clearTimeout(timer);
+      timer = null;
+      queued = null;
+      send(p);
+      return;
+    }
+    queued = p;
+    timer ??= setTimeout(() => {
+      timer = null;
+      if (queued) send(queued);
+      queued = null;
+    }, 1500);
+  };
 }
 
 /* ── which pages are floors ── */
@@ -633,6 +685,7 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
     await write(orgId, planId, { state: "failed", said: why }).catch(() => {});
     return { ok: false, error: why };
   };
+  const tell = progressWriter(orgId, planId);
   try {
     const file = await fileFor(orgId, plan.jobUuid, pick);
     if (!file) return failed("The file isn't on the job any more.");
@@ -646,10 +699,12 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
     /* 2 to 4: the pages, which are the floors, and the floors in full */
     let pages = plan.pages;
     if (!pages.some((p) => p.kind === "floor" && p.ref)) {
+      tell({ step: "drawing", done: 0, total: 0 });
       const source = await sourceFile(sourceRef, plan.sourceKind);
-      const drawn = await draw({ orgId, url: signed.signedUrl, kind: plan.sourceKind }, origin, source);
+      const drawn = await draw({ orgId, url: signed.signedUrl, kind: plan.sourceKind }, origin, source, (done, total) => tell({ step: "drawing", done, total }));
       const previews = drawn.previews ?? [];
       if (previews.length === 0) return failed("No pages could be drawn from the file.");
+      tell({ step: "finding", done: 0, total: 1 });
       const guesses = await classify(plan.sourceKind, previews, client);
       const floors = stackLevels(previews.map((p) => ({ n: p.n, ...guesses.get(p.n)! }))).filter((p) => p.kind === "floor");
       /* the floors' small pictures, for the row's thumbnails */
@@ -670,7 +725,8 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
           if (error || !slot) return failed("A page's place in storage couldn't be made.");
           slots.push({ n: f.n, ref, token: slot.token });
         }
-        full = (await draw({ orgId, url: signed.signedUrl, kind: plan.sourceKind, full: slots }, origin, source)).full ?? [];
+        tell({ step: "floors", done: 0, total: slots.length });
+        full = (await draw({ orgId, url: signed.signedUrl, kind: plan.sourceKind, full: slots }, origin, source, (done, total) => tell({ step: "floors", done, total }))).full ?? [];
       }
       const fullOf = new Map(full.map((f) => [f.n, f]));
       pages = previews.map((pv): JobPlanPage => {
@@ -716,18 +772,27 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
       const pdf = plan.sourceKind === "pdf" ? sourceRef : null;
       const first = Math.max(0, floors[0].n - 1);
       const ground = sheets[0];
+      /* each floor, the roof and the site counted off as it comes back */
+      const total = sheets.length + (photo ? 0 : 1) + 1;
+      let done = 0;
+      tell({ step: "reading", done, total });
+      const counted = <T,>(p: Promise<T>): Promise<T> =>
+        p.finally(() => {
+          done++;
+          tell({ step: "reading", done, total });
+        });
       const [results, measured, roof, site] = await Promise.all([
-        Promise.allSettled(sheets.map((s) => readSheet(orgId, s))),
+        Promise.allSettled(sheets.map((s) => counted(readSheet(orgId, s)))),
         measurePages(orgId, pages, photo),
         photo
           ? undefined
-          : readRoof(orgId, pdf, sheets, undefined, first)
+          : counted(readRoof(orgId, pdf, sheets, undefined, first))
               .then(({ said: _said, ...r }) => r)
               .catch((e) => {
                 console.error(`[job-plans] ${planId}/roof: ${String(e)}`);
                 return null;
               }),
-        readSite(orgId, pdf, ground, first).catch((e) => {
+        counted(readSite(orgId, pdf, ground, first)).catch((e) => {
           console.error(`[job-plans] ${planId}/site: ${String(e)}`);
           return null;
         }),

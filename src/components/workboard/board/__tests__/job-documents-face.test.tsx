@@ -818,11 +818,21 @@ it("offers Read again on a set that couldn't be read, and says why where it can'
   face({ documents: [suttor], plans: [readPlan({ state: "failed", said: "Failed to fetch", reading: null, pages: [] })], onReadPlanAgain });
   const row = within(group("Plans")).getByText(suttor.name).closest(".pt-row") as HTMLElement;
   expect(within(row).getByText("Not read")).toBeInTheDocument();
+  /* the reason whole, on a line of its own under the row, never faded at its edge */
+  expect(row.querySelector(".jpl-below .pt-row-line")).toHaveTextContent("Couldn't be read: Failed to fetch");
   await userEvent.click(within(row).getByRole("button", { name: "Read again" }));
   expect(onReadPlanAgain).toHaveBeenCalledWith("jplan_1");
   onReadPlanAgain.mockResolvedValueOnce("That plan isn't waiting to be read again.");
   await userEvent.click(within(row).getByRole("button", { name: "Read again" }));
   expect(await within(row).findByText("That plan isn't waiting to be read again.")).toBeInTheDocument();
+});
+
+it("shows how far she's got under a plan being read", () => {
+  face({ documents: [suttor], plans: [readPlan({ state: "reading", reading: null, pages: [], progress: { step: "drawing", done: 11, total: 27 } })] });
+  const row = within(group("Plans")).getByText(suttor.name).closest(".pt-row") as HTMLElement;
+  const bar = within(row).getByRole("progressbar", { name: "Reading the plans" });
+  expect(bar).toHaveAttribute("aria-valuetext", "Drawing page 12 of 27");
+  expect(within(row).getByText("Drawing page 12 of 27")).toBeInTheDocument();
 });
 
 it("offers no Read again on a plan that read, or where it can't be asked", () => {

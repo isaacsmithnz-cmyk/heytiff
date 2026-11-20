@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import type { PlanPagesTicket } from "@/lib/studio/pdf-request";
-import { imageToPage, pdfPagesAt, pdfPreviewsWithWords, type PageImage } from "@/lib/studio/plans";
+import { imageToPage, pdfPagesAt, pdfPreviewsWithWords, type PageImage, type PdfSource } from "@/lib/studio/plans";
 
 /* The pages of a plan, drawn in the headless browser (page.tsx). Two visits:
    the first draws every page small and reads its words, and hands them back
@@ -32,18 +32,45 @@ const asDataUrl = (blob: Blob): Promise<string> =>
     r.readAsDataURL(blob);
   });
 
-async function fileOf(t: PlanPagesTicket): Promise<File> {
+/* The set as bytes in the page's own memory, never a Blob: on Vercel's
+   headless Chrome a body this size couldn't be taken in as one (3570, 20
+   November 2026, 11 MB: "reading the file: Failed to fetch", after the set
+   was handed to the page whole). A picture is small and goes as a File. */
+async function fileOf(t: PlanPagesTicket): Promise<PdfSource> {
+  /* handed over in pieces by the server that opened this page, where it was */
+  const given = window as unknown as { __htFileSize?: () => Promise<number>; __htFileChunk?: (i: number) => Promise<string> };
+  if (t.kind === "pdf" && given.__htFileSize && given.__htFileChunk) {
+    const size = await given.__htFileSize();
+    const out = new Uint8Array(size);
+    for (let at = 0, i = 0; at < size; i++) {
+      const piece = atob(await given.__htFileChunk(i));
+      if (!piece.length) throw new Error(`reading the file: it stopped at ${at} of ${size} bytes`);
+      for (let k = 0; k < piece.length; k++) out[at + k] = piece.charCodeAt(k);
+      at += piece.length;
+    }
+    return out.buffer;
+  }
   /* each step says its name with its error, so a failed read says where */
   const res = await fetch(t.url).catch((e: unknown) => {
     throw new Error(`fetching the file: ${e instanceof Error ? e.message : String(e)}`);
   });
   if (!res.ok) throw new Error(`the file answered ${res.status}`);
-  const blob = await res.blob().catch((e: unknown) => {
-    throw new Error(`reading the file: ${e instanceof Error ? e.message : String(e)}`);
-  });
-  const type = t.kind === "pdf" ? "application/pdf" : blob.type || "image/png";
-  return new File([blob], t.kind === "pdf" ? "plan.pdf" : "plan.png", { type });
+  const read = <T,>(p: Promise<T>) =>
+    p.catch((e: unknown) => {
+      throw new Error(`reading the file: ${e instanceof Error ? e.message : String(e)}`);
+    });
+  if (t.kind === "pdf") return read(res.arrayBuffer());
+  const blob = await read(res.blob());
+  return new File([blob], "plan.png", { type: blob.type || "image/png" });
 }
+
+/** Each page drawn, said to the server for the bar under the plan. */
+const report = (done: number, total: number) => {
+  void (window as unknown as { __htProgress?: (d: number, t: number) => Promise<void> }).__htProgress?.(done, total);
+};
+
+/** A picture's file: always one already, since only a PDF comes as bytes. */
+const pictureOf = (f: PdfSource): File => (f instanceof File ? f : new File([f], "plan.png", { type: "image/png" }));
 
 /* Each page drawn small for its picture, with its words read off the text
    layer at the full drawing's scale (which is what the title block is read
@@ -51,26 +78,26 @@ async function fileOf(t: PlanPagesTicket): Promise<File> {
    Drawing every page in full for its words, the file opened again for each,
    was minutes on a big set and ran out the server's wait (3570, 19 November
    2026: 27 A1 sheets, 11 MB). */
-async function previewsOf(file: File, kind: PlanPagesTicket["kind"]): Promise<DrawnPreview[]> {
+async function previewsOf(file: PdfSource, kind: PlanPagesTicket["kind"]): Promise<DrawnPreview[]> {
   if (kind === "image") {
-    const p = await imageToPage(file);
+    const p = await imageToPage(pictureOf(file));
     return [{ n: 1, width: p.width, height: p.height, jpeg: await asDataUrl(p.blob!) }];
   }
   const out: DrawnPreview[] = [];
-  for (const { preview, width, height, words } of await pdfPreviewsWithWords(file, undefined, { print: true })) {
+  for (const { preview, width, height, words } of await pdfPreviewsWithWords(file, report, { print: true })) {
     out.push({ n: preview.pageNumber ?? out.length + 1, width, height, ...(words.length ? { words } : {}), jpeg: await asDataUrl(preview.blob!) });
     if (preview.thumbUrl) URL.revokeObjectURL(preview.thumbUrl);
   }
   return out;
 }
 
-async function fullOf(file: File, kind: PlanPagesTicket["kind"], slots: NonNullable<PlanPagesTicket["full"]>): Promise<DrawnFull[]> {
+async function fullOf(file: PdfSource, kind: PlanPagesTicket["kind"], slots: NonNullable<PlanPagesTicket["full"]>): Promise<DrawnFull[]> {
   const { supabaseBrowser } = await import("@/lib/supabase-browser");
   const out: DrawnFull[] = [];
   /* the floors drawn in full from one opening of the file */
-  const drawn = kind === "image" ? [] : await pdfPagesAt(file, slots.map((s) => s.n), undefined, { print: true });
+  const drawn = kind === "image" ? [] : await pdfPagesAt(file, slots.map((s) => s.n), report, { print: true });
   for (const [i, slot] of slots.entries()) {
-    const page = kind === "image" ? await imageToPage(file) : drawn[i];
+    const page = kind === "image" ? await imageToPage(pictureOf(file)) : drawn[i];
     if (!page?.blob) throw new Error(`page ${slot.n} didn't draw`);
     const { error } = await supabaseBrowser().storage.from("studio-plans").uploadToSignedUrl(slot.ref, slot.token, page.blob, { contentType: `image/${page.ext ?? "png"}` });
     if (error) throw new Error(error.message);

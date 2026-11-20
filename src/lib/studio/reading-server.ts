@@ -222,7 +222,7 @@ async function ask(image: Buffer, text: string, schema: Json, maxTokens: number,
 /** One read. With `wait`, the request is given up on when its reply hasn't
     started in that time, and goes again only up to its tries (the SDK's own
     retries off, so they don't multiply); without, as the SDK and three goes. */
-export async function askWith(blocks: Block[], text: string, schema: Json, maxTokens: number, wait?: Wait): Promise<Raw> {
+export async function askWith(blocks: Block[], text: string, schema: Json, maxTokens: number, wait?: Wait, effort: "high" | "medium" = "high"): Promise<Raw> {
   client = client ?? new Anthropic();
   let tries = 0;
   let room = maxTokens;
@@ -233,7 +233,7 @@ export async function askWith(blocks: Block[], text: string, schema: Json, maxTo
           {
             model: MODEL,
             max_tokens: room,
-            output_config: { effort: "high", format: { type: "json_schema", schema } },
+            output_config: { effort, format: { type: "json_schema", schema } },
             messages: [{ role: "user", content: [...blocks, { type: "text", text }] }],
           },
           wait ? { timeout: wait.timeout, maxRetries: 0 } : undefined,

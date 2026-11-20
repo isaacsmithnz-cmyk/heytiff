@@ -1,4 +1,4 @@
-import type { PlanWord, ReadPoint, ReadSpace, SpaceKind } from "../reading";
+import type { PlanWord, ReadLook, ReadPoint, ReadSpace, SpaceKind } from "../reading";
 import type { WallGrid, WallSeg, Walls, WallSizes } from "./walls";
 
 /* ROOMS NAMED BETWEEN MEASURED WALLS. The walls and their numbered lines are
@@ -23,11 +23,7 @@ export type NamedRoom = {
 };
 
 /** Something about a reading a person should look at, and which room it is about. */
-export type Problem = {
-  kind: "corner" | "overlap" | "label" | "small" | "off_wall" | "shape";
-  room: string;
-  said: string;
-};
+export type Problem = ReadLook;
 
 type Coord = { v: number; line: number | null };
 type Corner = { x: Coord; y: Coord };
@@ -341,7 +337,11 @@ export function snapRooms(
           inside(w.at, centre) ||
           centre.some((p) => Math.hypot(p.x - w.at.x, p.y - w.at.y) < reach),
       );
-      if (!within)
+      /* a word of its name written inside some other room is that room's
+         label, not this one's gone astray ("Garage stair" and the GARAGE
+         written in the garage) */
+      const elsewhere = hits.every((w) => set.some((o) => o.room !== room && inside(w.at, o.centre)));
+      if (!within && !elsewhere)
         problems.push({
           kind: "label",
           room: room.name,
@@ -375,8 +375,8 @@ export function snapRooms(
 export function agreement(a: readonly ReadSpace[], b: readonly ReadSpace[]): { agree: number; named: number; onlyA: string[]; onlyB: string[] } {
   const first = (s: string) => (s.toUpperCase().match(/[A-Z0-9]+/g) ?? [""])[0];
   const mid = (o: readonly ReadPoint[]): ReadPoint => ({ x: o.reduce((n, p) => n + p.x, 0) / o.length, y: o.reduce((n, p) => n + p.y, 0) / o.length });
-  const A = a.filter((s) => s.outline.length >= 3);
-  const B = b.filter((s) => s.outline.length >= 3);
+  const A = a.filter((s) => (s.outline?.length ?? 0) >= 3);
+  const B = b.filter((s) => (s.outline?.length ?? 0) >= 3);
   const pairs = A.flatMap((s, i) =>
     B.map((t, j) => {
       const ms = mid(s.outline);

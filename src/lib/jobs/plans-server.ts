@@ -7,14 +7,16 @@ import { launchHeadless, printBase } from "@/lib/studio/pdf-render";
 import { signPlanPagesTicket, signPlanReadTicket, type PlanPagesTicket } from "@/lib/studio/pdf-request";
 import { mmPerPxFor, printedScaleOf } from "@/lib/studio/plan-set";
 import { scaleFromDimensions, type PlanReading, type PlanWord } from "@/lib/studio/reading";
-import { READING_MODEL, readDimensions, readRoof, readSheet, readSite, type SheetToRead } from "@/lib/studio/reading-server";
+import { READING_MODEL, readDimensions, readRoof, readSheet, readSite, type SheetToRead, askWith, pngBlock } from "@/lib/studio/reading-server";
+import { readMeasured } from "@/lib/studio/measured-server";
+import { withMeasured } from "@/lib/studio/measure/merge";
 import { SONNET_FALLBACK } from "@/lib/tiff/sonnet-fallback";
 import { openPdf } from "@/lib/tiff/extract";
-import { fullInNode, previewsInNode } from "./plan-draw-node";
+import { fullInNode, pixelsInNode, previewsInNode } from "./plan-draw-node";
 import { airPages, plainWords } from "./take-in";
 import { staffDisplayNames } from "@/lib/workboard/job-notes-query";
 import type { DrawnFull, DrawnPreview, PlanPagesAnswer } from "@/app/print/plan-pages/plan-pages";
-import { chooseFloors, guessPageByWords, pageKey, stackLevels, stateOfRead, type JobPlan, type JobPlanKind, type SpecWords, type JobPlanPage, type JobPlanRead, type PageGuess, type PlanPageKind, type PlanPick, type PlanProgress } from "./plans";
+import { chooseFloors, guessPageByWords, pageKey, stackLevels, stateOfRead, type JobPlan, type JobPlanKind, type SpecWords, type JobPlanPage, type JobPlanRead, type PageGuess, type PlanPageKind, type PlanPick, type PlanProgress , type PageWalled } from "./plans";
 import { planRoomsOf, planRoomsSaid, type JobPlanRooms } from "./plan-rooms";
 
 /* PLANS ON THE JOB, THE SERVER SIDE (lib/jobs/plans.ts says what a plan is).
@@ -345,6 +347,29 @@ export async function draw(ticket: PlanPagesTicket, origin: string, file?: Sourc
     fresh run: the route has 300 s, and the read of the floors, the roof
     and the site wants a run of its own on a big set. */
 const HANDOFF_MS = 90_000;
+/* THE FLOORS READ BY MEASURE, a stage of their own (measured-server.ts): two
+   questions a floor, about three minutes for a big one, every floor at once.
+   It starts only with most of the route's five minutes still ahead of it,
+   and always hands on when it is done, so the read that follows has five
+   minutes of its own. On for a PDF set when PLANS_MEASURED is "1": the walls
+   need a drawing, and a photo or a scan has none to measure. */
+const MEASURE_ROOM_MS = 30_000;
+const measuredOn = () => process.env.PLANS_MEASURED === "1";
+/** how fine a floor is drawn to measure: about 17 mm of building a pixel, a wall a dozen pixels thick */
+const MEASURE_MM = 17.5;
+
+async function measureFloor(bytes: Uint8Array, p: JobPlanPage): Promise<PageWalled> {
+  const times = p.mmPerPx ? Math.min(2, Math.max(1, Math.round(p.mmPerPx / MEASURE_MM))) : 2;
+  const px = await pixelsInNode(bytes, p.n, times);
+  const read = await readMeasured({ rgba: px.rgba, width: px.width, height: px.height, words: px.words }, times, {
+    floorName: p.name || `page ${p.n}`,
+    mmPerPx: p.mmPerPx,
+    ask: (pictures, text, schema, maxTokens) => askWith(pictures.map(pngBlock), text, schema, maxTokens, undefined, "medium"),
+  });
+  if (!read) return { none: "Its walls aren't drawn as a fill, so they couldn't be measured" };
+  return { spaces: read.spaces, look: read.problems, grid: read.walls.grid, rounds: read.rounds };
+}
+
 
 /** The read route asked for a plan by the server itself, and let go once
     it has the request: the read writes its row as it goes. */
@@ -859,6 +884,30 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
       if (Date.now() - started > HANDOFF_MS) return await handOff();
     }
 
+    /* 4. the floors read by measure, each kept on its page; then handed on */
+    const toMeasure = isPdf && measuredOn() ? pages.filter((p) => p.kind === "floor" && p.ref && p.walled === undefined) : [];
+    if (toMeasure.length) {
+      if (Date.now() - started > MEASURE_ROOM_MS) return await handOff();
+      let done = 0;
+      tell({ step: "measuring", done, total: toMeasure.length });
+      const bytes = new Uint8Array((await bytesOf()).bytes);
+      const got = new Map<number, PageWalled>();
+      await Promise.all(
+        toMeasure.map(async (p) => {
+          /* a floor that can't be measured is read by picture alone, as before; it never fails the set */
+          const w = await measureFloor(bytes, p).catch((e): PageWalled => {
+            console.error(`[job-plans] ${planId}/p${p.n} measure: ${String(e)}`);
+            return { none: e instanceof Error ? e.message : "It couldn't be measured" };
+          });
+          got.set(p.n, w);
+          tell({ step: "measuring", done: ++done, total: toMeasure.length });
+        }),
+      );
+      pages = pages.map((p) => (got.has(p.n) ? { ...p, walled: got.get(p.n)! } : p));
+      await write(orgId, planId, { pages });
+      return await handOff();
+    }
+
     /* 5. the read: each floor, the roof and the site off the set */
     const floors = pages.filter((p) => p.kind === "floor" && p.ref).sort((a, b) => (a.level ?? 0) - (b.level ?? 0) || a.n - b.n);
     const reading: PlanReading = { at: new Date().toISOString(), model: READING_MODEL, floors: {}, failed: [] };
@@ -905,7 +954,11 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
       ]);
       results.forEach((r, i) => {
         const s = sheets[i];
-        if (r.status === "fulfilled") (reading.floors[s.floorId] ??= []).push(r.value);
+        /* a floor's measured rooms are its rooms; the picture read gives the rest, and is their second reader */
+        const walled = floors[i].walled;
+        const m = walled && "spaces" in walled && walled.spaces.length ? walled : null;
+        if (m) (reading.floors[s.floorId] ??= []).push(withMeasured(r.status === "fulfilled" ? r.value : null, m, s.sheetId));
+        else if (r.status === "fulfilled") (reading.floors[s.floorId] ??= []).push(r.value);
         else {
           console.error(`[job-plans] ${planId}/${s.sheetId}: ${String(r.reason)}`);
           reading.failed.push({ floorId: s.floorId, sheetId: s.sheetId, reason: r.reason instanceof Error ? r.reason.message : "It couldn't be read" });

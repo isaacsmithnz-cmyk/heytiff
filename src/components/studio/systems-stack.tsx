@@ -24,7 +24,8 @@ import { KIND_WORD, systemKind, systemZones, unclaimedZones, zoneIdsOf } from "@
 import { brandName } from "@/lib/studio/verdict";
 import { roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
 import { cardStatus } from "@/lib/studio/status";
-import { equipmentList } from "@/lib/studio/install";
+import { equipmentList, installAnswers, installQuestions, NOT_SURE, type InstallQuestion } from "@/lib/studio/install";
+import { stillQuoted } from "@/lib/studio/install-from-quote";
 import { systemAir } from "@/lib/studio/airflow";
 import { systemRows, zonesLoadKw, type UnitRow, type ZoneRow } from "@/lib/studio/system-rows";
 import type { TrayItem } from "@/lib/studio/builder";
@@ -144,6 +145,16 @@ export function SystemsList({
   );
 }
 
+/* THE UNIT ITSELF, NOT THE ROW (Isaac, 20 November 2026: "its hard to
+   place with it being the whole card"). The plan draws the armed unit under
+   the pointer at its real size, turned to the wall it nears, with its air
+   (canvas.tsx, the placement ghost); the browser's own picture of the row
+   rode over it. A blank one in its place leaves the unit alone. */
+const BLANK =
+  typeof Image === "undefined"
+    ? null
+    : Object.assign(new Image(), { src: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" });
+
 /* A unit row's drag: the unit armed on its way out, as the rack's was, so a
    drop anywhere on the plan puts it down (the canvas commits what's armed) */
 function useDrag(onArmPlace: (p: PlacingUnit | null) => void) {
@@ -156,6 +167,7 @@ function useDrag(onArmPlace: (p: PlacingUnit | null) => void) {
               e.dataTransfer.setData("text/plain", tray.model);
               e.dataTransfer.setData(RACK_DRAG, JSON.stringify(tray.placing));
               e.dataTransfer.effectAllowed = "copy";
+              if (BLANK) e.dataTransfer.setDragImage?.(BLANK, 0, 0);
             }
             setHeld(tray.allocationId);
             onArmPlace(tray.placing);
@@ -206,9 +218,13 @@ export function SystemScreen({
   onToggleZone: (zoneId: string, on: boolean) => void;
 }) {
   const { held, dragOf } = useDrag(onArmPlace);
+  const [installOpen, setInstallOpen] = useState(false);
   const sys = doc.systems.find((s) => s.id === systemId);
   if (!sys) return null;
   const kind = systemKind(doc, sys);
+  if (installOpen && pack && kind !== "empty") {
+    return <InstallList doc={doc} pack={pack} systemId={systemId} onBack={() => setInstallOpen(false)} onOpen={onInstall} />;
+  }
   /* a system with no units yet is its zones, picked with a switch each */
   if (kind === "empty" || claiming) {
     return (
@@ -292,7 +308,7 @@ export function SystemScreen({
       </StackGroup>
       <StackGroup>
         {hasAir && <StackRow name="Air" chevron onPress={onAir} />}
-        <StackRow name="Install details" value={asked ? `${asked.answered} of ${asked.total}` : ""} chevron onPress={onInstall} />
+        <StackRow name="Install details" value={asked ? `${asked.answered} of ${asked.total}` : ""} chevron onPress={() => setInstallOpen(true)} />
       </StackGroup>
     </StackScreen>
   );
@@ -378,3 +394,74 @@ export function SystemZones({
   );
 }
 
+/* INSTALL DETAILS, A ROW A QUESTION (the bar and panel mock, "Yes, build
+   it", 21 November 2026): each question by its short name, its answer under
+   it, and Quoted while the answer is still the quote's
+   (install-from-quote.ts), or To answer in orange. A row opens the
+   questions, as Install details always has, to answer or change it. */
+const SHORT: Record<string, string> = {
+  "outdoor-sits": "Outdoor",
+  "outdoor-drain": "Outdoor's water",
+  controls: "Controls",
+  "head-fixings": "Heads fix to",
+  condensate: "Condensate",
+  "electrical-work": "Electrical",
+  "branch-joints": "Branches",
+};
+
+/** a question's answer in words: its ticked options, each with its own
+    follow-ups' answers after it ("On a wall, heavy-duty bracket") */
+function answerWords(q: InstallQuestion, answers: Record<string, string[]>): string {
+  const ticks = answers[q.id] ?? [];
+  if (ticks.includes(NOT_SURE)) return "Not sure yet";
+  return q.options
+    .filter((o) => ticks.includes(o.id))
+    .map((o) => {
+      const more = (o.followUps ?? []).map((f) => answerWords(f, answers)).filter(Boolean);
+      return [o.label, ...more.map((m) => m.charAt(0).toLowerCase() + m.slice(1))].join(", ");
+    })
+    .join(" and ");
+}
+
+function InstallList({
+  doc,
+  pack,
+  systemId,
+  onBack,
+  onOpen,
+}: {
+  doc: DesignDocument;
+  pack: DataPack;
+  systemId: string;
+  onBack: () => void;
+  onOpen: () => void;
+}) {
+  const sys = doc.systems.find((s) => s.id === systemId);
+  if (!sys) return null;
+  const answers = installAnswers(doc, sys);
+  const quoted = (sys.settings.installQuoted ?? {}) as Record<string, unknown>;
+  return (
+    <div className="ds-install">
+    <StackScreen label="Install details">
+      <StackHead back={sys.name} onBack={onBack} name="Install details" />
+      <StackGroup>
+        {installQuestions(doc, pack, sys).map((q) => {
+          const words = answerWords(q, answers);
+          const fromQuote = !!words && stillQuoted(quoted[q.id], answers[q.id]);
+          return (
+            <StackRow
+              key={q.id}
+              name={SHORT[q.id] ?? q.text}
+              sub={words || undefined}
+              value={words ? (fromQuote ? "Quoted" : undefined) : "To answer"}
+              tone={words ? undefined : "look"}
+              chevron
+              onPress={onOpen}
+            />
+          );
+        })}
+      </StackGroup>
+    </StackScreen>
+    </div>
+  );
+}

@@ -14,6 +14,7 @@ import { PACK_SECTIONS, type DataPack, type PackMeta } from "@/lib/studio/packs/
 import { assemblePack, type PackSource } from "@/lib/studio/packs/loader";
 import { addHead } from "@/lib/studio/builder";
 import { claimZone, newSystem } from "@/lib/studio/zones";
+import { answerFromQuote } from "@/lib/studio/install-from-quote";
 import type { RoomObj } from "@/lib/studio/loads-room";
 
 const SEED_DIR = join(__dirname, "../../../../data/packs/mitsubishi-electric@2026.1");
@@ -128,6 +129,26 @@ describe("a system's screen", () => {
     expect(screen.getByRole("switch", { name: "Robe" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Build system" }));
     expect(p.onBuild).toHaveBeenCalled();
+  });
+});
+
+describe("Install details", () => {
+  it("lists the questions by short name, Quoted where the quote answered, To answer where not", () => {
+    const { doc, id } = multi();
+    const d = answerFromQuote(doc, id, [
+      { name: "CON WALL BRACKET 250KG", qty: 1 },
+      { name: "ISOLATOR SMALL 2 POLE 20A", qty: 1 },
+    ]);
+    const p = systemProps(d, id);
+    render(<SystemScreen {...p} />);
+    fireEvent.click(screen.getByRole("button", { name: /Install details/ }));
+    const outdoor = screen.getByText("Outdoor").closest(".ds-stack-row") as HTMLElement;
+    expect(within(outdoor).getByText("On a wall, heavy-duty bracket")).toBeInTheDocument();
+    expect(within(outdoor).getByText("Quoted")).toBeInTheDocument();
+    const fixings = screen.getByText("Heads fix to").closest(".ds-stack-row") as HTMLElement;
+    expect(within(fixings).getByText("To answer")).toBeInTheDocument();
+    fireEvent.click(outdoor);
+    expect(p.onInstall).toHaveBeenCalled();
   });
 });
 

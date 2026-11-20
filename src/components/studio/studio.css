@@ -10404,6 +10404,8 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
 .dstudio .ds-stack-row:has(.ds-stack-row-s):not(.ds-syp *):has(.ds-stack-row-v.look) .ds-stack-row-l,
 .dstudio .ds-stack-row:has(.ds-stack-row-s):not(.ds-syp *):has(.ds-stack-row-v.ink) .ds-stack-row-l { flex: 1 1 auto; min-width: 0; }
 .dstudio .ds-zone { display: contents; }
+.dstudio .ds-install { display: contents; }
+.dstudio .ds-install .ds-stack-row-s { white-space: normal; }
 .dstudio .ds-stack-titlein { width: 100%; min-width: 0; height: 32px; padding: 0; border: none; border-radius: var(--r-control); background: none; font: 600 24px/32px var(--font); color: var(--ink); }
 .dstudio .ds-stack-titlein:focus { outline: none; box-shadow: var(--ring); }
 .dstudio .ds-zone .ds-stack-row { flex-wrap: wrap; }

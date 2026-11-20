@@ -138,6 +138,8 @@ describe("Install details", () => {
     const d = answerFromQuote(doc, id, [
       { name: "CON WALL BRACKET 250KG", qty: 1 },
       { name: "ISOLATOR SMALL 2 POLE 20A", qty: 1 },
+      { name: "DURA FLEX COND DRAIN HOSE (MTR)", qty: 6 },
+      { name: "MINI AQUA CONDENSATE PUMP 14L/HR (EA)", qty: 1 },
     ]);
     const p = systemProps(d, id);
     render(<SystemScreen {...p} />);
@@ -147,6 +149,12 @@ describe("Install details", () => {
     expect(within(outdoor).getByText("Quoted")).toBeInTheDocument();
     const fixings = screen.getByText("Heads fix to").closest(".ds-stack-row") as HTMLElement;
     expect(within(fixings).getByText("To answer")).toBeInTheDocument();
+    // the isolator on the quote doesn't answer the electrical
+    const electrical = screen.getByText("Electrical").closest(".ds-stack-row") as HTMLElement;
+    expect(within(electrical).getByText("To answer")).toBeInTheDocument();
+    // a second answer reads on in lower case
+    const water = screen.getByText("Condensate").closest(".ds-stack-row") as HTMLElement;
+    expect(within(water).getByText("Gravity, outside and pump")).toBeInTheDocument();
     fireEvent.click(outdoor);
     expect(p.onInstall).toHaveBeenCalled();
   });

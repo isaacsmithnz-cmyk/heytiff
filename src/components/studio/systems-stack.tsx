@@ -27,7 +27,7 @@ import { cardStatus } from "@/lib/studio/status";
 import { equipmentList, installAnswers, installQuestions, NOT_SURE, type InstallQuestion } from "@/lib/studio/install";
 import { stillQuoted } from "@/lib/studio/install-from-quote";
 import { systemAir } from "@/lib/studio/airflow";
-import { systemRows, zonesLoadKw, type UnitRow, type ZoneRow } from "@/lib/studio/system-rows";
+import { kwWords, systemRows, zonesLoadKw, type UnitRow, type ZoneRow } from "@/lib/studio/system-rows";
 import type { TrayItem } from "@/lib/studio/builder";
 import { Switch } from "@/components/parts/tick";
 import { Icon } from "@/components/shell/icon";
@@ -35,7 +35,7 @@ import { RACK_DRAG, type PlacingUnit } from "./canvas";
 import { StackDot, StackGroup, StackHead, StackRow, StackScreen } from "./stack";
 import { VariationButton } from "./variation-menu";
 
-const kwText = (kw: number | null) => (kw == null ? "" : `${kw.toFixed(1)} kW`);
+const kwText = kwWords;
 const zonesWord = (n: number) => (n === 1 ? "1 zone" : `${n} zones`);
 
 /** a status tone in the stack's words */
@@ -409,8 +409,13 @@ const SHORT: Record<string, string> = {
   "branch-joints": "Branches",
 };
 
+/** a word in lower case where it isn't a name (Wi-Fi, PAR-41MAA stay as
+    they are) */
+const lowerFirst = (s: string) => (/^[A-Z][a-z]+\b(?!-[A-Z])/.test(s) ? s.charAt(0).toLowerCase() + s.slice(1) : s);
+
 /** a question's answer in words: its ticked options, each with its own
-    follow-ups' answers after it ("On a wall, heavy-duty bracket") */
+    follow-ups' answers after it ("On a wall, heavy-duty bracket"), and a
+    second option reading on in lower case ("Gravity, outside and pump") */
 function answerWords(q: InstallQuestion, answers: Record<string, string[]>): string {
   const ticks = answers[q.id] ?? [];
   if (ticks.includes(NOT_SURE)) return "Not sure yet";
@@ -418,8 +423,9 @@ function answerWords(q: InstallQuestion, answers: Record<string, string[]>): str
     .filter((o) => ticks.includes(o.id))
     .map((o) => {
       const more = (o.followUps ?? []).map((f) => answerWords(f, answers)).filter(Boolean);
-      return [o.label, ...more.map((m) => m.charAt(0).toLowerCase() + m.slice(1))].join(", ");
+      return [o.label, ...more.map(lowerFirst)].join(", ");
     })
+    .map((w, i) => (i ? lowerFirst(w) : w))
     .join(" and ");
 }
 

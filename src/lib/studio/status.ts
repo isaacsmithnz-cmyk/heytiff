@@ -1,7 +1,9 @@
 /* Where a system is up to, in one line: the words a system's card says at
    rest (docs/studio-zones-and-systems.md, "A card at rest is its name, type
    and brand, and one line"). A failing combination or a short zone takes the
-   line, in red; otherwise the line is the next thing to do. */
+   line, in red; otherwise the line is what's left, by its name and never
+   with "next" (Isaac, 20 November 2026: "remove suggetions like next build
+   system, just say build system"). */
 
 import type { DesignDocument, DesignSystem } from "./document";
 import type { DataPack } from "./packs/schema";
@@ -62,10 +64,13 @@ export function cardStatus(
   const units = hasAllocations(sys) ? allocationsOf(sys).filter((a) => a.model).length : 0;
   const toPlace = trayItems(doc, pack).filter((t) => t.systemId === sys.id).length;
   if (toPlace > 0) {
-    return { text: `${units} ${units === 1 ? "unit" : "units"}, ${toPlace} to place`, tone: "quiet" };
+    /* each half kept whole, so a narrow row breaks the line at its comma
+       ("5 units," over "2 to place"), not inside "to place" */
+    const whole = (s: string) => s.replace(/ /g, "\u00a0");
+    return { text: `${whole(`${units} ${units === 1 ? "unit" : "units"}`)}, ${whole(`${toPlace} to place`)}`, tone: "quiet" };
   }
   if (installState(doc, pack, sys) !== "complete") {
-    return { text: "Install details next", tone: "quiet" };
+    return { text: "Install details", tone: "quiet" };
   }
   return { text: "Ready for the design sheet", tone: "ok" };
 }

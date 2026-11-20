@@ -747,10 +747,11 @@ to edit it from there using TIFF").
   Isaac, 20 November 2026: "does the quote talk to install details", then
   "Yes, add it"). Adding a quote's option to a design ticks what its lines
   settle: a wall bracket and how heavy, the condensate by its drain hose and
-  pumps, the electrical by an isolator or cable, and the remotes where no
-  controller is quoted. Each question is a row by its short name with its
-  answer, Quoted while the answer is still the quote's, To answer in orange
-  where nothing is.
+  pumps, and the remotes where no controller is quoted. An isolator and cable
+  don't settle the electrical, as the electrician may bring them (21 November
+  2026: "Not always"), so Electrical stays to answer. Each question is a row
+  by its short name with its answer, Quoted while the answer is still the
+  quote's, To answer in orange where nothing is.
 
 ### Named exemptions
 

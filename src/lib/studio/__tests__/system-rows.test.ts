@@ -10,7 +10,7 @@ import { assemblePack, type PackSource } from "../packs/loader";
 import { addHead, allocationsOf, placeAllocation } from "../builder";
 import { claimZone, newSystem } from "../zones";
 import type { RoomObj } from "../loads-room";
-import { systemRows, zonesLoadKw } from "../system-rows";
+import { kwWords, systemRows, zonesLoadKw } from "../system-rows";
 
 const SEED_DIR = join(__dirname, "../../../../data/packs/mitsubishi-electric@2026.1");
 function loadPack(): DataPack {
@@ -66,6 +66,15 @@ function multi(): { doc: DesignDocument; id: string } {
   return { doc: d, id: made.systemId };
 }
 const sysOf = (doc: DesignDocument, id: string): DesignSystem => doc.systems.find((s) => s.id === id)!;
+
+describe("a load in words", () => {
+  it("is to a tenth, and a zone too small for a tenth says so, never 0.0 kW", () => {
+    expect(kwWords(1.84)).toBe("1.8 kW");
+    expect(kwWords(0.02)).toBe("Under 0.1 kW");
+    expect(kwWords(0)).toBe("Under 0.1 kW");
+    expect(kwWords(null)).toBe("");
+  });
+});
 
 describe("a system's rows", () => {
   it("says To place for a unit not on the plan, and No unit for a zone with no head", () => {

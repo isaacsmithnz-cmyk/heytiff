@@ -135,8 +135,17 @@ export function quotedOptions(
 export const canAddQuoted = (o: QuotedOption): boolean =>
   !!o.outdoor?.model && o.kind != null && o.heads.some((h) => h.model && h.roomId);
 
+/** an option's name as a system's: its heading, the words before a colon
+    ("Mitsubishi Electric multi 8 kW: 5 kW living, 2.5 kW each bedroom" is
+    "Mitsubishi Electric multi 8 kW"), so the column's title and rows hold it
+    (the live walk, 21 November 2026) */
+export function systemNameOf(optionName: string): string {
+  const head = optionName.split(":")[0].trim();
+  return head || optionName.trim();
+}
+
 /** The option as a system: a split for one head, a multi for more, named
-    as the quote names it. Heads with no room or no model are left off. */
+    as the quote heads it. Heads with no room or no model are left off. */
 export function addQuotedOption(doc: DesignDocument, pack: DataPack, basis: SizingBasis, o: QuotedOption): { doc: DesignDocument; systemId: string | null } {
   if (!canAddQuoted(o)) return { doc, systemId: null };
   const heads = o.heads.filter((h) => h.model && h.roomId);
@@ -154,7 +163,7 @@ export function addQuotedOption(doc: DesignDocument, pack: DataPack, basis: Sizi
     }
     d = chooseOutdoor(d, pack, basis, systemId!, o.outdoor!.model!);
   }
-  d = { ...d, systems: d.systems.map((s) => (s.id === systemId ? { ...s, name: o.name } : s)) };
+  d = { ...d, systems: d.systems.map((s) => (s.id === systemId ? { ...s, name: systemNameOf(o.name) } : s)) };
   /* what the quote says of how it goes in, answered (install-from-quote.ts) */
   if (systemId && o.materials?.length) d = answerFromQuote(d, systemId, o.materials);
   return { doc: d, systemId };

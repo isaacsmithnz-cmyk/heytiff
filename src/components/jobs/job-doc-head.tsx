@@ -13,8 +13,8 @@ import { openInTab } from "@/components/shell/open-tabs";
    2026: "Quote and invoice should open full screen", then the phone's quote,
    "the same on either system"). One row, where the job's head is a card and
    a map: the way back to the job ("‹ Job", as the phone's quote says it),
-   the job's number in its colour, the client, the site and what the
-   document is, faded where they run out; then where it's up to as a state
+   the job's number in its colour, the client, the site and, for an
+   invoice, which one it is, faded where they run out; then where it's up to as a state
    word (rule 17) and Actions (rule 53). The job's sections aren't here: the
    document's own tabs are under it. */
 
@@ -36,7 +36,10 @@ export function JobDocHead({
   number: string | null;
   client: string;
   site: string | null;
-  /** what the document is: the quote's title */
+  /** which invoice it is; none for a quote, whose proposal title is
+      written to the customer and isn't a fact about the job (Isaac, 20
+      November 2026, bug 57: "the line next to client name has included
+      summary, also says your apartment") */
   what: string | null;
   hue: Hue;
   stage: DocStage | null;

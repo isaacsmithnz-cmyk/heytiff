@@ -254,7 +254,8 @@ export async function openMicTap(stream: MediaStream): Promise<MicTap> {
 
 export type RealtimeHandle = {
   /** Flush, wait briefly for the last words, tear down. Resolves with the
-      full transcript — "" means it produced nothing and the caller should
+      full transcript — "" means it produced nothing, or the session broke
+      before it was asked to stop (`broken` below), and the caller should
       fall back to uploading the recording. */
   stop: () => Promise<string>;
   /** Throw it away. Nothing resolves, nothing is kept. */
@@ -325,6 +326,17 @@ export async function startRealtime({
 
   let transcript: Transcript = EMPTY_TRANSCRIPT;
   let dead = false;
+  /* THE SESSION BROKE BEFORE STOP: a vendor error, or the socket closed
+     under us while the person was still talking (Isaac, 20 November 2026,
+     bug 53 on quote 3521: "text cut off as i speak"; the words froze at the
+     first sentence while the wave kept moving). What it heard is only the
+     words up to the break, and the recording beside it has all of them, so
+     the transcript it holds is never handed back as the whole: `stop()`
+     says "" and the caller uploads the recording, as the phone's live
+     session has done since 5 November ("live words kept only if the
+     session stayed healthy"). */
+  let broken = false;
+  const heard = () => (broken ? "" : visibleText(transcript));
 
   /* WAITING FOR THE LAST SENTENCE, and why it's a debounce rather than
      "resolve on the next commit". The protocol has no acknowledgement: when
@@ -398,8 +410,10 @@ export async function startRealtime({
     if (applied.kind === "error") {
       // the vendor's words go here and nowhere near the person
       console.error(`[realtime] ${applied.detail}`);
-      /* A live error is not a lost note: resolve a pending flush with what
-         we already heard, and let the caller fall back if that's nothing. */
+      /* A live error is not a lost note, and it is not the whole note
+         either: a pending flush resolves "", and the caller uploads the
+         recording, which heard everything. */
+      broken = true;
       flush?.();
       teardown();
       return;
@@ -415,6 +429,9 @@ export async function startRealtime({
   };
 
   ws.onclose = () => {
+    /* closed by us (teardown marks it dead first) or while stop is waiting
+       for the last words is the end of it; closed before either is a break */
+    if (!dead && !flush) broken = true;
     flush?.();
     teardown();
   };
@@ -487,7 +504,9 @@ export async function startRealtime({
       new Promise<string>((resolve) => {
         feeding = false;
         if (dead || ws.readyState !== WebSocket.OPEN) {
-          resolve(visibleText(transcript));
+          /* gone before stop was pressed: the recording has the rest */
+          if (!dead) broken = true;
+          resolve(heard());
           teardown();
           return;
         }
@@ -495,7 +514,7 @@ export async function startRealtime({
           if (!flush) return;
           flush = null;
           clearTimers();
-          resolve(visibleText(transcript));
+          resolve(heard());
           teardown();
         };
         send(true);

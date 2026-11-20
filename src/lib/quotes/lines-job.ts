@@ -185,10 +185,27 @@ export function byHandOf(draft: unknown): ByHand {
     });
   }
   const rawSent = o.sent && typeof o.sent === "object" ? (o.sent as Record<string, unknown>) : null;
-  const sent = rawSent && typeof rawSent.at === "string" && rawSent.at ? { at: rawSent.at, by: said(rawSent.by, 120), trial: rawSent.trial === true } : null;
+  const kept = rawSent && typeof rawSent.at === "string" && rawSent.at ? { at: rawSent.at, by: said(rawSent.by, 120), trial: rawSent.trial === true } : null;
+  /* a send made before the quote was approved again is the old version's */
+  const sent = kept && sentStands(kept, proposal?.approvedAt ?? null) ? kept : null;
   const rawNoDesign = o.noDesign && typeof o.noDesign === "object" ? (o.noDesign as Record<string, unknown>) : null;
   const noDesign = rawNoDesign && typeof rawNoDesign.at === "string" && rawNoDesign.at ? { at: rawNoDesign.at, by: said(rawNoDesign.by, 120) } : null;
   return { accepted, names, loading, compare, supplier, proposal, researched, variations, ...(sent ? { sent } : {}), ...(noDesign ? { noDesign } : {}) };
+}
+
+/** WHETHER A SEND STILL STANDS (Isaac, 20 November 2026, bug 59: "i
+    updated quote, now it still says update quote, and wont let me sent new
+    version to sm8"): a send belongs to the approval it went under. A quote
+    sent, then changed, which takes its approval off, and approved again is
+    a new version nobody has had: the old send says nothing about it, so the
+    page offers Send to ServiceM8 again. A send with no approval after it
+    stands. */
+export function sentStands(sent: { at: string }, approvedAt: string | null | undefined): boolean {
+  if (!approvedAt) return true;
+  const s = Date.parse(sent.at);
+  const a = Date.parse(approvedAt);
+  if (Number.isNaN(s) || Number.isNaN(a)) return true;
+  return s >= a;
 }
 
 /** The approved quote sent to ServiceM8 as a quote, or a trial run of it. */
@@ -264,10 +281,12 @@ export function withProposal(b: ByHand, patch: unknown, now: string, options: nu
 }
 
 /** The proposal approved by a person, now: one never written is approved
-    as it's drawn, the lines with no words of their own. */
+    as it's drawn, the lines with no words of their own. A send before it
+    was the version before's (sentStands). */
 export const withApproval = (b: ByHand, by: string, now: string): ByHand => ({
   ...b,
   proposal: { ...(b.proposal ?? { ...proposalOf({}), updatedAt: now }), approvedAt: now, approvedBy: by },
+  sent: null,
 });
 
 /** The approval taken off: the quote is the next version, to approve again

@@ -183,6 +183,54 @@ it("releases the microphone when nobody ever comes for the audio", async () => {
   expect(FakeWorkletNode.last!.disconnect).toHaveBeenCalledTimes(1);
 });
 
+/* Isaac, 20 November 2026, bug 53 on quote 3521: "text cut off as i speak".
+   The words froze at the first sentence while the wave kept moving: the
+   session had gone, and what it held was the words up to the break. Those
+   are never handed back as the whole note; the recording is. */
+describe("a session that breaks before Stop", () => {
+  const said = (ws: FakeSocket, text: string) => ws.onmessage?.({ data: JSON.stringify({ message_type: "committed_transcript", text }) });
+
+  it("hands back nothing on a vendor error, so the recording is read instead", async () => {
+    const tap = await openMicTap(stream);
+    const heard: string[] = [];
+    const starting = startRealtime({ tap, token: "single-use", keyterms: [], onText: (t) => heard.push(t) });
+    await Promise.resolve();
+    FakeSocket.last!.open();
+    const handle = await starting;
+    const ws = FakeSocket.last!;
+    said(ws, "Do five hours of labor.");
+    ws.onmessage?.({ data: JSON.stringify({ message_type: "commit_throttled", error: "too many commits" }) });
+    expect(heard).toEqual(["Do five hours of labor."]);
+    await expect(handle.stop()).resolves.toBe("");
+  });
+
+  it("hands back nothing when the socket closes under it", async () => {
+    const tap = await openMicTap(stream);
+    const handle = await liveHandle(tap);
+    const ws = FakeSocket.last!;
+    said(ws, "Do five hours of labor.");
+    ws.readyState = FakeSocket.CLOSED;
+    ws.onclose?.();
+    await expect(handle.stop()).resolves.toBe("");
+  });
+
+  it("keeps what it heard when nothing broke", async () => {
+    jest.useFakeTimers();
+    try {
+      const tap = await openMicTap(stream);
+      const handle = await liveHandle(tap);
+      const ws = FakeSocket.last!;
+      said(ws, "Do five hours of labor.");
+      const stopping = handle.stop();
+      said(ws, "Don't forget nitrogen for pressure testing.");
+      jest.advanceTimersByTime(1_000);
+      await expect(stopping).resolves.toBe("Do five hours of labor. Don't forget nitrogen for pressure testing.");
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+});
+
 it("stops feeding the socket once the words have been asked for", async () => {
   jest.useFakeTimers();
   try {

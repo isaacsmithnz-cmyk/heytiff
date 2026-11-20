@@ -622,7 +622,8 @@ describe("the proposal (7.1)", () => {
 
   /* the customer's yes is said once, in the steps, with Undo beside it, and
      the foot is Update quote and Share; it tells the tab's head where it's
-     up to, in the phone's words, and its name */
+     up to, in the phone's words, and no title: the proposal's is written to
+     the customer, never a fact for the head (bug 57) */
   it("in its own tab, says Ready to send and Customer accepted only in the steps, ends the rail with Update quote and Share, and tells the head", async () => {
     (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => ({ json: async () => ({ ...view([indoor]), approved: true, accepted: [0], proposal: null }) }));
     const onStage = jest.fn();
@@ -636,7 +637,8 @@ describe("the proposal (7.1)", () => {
     expect(yes).toHaveClass("done");
     expect(within(yes).getByRole("button", { name: "Undo accepted" })).toBeInTheDocument();
     expect(within(group).queryByRole("button", { name: "Undo accepted" })).toBeNull();
-    await waitFor(() => expect(onStage).toHaveBeenLastCalledWith(expect.objectContaining({ word: "Customer accepted", good: true, title: "Air conditioning for 12 Smith St" })));
+    await waitFor(() => expect(onStage).toHaveBeenLastCalledWith(expect.objectContaining({ word: "Customer accepted", good: true })));
+    expect(onStage.mock.calls.at(-1)![0]).not.toHaveProperty("title");
     expect(typeof onStage.mock.calls.at(-1)![0].undo).toBe("function");
   });
 

@@ -668,11 +668,13 @@ export function useDictation({
                 cbs.current.onTranscript(text, { capped: capped.current });
                 return;
               }
-              /* Socket produced nothing. The clip is still in `chunks`, so
-                 the batch path below is the floor — but SAY SO, because this
-                 is the exact silence that made 2026-08-04's failure look
-                 like a broken feature instead of a failing transport. */
-              console.error("[realtime] socket returned no words — falling back to upload");
+              /* Socket produced nothing, or broke before Stop and holds
+                 only the words up to the break (bug 53, 20 November 2026).
+                 The clip is still in `chunks`, so the batch path below is
+                 the floor — but SAY SO, because this is the exact silence
+                 that made 2026-08-04's failure look like a broken feature
+                 instead of a failing transport. */
+              console.error("[realtime] socket returned no words, or broke before stop — falling back to upload");
             }
 
             /* NOTHING RECORDED IS STILL SOMETHING TO SAY. This branch used

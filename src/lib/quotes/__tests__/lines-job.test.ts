@@ -3,7 +3,7 @@
    beside the switch. */
 import { readingFromQuote } from "@/lib/certs/from-quote";
 import type { QuoteLine } from "../lines";
-import { byHandOf, variationInSm8, variationMaterials, variationUntouched, withVariation, withVariationSent, withoutVariation, labourTasks, labourVisits, stageNamed, linesDraft, linesHours, linesMaterials, linesUnits, toggleAccepted, withApproval, withoutApproval, withSent, withLoading, withName, withNoDesign, withProposal } from "../lines-job";
+import { byHandOf, sentStands, variationInSm8, variationMaterials, variationUntouched, withVariation, withVariationSent, withoutVariation, labourTasks, labourVisits, stageNamed, linesDraft, linesHours, linesMaterials, linesUnits, toggleAccepted, withApproval, withoutApproval, withSent, withLoading, withName, withNoDesign, withProposal } from "../lines-job";
 import type { UnitSpecs } from "../lookups";
 import { acceptedOptions } from "../proposal";
 
@@ -267,6 +267,25 @@ describe("sent to ServiceM8 as a quote (7.3)", () => {
     expect(byHandOf({ byHand: sent }).sent).toEqual({ at: "t2", by: "u-isaac", trial: true });
     expect(withoutApproval(sent).sent).toBeNull();
     expect(byHandOf({ byHand: bh([]) })).not.toHaveProperty("sent");
+  });
+
+  /* bug 59, job 3521 (20 November 2026): sent on 12 November, changed with
+     Tiff, which took the approval off, then marked ready again on 20
+     November; the page still said Sent 12 Nov and never offered the send */
+  it("belongs to the approval it went under: approved again since, the quote is unsent", () => {
+    const stored = {
+      ...bh([]),
+      proposal: { ...withApproval(bh([]), "u-isaac", "2026-11-20T05:52:02.506Z").proposal! },
+      sent: { at: "2026-11-12T02:52:49.734Z", by: "u-isaac", trial: false },
+    };
+    expect(byHandOf({ byHand: stored })).not.toHaveProperty("sent");
+    expect(sentStands({ at: "2026-11-12T02:52:49.734Z" }, "2026-11-20T05:52:02.506Z")).toBe(false);
+    /* sent after the approval it went under, it stands */
+    expect(byHandOf({ byHand: { ...stored, sent: { ...stored.sent, at: "2026-11-20T06:00:00.000Z" } } }).sent?.at).toBe("2026-11-20T06:00:00.000Z");
+    expect(sentStands({ at: "2026-11-12T02:52:49.734Z" }, null)).toBe(true);
+    /* and approving again takes an old send off as it's written */
+    const sent = withSent(withApproval(bh([]), "u", "2026-11-12T02:00:00.000Z"), "u-isaac", "2026-11-12T02:52:49.734Z", false);
+    expect(withApproval(sent, "u-isaac", "2026-11-20T05:52:02.506Z").sent).toBeNull();
   });
 });
 

@@ -345,8 +345,10 @@ export function JobDocumentsFace({
     const why = await onReadPlanAgain(planId).catch(() => "The plan couldn't be read again. Try again.");
     setAgainBusy(null);
     setAgainWhy((w) => {
-      const { [planId]: _gone, ...rest } = w;
-      return why ? { ...rest, [planId]: why } : rest;
+      const rest = { ...w };
+      delete rest[planId];
+      if (why) rest[planId] = why;
+      return rest;
     });
   };
   const [scaling, setScaling] = useState<{ planId: string; page: JobPlanPage; ask: "set" | "check" } | null>(null);

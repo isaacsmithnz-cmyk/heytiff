@@ -109,7 +109,8 @@ beforeEach(() => {
   readSheet.mockClear();
   readMeasured.mockClear();
   pixelsInNode.mockClear();
-  delete process.env.PLANS_MEASURED;
+  /* the stages before measuring are tried with it off; its own tests turn it on */
+  process.env.PLANS_MEASURED = "0";
   fetchMock.mockClear();
   tables.documents = [{ org_id: "org-1", id: "d-1", file_name: "307 Coonawarra Rd_CDC.pdf", storage_ref: "org-1/d-1.pdf", mime_type: "application/pdf", size_bytes: 11271429, sm8_job_uuid: "job-3570", uploaded_at: "2026-11-19T21:47:52Z" }];
   tables.job_plans = [
@@ -117,7 +118,10 @@ beforeEach(() => {
   ];
 });
 
-afterEach(() => jest.restoreAllMocks());
+afterEach(() => {
+  jest.restoreAllMocks();
+  delete process.env.PLANS_MEASURED;
+});
 
 it("draws the pages in Node, saves the floors it found, and hands the rest on when the stage ran long", async () => {
   const out = await readPlan("org-1", "jplan_1", "https://app.test", client);
@@ -152,9 +156,9 @@ it("picks up where it stopped: the floors drawn in full in Node, saved, then rea
   expect(plan().progress).toMatchObject({ step: "reading", done: 5, total: 5 });
 });
 
-describe("with the floors read by measure (PLANS_MEASURED)", () => {
+describe("with the floors read by measure, as they are unless PLANS_MEASURED is 0", () => {
   beforeEach(() => {
-    process.env.PLANS_MEASURED = "1";
+    delete process.env.PLANS_MEASURED;
   });
 
   it("measures each floor in a stage of its own, keeps what it found on the page, and hands the read on", async () => {
@@ -205,7 +209,7 @@ describe("with the floors read by measure (PLANS_MEASURED)", () => {
   });
 });
 
-it("measures nothing when it isn't switched on", async () => {
+it("measures nothing when it is switched off", async () => {
   await readPlan("org-1", "jplan_1", "https://app.test", client);
   clock += 1_000;
   await readPlan("org-1", "jplan_1", "https://app.test", client);

@@ -351,10 +351,11 @@ const HANDOFF_MS = 90_000;
    questions a floor, about three minutes for a big one, every floor at once.
    It starts only with most of the route's five minutes still ahead of it,
    and always hands on when it is done, so the read that follows has five
-   minutes of its own. On for a PDF set when PLANS_MEASURED is "1": the walls
-   need a drawing, and a photo or a scan has none to measure. */
+   minutes of its own. For a PDF set: the walls need a drawing, and a photo
+   has none to measure (a scanned set finds no walls and is read by picture
+   as before). PLANS_MEASURED=0 turns the stage off without a deploy. */
 const MEASURE_ROOM_MS = 30_000;
-const measuredOn = () => process.env.PLANS_MEASURED === "1";
+const measuredOn = () => process.env.PLANS_MEASURED !== "0";
 /** how fine a floor is drawn to measure: about 17 mm of building a pixel, a wall a dozen pixels thick */
 const MEASURE_MM = 17.5;
 

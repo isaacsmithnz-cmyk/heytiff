@@ -108,15 +108,27 @@ export type PaidTime = {
   officeClocksOn: boolean;
   officeBeforeStartPaid: boolean;
   driveFromLeaving: boolean;
+  /** the phone's clock stops itself this many hours after Clock on, if nobody has answered (Isaac, 20 November 2026:
+      "a safety for like a maximum working time ... 14 hours"; lib/mobile/day-stop) */
+  stopAfterHours?: number;
 };
 
-export const DEFAULT_PAID_TIME: PaidTime = { officeClocksOn: false, officeBeforeStartPaid: true, driveFromLeaving: true };
+export const DEFAULT_PAID_TIME: PaidTime = { officeClocksOn: false, officeBeforeStartPaid: true, driveFromLeaving: true, stopAfterHours: 14 };
+
+/** The hours the clock may stop itself after: whole hours from 10 to 24. */
+export const STOP_HOURS_CHOICES = [10, 12, 14, 16, 18, 24] as const;
 
 /** The workspace's paid time rules, each one it never set as it always was. */
 export function paidTimeOf(raw: unknown): PaidTime {
   const r = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
-  const flag = (k: keyof PaidTime) => (typeof r[k] === "boolean" ? (r[k] as boolean) : DEFAULT_PAID_TIME[k]);
-  return { officeClocksOn: flag("officeClocksOn"), officeBeforeStartPaid: flag("officeBeforeStartPaid"), driveFromLeaving: flag("driveFromLeaving") };
+  const flag = (k: "officeClocksOn" | "officeBeforeStartPaid" | "driveFromLeaving") => (typeof r[k] === "boolean" ? (r[k] as boolean) : DEFAULT_PAID_TIME[k]);
+  const stop = r.stopAfterHours;
+  return {
+    officeClocksOn: flag("officeClocksOn"),
+    officeBeforeStartPaid: flag("officeBeforeStartPaid"),
+    driveFromLeaving: flag("driveFromLeaving"),
+    stopAfterHours: typeof stop === "number" && Number.isInteger(stop) && stop >= 10 && stop <= 24 ? stop : DEFAULT_PAID_TIME.stopAfterHours,
+  };
 }
 
 /* A person's week.

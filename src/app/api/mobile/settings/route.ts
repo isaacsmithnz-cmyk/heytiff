@@ -5,7 +5,7 @@ import { BUSINESS_FIELDS, readSettings } from "@/lib/mobile/settings";
 import { AU_STATES } from "@/lib/org/settings";
 import { savePaySettings } from "@/app/actions/timepay";
 import { getPaySettings } from "@/lib/timepay/query";
-import { paidTimeOf, parseClock, type PaidTime } from "@/components/timepay/logic";
+import { paidTimeOf, parseClock, STOP_HOURS_CHOICES, type PaidTime } from "@/components/timepay/logic";
 
 /* SETTINGS for the phone (lib/mobile/settings): an admin's public holidays,
    an owner's business, licences and insurance and connections. POST changes
@@ -73,6 +73,10 @@ async function savePaid(ctx: MobileCtx, p: { key?: unknown; value?: unknown }): 
     next = p.key === "start" ? { ...next, defaultStart: clockWords(m) } : { ...next, defaultEnd: clockWords(m) };
   } else if (RULES.includes(p.key as keyof PaidTime) && typeof p.value === "boolean") {
     next = { ...next, paidTime: { ...rules, [p.key as keyof PaidTime]: p.value } };
+  } else if (p.key === "stopAfterHours") {
+    /* the clock stops itself after this many hours (lib/mobile/day-stop) */
+    if (!(STOP_HOURS_CHOICES as readonly unknown[]).includes(p.value)) return { ok: false, status: 400, error: "Pick how many hours." };
+    next = { ...next, paidTime: { ...rules, stopAfterHours: p.value as number } };
   } else return { ok: false, status: 400, error: "Which rule?" };
   const r = await actAsPhoneUser(ctx, () => savePaySettings(next));
   return r.ok ? { ok: true } : { ok: false, status: 403, error: r.error };

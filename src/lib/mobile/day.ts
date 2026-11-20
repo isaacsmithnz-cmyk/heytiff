@@ -20,6 +20,7 @@ import { actAsPhoneUser, type MobileCtx } from "./auth";
 import { readCheckInFixes, withFix } from "@/lib/workboard/check-in-fixes";
 import { joinDay, type Away } from "./day-join";
 import { forgetPosition } from "./where";
+import { HOLD_MS, isLeftOn, lastSeen, mayRestart, settlesNow, shiftEnd, SHIFT_AFTER_MS, SHIFT_BEFORE_MS, sm8Wall, stopHoursOf, stopsAt, type Seen } from "./day-stop";
 
 export { AWAY_KEPT_MS, joinDay, type Away } from "./day-join";
 
@@ -84,7 +85,25 @@ export type DaySummary = {
 export type DayPlace = ClockJob & { address: string; lat: number | null; lng: number | null };
 
 export type DayState = {
-  day: { id: string; workDate: string; onAt: string; offAt: string | null } | null;
+  day: {
+    id: string;
+    workDate: string;
+    onAt: string;
+    offAt: string | null;
+    /** the shift's end, for the reminders (day-stop): its bookings', or eight hours on, moved on by Still here */
+    end?: string;
+    /** when the clock stops itself, if nobody answers */
+    stopsAt?: string;
+    /** three hours past the end and still on: its time stands at `seen` */
+    leftOn?: boolean;
+    /** the last thing the phone saw: getting home, the last job or office left, or the end */
+    seen?: Seen;
+    /** the times to finish at a day left on: when you got home, and your last check-out */
+    home?: string | null;
+    checkout?: string | null;
+  } | null;
+  /** a day the clock stopped by itself that you haven't looked at yet (Today says so, with Change) */
+  stopped?: StoppedDay | null;
   /** where you are now: a job's stint, or the office */
   at: { kind: "job"; job: ClockJob; since: string; stintId: string; reason: string | null } | { kind: "office"; since: string } | null;
   jobs: DayJob[];
@@ -108,6 +127,9 @@ export const DAY_WORDS = {
   beforeOn: "That's before you clocked on.",
   backwards: "It has to finish after it starts.",
   noStint: "That time isn't in your day.",
+  restarted: "Your clock is back on.",
+  tooLateToRestart: "It stopped too long ago to restart. Change its time instead.",
+  finished: "Finished at {at}.",
   changed: "Changed.",
   removed: "Taken off your day.",
   overlaps: "That's over another job's time in your day.",
@@ -190,23 +212,43 @@ export function summarise(
   };
 }
 
-type DayRow = { id: string; work_date: string; on_at: string; off_at: string | null; office: DayStop[] | null };
-const DAY_COLUMNS = "id, work_date, on_at, off_at, office";
+type DayRow = {
+  id: string;
+  work_date: string;
+  on_at: string;
+  off_at: string | null;
+  office: DayStop[] | null;
+  home_at?: string | null;
+  held_until?: string | null;
+  ended_by?: string | null;
+  stopped_at?: string | null;
+  settled_at?: string | null;
+  seen_at?: string | null;
+};
+const DAY_COLUMNS = "id, work_date, on_at, off_at, office, home_at, held_until, ended_by, stopped_at, settled_at, seen_at";
+
+/** A day the clock stopped by itself, as Today shows it until it's looked at. */
+export type StoppedDay = {
+  id: string;
+  workDate: string;
+  onAt: string;
+  offAt: string;
+  /** what it stopped at: when you got home, your last check-out, or the shift's end */
+  what: Seen["what"];
+  home: string | null;
+  checkout: string | null;
+  /** Restart is still open (two hours, before it's sent on) */
+  restartable: boolean;
+};
 
 async function zoneOf(orgId: string): Promise<string> {
   return (await bookingZone(orgId)).zone ?? "Australia/Sydney";
 }
 
-/** The day that's on, or else today's that ended. */
-async function dayRow(ctx: MobileCtx, today: string): Promise<DayRow | null> {
-  const { data: open } = await supabaseAdmin
-    .from("staff_days")
-    .select(DAY_COLUMNS)
-    .eq("org_id", ctx.orgId)
-    .eq("user_id", ctx.userId)
-    .is("off_at", null)
-    .maybeSingle();
-  if (open) return open as DayRow;
+/** The day that's on, or else today's that ended. A day on past its stop stops first (day-stop). */
+async function dayRow(ctx: MobileCtx, today: string, now: number = Date.now()): Promise<DayRow | null> {
+  const open = await openDay(ctx, now);
+  if (open) return open;
   const { data } = await supabaseAdmin
     .from("staff_days")
     .select(DAY_COLUMNS)
@@ -393,9 +435,10 @@ export async function readDay(ctx: MobileCtx, now: number = Date.now(), until?: 
   const realToday = wallMinute(nowIso, zone)?.slice(0, 10) ?? nowIso.slice(0, 10);
   /* a day already over, for its wrap-up the morning after: a week back at most */
   const today = on && /^\d{4}-\d{2}-\d{2}$/.test(on) && on <= realToday && Date.parse(`${realToday}T12:00:00Z`) - Date.parse(`${on}T12:00:00Z`) <= 7 * 86_400_000 ? on : realToday;
-  const [row, normal, { settings }] = await Promise.all([dayRow(ctx, today), normalOf(ctx), getPaySettings(ctx.orgId)]);
+  const [row, normal, { settings }] = await Promise.all([dayRow(ctx, today, now), normalOf(ctx), getPaySettings(ctx.orgId)]);
   const officeClocksOn = paidTimeOf(settings.paidTime).officeClocksOn;
-  if (!row) return { day: null, at: null, jobs: [], summary: null, normal, officeClocksOn };
+  const stopped = await stoppedDay(ctx, now).catch(() => null);
+  if (!row) return { day: null, stopped, at: null, jobs: [], summary: null, normal, officeClocksOn };
   const { jobs } = await jobsIn(ctx, row, nowIso);
   const office = row.office ?? [];
   let at: DayState["at"] = null;
@@ -410,11 +453,21 @@ export async function readDay(ctx: MobileCtx, now: number = Date.now(), until?: 
     }
     else if (stop && !stop.until) at = { kind: "office", since: stop.from };
   }
+  /* on: the shift's end and stop, and a day left on stands at the last thing seen, never running on to 30 h */
+  const shift = row.off_at ? null : await shiftOf(ctx, row, now);
+  const standing = shift?.leftOn ? shift.seen.at : nowIso;
   return {
-    day: { id: row.id, workDate: row.work_date, onAt: row.on_at, offAt: row.off_at },
+    day: {
+      id: row.id,
+      workDate: row.work_date,
+      onAt: row.on_at,
+      offAt: row.off_at,
+      ...(shift ? { end: shift.end, stopsAt: shift.stopsAt, leftOn: shift.leftOn, seen: shift.seen, home: shift.home, checkout: shift.checkout } : {}),
+    },
+    stopped,
     at,
     jobs,
-    summary: summarise({ onAt: row.on_at, until: row.off_at ?? (thinking && thinking >= row.on_at ? thinking : nowIso) }, jobs, office, await payOf(ctx, normal, row.work_date, zone)),
+    summary: summarise({ onAt: row.on_at, until: row.off_at ?? (thinking && thinking >= row.on_at ? thinking : standing) }, jobs, office, await payOf(ctx, normal, row.work_date, zone)),
     normal,
     officeClocksOn,
   };
@@ -433,9 +486,282 @@ function timeOf(at: unknown, now: number, floor?: string): string | { error: str
 
 export type DayAnswer = { ok: true; state: DayState; said: string } | { ok: false; error: string; status: number };
 
-async function openDay(ctx: MobileCtx): Promise<DayRow | null> {
+/** The day that's on. One on past its stop stops here, at the last thing seen, and isn't on any more. */
+async function openDay(ctx: MobileCtx, now: number = Date.now()): Promise<DayRow | null> {
   const { data } = await supabaseAdmin.from("staff_days").select(DAY_COLUMNS).eq("org_id", ctx.orgId).eq("user_id", ctx.userId).is("off_at", null).maybeSingle();
-  return (data as DayRow | null) ?? null;
+  const row = (data as DayRow | null) ?? null;
+  if (!row) return null;
+  /* no team stops sooner than ten hours: a younger day needs no reading of its shift */
+  if (now - Date.parse(row.on_at) < 10 * 3_600_000) return row;
+  const shift = await shiftOf(ctx, row, now);
+  if (now < Date.parse(shift.stopsAt)) return row;
+  await stopDay(ctx, row, shift.seen.at, now);
+  return null;
+}
+
+/* ── THE SHIFT, AND THE CLOCK STOPPING ITSELF (lib/mobile/day-stop) ── */
+
+/** The ends of the person's bookings that started in the shift, wherever their date falls (a night shift's too). */
+async function bookingEndsIn(ctx: MobileCtx, onAt: string, zone: string): Promise<string[]> {
+  const state = await readSm8WriteState(ctx.orgId).catch(() => null);
+  const staffUuid = state ? await staffUuidOf(ctx, state.tenantId).catch(() => null) : null;
+  if (!staffUuid) return [];
+  const on = Date.parse(onAt);
+  const from = wallMinute(new Date(on - SHIFT_BEFORE_MS).toISOString(), zone);
+  const until = wallMinute(new Date(on + SHIFT_AFTER_MS).toISOString(), zone);
+  if (!from || !until) return [];
+  const spell = [...new Set([staffUuid, staffUuid.toLowerCase(), staffUuid.toUpperCase()])];
+  const { data } = await supabaseAdmin
+    .from("sm8_job_activities")
+    .select("end_date")
+    .eq("org_id", ctx.orgId)
+    .eq("active", 1)
+    .eq("activity_was_scheduled", 1)
+    .in("staff_uuid", spell)
+    .gte("start_date", sm8Wall(from))
+    .lte("start_date", sm8Wall(until));
+  return ((data ?? []) as { end_date: string | null }[]).flatMap((r) => {
+    const e = r.end_date ? wallInstant(r.end_date, zone, "latest") : null;
+    return e === null ? [] : [new Date(e).toISOString()];
+  });
+}
+
+type Shift = { end: string; stopsAt: string; leftOn: boolean; seen: Seen; home: string | null; checkout: string | null };
+
+/** Where an open day stands against its end and its stop. */
+async function shiftOf(ctx: MobileCtx, row: DayRow, now: number): Promise<Shift> {
+  const zone = await zoneOf(ctx.orgId);
+  const [ends, { settings }, stints] = await Promise.all([bookingEndsIn(ctx, row.on_at, zone).catch(() => []), getPaySettings(ctx.orgId), stintsIn(ctx, row.on_at, null)]);
+  const end = shiftEnd({ onAt: row.on_at, bookingEnds: ends, heldUntil: row.held_until ?? null });
+  const stop = stopsAt({ onAt: row.on_at, hours: stopHoursOf(paidTimeOf(settings.paidTime).stopAfterHours), heldUntil: row.held_until ?? null });
+  const office = row.office ?? [];
+  const seen = lastSeen({ onAt: row.on_at, end, stop, now, homeAt: row.home_at ?? null, stints, office });
+  const left = [...stints.map((s) => s.outAt), ...office.map((o) => o.until)].filter((x): x is string => !!x && x >= row.on_at).sort();
+  const home = row.home_at && row.home_at >= row.on_at ? row.home_at : null;
+  return { end, stopsAt: stop, leftOn: isLeftOn(end, now), seen, home, checkout: left[left.length - 1] ?? null };
+}
+
+/** THE CLOCK STOPS ITSELF: the day ends at the last thing seen, whatever was open ends there, and it's marked as
+    stopped. Nothing is sent yet: Restart is open for two hours, and a stop the server makes has no press to send
+    with, so the person's phone sends it on (settleStopped). */
+async function stopDay(ctx: MobileCtx, row: DayRow, at: string, now: number): Promise<void> {
+  const t = at < row.on_at ? row.on_at : at;
+  await endCheckIn(ctx.orgId, ctx.userId, t).catch(async () => {
+    const open = await openCheckIn(ctx.orgId, ctx.userId).catch(() => null);
+    if (open) await endCheckIn(ctx.orgId, ctx.userId, open.inAt).catch(() => null);
+  });
+  const office = leaveOffice(row.office ?? [], t);
+  await supabaseAdmin
+    .from("staff_days")
+    .update({ off_at: t, office, ended_by: "stop", stopped_at: new Date(now).toISOString() })
+    .eq("org_id", ctx.orgId)
+    .eq("id", row.id)
+    .is("off_at", null);
+  await forgetPosition(ctx.orgId, ctx.userId).catch(() => undefined);
+}
+
+/** Every day on past its stop, stopped: the morning's sweep, for a phone that's flat, off or out of signal. */
+export async function stopOverdueDays(now: number = Date.now()): Promise<number> {
+  const { data } = await supabaseAdmin
+    .from("staff_days")
+    .select(`org_id, user_id, ${DAY_COLUMNS}`)
+    .is("off_at", null)
+    .lte("on_at", new Date(now - 10 * 3_600_000).toISOString())
+    .limit(500);
+  let stopped = 0;
+  for (const r of (data ?? []) as (DayRow & { org_id: string; user_id: string })[]) {
+    const ctx: MobileCtx = { orgId: r.org_id, userId: r.user_id, role: null, caps: new Set(), orgIds: [r.org_id] };
+    try {
+      const shift = await shiftOf(ctx, r, now);
+      if (now < Date.parse(shift.stopsAt)) continue;
+      await stopDay(ctx, r, shift.seen.at, now);
+      stopped++;
+    } catch (err) {
+      console.error(`[day-stop] day ${r.id} for org ${r.org_id} didn't stop: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  return stopped;
+}
+
+/** The latest day the clock stopped by itself, a week back at most, that hasn't been looked at. */
+async function stoppedDay(ctx: MobileCtx, now: number): Promise<StoppedDay | null> {
+  const { data } = await supabaseAdmin
+    .from("staff_days")
+    .select(DAY_COLUMNS)
+    .eq("org_id", ctx.orgId)
+    .eq("user_id", ctx.userId)
+    .eq("ended_by", "stop")
+    .is("seen_at", null)
+    .gte("on_at", new Date(now - 7 * 86_400_000).toISOString())
+    .order("on_at", { ascending: false })
+    .limit(1);
+  const row = ((data ?? []) as DayRow[])[0];
+  if (!row?.off_at) return null;
+  const stints = await stintsIn(ctx, row.on_at, row.off_at);
+  const office = row.office ?? [];
+  const left = [...stints.map((s) => s.outAt), ...office.map((o) => o.until)].filter((x): x is string => !!x && x >= row.on_at && x <= row.off_at!).sort();
+  const checkout = left[left.length - 1] ?? null;
+  const home = row.home_at && row.home_at >= row.on_at && row.home_at <= row.off_at ? row.home_at : null;
+  return {
+    id: row.id,
+    workDate: row.work_date,
+    onAt: row.on_at,
+    offAt: row.off_at,
+    what: home === row.off_at ? "home" : checkout === row.off_at ? "checkout" : "end",
+    home,
+    checkout,
+    restartable: mayRestart(row.stopped_at ?? null, row.settled_at ?? null, now),
+  };
+}
+
+/** A stopped day's time, sent on once: each job to ServiceM8 and the day to the timesheet, as Clock off does. */
+async function sendDay(ctx: MobileCtx, press: Sm8Press | null, closed: DayRow, now: number, over = false): Promise<DaySummary> {
+  const nowIso = new Date(now).toISOString();
+  const zone = await zoneOf(ctx.orgId);
+  const { jobs, toSend } = await jobsIn(ctx, closed, nowIso);
+  const summary = summarise({ onAt: closed.on_at, until: closed.off_at ?? nowIso }, jobs, closed.office ?? [], await payOf(ctx, await normalOf(ctx), closed.work_date, zone));
+  /* each job's time, once, to the quarter hour as the sheet showed it: queued here, sent after the answer (sendTime) */
+  for (const s of toSend) {
+    const row = summary.jobs.find((j) => j.stintId === s.id);
+    if (row) await sendTime(ctx, press, { ...s, inAt: row.from, outAt: row.until });
+  }
+  await onTheTimesheet(ctx, summary, closed.work_date, zone, over).catch((err) => {
+    console.error(`[mobile] day ${closed.id} for org ${ctx.orgId} couldn't reach the timesheet: ${err instanceof Error ? err.message : String(err)}`);
+  });
+  return summary;
+}
+
+/** Stopped days whose Restart has had its two hours, or that have been looked at, sent on, with the phone's press. */
+export async function settleStopped(ctx: MobileCtx, press: Sm8Press | null, now: number = Date.now()): Promise<void> {
+  if (!press) return;
+  const { data } = await supabaseAdmin
+    .from("staff_days")
+    .select(DAY_COLUMNS)
+    .eq("org_id", ctx.orgId)
+    .eq("user_id", ctx.userId)
+    .eq("ended_by", "stop")
+    .is("settled_at", null)
+    .not("off_at", "is", null)
+    .gte("on_at", new Date(now - 14 * 86_400_000).toISOString())
+    .limit(5);
+  for (const row of (data ?? []) as DayRow[]) {
+    if (!settlesNow({ stoppedAt: row.stopped_at ?? null, settledAt: null, seenAt: row.seen_at ?? null, now })) continue;
+    /* claimed first, so two phones' reads never send it twice */
+    const { data: claimed } = await supabaseAdmin
+      .from("staff_days")
+      .update({ settled_at: new Date(now).toISOString() })
+      .eq("org_id", ctx.orgId)
+      .eq("id", row.id)
+      .is("settled_at", null)
+      .select("id");
+    if (!(claimed ?? []).length) continue;
+    await sendDay(ctx, press, row, now);
+  }
+}
+
+/** The stopped day being looked at: yours, a week back at most. */
+async function stoppedRow(ctx: MobileCtx, id: unknown, now: number): Promise<DayRow | null> {
+  if (typeof id !== "string" || !/^[0-9a-f-]{36}$/i.test(id)) return null;
+  const { data } = await supabaseAdmin
+    .from("staff_days")
+    .select(DAY_COLUMNS)
+    .eq("org_id", ctx.orgId)
+    .eq("user_id", ctx.userId)
+    .eq("id", id)
+    .eq("ended_by", "stop")
+    .gte("on_at", new Date(now - 7 * 86_400_000).toISOString())
+    .maybeSingle();
+  const row = (data as DayRow | null) ?? null;
+  return row?.off_at ? row : null;
+}
+
+/** RESTART: the day back on as if it never stopped, held two hours. Within two hours of the stop, before it's sent
+    on. A day the phone says has stopped that HeyTiff hasn't stopped yet is simply held. */
+export async function restartDay(ctx: MobileCtx, id: unknown, now: number = Date.now()): Promise<DayAnswer> {
+  const hold = new Date(now + HOLD_MS).toISOString();
+  const { data: on } = await supabaseAdmin.from("staff_days").select("id").eq("org_id", ctx.orgId).eq("user_id", ctx.userId).is("off_at", null).maybeSingle();
+  if (on) {
+    await supabaseAdmin.from("staff_days").update({ held_until: hold }).eq("org_id", ctx.orgId).eq("id", (on as { id: string }).id);
+    return { ok: true, state: await readDay(ctx, now), said: DAY_WORDS.restarted };
+  }
+  const row = await stoppedRow(ctx, id, now);
+  if (!row) return { ok: false, error: DAY_WORDS.notOn, status: 409 };
+  if (!mayRestart(row.stopped_at ?? null, row.settled_at ?? null, now)) return { ok: false, error: DAY_WORDS.tooLateToRestart, status: 409 };
+  const { error } = await supabaseAdmin
+    .from("staff_days")
+    .update({ off_at: null, ended_by: null, stopped_at: null, seen_at: null, held_until: hold })
+    .eq("org_id", ctx.orgId)
+    .eq("id", row.id)
+    .is("settled_at", null);
+  if (error) return { ok: false, error: DAY_WORDS.already, status: 409 };
+  return { ok: true, state: await readDay(ctx, now), said: DAY_WORDS.restarted };
+}
+
+/** STILL HERE: the day's end moves two hours on, and the stop waits for it. */
+export async function holdDay(ctx: MobileCtx, now: number = Date.now()): Promise<DayAnswer> {
+  const day = await openDay(ctx, now);
+  if (!day) return { ok: false, error: DAY_WORDS.notOn, status: 409 };
+  await supabaseAdmin.from("staff_days").update({ held_until: new Date(now + HOLD_MS).toISOString() }).eq("org_id", ctx.orgId).eq("id", day.id);
+  return { ok: true, state: await readDay(ctx, now), said: "" };
+}
+
+/** HOME: the phone saw you get home, after being away since Clock on. Kept on the day, for the time it stands at. */
+export async function homeAt(ctx: MobileCtx, at: unknown, now: number = Date.now()): Promise<DayAnswer> {
+  const day = await openDay(ctx, now);
+  if (!day) return { ok: false, error: DAY_WORDS.notOn, status: 409 };
+  const t = timeOf(at, now, day.on_at);
+  if (typeof t !== "string") return { ok: false, error: t.error, status: 400 };
+  await supabaseAdmin.from("staff_days").update({ home_at: t }).eq("org_id", ctx.orgId).eq("id", day.id);
+  return { ok: true, state: await readDay(ctx, now), said: "" };
+}
+
+/** A STOPPED DAY LOOKED AT: kept as it stopped, or finished at another time, then sent on. Before it's been sent,
+    the finish just moves; after, each job's time past it comes back off and ServiceM8 is told again, and the
+    timesheet is written over, as only HeyTiff's own stop wrote it. */
+export async function finishStopped(ctx: MobileCtx, press: Sm8Press | null, id: unknown, at: unknown, now: number = Date.now()): Promise<DayAnswer> {
+  const row = await stoppedRow(ctx, id, now);
+  if (!row) return { ok: false, error: DAY_WORDS.notOn, status: 409 };
+  const t = at === undefined || at === null ? row.off_at! : timeOf(at, now, row.on_at);
+  if (typeof t !== "string") return { ok: false, error: t.error, status: 400 };
+  const settled = !!row.settled_at;
+  const moved = t !== row.off_at;
+  if (moved) {
+    const stints = await stintsIn(ctx, row.on_at, null);
+    for (const s of stints) {
+      if (s.inAt >= t) {
+        await supabaseAdmin.from("job_check_ins").delete().eq("org_id", ctx.orgId).eq("user_id", ctx.userId).eq("id", s.id);
+        if (settled) await sendTimeAgain(ctx, press, { id: s.id, jobUuid: s.jobUuid }, null);
+      } else if (s.outAt && s.outAt > t) {
+        await supabaseAdmin.from("job_check_ins").update({ checked_out_at: t }).eq("org_id", ctx.orgId).eq("user_id", ctx.userId).eq("id", s.id);
+        if (settled) await sendTimeAgain(ctx, press, { id: s.id, jobUuid: s.jobUuid }, { ...s, outAt: toQuarter(t) });
+      }
+    }
+  }
+  const office = cutOffice(row.office ?? [], t, "9999-12-31T00:00:00.000Z");
+  const seenAt = new Date(now).toISOString();
+  await supabaseAdmin
+    .from("staff_days")
+    .update({ off_at: t, office, seen_at: seenAt, ...(settled ? {} : { settled_at: seenAt }) })
+    .eq("org_id", ctx.orgId)
+    .eq("id", row.id);
+  const closed: DayRow = { ...row, off_at: t, office, seen_at: seenAt };
+  const zone = await zoneOf(ctx.orgId);
+  if (!settled) await sendDay(ctx, press, closed, now);
+  else if (moved) await sendDay(ctx, null, closed, now, true);
+  return { ok: true, state: await readDay(ctx, now), said: fill(DAY_WORDS.finished, { at: sheetTime(toQuarter(t), zone)?.toLowerCase() ?? "" }) };
+}
+
+/** NOT THIS JOB: never asked about again, on any phone, and off your day if it was on it. */
+export async function skipJob(ctx: MobileCtx, jobUuid: unknown, at: unknown, now: number = Date.now()): Promise<DayAnswer> {
+  const j = jobOf(jobUuid);
+  if (!j) return { ok: false, error: DAY_WORDS.noJob, status: 404 };
+  await supabaseAdmin.from("staff_job_skips").upsert({ org_id: ctx.orgId, user_id: ctx.userId, job_uuid: j.toLowerCase() }, { onConflict: "org_id,user_id,job_uuid" });
+  const day = await openDay(ctx, now);
+  if (day) {
+    const t = timeOf(at, now, day.on_at);
+    if (typeof t === "string") await endCheckIn(ctx.orgId, ctx.userId, t, j).catch(() => null);
+  }
+  return { ok: true, state: await readDay(ctx, now), said: "" };
 }
 
 /* WHERE THE MORNING WATCH SAW YOU ARRIVE, before you clocked on: the office
@@ -462,7 +788,14 @@ export function arrivedOf(raw: unknown, now: number): Arrived | null {
 export async function clockOnDay(ctx: MobileCtx, at: unknown, where: unknown, now: number = Date.now(), arrivedRaw?: unknown): Promise<DayAnswer> {
   const pressed = timeOf(at, now);
   if (typeof pressed !== "string") return { ok: false, error: pressed.error, status: 400 };
-  if (await openDay(ctx)) return { ok: false, error: DAY_WORDS.already, status: 409 };
+  const still = await openDay(ctx, now);
+  if (still) {
+    /* a day left on (three hours past its end) never keeps the next one from starting: it stops where it was last
+       seen, and Today asks about it (day-stop) */
+    const shift = await shiftOf(ctx, still, now);
+    if (!shift.leftOn) return { ok: false, error: DAY_WORDS.already, status: 409 };
+    await stopDay(ctx, still, shift.seen.at, now);
+  }
   const zone = await zoneOf(ctx.orgId);
   const arrived = arrivedOf(arrivedRaw, now);
   const job = arrived && arrived.place !== "office" ? (await jobsOf(ctx.orgId, [arrived.place])).get(arrived.place.toLowerCase()) : undefined;
@@ -511,7 +844,7 @@ export function mayUndo(onAt: string, now: number): boolean {
 }
 
 export async function undoClockOn(ctx: MobileCtx, now: number = Date.now()): Promise<DayAnswer> {
-  const day = await openDay(ctx);
+  const day = await openDay(ctx, now);
   if (!day) return { ok: false, error: DAY_WORDS.notOn, status: 409 };
   if (!mayUndo(day.on_at, now)) return { ok: false, error: DAY_WORDS.tooLateToUndo, status: 409 };
   await supabaseAdmin.from("job_check_ins").delete().eq("org_id", ctx.orgId).eq("user_id", ctx.userId).gte("checked_in_at", day.on_at);
@@ -529,8 +862,8 @@ const leaveOffice = (office: DayStop[], t: string): DayStop[] =>
   office.map((o, i) => (i === office.length - 1 && !o.until ? { ...o, until: t < o.from ? o.from : t } : o));
 
 /** Arrived at a job: its stint starts, and wherever you were ends there. Nothing is sent yet. */
-export async function arriveAt(ctx: MobileCtx, jobUuid: unknown, at: unknown, now: number = Date.now()): Promise<DayAnswer> {
-  const day = await openDay(ctx);
+export async function arriveAt(ctx: MobileCtx, jobUuid: unknown, at: unknown, now: number = Date.now(), reason?: unknown): Promise<DayAnswer> {
+  const day = await openDay(ctx, now);
   if (!day) return { ok: false, error: DAY_WORDS.notOn, status: 409 };
   const t = timeOf(at, now, day.on_at);
   if (typeof t !== "string") return { ok: false, error: t.error, status: 400 };
@@ -539,12 +872,14 @@ export async function arriveAt(ctx: MobileCtx, jobUuid: unknown, at: unknown, no
   if (!job) return { ok: false, error: DAY_WORDS.noJob, status: 404 };
   await startCheckIn(ctx.orgId, ctx.userId, job.jobUuid, t);
   await setOffice(ctx, day, leaveOffice(day.office ?? [], t));
+  /* a job you aren't booked on goes on only once you've said why (Site meeting, Helping out): the answer comes with it */
+  if (reason !== undefined) return setReason(ctx, job.jobUuid, reason, now);
   return { ok: true, state: await readDay(ctx, now), said: `At ${job.number ?? job.where}.` };
 }
 
 /** Left a job, or the office: that stint or stop ends. Leaving somewhere you aren't does nothing. */
 export async function leave(ctx: MobileCtx, jobUuid: unknown, at: unknown, now: number = Date.now()): Promise<DayAnswer> {
-  const day = await openDay(ctx);
+  const day = await openDay(ctx, now);
   if (!day) return { ok: false, error: DAY_WORDS.notOn, status: 409 };
   const t = timeOf(at, now, day.on_at);
   if (typeof t !== "string") return { ok: false, error: t.error, status: 400 };
@@ -558,7 +893,7 @@ export async function leave(ctx: MobileCtx, jobUuid: unknown, at: unknown, now: 
 
 /** At the office: a stop starts (ending any job's stint). */
 export async function atOffice(ctx: MobileCtx, at: unknown, now: number = Date.now()): Promise<DayAnswer> {
-  const day = await openDay(ctx);
+  const day = await openDay(ctx, now);
   if (!day) return { ok: false, error: DAY_WORDS.notOn, status: 409 };
   const t = timeOf(at, now, day.on_at);
   if (typeof t !== "string") return { ok: false, error: t.error, status: 400 };
@@ -610,7 +945,7 @@ export async function changeStint(
   joined?: unknown,
   press: Sm8Press | null = null,
 ): Promise<DayAnswer> {
-  const day = (await openDay(ctx)) ?? (await endedToday(ctx, now));
+  const day = (await openDay(ctx, now)) ?? (await endedToday(ctx, now));
   if (!day) return { ok: false, error: DAY_WORDS.notOn, status: 409 };
   const ended = day.off_at;
   const stintId = typeof id === "string" && /^[0-9a-f-]{36}$/i.test(id) ? id : null;
@@ -671,7 +1006,7 @@ export async function addStint(
   now: number = Date.now(),
   press: Sm8Press | null = null,
 ): Promise<DayAnswer> {
-  const day = (await openDay(ctx)) ?? (await endedToday(ctx, now));
+  const day = (await openDay(ctx, now)) ?? (await endedToday(ctx, now));
   if (!day) return { ok: false, error: DAY_WORDS.notOn, status: 409 };
   const ended = day.off_at;
   const j = jobOf(jobUuid);
@@ -772,7 +1107,7 @@ async function endedToday(ctx: MobileCtx, now: number): Promise<DayRow | null> {
 /** Why you're at a job, on the stint you're on there (or the one you just left), while the day is on.
     A reason the buttons don't give, or none, is plain labour. */
 export async function setReason(ctx: MobileCtx, jobUuid: unknown, reason: unknown, now: number = Date.now()): Promise<DayAnswer> {
-  const day = await openDay(ctx);
+  const day = await openDay(ctx, now);
   if (!day) return { ok: false, error: DAY_WORDS.notOn, status: 409 };
   const j = jobOf(jobUuid);
   if (!j) return { ok: false, error: DAY_WORDS.noJob, status: 404 };
@@ -806,7 +1141,7 @@ function sheetTime(iso: string, zone: string): string | null {
    a day they're rostered on, or they're casual (who have no normal day), and
    never over a day they've already entered by hand. Otherwise nothing is
    written and the normal day stands. */
-async function onTheTimesheet(ctx: MobileCtx, summary: DaySummary, workDate: string, zone: string): Promise<"written" | "normal" | "kept" | "none"> {
+async function onTheTimesheet(ctx: MobileCtx, summary: DaySummary, workDate: string, zone: string, over = false): Promise<"written" | "normal" | "kept" | "none"> {
   const staffId = await staffIdFor(ctx.orgId, ctx.userId).catch(() => null);
   if (!staffId) return "none";
   const { settings } = await getPaySettings(ctx.orgId);
@@ -824,7 +1159,8 @@ async function onTheTimesheet(ctx: MobileCtx, summary: DaySummary, workDate: str
   if (h === null || h <= 0) return "none";
   const week: WeekCtx = { week: t.week, today: t.today, through: t.through, workDays: t.workDays, dayHours: t.me.dayHours };
   const call = sheetCall({
-    entered: t.sources[index] === "entered",
+    /* `over`: a stopped day finished again, whose row only HeyTiff's own stop wrote */
+    entered: !over && t.sources[index] === "entered",
     rostered: expectsWork(week, dowOf(t.week[index])),
     casual: t.employment === "casual",
     hours: h,
@@ -839,7 +1175,7 @@ async function onTheTimesheet(ctx: MobileCtx, summary: DaySummary, workDate: str
     there, the day goes on the timesheet (or the normal day stands), and each
     job ServiceM8 doesn't already have goes to it, to the quarter hour. */
 export async function clockOffDay(ctx: MobileCtx, press: Sm8Press | null, at: unknown, now: number = Date.now()): Promise<DayAnswer> {
-  const day = await openDay(ctx);
+  const day = await openDay(ctx, now);
   if (!day) return { ok: false, error: DAY_WORDS.notOn, status: 409 };
   const t = timeOf(at, now, day.on_at);
   if (typeof t !== "string") return { ok: false, error: t.error, status: 400 };
@@ -878,7 +1214,7 @@ export async function clockOffDay(ctx: MobileCtx, press: Sm8Press | null, at: un
 /* THE PLACES THE PHONE WATCHES FOR, never where the person is: the office,
    today's bookings, and the open jobs it could pass. Each with ServiceM8's
    own geocode where it has one; the phone finds the rest from the address. */
-export async function placesFor(ctx: MobileCtx, now: number = Date.now()): Promise<{ office: string | null; booked: (DayPlace & { start: string; end: string | null })[]; next: (DayPlace & { start: string; end: string | null }) | null; open: DayPlace[] }> {
+export async function placesFor(ctx: MobileCtx, now: number = Date.now()): Promise<{ office: string | null; home: string | null; booked: (DayPlace & { start: string; end: string | null })[]; next: (DayPlace & { start: string; end: string | null }) | null; open: DayPlace[] }> {
   const zone = await zoneOf(ctx.orgId);
   const today = wallMinute(new Date(now).toISOString(), zone)?.slice(0, 10) ?? new Date(now).toISOString().slice(0, 10);
   const { data: org } = await supabaseAdmin.from("organizations").select("address, suburb, state, postcode").eq("id", ctx.orgId).maybeSingle();
@@ -985,9 +1321,24 @@ export async function placesFor(ctx: MobileCtx, now: number = Date.now()): Promi
     visitedBetween(ctx.orgId, from, until),
   ]);
   const visited = visits;
-  const open = ((openJobs ?? []) as (JobRow & { edit_date: string | null })[]).filter((j) => hasLife(j, from, visited));
-  const done = ((doneJobs ?? []) as (JobRow & { completion_date: string | null })[]).filter((j) => finishedLately(j, from));
-  return { office, booked, next, open: [...open, ...done].map(placeOf) };
+  /* NOT THIS JOB, ONCE, IS NEVER ASKED AGAIN (Isaac, 20 November 2026, the day clock fixes): the jobs you've said
+     it to aren't places to drop in at */
+  const [{ data: skips }, home] = await Promise.all([
+    supabaseAdmin.from("staff_job_skips").select("job_uuid").eq("org_id", ctx.orgId).eq("user_id", ctx.userId).limit(2000),
+    homeOf(ctx).catch(() => null),
+  ]);
+  const skipped = new Set(((skips ?? []) as { job_uuid: string }[]).map((s) => s.job_uuid.toLowerCase()));
+  const open = ((openJobs ?? []) as (JobRow & { edit_date: string | null })[]).filter((j) => hasLife(j, from, visited) && !skipped.has(j.uuid.toLowerCase()));
+  const done = ((doneJobs ?? []) as (JobRow & { completion_date: string | null })[]).filter((j) => finishedLately(j, from) && !skipped.has(j.uuid.toLowerCase()));
+  return { office, home, booked, next, open: [...open, ...done].map(placeOf) };
+}
+
+/* HOME, THE ADDRESS ON YOUR CARD (the day clock fixes): getting back there after being away offers Clock off, and a
+   job next door is asked about in that one ask, never on its own. Never where you are: the phone keeps that. */
+async function homeOf(ctx: MobileCtx): Promise<string | null> {
+  const { data } = await supabaseAdmin.from("staff_profiles").select("address").eq("org_id", ctx.orgId).eq("user_id", ctx.userId).maybeSingle();
+  const a = (data as { address: string | null } | null)?.address?.replace(/\s*\n\s*/g, ", ").trim();
+  return a || null;
 }
 
 /** Every job with a visit in the window, read a page at a time: the API answers 1,000 rows at most,

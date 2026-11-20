@@ -66,10 +66,20 @@ const previewsInNode = jest.fn(async (_b: Uint8Array, onProgress?: (d: number, t
   return titles.map((t, i) => ({ n: i + 1, width: 2400, height: 1695, words: words(t), jpeg: "data:image/jpeg;base64,AA==" }));
 });
 const fullInNode = jest.fn(async (_b: Uint8Array, ns: readonly number[]) => ns.map((n) => ({ n, png: Buffer.from("png"), width: 2400, height: 1695, words: words("PLAN") })));
+const pixelsInNode = jest.fn(async (_b: Uint8Array, n: number, times: number) => ({ n, rgba: new Uint8ClampedArray(4), width: 1, height: 1, scale: times, words: [] }));
 jest.mock("../plan-draw-node", () => ({
   previewsInNode: (...a: unknown[]) => previewsInNode(...(a as [Uint8Array])),
   fullInNode: (...a: unknown[]) => fullInNode(...(a as [Uint8Array, number[]])),
+  pixelsInNode: (...a: unknown[]) => pixelsInNode(...(a as [Uint8Array, number, number])),
 }));
+/* measuring: the lower ground has no wall fill, the ground floor measures, level 1 breaks */
+const bed = { name: "Bed 6", named: true, kind: "room", outline: [{ x: 10, y: 10 }, { x: 110, y: 10 }, { x: 110, y: 110 }, { x: 10, y: 110 }], written: "", existing: false, openTo: "", stair: "" };
+const readMeasured = jest.fn(async (_page: unknown, _times: number, o: { floorName: string }) => {
+  if (o.floorName === "Lower ground") return null;
+  if (o.floorName === "Level 1") throw new Error("the model was busy");
+  return { spaces: [bed], problems: [{ kind: "overlap", room: "Bed 6", said: "Bed 6 and WIR overlap." }], walls: { shade: 127, segs: [], grid: { x: [10, 110], y: [10, 110] }, run: 400 }, rounds: 2 };
+});
+jest.mock("@/lib/studio/measured-server", () => ({ readMeasured: (...a: unknown[]) => readMeasured(...(a as [unknown, number, { floorName: string }])) }));
 const readSheet = jest.fn(async (_o: string, s: { floorId: string }) => ({ sheetId: s.floorId, spaces: [{ name: "Living", points: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }] }, { name: "Kitchen", points: [{ x: 100, y: 0 }, { x: 200, y: 0 }, { x: 200, y: 100 }] }] }));
 jest.mock("@/lib/studio/reading-server", () => ({
   READING_MODEL: "claude-opus-5-5",
@@ -77,6 +87,8 @@ jest.mock("@/lib/studio/reading-server", () => ({
   readRoof: async () => ({ said: null }),
   readSite: async () => null,
   readDimensions: async () => [],
+  askWith: async () => ({}),
+  pngBlock: (b: Buffer) => b,
 }));
 
 const fetchMock = jest.fn(async () => new Response("{}"));
@@ -95,6 +107,10 @@ beforeEach(() => {
   previewsInNode.mockClear();
   fullInNode.mockClear();
   readSheet.mockClear();
+  readMeasured.mockClear();
+  pixelsInNode.mockClear();
+  /* the stages before measuring are tried with it off; its own tests turn it on */
+  process.env.PLANS_MEASURED = "0";
   fetchMock.mockClear();
   tables.documents = [{ org_id: "org-1", id: "d-1", file_name: "307 Coonawarra Rd_CDC.pdf", storage_ref: "org-1/d-1.pdf", mime_type: "application/pdf", size_bytes: 11271429, sm8_job_uuid: "job-3570", uploaded_at: "2026-11-19T21:47:52Z" }];
   tables.job_plans = [
@@ -102,7 +118,10 @@ beforeEach(() => {
   ];
 });
 
-afterEach(() => jest.restoreAllMocks());
+afterEach(() => {
+  jest.restoreAllMocks();
+  delete process.env.PLANS_MEASURED;
+});
 
 it("draws the pages in Node, saves the floors it found, and hands the rest on when the stage ran long", async () => {
   const out = await readPlan("org-1", "jplan_1", "https://app.test", client);
@@ -135,4 +154,65 @@ it("picks up where it stopped: the floors drawn in full in Node, saved, then rea
   expect(readSheet.mock.calls.map((c) => (c[1] as { floorId: string }).floorId)).toEqual(["p2", "p3", "p4"]);
   expect(plan().reading).toMatchObject({ failed: [] });
   expect(plan().progress).toMatchObject({ step: "reading", done: 5, total: 5 });
+});
+
+describe("with the floors read by measure, as they are unless PLANS_MEASURED is 0", () => {
+  beforeEach(() => {
+    delete process.env.PLANS_MEASURED;
+  });
+
+  it("measures each floor in a stage of its own, keeps what it found on the page, and hands the read on", async () => {
+    await readPlan("org-1", "jplan_1", "https://app.test", client);
+    clock += 1_000;
+    const out = await readPlan("org-1", "jplan_1", "https://app.test", client);
+    expect(out).toEqual({ ok: true, state: "reading" });
+    /* drawn finer than the raster to measure: an A1 sheet's wall is a few pixels on its raster */
+    expect(pixelsInNode.mock.calls.map((c) => [c[1], c[2]])).toEqual([
+      [2, 2],
+      [3, 2],
+      [4, 2],
+    ]);
+    const walled = Object.fromEntries((plan().pages as { n: number; kind: string; walled?: unknown }[]).filter((p) => p.kind === "floor").map((p) => [p.n, p.walled]));
+    expect(walled[2]).toEqual({ none: "Its walls aren't drawn as a fill, so they couldn't be measured" });
+    expect(walled[3]).toMatchObject({ spaces: [bed], rounds: 2, grid: { x: [10, 110], y: [10, 110] }, look: [{ kind: "overlap" }] });
+    /* a floor that broke is said, and never fails the set */
+    expect(walled[4]).toEqual({ none: "the model was busy" });
+    /* nothing read by picture yet: that is the next run's five minutes */
+    expect(readSheet).not.toHaveBeenCalled();
+    expect(plan().claimed_at).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(plan().progress).toMatchObject({ step: "measuring", done: 3, total: 3 });
+  });
+
+  it("then reads by picture, and a measured floor's rooms are the measured ones with the picture's rooms as a second reader", async () => {
+    for (let i = 0; i < 3; i++) {
+      clock += 1_000;
+      await readPlan("org-1", "jplan_1", "https://app.test", client);
+    }
+    expect(readMeasured).toHaveBeenCalledTimes(3);
+    expect(readSheet).toHaveBeenCalledTimes(3);
+    const floors = (plan().reading as { floors: Record<string, { spaces: { name: string }[]; walled?: { rounds: number; look: { kind: string }[] } }[]> }).floors;
+    expect(floors.p3[0].spaces.map((s) => s.name)).toEqual(["Bed 6"]);
+    expect(floors.p3[0].walled).toMatchObject({ rounds: 2, look: [{ kind: "overlap" }] });
+    /* the floors that couldn't be measured are as the picture read them */
+    expect(floors.p2[0].spaces.map((s) => s.name)).toEqual(["Living", "Kitchen"]);
+    expect(floors.p2[0].walled).toBeUndefined();
+    expect(floors.p4[0].spaces.map((s) => s.name)).toEqual(["Living", "Kitchen"]);
+  });
+
+  it("isn't tried again on a set it has been through", async () => {
+    for (let i = 0; i < 4; i++) {
+      clock += 1_000;
+      await readPlan("org-1", "jplan_1", "https://app.test", client);
+    }
+    expect(readMeasured).toHaveBeenCalledTimes(3);
+  });
+});
+
+it("measures nothing when it is switched off", async () => {
+  await readPlan("org-1", "jplan_1", "https://app.test", client);
+  clock += 1_000;
+  await readPlan("org-1", "jplan_1", "https://app.test", client);
+  expect(readMeasured).not.toHaveBeenCalled();
+  expect(pixelsInNode).not.toHaveBeenCalled();
 });

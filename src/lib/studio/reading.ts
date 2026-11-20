@@ -78,7 +78,16 @@ export type SheetReading = {
   flags: ReadFlag[];
   /** which way plan-up faces, if the plan says, else "" */
   planUp: string;
+  /** set when the spaces were measured off the drawing's own walls and named
+      between them (measured-server.ts), not traced off its picture: the wall
+      lines they stand on, and what a person should still look at */
+  walled?: { grid: { x: number[]; y: number[] }; rounds: number; look: ReadLook[] };
 };
+
+/** Something about a reading a person should look at: a room that sits on no
+    wall, two that overlap, a name written somewhere else, a room only one of
+    two readers found. Said in words, never silently guessed past. */
+export type ReadLook = { kind: "corner" | "overlap" | "label" | "small" | "off_wall" | "shape" | "readers"; room: string; said: string };
 
 /* THE ROOF AND THE HEIGHTS (Isaac, 20 October 2026: "Roof and framing
    should always be done"). Read off the whole drawing set, the elevations,

@@ -17,7 +17,7 @@ import type { Floor, PlanImport, PlanImportSource } from "@/lib/studio/document"
 import { newId } from "@/lib/studio/document";
 import { defaultFloorName, placeSheets, type UploadedSheet } from "@/lib/studio/plans";
 import type { TrimRect } from "@/lib/studio/plan-trim";
-import type { MeasuredScale, PlanReading, PlanWord, ReadPoint, ReadSpace, SheetReading } from "@/lib/studio/reading";
+import type { MeasuredScale, PlanReading, PlanWord, ReadLook, ReadPoint, ReadSpace, SheetReading } from "@/lib/studio/reading";
 import { area, scaleFromWritten, suggestedRooms } from "@/lib/studio/reading";
 export { scaleFromWritten };
 import { andList } from "@/lib/swms/library";
@@ -50,6 +50,10 @@ export type JobPlanPage = {
   words?: PlanWord[];
   /** building millimetres per raster pixel, off the printed scale; null when the title block doesn't say */
   mmPerPx: number | null;
+  /** a floor read by measure (measured-server.ts): its rooms on its own walls,
+      or why it couldn't be (no wall fill to measure). Absent: not tried.
+      (`measured`, further down, is another thing: a scale off printed dimensions.) */
+  walled?: PageWalled;
   /** the scale as printed, "1:100 @ A3", for saying where a scale came from */
   scale: string | null;
   /** the scale off the lengths printed along its dimension lines, for a page
@@ -113,9 +117,12 @@ export type JobPlan = {
   progress?: PlanProgress | null;
 };
 
+/** A floor's rooms measured off its drawing's walls, in the raster's pixels; or `none`, with why. */
+export type PageWalled = { spaces: ReadSpace[]; look: ReadLook[]; grid: { x: number[]; y: number[] }; rounds: number } | { none: string };
+
 /** A read's place: the pages drawn small, the floors found among them,
     the floors drawn in full, then each floor read with the roof and the site. */
-export type PlanProgress = { step: "drawing" | "finding" | "floors" | "reading"; done: number; total: number };
+export type PlanProgress = { step: "drawing" | "finding" | "floors" | "measuring" | "reading"; done: number; total: number };
 
 /** The bar under a plan being read: how far along, and in words. Each step
     has its share of the bar, the reading the most since it takes longest.
@@ -131,8 +138,10 @@ export function planProgressOf(p: PlanProgress | null | undefined): { percent: n
       return { percent: 38, words: "Finding the floors" };
     case "floors":
       return { percent: Math.round(40 + 10 * part), words: p.total > 0 ? `Drawing the floors in full, ${of}` : "Drawing the floors in full" };
+    case "measuring":
+      return { percent: Math.round(50 + 14 * part), words: p.done >= p.total ? "Rooms set on the walls" : `Measuring the walls and naming the rooms, ${p.done} of ${p.total} floors done` };
     case "reading":
-      return { percent: Math.round(50 + 48 * part), words: p.done >= p.total ? "Putting the read together" : `Reading the floors, roof and site, ${p.done} of ${p.total} done` };
+      return { percent: Math.round(64 + 34 * part), words: p.done >= p.total ? "Putting the read together" : `Reading the floors, roof and site, ${p.done} of ${p.total} done` };
   }
 }
 

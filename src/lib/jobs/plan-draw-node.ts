@@ -124,3 +124,25 @@ export async function fullInNode(bytes: Uint8Array, numbers: readonly number[], 
     close();
   }
 }
+
+export type PagePixels = { n: number; rgba: Uint8ClampedArray; width: number; height: number; scale: number; words: { text: string; at: { x: number; y: number } }[] };
+
+/** One page drawn at `times` its full drawing's size, as bare pixels with
+    its words placed on them: what the walls are measured off
+    (lib/studio/measure). Finer than the full drawing, since a wall on an A1
+    sheet's full drawing is only six or eight pixels thick. */
+export async function pixelsInNode(bytes: Uint8Array, n: number, times: number): Promise<PagePixels> {
+  const { napi, doc, close } = await open(bytes);
+  try {
+    const page = await doc.getPage(n);
+    const base = page.getViewport({ scale: 1 });
+    const scale = fullScale(base.width) * times;
+    const { canvas, ctx, viewport } = await drawn(napi, page, scale);
+    const words = await wordsOf(page, viewport);
+    const rgba = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    page.cleanup();
+    return { n, rgba, width: canvas.width, height: canvas.height, scale, words };
+  } finally {
+    close();
+  }
+}

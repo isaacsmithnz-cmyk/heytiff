@@ -3,7 +3,7 @@
 import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
 import { staffProfileIdFor } from "@/lib/fleet/query";
-import { addJobPlans, choosePlanFloors, keepSubfloorHeight, planPageForScale, readJobPlans, setPlanScale, type AddPlansResult, type PageForScale } from "@/lib/jobs/plans-server";
+import { addJobPlans, choosePlanFloors, readPlanAgain, keepSubfloorHeight, planPageForScale, readJobPlans, setPlanScale, type AddPlansResult, type PageForScale } from "@/lib/jobs/plans-server";
 import type { JobPlanRead, PlanPick } from "@/lib/jobs/plans";
 import type { LinkPlansResult } from "@/lib/jobs/plans-link-server";
 
@@ -44,6 +44,16 @@ export async function addPlansToJob(jobUuid: string, picks: readonly PlanPick[])
   }
   if (clean.length === 0) return { ok: false, error: "Nothing was picked." };
   return addJobPlans(ctx.orgId, job, clean, ctx.staffId);
+}
+
+/** A plan that couldn't be read, put back to be read; null once it is, or
+    the reason. The caller then asks the read route for it. */
+export async function readPlanAgainOnJob(jobUuid: string, planId: string): Promise<string | null> {
+  const ctx = await context();
+  const job = trim(jobUuid);
+  const plan = trim(planId);
+  if (!ctx || !job || !plan) return "You can't read plans on jobs.";
+  return (await readPlanAgain(ctx.orgId, job, plan)) ? null : "That plan isn't waiting to be read again.";
 }
 
 const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);

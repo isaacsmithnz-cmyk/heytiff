@@ -10382,6 +10382,33 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
 .dstudio .ds-stack-row.press { cursor: pointer; }
 .dstudio .ds-stack-row.press:hover { background: var(--hov); }
 .dstudio .ds-stack-row.lit, .dstudio .ds-stack-row.lit:hover { background: var(--sel); }
+/* the column as a phone screen (the bar and panel mock, "Yes, build it", 21
+   November 2026): a screen's one action top right in blue words, rows that
+   are actions in blue, a row that's wrong or ends something in red, the
+   figure a row is for in ink, and a unit's drag handle at its row's end */
+.dstudio .ds-stack-nav { display: flex; align-items: center; justify-content: space-between; min-height: 32px; margin: -4px 0 4px; }
+.dstudio .ds-stack-nav .ds-stack-back { margin: 0 0 0 -4px; }
+.dstudio .ds-stack-navact { height: 32px; padding: 0 4px; margin-right: -4px; border: none; background: none; border-radius: var(--r-control); font: 600 14px/20px var(--font); color: var(--press); cursor: pointer; }
+.dstudio .ds-stack-navact:hover { background: var(--hov); }
+.dstudio .ds-stack-row.blue .ds-stack-row-t { color: var(--press); font-weight: 600; }
+.dstudio .ds-stack-row.blue > svg, .dstudio .ds-stack-row.blue .ds-stack-lead { color: var(--press); }
+.dstudio .ds-stack-row.danger .ds-stack-row-t { color: var(--bad-t); font-weight: 600; }
+.dstudio .ds-stack-row-v.ink { color: var(--ink); font-weight: 600; }
+.dstudio .ds-stack-row.drag { cursor: grab; }
+.dstudio .ds-stack-grip { flex: none; display: inline-flex; color: var(--q); }
+.dstudio .ds-stack-lead { flex: none; display: inline-flex; width: 24px; justify-content: center; color: var(--q); }
+.dstudio .ds-stack-lead.unit { color: var(--ds-unit, var(--q)); }
+.dstudio .ds-stack-look { color: var(--warn-t); font-weight: 600; }
+.dstudio .ds-stack-row:has(.ds-stack-row-s):not(.ds-syp *) .ds-stack-row-v.look,
+.dstudio .ds-stack-row:has(.ds-stack-row-s):not(.ds-syp *) .ds-stack-row-v.ink { flex: none; white-space: nowrap; }
+.dstudio .ds-stack-row:has(.ds-stack-row-s):not(.ds-syp *):has(.ds-stack-row-v.look) .ds-stack-row-l,
+.dstudio .ds-stack-row:has(.ds-stack-row-s):not(.ds-syp *):has(.ds-stack-row-v.ink) .ds-stack-row-l { flex: 1 1 auto; min-width: 0; }
+.dstudio .ds-zone { display: contents; }
+.dstudio .ds-stack-titlein { width: 100%; min-width: 0; height: 32px; padding: 0; border: none; border-radius: var(--r-control); background: none; font: 600 24px/32px var(--font); color: var(--ink); }
+.dstudio .ds-stack-titlein:focus { outline: none; box-shadow: var(--ring); }
+.dstudio .ds-zone .ds-stack-row { flex-wrap: wrap; }
+.dstudio .ds-zone .ds-stack-row > .pt-tray { margin-left: auto; }
+.dstudio .ds-stack-quote { flex: none; width: 24px; height: 24px; display: grid; place-items: center; border: 2px solid var(--orange); border-radius: var(--r-control); color: var(--orange); font: 600 16px/16px var(--font); }
 .dstudio .ds-stack-row.press:focus-visible { outline: none; box-shadow: inset var(--ring); }
 .dstudio .ds-stack-row-l { flex: 1 1 40%; min-width: 96px; display: flex; flex-direction: column; }
 .dstudio .ds-stack-row-t { font: 500 14px/20px var(--font); overflow: hidden; white-space: nowrap; }

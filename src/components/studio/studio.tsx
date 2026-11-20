@@ -1552,6 +1552,8 @@ function Editor({
      Shift to join */
   const [roomsOpen, setRoomsOpen] = useState(false);
   const [picked, setPicked] = useState<string[]>([]);
+  /* Zones' Combine: a tick on each zone, here or on the plan */
+  const [combining, setCombining] = useState(false);
   /* every room Tiff found on the plan, or the living spaces only */
   const [showAllFound, setShowAllFound] = useState(false);
   const promptedFloors = useRef<Set<string>>(new Set());
@@ -1734,6 +1736,7 @@ function Editor({
     mutate(() => made.doc);
     setTool((t) => (t === "claim" ? "select" : t));
     setActiveSystemId(made.systemId);
+    return made.systemId;
   }, [mutate, packVersion]);
   const onBuildSystem = useCallback((systemId: string) => {
     setActiveSystemId(systemId);
@@ -2399,6 +2402,11 @@ function Editor({
               setPickedSpace(kind);
             }}
             onSelect={(id) => {
+              /* Combine is on: a zone clicked on the plan is ticked, not opened */
+              if (combining && id && doc.objects.some((o) => o.id === id && o.type === "room")) {
+                setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
+                return;
+              }
               setPickedSpace(null);
               setSelectedId(id);
               const held = id ? doc.objects.find((x) => x.id === id) : undefined;
@@ -2572,6 +2580,10 @@ function Editor({
               showAll={showAllFound}
               onShowAll={setShowAllFound}
               picked={picked}
+              onPick={setPicked}
+              combining={combining}
+              onCombining={setCombining}
+              onPutBack={(ids) => mutate((d) => putBack(d, ids))}
               onKeep={(keys) => {
                 const floorId = activeFloor.id;
                 /* the column stays open once its first room is kept */
@@ -2585,13 +2597,14 @@ function Editor({
               onJoin={() => {
                 const ids = picked;
                 setPicked([]);
+                setCombining(false);
                 mutate((d) => joinRooms(d, pack, ids));
                 setSelectedId(ids[0]);
               }}
               onApart={() => setPicked([])}
-              onDraw={() => changeTool("room-rect")}
               onDone={() => {
                 setPicked([]);
+                setCombining(false);
                 setRoomsOpen(false);
               }}
             />
@@ -2601,10 +2614,18 @@ function Editor({
               pack={pack}
               basis={doc.settings.sizingBasis}
               systemId={effectiveSystemId}
-              next={next}
-              onNext={onNext}
               claiming={claiming === effectiveSystemId}
-              onBack={() => setSystemOpen(false)}
+              onBack={() => {
+                if (claiming) changeTool("select");
+                setSystemOpen(false);
+              }}
+              onToggleZone={(zoneId, on) => {
+                const sysId = effectiveSystemId;
+                const owner = doc.systems.find((x) => x.id !== sysId && zoneIdsOf(x).includes(zoneId));
+                if (!on) onRemoveZone(zoneId, sysId);
+                else if (owner) onMoveZone(zoneId, owner.id, sysId);
+                else onClaimZone(zoneId, sysId);
+              }}
               onOpenRoom={openRoom}
               litRoomId={heldRoomId === selectedId ? heldRoomId : null}
               onAddZones={() => startClaim(effectiveSystemId)}
@@ -2619,18 +2640,17 @@ function Editor({
               doc={doc}
               pack={pack}
               basis={doc.settings.sizingBasis}
-              next={next}
-              onNext={onNext}
               onOpen={(id) => {
                 setActiveSystemId(id);
                 setSystemOpen(true);
               }}
               onAddSystem={() => {
-                onAddSystem();
+                const id = onAddSystem();
                 setSystemOpen(true);
+                /* its zones, picked with a switch each or on the plan */
+                startClaim(id);
               }}
               onOpenRooms={() => setRoomsOpen(true)}
-              onOpenRoom={setSelectedId}
               onAddVariant={onAddVariant}
               onSwitchVariant={onSwitchVariant}
               onRenameVariant={onRenameVariant}
@@ -2640,7 +2660,6 @@ function Editor({
                 mutate((d) => addQuotedOption(d, pack, d.settings.sizingBasis, o).doc);
               }}
               onLeaveOut={(ids) => mutate((d) => leaveOut(d, ids))}
-              onPutBack={(ids) => mutate((d) => putBack(d, ids))}
             />
           ) : (
           <SystemsPanel

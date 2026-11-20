@@ -81,6 +81,18 @@ describe("a floor read by measure", () => {
     expect(out.spaces).toHaveLength(2);
   });
 
+  it("looks a third time when the second answer still fails a check, and not when its time is spent", async () => {
+    const OVER = room("Lounge", "x0,y0 x2,y0 x2,y1 x0,y1");
+    const answers = [{ rooms: [OVER, BED, room("Robe", "x0,y0 x1,y0 x1,y1 x0,y1")] }, { right_as_drawn: false, rooms: [OVER, BED] }, { right_as_drawn: false, rooms: [LOUNGE, BED] }];
+    let n = 0;
+    const ask: AskMeasured = async () => answers[n++];
+    const out = (await readMeasured(page(), 1, { floorName: "g", mmPerPx: 20, ask }))!;
+    expect([n, out.rounds, out.problems.length]).toEqual([3, 3, 0]);
+    n = 0;
+    const hurried = (await readMeasured(page(), 1, { floorName: "g", mmPerPx: 20, ask, budgetMs: -1 }))!;
+    expect([n, hurried.rounds, hurried.problems.length]).toEqual([2, 2, 1]);
+  });
+
   it("comes back in the sheet's own pixels when the floor was drawn finer to measure", async () => {
     const ask: AskMeasured = async (_p, _t, schema) => (schema === MEASURED_SCHEMA ? { rooms: [LOUNGE] } : { right_as_drawn: true, rooms: [] });
     const out = (await readMeasured(page(), 2, { floorName: "g", mmPerPx: 40, ask }))!;

@@ -144,6 +144,18 @@ describe("what a reading is checked for", () => {
       snap([room("Bed", "x1,y0 x2,y0 x2,y1 x1,y1")], words).problems,
     ).toEqual([]);
   });
+  it("a name the plan writes inside a room that isn't its own", () => {
+    /* HALL is written in the left room, which was given as the Bath; the Hall was set on the right */
+    const words = [{ text: "HALL", at: { x: 250, y: 300 } }];
+    const { problems } = snap([room("Bath", "x0,y0 x1,y0 x1,y1 x0,y1", { kind: "wet", named: false }), room("Hall", "x1,y0 x2,y0 x2,y1 x1,y1", { kind: "circulation" })], words);
+    expect(problems.map((p) => p.said)).toContain('Bath: the plan writes "HALL" inside it, which is Hall\'s name. One of the two is set round the wrong space.');
+    /* two ensuites each with ENSUITE written in it are no such thing */
+    const two = [
+      { text: "ENSUITE", at: { x: 250, y: 300 } },
+      { text: "ENSUITE", at: { x: 550, y: 300 } },
+    ];
+    expect(snap([room("Ensuite", "x0,y0 x1,y0 x1,y1 x0,y1", { kind: "wet" }), room("Ensuite (Bed 2)", "x1,y0 x2,y0 x2,y1 x1,y1", { kind: "wet" })], two).problems).toEqual([]);
+  });
   it("corners that aren't corners, or that enclose nothing: said, and the room left out", () => {
     const { spaces, problems } = snap([
       room("Lounge", "between the walls"),
@@ -173,6 +185,9 @@ describe("two readings of one floor", () => {
   it("pair off by where the rooms are, nearest first, whatever they are called", () => {
     const a = [sq("Bed 1", 0, 0), sq("Ensuite", 200, 0), sq("Ensuite", 600, 0), sq("Study", 400, 400)];
     const b = [sq("BED 1", 10, 10), sq("Ensuite (Bed 2)", 610, 5), sq("Ens", 205, 5), sq("Robe", 0, 400)];
-    expect(agreement(a, b)).toEqual({ agree: 3, named: 2, onlyA: ["Study"], onlyB: ["Robe"] });
+    const out = agreement(a, b);
+    expect(out).toMatchObject({ agree: 3, named: 2, onlyA: ["Study"], onlyB: ["Robe"] });
+    /* the same space called two things: "Ensuite" and "Ens" */
+    expect(out.differ.map((d) => [d.a.name, d.b.name])).toEqual([["Ensuite", "Ens"]]);
   });
 });

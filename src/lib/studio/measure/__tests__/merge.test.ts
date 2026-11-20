@@ -41,6 +41,10 @@ describe("the measured rooms into a sheet's reading", () => {
     const out = withMeasured(pic, measured([sq("Lounge", 0, 0)]), "p2");
     expect(out.walled!.look).toEqual([{ kind: "readers", room: "Ensuite", said: "Ensuite: a second read of the plan found this room and the measured one didn't. Check it isn't missing." }]);
   });
+  it("say a room the two reads name differently, when the plan writes both names", () => {
+    const out = withMeasured(picture([sq("Grand Hall", 5, 5), sq("Store", 300, 0, "cupboard")]), measured([sq("Washroom", 0, 0, "wet"), { ...sq("Cupboard", 300, 0, "cupboard"), named: false }]), "p2");
+    expect(out.walled!.look).toEqual([{ kind: "readers", room: "Washroom", said: "Washroom: a second read of the plan calls this room Grand Hall. Check which it is." }]);
+  });
   it("stand alone when the picture read failed", () => {
     const out = withMeasured(null, measured([sq("Lounge", 0, 0)]), "p2");
     expect(out).toMatchObject({ sheetId: "p2", openings: [], planUp: "" });

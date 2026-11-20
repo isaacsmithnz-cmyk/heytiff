@@ -349,6 +349,26 @@ export function snapRooms(
         });
     }
 
+  /* a name written inside a room that isn't its own: the plan's GRAND HALL
+     lying in what was given as the washroom (3570's ground floor, where the
+     curved walls round the hall leave few lines to stand rooms between) */
+  if (words.length)
+    for (const { room, centre } of set) {
+      if (NO_WALLS.includes(room.kind)) continue;
+      for (const other of set) {
+        if (other.room === room || !other.room.named) continue;
+        const first = norm(other.room.name.split(/[\s,/&]+/)[0] ?? "");
+        if (first.length < 3 || norm(room.name).includes(first)) continue;
+        const named = words.filter((w) => norm(w.text) === first);
+        /* its own room holds its name somewhere: then the word in here is another of the same */
+        if (named.some((w) => inside(w.at, other.centre))) continue;
+        const stray = named.find((w) => inside(w.at, centre));
+        if (!stray) continue;
+        problems.push({ kind: "label", room: room.name, said: `${room.name}: the plan writes "${stray.text}" inside it, which is ${other.room.name}'s name. One of the two is set round the wrong space.` });
+        break;
+      }
+    }
+
   const spaces = set.map(({ room, centre }): ReadSpace => ({
     name: room.name,
     named: room.named,
@@ -372,7 +392,7 @@ export function snapRooms(
     much the smaller part of an open plan. `named` counts the pairs whose
     names also share their first word. Used to hold a second reader's rooms
     against the first's, and a reading against an answer key. */
-export function agreement(a: readonly ReadSpace[], b: readonly ReadSpace[]): { agree: number; named: number; onlyA: string[]; onlyB: string[] } {
+export function agreement(a: readonly ReadSpace[], b: readonly ReadSpace[]): { agree: number; named: number; onlyA: string[]; onlyB: string[]; differ: { a: ReadSpace; b: ReadSpace }[] } {
   const first = (s: string) => (s.toUpperCase().match(/[A-Z0-9]+/g) ?? [""])[0];
   const mid = (o: readonly ReadPoint[]): ReadPoint => ({ x: o.reduce((n, p) => n + p.x, 0) / o.length, y: o.reduce((n, p) => n + p.y, 0) / o.length });
   const A = a.filter((s) => (s.outline?.length ?? 0) >= 3);
@@ -391,12 +411,16 @@ export function agreement(a: readonly ReadSpace[], b: readonly ReadSpace[]): { a
   const usedB = new Set<number>();
   let agree = 0;
   let named = 0;
+  /* the same space, each middle in the other's outline, called two things */
+  const differ: { a: ReadSpace; b: ReadSpace }[] = [];
   for (const p of pairs) {
     if (usedA.has(p.i) || usedB.has(p.j)) continue;
     usedA.add(p.i);
     usedB.add(p.j);
     agree++;
     if (first(A[p.i].name) === first(B[p.j].name)) named++;
+    else if (p.in === 2) differ.push({ a: A[p.i], b: B[p.j] });
   }
-  return { agree, named, onlyA: A.filter((_, i) => !usedA.has(i)).map((s) => s.name), onlyB: B.filter((_, j) => !usedB.has(j)).map((s) => s.name) };
+  return { agree, named, onlyA: A.filter((_, i) => !usedA.has(i)).map((s) => s.name), onlyB: B.filter((_, j) => !usedB.has(j)).map((s) => s.name),
+    differ };
 }

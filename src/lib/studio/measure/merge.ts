@@ -41,6 +41,14 @@ export function withMeasured(picture: SheetReading | null, m: MeasuredRooms, she
     for (const name of [...new Set(missed.map((s) => s.name))])
       look.push({ kind: "readers", room: name, said: `${name}: a second read of the plan found this room and the measured one didn't. Check it isn't missing.` });
   }
+  if (picture) {
+    /* one space, two names: a walled room the second read calls something
+       else, when the plan writes both names (a reader's own label for an
+       unnamed cupboard is no disagreement) */
+    for (const d of agreement(m.spaces, picture.spaces).differ)
+      if (WALLED.has(d.a.kind) && WALLED.has(d.b.kind) && d.a.named && d.b.named)
+        look.push({ kind: "readers", room: d.a.name, said: `${d.a.name}: a second read of the plan calls this room ${d.b.name}. Check which it is.` });
+  }
   const base: SheetReading = picture ?? { sheetId, spaces: [], openings: [], marks: [], furniture: [], checklist: [], flags: [], planUp: "" };
   return { ...base, spaces: m.spaces, walled: { grid: m.grid, rounds: m.rounds, look } };
 }

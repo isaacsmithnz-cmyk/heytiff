@@ -27,6 +27,11 @@ export type AskMeasured = (
   maxTokens: number,
 ) => Promise<Raw>;
 
+/** A third look is only taken when the read has this much of its time left:
+    the stage it runs in (plans-server.ts) has the route's five minutes less
+    a head start, and a look is a minute or more on a big floor. */
+const LOOK_AGAIN_MS = 140_000;
+
 export type FinePage = {
   rgba: Uint8Array | Uint8ClampedArray;
   width: number;
@@ -39,7 +44,7 @@ export type MeasuredSheet = {
   /** what the checks still find after her second look: for a person to look at */
   problems: Problem[];
   walls: Walls;
-  /** 1 when her first answer stood, 2 when she changed it on looking again */
+  /** 1 when her first answer stood, one more each time she changed it on looking again */
   rounds: number;
 };
 
@@ -320,8 +325,9 @@ export async function picture(
 export async function readMeasured(
   page: FinePage,
   times: number,
-  opts: { floorName: string; mmPerPx: number | null; ask: AskMeasured },
+  opts: { floorName: string; mmPerPx: number | null; ask: AskMeasured; budgetMs?: number },
 ): Promise<MeasuredSheet | null> {
+  const started = Date.now();
   const mm = opts.mmPerPx ? opts.mmPerPx / times : null;
   const walls = findWalls(page.rgba, page.width, page.height, mm);
   if (!walls) return null;
@@ -353,21 +359,17 @@ export async function readMeasured(
   let rounds = 1;
 
   /* her own rooms drawn over the plan, and what the checks found: a second
-     look. A second answer is kept only when it checks no worse than the first */
-  const again = await opts
-    .ask(
-      [await picture(page, f, walls, set.spaces)],
-      reviewPrompt(opts.floorName, f.ow, f.oh, set.problems),
-      REVIEW_SCHEMA,
-      16000,
-    )
-    .catch(() => null);
-  if (again && again.right_as_drawn !== true) {
+     look, and a third when the second still leaves something the checks
+     find and there is time. An answer is kept only when it checks no worse
+     than the one before it */
+  for (let look = 1; look <= 2; look++) {
+    if (look === 2 && (!set.problems.length || Date.now() - started > (opts.budgetMs ?? LOOK_AGAIN_MS))) break;
+    const again = await opts.ask([await picture(page, f, walls, set.spaces)], reviewPrompt(opts.floorName, f.ow, f.oh, set.problems), REVIEW_SCHEMA, 16000).catch(() => null);
+    if (!again || again.right_as_drawn === true) break;
     const fixed = snapRooms(roomsOf(again), walls, z, back);
-    if (fixed.spaces.length && fixed.problems.length <= set.problems.length) {
-      set = fixed;
-      rounds = 2;
-    }
+    if (!fixed.spaces.length || fixed.problems.length > set.problems.length) break;
+    set = fixed;
+    rounds++;
   }
 
   const P = (p: ReadPoint): ReadPoint => ({

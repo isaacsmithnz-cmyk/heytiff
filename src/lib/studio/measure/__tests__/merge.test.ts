@@ -1,5 +1,5 @@
 import type { ReadSpace, SheetReading } from "../../reading";
-import { withMeasured } from "../merge";
+import { setAside, withMeasured } from "../merge";
 
 const sq = (name: string, x: number, y: number, kind: ReadSpace["kind"] = "room"): ReadSpace => ({
   name,
@@ -45,5 +45,19 @@ describe("the measured rooms into a sheet's reading", () => {
     const out = withMeasured(null, measured([sq("Lounge", 0, 0)]), "p2");
     expect(out).toMatchObject({ sheetId: "p2", openings: [], planUp: "" });
     expect(out.spaces).toHaveLength(1);
+  });
+  it("are set aside, and the picture's rooms kept, when they plainly came out worse", () => {
+    const pic = picture([sq("Lounge", 0, 0), sq("Bed 1", 200, 0), sq("Bed 2", 400, 0), sq("Bath", 600, 0, "wet"), sq("Robe", 800, 0, "cupboard")]);
+    /* two rooms where the picture found five */
+    const few = measured([sq("Lounge", 0, 0), sq("Bed 1", 200, 0)]);
+    expect(setAside(pic, few)).toBe("it found 2 walled rooms where the read by picture found 5");
+    const out = withMeasured(pic, few, "p2");
+    expect(out.spaces).toHaveLength(5);
+    expect(out.walled!.look).toEqual([{ kind: "readers", room: "", said: "The rooms were also measured off the walls, and that read was set aside: it found 2 walled rooms where the read by picture found 5." }]);
+    /* or a pile of rooms that overlap or sit on no wall */
+    const messy = { ...measured([sq("A", 0, 0), sq("B", 200, 0), sq("C", 400, 0), sq("D", 600, 0), sq("E", 800, 0)]), look: ["A", "B", "C"].map((room) => ({ kind: "overlap" as const, room, said: "" })) };
+    expect(setAside(pic, messy)).toBe("3 of its 5 rooms overlapped or sat on no wall");
+    /* a couple of things to look at on a big floor is no reason */
+    expect(setAside(pic, { ...messy, look: messy.look.slice(0, 2) })).toBeNull();
   });
 });

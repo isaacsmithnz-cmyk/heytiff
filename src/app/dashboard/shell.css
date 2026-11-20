@@ -5785,7 +5785,15 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    high, set, not stretched to the words: a picture drawn at its height, in a
    card that takes its height from what's beside it, sized each from the
    other and the head stood 536 high (live, 16 November 2026). With no map,
-   the words' card runs the width. */
+   the words' card runs the width.
+   LINED UP (bug 52, Isaac, 20 November 2026: "map misaligned, latest
+   updates, plans and designs too"): the map is the head's right column, as
+   wide as the Scope tab's column under it (--jp-side, Scope's 380), and as
+   tall as the words' card beside it, rule 31's "the same height". Its width
+   is set, so its height can follow the words with no loop; the picture is
+   asked for at the card's size (job-facts.tsx JobHeadMap) and covers it
+   while a new one comes. */
+.fg .jp-sheet { --jp-side:380px; }
 .fg .jp-top--site { align-items:flex-start; }
 .fg .jp-words { flex:1 1 0; min-width:0; display:flex; flex-direction:column; justify-content:center; gap:8px; min-height:120px; box-sizing:border-box; padding:16px 24px; border-radius:var(--r-card); background:var(--paper); box-shadow:var(--shadow-card); }
 .fg .jp-words > .jp-id { flex:none; }
@@ -5794,8 +5802,8 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jp-addr b { font-weight:600; }
 .fg .jp-addr span { color:var(--q); }
 .fg .jp-site .jov-po { margin:0; }
-.fg .jp-map { flex:none; align-self:flex-start; display:flex; height:120px; border-radius:var(--r-card); background:var(--soft); box-shadow:var(--shadow-card); overflow:hidden; }
-.fg .jp-map img { display:block; width:auto; height:100%; }
+.fg .jp-map { position:relative; flex:none; align-self:stretch; display:block; width:var(--jp-side); min-height:120px; border-radius:var(--r-card); background:var(--soft); box-shadow:var(--shadow-card); overflow:hidden; }
+.fg .jp-map img { position:absolute; inset:0; display:block; width:100%; height:100%; object-fit:cover; }
 .fg .jp-map:focus-visible { outline:none; box-shadow:var(--ring); }
 /* Actions at the right end of the tabs' row, under the map, standing on the tabs' line */
 .fg .jp-tabrow { position:relative; }
@@ -5826,6 +5834,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jp-sheet .jcl-step.on { background:var(--sel); }
 @media (max-width:900px) {
   .fg .jp-top { flex-direction:column; }
+  .fg .jp-map { width:auto; }
   .fg .jp-acts { flex-wrap:wrap; }
 }
 
@@ -6142,17 +6151,24 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    with no Scope has its Summary across both. */
 .fg .wrap.jp:has(.jp-fit:not([hidden])) { padding-bottom:16px; }
 .fg .jp-fit[hidden] { display:none; }
-.fg .jov.jst { display:grid; grid-template-columns:minmax(0,1fr) 380px; gap:16px; align-items:start; }
+.fg .jov.jst { display:grid; grid-template-columns:minmax(0,1fr) var(--jp-side, 380px); gap:16px; align-items:start; }
 .fg .jov.jst--one { grid-template-columns:minmax(0,1fr); }
 .fg .jst-brief { display:flex; flex-direction:column; min-height:0; height:var(--fit-h, auto); }
 .fg .jst-brief > .jov-sec { flex:1 1 auto; min-height:0; overflow:auto; }
 .fg .jst--one > .jov-sec { height:var(--fit-h, auto); overflow:auto; }
 .fg .jst-rail { display:flex; flex-direction:column; gap:16px; min-height:0; max-height:var(--fit-h, none); }
 .fg .jst-rail > .jov-sec { flex:0 1 auto; min-height:0; overflow:auto; }
+/* what's said gives way first, never under 120, so a short Plans or Designs
+   keeps its foot inside its card (bug 52) */
+.fg .jst-rail > .jov-sec:has(~ .wb2-jcface:not([hidden])) { flex-shrink:8; min-height:120px; }
 /* the job's plans and designs under the column (Isaac, 15 November 2026:
    "Plans move too"), cards as the Scope's own are */
 .fg .jst-rail > .wb2-jcface { flex:0 1 auto; min-height:0; overflow:auto; padding:12px 16px; border-radius:var(--r-card); background:var(--paper); box-shadow:var(--shadow-card); }
 .fg .jst-rail > .wb2-jcface[hidden] { display:none; }
+/* nothing there yet in the rail's short cards sits in the middle of what's
+   under the heading, as on Home (rule 40), not 48 down and out of sight
+   below the card's foot (bug 52: "plans and designs too") */
+.fg .jst-rail .pt-empty { min-height:0; padding:16px; }
 .fg .jst .jsc { max-width:none; }
 /* To do: a task's tick, and its words as the door to its own form (Isaac, 24 October 2026) */
 .fg .jov-task { justify-content:flex-start; align-items:flex-start; gap:8px; padding:8px 0; }

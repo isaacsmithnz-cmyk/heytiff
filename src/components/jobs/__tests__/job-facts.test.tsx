@@ -70,6 +70,24 @@ it("makes the head's map the directions to the site, in a new tab, its wide pict
   expect(directionsHref("8/36 Abbott Road\nSeven Hills NSW 2147")).toBe("https://www.google.com/maps/dir/?api=1&destination=8%2F36%20Abbott%20Road%2C%20Seven%20Hills%20NSW%202147");
 });
 
+/* bug 52 (Isaac, 20 November 2026: "map misaligned"): the map's card is the
+   head's right column and the words' card's height, so its picture is asked
+   for at the card's size */
+it("asks for the head's picture at the size its card stands at", () => {
+  const w = jest.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(380);
+  const h = jest.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(164);
+  try {
+    render(<JobHeadMap jobUuid="job-3521" hue="orange" address="807/22 Sir John Young Crescent, Woolloomooloo NSW" />);
+    const img = screen.getByRole("link", { name: /Directions to/ }).querySelector("img");
+    expect(img).toHaveAttribute("src", "/api/workboard/job-map?job=job-3521&hue=orange&shape=head&w=380&h=164");
+    expect(img).toHaveAttribute("width", "380");
+    expect(img).toHaveAttribute("height", "164");
+  } finally {
+    w.mockRestore();
+    h.mockRestore();
+  }
+});
+
 it("puts who to ring in Contact a line each, their numbers and email dropping down when pressed, and Edit only where it saves", async () => {
   const onEditContact = jest.fn();
   const { unmount } = render(<JobFacts {...base} />);

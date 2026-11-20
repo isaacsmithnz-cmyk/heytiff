@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { JobScope } from "../job-scope";
+import { JobScopeTab } from "../job-scope-tab";
 import type { JobScopeRead } from "@/lib/jobs/job-scope";
 
 /* The scope at the top of a job's Overview, as a written brief (layout B,
@@ -224,3 +225,19 @@ it("draws the brief alone from its second sentence, and the rail alone", () => {
   expect(screen.queryByRole("region", { name: "Scope" })).toBeNull();
   expect(screen.getByRole("region", { name: "Latest updates" })).toBeInTheDocument();
 });
+
+/* Tiff at work on the scope, said at its top, scope or none (Isaac, 21 November 2026: "there was no indication of it doing anything") */
+it("says at the Scope's top what Tiff is doing to it, and nothing when she isn't", () => {
+  const summary = { fromQuote: null, description: "", read: true };
+  const { unmount } = render(<JobScopeTab scope={scope()} summary={summary} busy="Updating the scope from the plans" />);
+  expect(screen.getByRole("status")).toHaveTextContent("Updating the scope from the plans");
+  unmount();
+  render(<JobScopeTab scope={null} summary={summary} busy="Reading the plans, then updating the scope" />);
+  expect(screen.getByRole("status")).toHaveTextContent("Reading the plans, then updating the scope");
+});
+
+it("has no working line when Tiff isn't at the scope", () => {
+  render(<JobScopeTab scope={scope()} summary={{ fromQuote: null, description: "", read: true }} />);
+  expect(screen.queryByText(/updating the scope/i)).toBeNull();
+});
+

@@ -29,7 +29,7 @@ import { buildJobStory, storyStamp } from "@/lib/workboard/job-story";
 import { JobMoneyBlock } from "./job-money-block";
 import { cacheJobFiles } from "@/app/actions/workboard-media";
 import { addPlansToJob, chooseFloorsOnPlan, pageForScale, readPlanAgainOnJob, readPlansOnJob, setScaleOnPlan } from "@/app/actions/job-plans";
-import { kickPlanReads, PLAN_POLL_MS, PLAN_STUCK_MS } from "@/lib/jobs/plans-client";
+import { kickPlanReads, PLAN_POLL_MS, PLAN_STUCK_MS, SCOPE_FROM_PLANS_MS } from "@/lib/jobs/plans-client";
 import type { JobPlanRead, PlanPick } from "@/lib/jobs/plans";
 import { fileOnJob } from "@/lib/documents/file-on-job";
 import { readJobPhotos } from "@/app/actions/photo-readings";
@@ -1031,6 +1031,7 @@ export function JobSheet({
       });
   }, [cardId, record, recordFailed, scopeStampNow]);
   const scopeReading = !!record?.scope && !!scopeStampNow && record.scope.stamp !== scopeStampNow && scopeStuckAt !== scopeStampNow;
+
   const undoScope = async () => {
     setErr(null);
     const res = await fetch("/api/workboard/job-scope", {
@@ -1171,6 +1172,29 @@ export function JobSheet({
     setBkVerbs(r.bookings?.verbs ?? []);
     setBkLines(r.bookings?.lines ?? {});
   };
+
+  /* THE SCOPE FROM THE PLANS: a read that finished writes the scope again on
+     the server, after it (api/jobs/plans/read). While that's due (a read in
+     the last five minutes newer than the scope) the Scope says so and the
+     record is asked after every few seconds until the new scope lands
+     (Isaac, 21 November 2026: "there was no indication of it doing anything") */
+  const askRecordAgain = useEffectEvent(() => void reloadRecord());
+  const scopeAt = Math.max(Date.parse(record?.scope?.writtenAt ?? "") || 0, Date.parse(record?.scope?.suppliedAt ?? "") || 0);
+  const latestRead = (plans ?? []).reduce((at, p) => ((p.state === "read" || p.state === "check") && p.readAt ? Math.max(at, Date.parse(p.readAt) || 0) : at), 0);
+  const [scopeClock, setScopeClock] = useState(() => Date.now());
+  const scopeBehind = latestRead > 0 && scopeAt < latestRead;
+  useEffect(() => {
+    if (!scopeBehind) return;
+    const tick = window.setInterval(() => {
+      const now = Date.now();
+      setScopeClock(now);
+      if (now - latestRead > SCOPE_FROM_PLANS_MS) window.clearInterval(tick);
+      else askRecordAgain();
+    }, PLAN_POLL_MS);
+    return () => window.clearInterval(tick);
+  }, [scopeBehind, latestRead]);
+  const scopeFromPlans = scopeBehind && scopeClock - latestRead < SCOPE_FROM_PLANS_MS;
+  const scopeBusy = plansReading ? "Reading the plans, then updating the scope" : scopeFromPlans ? "Updating the scope from the plans" : null;
 
   /* A diary written in by someone else with the card open: read it again. */
   const diaryHeard = live.heard?.what === "diary" ? live.heard.n : 0;
@@ -2623,6 +2647,7 @@ export function JobSheet({
               <JobScopeTab
                 scope={record?.scope ?? null}
                 reading={scopeReading}
+                busy={scopeBusy}
                 onUndo={undoScope}
                 onLeave={leaveScope}
                 onUpdate={

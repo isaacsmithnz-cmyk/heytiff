@@ -1,5 +1,6 @@
 "use client";
 
+import { TiffGlyph } from "@/components/notes/tiff-mark";
 import type { CSSProperties, ReactNode } from "react";
 import { pastQuote, sinceRows, type JobScopeRead } from "@/lib/jobs/job-scope";
 import type { SummaryGroup } from "@/lib/jobs/job-summary-rows";
@@ -29,6 +30,7 @@ export function JobScopeTab({
   onUpdate,
   summary,
   side,
+  busy = null,
 }: {
   scope: JobScopeRead | null;
   /** Tiff is reading something new on the job. */
@@ -44,14 +46,31 @@ export function JobScopeTab({
   /** Under the right column: the job's plans and designs (Isaac, 15
       November 2026: "Plans move too"). */
   side?: ReactNode;
+  /** What Tiff is doing to the scope right now, in words ("Updating the
+      scope from the plans"), said at its top while she does it. */
+  busy?: string | null;
 }) {
   const [ref, height] = useFitHeight<HTMLDivElement>();
   const style = height == null ? undefined : ({ "--fit-h": `${height}px` } as CSSProperties);
   /* a job with no Scope keeps the column for its plans and designs (3346) */
+  /* Tiff at work on the scope, said at its top (Isaac, 21 November 2026:
+     "there was no indication of it doing anything") */
+  const working = busy ? (
+    <p className="qt-working jst-busy" role="status">
+      <TiffGlyph working size={20} />
+      {busy}
+      <span className="tc-dots" aria-hidden="true">
+        <i />
+        <i />
+        <i />
+      </span>
+    </p>
+  ) : null;
   if (!scope)
     return (
       <div className={`jov jst${side ? "" : " jst--one"}`} ref={ref} style={style}>
         <div className="jst-brief">
+          {working}
           <JobSummary fromQuote={summary.fromQuote} description={summary.description} read={summary.read} />
         </div>
         {side && <div className="jst-rail">{side}</div>}
@@ -63,6 +82,7 @@ export function JobScopeTab({
   return (
     <div className={`jov jst${rail ? "" : " jst--one"}`} ref={ref} style={style}>
       <div className="jst-brief">
+        {working}
         <JobScope scope={scope} part="brief" />
       </div>
       {rail && (

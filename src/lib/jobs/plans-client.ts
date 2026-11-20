@@ -21,3 +21,7 @@ export const PLAN_POLL_MS = 4_000;
     way: a screen asks for its read once more. Past the read route's five
     minutes, so a read still going isn't asked for again. */
 export const PLAN_STUCK_MS = 6 * 60_000;
+
+/** How long after a plan's read its job's scope is waited on: the read
+    route writes the scope after it, in a minute or two. */
+export const SCOPE_FROM_PLANS_MS = 5 * 60_000;

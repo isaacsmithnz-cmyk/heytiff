@@ -55,12 +55,13 @@ describe("the gates", () => {
     expect(passes({ anyOf: ["team", "workboard"] }, v)).toBe(false);
   });
 
-  it("a workboard-only viewer holds the quick price, the four workboard reads and the record search, and not the library", () => {
+  it("a workboard-only viewer holds the quick price, the five workboard reads and the record search, and not the library", () => {
     expect(toolsFor(viewer(["workboard"])).map((t) => t.name)).toEqual([
       "quick_price",
       "job_history",
       "search_jobs",
       "open_task_load",
+      "schedule_days",
       "issue_log",
       "open_screen",
       "find_record",

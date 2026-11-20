@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { can } from "@/lib/permissions-server";
 import { auth0 } from "@/lib/auth0";
 import { readPlan } from "@/lib/jobs/plans-server";
@@ -33,5 +34,17 @@ export async function POST(request: Request): Promise<Response> {
   }
   if (!process.env.ANTHROPIC_API_KEY) return Response.json({ ok: false, error: "Tiff is offline: no API key configured." });
   const out = await readPlan(orgId, planId, new URL(request.url).origin);
+  /* a read done is used: the job's scope written again from it, after the
+     answer (3570, 20 November 2026: the set read, and its Scope still said
+     "no drawings on the record") */
+  if (out.ok && out.finished) {
+    const org = orgId;
+    const job = out.finished.jobUuid;
+    after(async () => {
+      const { refreshJobScope } = await import("@/lib/workboard/job-scope-server");
+      const done = await refreshJobScope(org, job).catch((e: unknown) => ({ ok: false as const, reason: String(e) }));
+      if (!done.ok) console.error(`[plans] ${planId}: the scope wasn't written again: ${done.reason}`);
+    });
+  }
   return Response.json(out);
 }

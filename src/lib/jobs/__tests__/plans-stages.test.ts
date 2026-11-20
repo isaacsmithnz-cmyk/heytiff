@@ -127,7 +127,7 @@ it("picks up where it stopped: the floors drawn in full in Node, saved, then rea
   clock += 1_000;
   const out = await readPlan("org-1", "jplan_1", "https://app.test", client);
   /* read through (the fake's rooms are too few to call it sure, so it asks for a check) */
-  expect(out).toEqual({ ok: true, state: "check" });
+  expect(out).toEqual({ ok: true, state: "check", finished: { jobUuid: "job-3570" } });
   expect(previewsInNode).toHaveBeenCalledTimes(1);
   expect(fullInNode).toHaveBeenCalledWith(expect.any(Uint8Array), [2, 3, 4], expect.any(Function));
   const floors = (plan().pages as { kind: string; ref: string | null }[]).filter((p) => p.kind === "floor");

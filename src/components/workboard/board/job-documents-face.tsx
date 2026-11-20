@@ -522,8 +522,8 @@ export function JobDocumentsFace({
     const asks = onSetScale && onPageForScale && !replaced ? scaleAsks(p) : [];
     /* a set she isn't sure of offers its floors to be chosen */
     const choose = !!onChooseFloors && !replaced && p.state === "check" && choosablePages(p).length > 0;
-    /* a set that couldn't be read can be read again, as it is */
-    const again = !!onReadPlanAgain && !replaced && p.state === "failed";
+    /* a set that couldn't be read can be read again, as it is; one that was can be read again whole */
+    const again = !!onReadPlanAgain && !replaced && p.state !== "reading";
     /* what she read of a subfloor, on a line of its own that never fades */
     const subfloor = p.state === "reading" || replaced ? null : subfloorLine(p);
     const url = file?.url;

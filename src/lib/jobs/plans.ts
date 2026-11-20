@@ -159,8 +159,10 @@ type Word = { text: string };
 const LEVEL_WORDS =
   "LOWER\\s+GROUND|UPPER\\s+GROUND|GROUND|FIRST|SECOND|THIRD|FOURTH|FIFTH|UPPER|LOWER|BASEMENT|MEZZANINE|ATTIC|LOFT|LEVEL\\s*\\d{1,2}|L\\s?\\d{1,2}|1ST|2ND|3RD|LGF|UGF|LG|UG|GF|FF";
 const FLOOR_TITLE = new RegExp(`\\b(?:(${LEVEL_WORDS})\\s+(?:FLOOR\\s+)?PLAN\\b|\\bFLOOR\\s+PLAN\\b|\\bPLAN\\s*[-–:]?\\s*(LOWER\\s+GROUND|GROUND|FIRST|SECOND|BASEMENT|LEVEL\\s*\\d{1,2}|LGF|GF|FF))`);
-/** a building of its own on the site: its floors are named for it */
-const OUTBUILDING = /\b(GARAGE|GARGE|CARPORT|CABANA|POOL\s+HOUSE|POOL|SHED|GRANNY\s+FLAT|SECONDARY\s+DWELLING|STUDIO|WORKSHOP|BARN)\b/;
+/** a building of its own on the site: its floors aren't the house's */
+/** ...named just before the title, as "GARAGE GROUND FLOOR PLAN" names it:
+    a room called Pool beside a house's plan is not one */
+const OUTBUILDING_BEFORE = /\b(GARAGE|GARGE|CARPORT|CABANA|POOL\s+HOUSE|SHED|GRANNY\s+FLAT|SECONDARY\s+DWELLING|WORKSHOP|BARN)\b[\s&A-Z]{0,12}$/;
 /** a plan of something other than the rooms: never a floor to read */
 const NOT_A_FLOOR = /\b(DEMOLITION|ELECTRICAL|LIGHTING|REFLECTED\s+CEILING|RCP|DRAINAGE|STORMWATER|SEWER|HYDRAULIC|LANDSCAPE|SEDIMENT|EROSION|SET[\s-]?OUT|SLAB|FOOTING|FRAMING|BRACING|TILING|FINISHES|FURNITURE|CEILING\s+PLAN|SHADOW|WASTE|BASIX|FIRE|SIGNAGE|MARKING)\b/;
 const SITE_TITLE = /\b(SITE\s+(?:ANALYSIS\s+)?PLAN|LOCATION\s+PLAN|LOCALITY\s+PLAN|SITE\s+AND\s+ROOF\s+PLAN|SITE\/ROOF\s+PLAN|BLOCK\s+PLAN)\b/;
@@ -217,11 +219,13 @@ export function guessPageByWords(words: readonly Word[] | null | undefined): Pag
   if (floor) {
     const around = text.slice(Math.max(0, floor.index! - 24), floor.index! + floor[0].length + 24);
     if (!NOT_A_FLOOR.test(around)) {
+      /* a garage's or a cabana's floor is that building's, not the house's:
+         stacked with the house it would stand on its top floor in the 3D
+         (3570: the garage as level 2 over the first floor). Not a floor of
+         the house; Choose floors can still take it. */
+      if (OUTBUILDING_BEFORE.test(text.slice(Math.max(0, floor.index! - 20), floor.index!))) return { kind: "other", name: "", level: null };
       const lv = levelOfTitle(floor[0]);
-      const name = lv?.name ?? "Floor plan";
-      /* a garage's or a cabana's floor is that building's, not the house's */
-      const building = around.match(OUTBUILDING)?.[1]?.replace(/^GARGE$/, "GARAGE").replace(/\s+/g, " ");
-      return { kind: "floor", name: building ? `${building.charAt(0)}${building.slice(1).toLowerCase()} ${name.charAt(0).toLowerCase()}${name.slice(1)}` : name, level: lv?.level ?? 0 };
+      return { kind: "floor", name: lv?.name ?? "Floor plan", level: lv?.level ?? 0 };
     }
   }
   /* a plan of something other than the rooms, named as one: not a floor to read, and not for a look either */

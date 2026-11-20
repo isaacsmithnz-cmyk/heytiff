@@ -52,11 +52,16 @@ describe("reading a plan again", () => {
     expect(tables.job_plans![0]).toMatchObject({ state: "reading", said: null, claimed_at: null, progress: null });
   });
 
-  it("leaves a plan that isn't failed, or is another job's", async () => {
+  it("reads a plan that was read afresh, from its first page", async () => {
+    Object.assign(tables.job_plans![0]!, { state: "read", pages: [{ n: 13, kind: "floor" }], reading: { floors: {} }, page_count: 27, read_at: "2026-11-20T12:17:27Z" });
+    expect(await readPlanAgain("org-1", "job-3570", "jplan_1")).toBe(true);
+    expect(tables.job_plans![0]).toMatchObject({ state: "reading", pages: [], reading: null, page_count: 0, read_at: null });
+  });
+
+  it("leaves a plan being read, or another job's", async () => {
     expect(await readPlanAgain("org-1", "job-9999", "jplan_1")).toBe(false);
-    tables.job_plans![0]!.state = "read";
+    tables.job_plans![0]!.state = "reading";
     expect(await readPlanAgain("org-1", "job-3570", "jplan_1")).toBe(false);
-    expect(tables.job_plans![0]!.state).toBe("read");
   });
 });
 

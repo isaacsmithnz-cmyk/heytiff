@@ -4,7 +4,7 @@ import path from "node:path";
 import sharp from "sharp";
 import Anthropic from "@anthropic-ai/sdk";
 import { mkdirSync, writeFileSync } from "node:fs";
-import { readMeasured, type AskMeasured } from "../../measured-server";
+import { frameOf, picture, readMeasured, type AskMeasured } from "../../measured-server";
 import type { ReadSpace } from "../../reading";
 import { agreement } from "../rooms";
 import { findWalls, scaleWalls, wallsByShade } from "../walls";
@@ -155,7 +155,7 @@ const rooms =
               model: process.env.PLAN_EVAL_MODEL ?? "claude-opus-5-5",
               max_tokens: maxTokens,
               output_config: {
-                effort: "high",
+                effort: process.env.PLAN_EVAL_EFFORT ?? "high",
                 format: { type: "json_schema", schema },
               },
               messages: [
@@ -203,6 +203,8 @@ const rooms =
           path.join(DIR, "out", `p${n}-read.json`),
           JSON.stringify(read, null, 1),
         );
+        const whole = { rgba: data, width: info.width, height: info.height, words };
+        writeFileSync(path.join(DIR, "out", `p${n}-final.png`), await picture(whole, frameOf(read!.walls, info.width, info.height), read!.walls, read!.spaces));
         const a = agreement(key, read!.spaces);
         console.log(
           JSON.stringify({
@@ -212,7 +214,7 @@ const rooms =
             rounds: read!.rounds,
             key: key.length,
             read: read!.spaces.length,
-            both: a.both,
+            named: a.named,
             agree: a.agree,
             onlyKey: a.onlyA,
             onlyRead: a.onlyB,

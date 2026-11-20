@@ -170,24 +170,9 @@ describe("two readings of one floor", () => {
     openTo: "",
     stair: "",
   });
-  it("agree on a room each sets round the other's middle, and say what only one found", () => {
-    const a = [
-      sq("Bed 1", 0, 0),
-      sq("Ensuite", 200, 0),
-      sq("Ensuite", 600, 0),
-      sq("Study", 400, 400),
-    ];
-    const b = [
-      sq("BED 1", 10, 10),
-      sq("Ensuite", 610, 5),
-      sq("Ensuite", 900, 900),
-      sq("Robe", 0, 400),
-    ];
-    expect(agreement(a, b)).toEqual({
-      both: 3,
-      agree: 2,
-      onlyA: ["Study"],
-      onlyB: ["Robe"],
-    });
+  it("pair off by where the rooms are, nearest first, whatever they are called", () => {
+    const a = [sq("Bed 1", 0, 0), sq("Ensuite", 200, 0), sq("Ensuite", 600, 0), sq("Study", 400, 400)];
+    const b = [sq("BED 1", 10, 10), sq("Ensuite (Bed 2)", 610, 5), sq("Ens", 205, 5), sq("Robe", 0, 400)];
+    expect(agreement(a, b)).toEqual({ agree: 3, named: 2, onlyA: ["Study"], onlyB: ["Robe"] });
   });
 });

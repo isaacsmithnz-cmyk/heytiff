@@ -189,6 +189,8 @@ function inner(
 export type Snapped = { spaces: ReadSpace[]; problems: Problem[] };
 
 const NO_WALLS: readonly SpaceKind[] = ["outdoor", "void", "notch", "stair"];
+/* the kinds whose sides are walls as a rule: a hall runs between openings, a lift's shaft is drawn in line */
+const WALLED_KINDS: readonly SpaceKind[] = ["room", "wet", "cupboard", "garage"];
 
 /** The model's rooms set on the walls and checked. `back` brings her
     picture's pixels to the sheet's; `words` are the sheet's own, for the
@@ -260,7 +262,7 @@ export function snapRooms(
 
   /* a walled room's edges lie on walls: one mostly off them was set between the wrong lines */
   for (const { room, centre } of set) {
-    if (NO_WALLS.includes(room.kind)) continue;
+    if (!WALLED_KINDS.includes(room.kind)) continue;
     const edges = centre
       .map((a, i) => ({ a, b: centre[(i + 1) % centre.length] }))
       .filter((e) => Math.hypot(e.a.x - e.b.x, e.a.y - e.b.y) >= z.long);
@@ -363,53 +365,38 @@ export function snapRooms(
   return { spaces, problems };
 }
 
-/** How alike two readings of one floor are: of the rooms named in both, the
-    share whose middles sit inside each other's outline. Used to hold a
-    second reader's rooms up against the first's. */
-export function agreement(
-  a: readonly ReadSpace[],
-  b: readonly ReadSpace[],
-): { both: number; agree: number; onlyA: string[]; onlyB: string[] } {
-  const norm = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, "");
-  const mid = (o: readonly ReadPoint[]): ReadPoint => ({
-    x: o.reduce((n, p) => n + p.x, 0) / o.length,
-    y: o.reduce((n, p) => n + p.y, 0) / o.length,
-  });
-  /* the same name, nearest pair first: a house has several ensuites */
+/** How alike two readings of one floor are, by where their rooms are and
+    not what they are called (one reader's "Ensuite" is another's "Ensuite
+    (Bed 7)"): rooms pair off nearest first, a pair being two whose middles
+    each sit in the other's outline, or one's in the other's when one is
+    much the smaller part of an open plan. `named` counts the pairs whose
+    names also share their first word. Used to hold a second reader's rooms
+    against the first's, and a reading against an answer key. */
+export function agreement(a: readonly ReadSpace[], b: readonly ReadSpace[]): { agree: number; named: number; onlyA: string[]; onlyB: string[] } {
+  const first = (s: string) => (s.toUpperCase().match(/[A-Z0-9]+/g) ?? [""])[0];
+  const mid = (o: readonly ReadPoint[]): ReadPoint => ({ x: o.reduce((n, p) => n + p.x, 0) / o.length, y: o.reduce((n, p) => n + p.y, 0) / o.length });
   const A = a.filter((s) => s.outline.length >= 3);
   const B = b.filter((s) => s.outline.length >= 3);
   const pairs = A.flatMap((s, i) =>
-    B.map((t, j) => ({
-      i,
-      j,
-      same: norm(s.name) === norm(t.name),
-      d: Math.hypot(
-        mid(s.outline).x - mid(t.outline).x,
-        mid(s.outline).y - mid(t.outline).y,
-      ),
-    })),
+    B.map((t, j) => {
+      const ms = mid(s.outline);
+      const mt = mid(t.outline);
+      return { i, j, in: Number(inside(ms, t.outline)) + Number(inside(mt, s.outline)), d: Math.hypot(ms.x - mt.x, ms.y - mt.y) };
+    }),
   )
-    .filter((p) => p.same)
-    .sort((p, q) => p.d - q.d);
+    .filter((p) => p.in > 0)
+    /* both ways before one way, then nearest */
+    .sort((p, q) => q.in - p.in || p.d - q.d);
   const usedA = new Set<number>();
   const usedB = new Set<number>();
-  let both = 0;
   let agree = 0;
+  let named = 0;
   for (const p of pairs) {
     if (usedA.has(p.i) || usedB.has(p.j)) continue;
     usedA.add(p.i);
     usedB.add(p.j);
-    both++;
-    if (
-      inside(mid(A[p.i].outline), B[p.j].outline) &&
-      inside(mid(B[p.j].outline), A[p.i].outline)
-    )
-      agree++;
+    agree++;
+    if (first(A[p.i].name) === first(B[p.j].name)) named++;
   }
-  return {
-    both,
-    agree,
-    onlyA: A.filter((_, i) => !usedA.has(i)).map((s) => s.name),
-    onlyB: B.filter((_, j) => !usedB.has(j)).map((s) => s.name),
-  };
+  return { agree, named, onlyA: A.filter((_, i) => !usedA.has(i)).map((s) => s.name), onlyB: B.filter((_, j) => !usedB.has(j)).map((s) => s.name) };
 }

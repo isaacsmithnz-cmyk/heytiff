@@ -109,7 +109,7 @@ export const REVIEW_SCHEMA = S({
 const RULES = `- Every enclosed room, and the small ones too: robes, linen and pantry cupboards, WCs and powder rooms, stores, a lift, a cool room. A space with its own walls is its own entry, even with no name written (give your best label and say the name isn't written).
 - Halls, corridors and landings are rooms of kind circulation. A stair is kind stair, set round its treads. A void, a double-height space or a floor cut-out is kind void.
 - Open-plan spaces with no wall between their parts are ONE room, named for every label in it ("Kitchen, Family, Dining").
-- A space attached to the building but outside it is kind outdoor: a verandah, colonnade, porch, terrace, balcony, deck. Tell it by the drawing: posts where a room would have walls, a paving or decking hatch, and above all windows or window tags on the wall between it and the rooms, which make that wall an outside wall.
+- A space attached to the building but outside it is kind outdoor: a verandah, colonnade, porch, terrace, balcony, deck. Tell it by the drawing: posts where a room would have walls, a paving or decking hatch, and above all windows or window tags on the wall between it and the rooms, which make that wall an outside wall. A floor level written lower there than in the rooms (FFL 193.850 beside rooms at FFL 194.000) is a step down to outside.
 - A garage or carport is kind garage.
 - Corners go on the WALL LINES, the numbered lines down the middle of the walls, not on the inside face. Where a wall stops short of any line, or a room has a bay, a splay or a curve, give that corner as a bare pixel of this picture; a curve is a few such corners.
 - Use the same line for two rooms that share a wall.
@@ -290,7 +290,8 @@ export function overlaySvg(
   return out.join("");
 }
 
-async function picture(
+/** The plan as she is shown it: the building's part of the page, the numbered lines over it, and any rooms given. */
+export async function picture(
   page: FinePage,
   f: Frame,
   walls: Walls,

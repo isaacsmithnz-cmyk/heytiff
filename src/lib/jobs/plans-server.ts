@@ -10,9 +10,10 @@ import { scaleFromDimensions, type PlanReading, type PlanWord } from "@/lib/stud
 import { READING_MODEL, readDimensions, readRoof, readSheet, readSite, type SheetToRead, askWith, pngBlock } from "@/lib/studio/reading-server";
 import { nameRooms, prepareMeasured } from "@/lib/studio/measured-server";
 import { withMeasured } from "@/lib/studio/measure/merge";
+import { K, vectorRooms } from "@/lib/studio/vector/read";
 import { SONNET_FALLBACK } from "@/lib/tiff/sonnet-fallback";
 import { openPdf } from "@/lib/tiff/extract";
-import { fullInNode, pixelsInNode, previewsInNode } from "./plan-draw-node";
+import { fullInNode, pixelsInNode, previewsInNode, vectorsInNode } from "./plan-draw-node";
 import { airPages, plainWords } from "./take-in";
 import { staffDisplayNames } from "@/lib/workboard/job-notes-query";
 import type { DrawnFull, DrawnPreview, PlanPagesAnswer } from "@/app/print/plan-pages/plan-pages";
@@ -360,6 +361,13 @@ const HANDOFF_MS = 90_000;
    picture read. */
 const MEASURE_ROOM_MS = 30_000;
 const measuredOn = () => process.env.PLANS_MEASURED === "1";
+/* THE ROOMS READ FROM THE DRAWING FILE ITSELF (lib/studio/vector): where the
+   file draws its walls as filled shapes, they are the walls, and the rooms
+   are the spaces they close off, named by the plan's own words. Exact, about
+   half a second a floor, and no model. A floor it can't read surely (walls
+   drawn in lines, a scanned sheet, room names that don't land in rooms) is
+   read by picture as before. PLANS_VECTOR=0 turns it off without a deploy. */
+const vectorOn = () => process.env.PLANS_VECTOR !== "0";
 /** how fine a floor is drawn to measure: about 17 mm of building a pixel, a wall a dozen pixels thick */
 const MEASURE_MM = 17.5;
 
@@ -380,6 +388,22 @@ const NOT_FINISHED = "The measuring didn't finish";
 async function measureFloor(bytes: Uint8Array, p: JobPlanPage, deadline: number, oneAtATime: <T>(fn: () => Promise<T>) => Promise<T>): Promise<PageWalled> {
   /* the scale somebody set, else the title block's "1:100 @ A1" */
   const known = (p.set && p.set.mmPerPx > 0 ? p.set.mmPerPx : null) ?? p.mmPerPx;
+  let why: string | null = null;
+  if (vectorOn()) {
+    const v = await oneAtATime(() => vectorsInNode(bytes, p.n)).catch((e) => {
+      console.error(`[job-plans] p${p.n} vectors: ${String(e)}`);
+      return null;
+    });
+    if (v) {
+      /* the scale: one set or printed, in the raster's pixels, else the bare "1 : 100" on a paper-sized page */
+      const ratio = known ? null : mmPerPointOf(v.words.map((w) => ({ ...w, at: { x: w.at.x / K, y: w.at.y / K } })), { width: v.width, height: v.height });
+      const mmPerPt = known ? known * v.rasterScale : (ratio?.mmPerPt ?? null);
+      const read = vectorRooms({ fills: v.fills, width: v.width, height: v.height, words: v.words, mmPerPt, rasterScale: v.rasterScale });
+      if (!("none" in read)) return { spaces: read.spaces, look: read.look, grid: read.grid, rounds: read.rounds, frame: read.frame, from: "file" };
+      why = read.none;
+    }
+  }
+  if (!measuredOn()) return { none: why ?? "Its walls couldn't be read from the file" };
   const times = known ? Math.min(2, Math.max(1, Math.round(known / MEASURE_MM))) : 2;
   const ready = await oneAtATime(async () => {
     const px = await pixelsInNode(bytes, p.n, times);
@@ -915,7 +939,7 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
     }
 
     /* 4. the floors read by measure, each kept on its page; then handed on */
-    const toMeasure = isPdf && measuredOn() ? pages.filter((p) => p.kind === "floor" && p.ref && p.walled === undefined) : [];
+    const toMeasure = isPdf && (vectorOn() || measuredOn()) ? pages.filter((p) => p.kind === "floor" && p.ref && p.walled === undefined) : [];
     if (toMeasure.length) {
       if (Date.now() - started > MEASURE_ROOM_MS) return await handOff();
       let done = 0;
@@ -948,7 +972,9 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
           tell({ step: "measuring", done: ++done, total: toMeasure.length });
         }),
       );
-      return await handOff();
+      /* read from the file alone, it took a second or two: the read by picture
+         goes on in this run when there is time; the model's measuring hands on */
+      if (measuredOn() || Date.now() - started > HANDOFF_MS) return await handOff();
     }
 
     /* 5. the read: each floor, the roof and the site off the set */

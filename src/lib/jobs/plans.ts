@@ -118,7 +118,7 @@ export type JobPlan = {
 };
 
 /** A floor's rooms measured off its drawing's walls, in the raster's pixels; or `none`, with why. */
-export type PageWalled = { spaces: ReadSpace[]; look: ReadLook[]; grid: { x: number[]; y: number[] }; rounds: number; /** the part of the sheet that was measured, in the raster's pixels */ frame?: { left: number; top: number; width: number; height: number } } | { none: string };
+export type PageWalled = { spaces: ReadSpace[]; look: ReadLook[]; grid: { x: number[]; y: number[] }; rounds: number; /** the part of the sheet that was measured, in the raster's pixels */ frame?: { left: number; top: number; width: number; height: number }; /** "file": its walls read from the drawing file itself (lib/studio/vector); else measured off its picture */ from?: "file" } | { none: string };
 
 /** A read's place: the pages drawn small, the floors found among them,
     the floors drawn in full, then each floor read with the roof and the site. */

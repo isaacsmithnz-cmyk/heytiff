@@ -4,7 +4,7 @@ import path from "node:path";
 import { fullScale, PREVIEW_WIDTH, wordsOf } from "@/lib/studio/plans";
 import { trimBorders, type TrimRect } from "@/lib/studio/plan-trim";
 import type { DrawnPreview } from "@/app/print/plan-pages/plan-pages";
-import { fillsOf, type Fill, type FillOps } from "@/lib/studio/vector/fills";
+import { shapesOf, type Fill, type FillOps, type Line } from "@/lib/studio/vector/fills";
 import { K } from "@/lib/studio/vector/read";
 
 /* A JOB'S PLAN SET DRAWN IN NODE, with no browser. pdf.js draws each page
@@ -127,7 +127,7 @@ export async function fullInNode(bytes: Uint8Array, numbers: readonly number[], 
   }
 }
 
-export type PageVectors = { n: number; fills: Fill[]; width: number; height: number; rasterScale: number; words: { text: string; at: { x: number; y: number } }[] };
+export type PageVectors = { n: number; fills: Fill[]; lines: Line[]; width: number; height: number; rasterScale: number; words: { text: string; at: { x: number; y: number } }[] };
 
 /** One page's filled shapes, in its own points, and its words on the walls'
     grid (`K` pixels a point): what a floor's rooms are read from when the
@@ -139,10 +139,10 @@ export async function vectorsInNode(bytes: Uint8Array, n: number): Promise<PageV
     const page = await doc.getPage(n);
     const base = page.getViewport({ scale: 1 });
     const ops = await page.getOperatorList();
-    const fills = fillsOf(ops.fnArray, ops.argsArray, pdfjs.OPS as unknown as FillOps, base.transform);
+    const { fills, lines } = shapesOf(ops.fnArray, ops.argsArray, pdfjs.OPS as unknown as FillOps, base.transform);
     const words = await wordsOf(page, page.getViewport({ scale: K }));
     page.cleanup();
-    return { n, fills, width: base.width, height: base.height, rasterScale: fullScale(base.width), words };
+    return { n, fills, lines, width: base.width, height: base.height, rasterScale: fullScale(base.width), words };
   } finally {
     close();
   }

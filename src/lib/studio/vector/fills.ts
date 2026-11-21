@@ -11,6 +11,8 @@
 
 export type Ring = [number, number][];
 export type Fill = { colour: string; rings: Ring[] };
+/** A straight stroked line: its colour, its width in page points, its two ends. */
+export type Line = { colour: string; width: number; a: [number, number]; b: [number, number] };
 
 /** The OPS numbers this reads, as pdf.js names them. */
 export type FillOps = {
@@ -21,6 +23,11 @@ export type FillOps = {
   paintFormXObjectEnd: number;
   setFillRGBColor: number;
   setFillGray: number;
+  setStrokeRGBColor?: number;
+  setStrokeGray?: number;
+  setLineWidth?: number;
+  stroke?: number;
+  closeStroke?: number;
   eoClip: number;
   clip: number;
   constructPath: number;
@@ -95,23 +102,37 @@ const grey = (v: number) => {
 /** Every filled shape on the page, in page points with y down. `base` is the
     page's viewport transform at scale 1. */
 export function fillsOf(fnArray: ArrayLike<number>, argsArray: ArrayLike<unknown>, O: FillOps, base: readonly number[]): Fill[] {
+  return shapesOf(fnArray, argsArray, O, base).fills;
+}
+
+/** Every filled shape and every straight stroked line on the page (a plan
+    that draws its walls in lines: Warners, 3570's lower ground, Cutler's
+    existing walls), in page points with y down. */
+export function shapesOf(fnArray: ArrayLike<number>, argsArray: ArrayLike<unknown>, O: FillOps, base: readonly number[]): { fills: Fill[]; lines: Line[] } {
   let m = [...base] as M;
   let colour = "#000000";
+  let ink = "#000000";
+  let width = 1;
   let clip: Ring[] | null = null;
   let want: "eo" | "nz" | null = null;
-  const stack: [M, string, Ring[] | null][] = [];
+  const stack: [M, string, Ring[] | null, string, number][] = [];
   const out: Fill[] = [];
+  const lines: Line[] = [];
+  const STROKES = new Set([O.stroke ?? -1, O.closeStroke ?? -1, O.fillStroke, O.eoFillStroke]);
   const FILLS = new Set([O.fill, O.eoFill, O.fillStroke, O.eoFillStroke]);
   for (let i = 0; i < fnArray.length; i++) {
     const f = fnArray[i];
     const a = argsArray[i] as unknown[] | null;
-    if (f === O.save) stack.push([m, colour, clip]);
-    else if (f === O.restore) [m, colour, clip] = stack.pop() ?? [m, colour, clip];
+    if (f === O.save) stack.push([m, colour, clip, ink, width]);
+    else if (f === O.restore) [m, colour, clip, ink, width] = stack.pop() ?? [m, colour, clip, ink, width];
     else if (f === O.transform && a) m = mul(m, a as number[]);
     else if (f === O.paintFormXObjectBegin && a) {
-      stack.push([m, colour, clip]);
+      stack.push([m, colour, clip, ink, width]);
       if (a[0]) m = mul(m, Array.from(a[0] as ArrayLike<number>));
-    } else if (f === O.paintFormXObjectEnd) [m, colour, clip] = stack.pop() ?? [m, colour, clip];
+    } else if (f === O.paintFormXObjectEnd) [m, colour, clip, ink, width] = stack.pop() ?? [m, colour, clip, ink, width];
+    else if (f === O.setStrokeRGBColor && a) ink = typeof a[0] === "string" ? (a[0] as string).toLowerCase() : ink;
+    else if (f === O.setStrokeGray && a) ink = grey(Number(a[0]));
+    else if (f === O.setLineWidth && a) width = Number(a[0]) || 0;
     else if (f === O.setFillRGBColor && a) colour = typeof a[0] === "string" ? (a[0] as string).toLowerCase() : colour;
     else if (f === O.setFillGray && a) colour = grey(Number(a[0]));
     else if (f === O.eoClip) want = "eo";
@@ -125,10 +146,48 @@ export function fillsOf(fnArray: ArrayLike<number>, argsArray: ArrayLike<unknown
         want = null;
         continue;
       }
+      if (STROKES.has(op)) {
+        /* a hairline (width 0) is drawn a device pixel wide: call it a tenth of a point */
+        const w = Math.max(0.1, width * Math.hypot(m[0], m[1]));
+        for (const r of runsOf(data, m, op === O.closeStroke))
+          for (let k = 1; k < r.length; k++) {
+            const [a0, b0] = [r[k - 1], r[k]];
+            if (Math.hypot(b0[0] - a0[0], b0[1] - a0[1]) > 0.2) lines.push({ colour: ink, width: w, a: a0, b: b0 });
+          }
+      }
       if (!FILLS.has(op)) continue;
       const rings = masked(clip, ringsOf(data, m));
       if (rings.length) out.push({ colour, rings });
     }
   }
-  return out;
+  return { fills: out, lines };
+}
+
+/* a stroked path's runs of points: a curve keeps only its end, a closed one returns to its start */
+function runsOf(data: ArrayLike<number>, m: M, closeAll: boolean): Ring[] {
+  const out: Ring[] = [];
+  let r: Ring | null = null;
+  const P = (x: number, y: number): [number, number] => [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]];
+  let k = 0;
+  while (k < data.length) {
+    const t = data[k++];
+    if (t === 0) {
+      r = [P(data[k], data[k + 1])];
+      out.push(r);
+      k += 2;
+    } else if (t === 1) {
+      r?.push(P(data[k], data[k + 1]));
+      k += 2;
+    } else if (t === 2) {
+      r = null;
+      k += 6;
+    } else if (t === 3) {
+      r = null;
+      k += 4;
+    } else if (t === 4) {
+      if (r && r.length > 1) r.push(r[0]);
+    } else break;
+  }
+  if (closeAll) for (const x of out) if (x.length > 2) x.push(x[0]);
+  return out.filter((x) => x.length >= 2);
 }

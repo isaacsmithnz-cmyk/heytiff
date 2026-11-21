@@ -6,11 +6,12 @@ import { newId } from "@/lib/studio/document";
 import { launchHeadless, printBase } from "@/lib/studio/pdf-render";
 import { signPlanPagesTicket, signPlanReadTicket, type PlanPagesTicket } from "@/lib/studio/pdf-request";
 import { mmPerPointOf, mmPerPxFor, printedScaleOf } from "@/lib/studio/plan-set";
-import { scaleFromDimensions, type PlanReading, type PlanWord } from "@/lib/studio/reading";
+import { scaleFromDimensions, type PlanReading, type PlanWord, type SheetReading } from "@/lib/studio/reading";
 import { READING_MODEL, readDimensions, readRoof, readSheet, readSite, type SheetToRead, askWith, pngBlock } from "@/lib/studio/reading-server";
 import { nameRooms, prepareMeasured } from "@/lib/studio/measured-server";
 import { withMeasured } from "@/lib/studio/measure/merge";
 import { K, vectorRooms } from "@/lib/studio/vector/read";
+import { facesOf, snapped } from "@/lib/studio/vector/snap";
 import { SONNET_FALLBACK } from "@/lib/tiff/sonnet-fallback";
 import { openPdf } from "@/lib/tiff/extract";
 import { fullInNode, pixelsInNode, previewsInNode, vectorsInNode } from "./plan-draw-node";
@@ -398,7 +399,7 @@ async function measureFloor(bytes: Uint8Array, p: JobPlanPage, deadline: number,
       /* the scale: one set or printed, in the raster's pixels, else the bare "1 : 100" on a paper-sized page */
       const ratio = known ? null : mmPerPointOf(v.words.map((w) => ({ ...w, at: { x: w.at.x / K, y: w.at.y / K } })), { width: v.width, height: v.height });
       const mmPerPt = known ? known * v.rasterScale : (ratio?.mmPerPt ?? null);
-      const read = vectorRooms({ fills: v.fills, width: v.width, height: v.height, words: v.words, mmPerPt, rasterScale: v.rasterScale });
+      const read = vectorRooms({ fills: v.fills, lines: v.lines, width: v.width, height: v.height, words: v.words, mmPerPt, rasterScale: v.rasterScale });
       if (!("none" in read)) return { spaces: read.spaces, look: read.look, grid: read.grid, rounds: read.rounds, frame: read.frame, from: "file" };
       why = read.none;
     }
@@ -424,6 +425,23 @@ async function measureFloor(bytes: Uint8Array, p: JobPlanPage, deadline: number,
   return { spaces: read.spaces, look: read.problems, grid: read.walls.grid, rounds: read.rounds, frame: read.frame };
 }
 
+
+/** How far a side read by picture may move onto the drawing's wall face. */
+const SNAP_MM = 450;
+
+/* A FLOOR READ BY PICTURE, ITS ROOMS ON THE DRAWING'S OWN WALLS
+   (lib/studio/vector/snap.ts): each square side moved onto the face of the
+   wall the file draws along it. On 3570's level 1 the sides on the true face
+   to within 30 mm went from 21 of 70 to 48 (22 November 2026). */
+async function onTheLines(bytes: Uint8Array, p: JobPlanPage, sheet: SheetReading): Promise<SheetReading> {
+  const v = await vectorsInNode(bytes, p.n);
+  const known = (p.set && p.set.mmPerPx > 0 ? p.set.mmPerPx : null) ?? p.mmPerPx;
+  const ratio = known ? null : mmPerPointOf(v.words.map((w) => ({ ...w, at: { x: w.at.x / K, y: w.at.y / K } })), { width: v.width, height: v.height });
+  /* at an unknown scale, 1:100: what is a wall and how far a side moves are guessed from it */
+  const mmPerPt = known ? known * v.rasterScale : (ratio?.mmPerPt ?? 35.28);
+  const faces = facesOf(v.lines, v.fills, 300 / mmPerPt, 70 / mmPerPt, 650 / mmPerPt);
+  return { ...sheet, spaces: snapped(sheet.spaces, faces, v.rasterScale, SNAP_MM / mmPerPt).spaces };
+}
 
 /** The read route asked for a plan by the server itself, and let go once
     it has the request: the read writes its row as it goes. */
@@ -1021,6 +1039,18 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
           return null;
         }),
       ]);
+      /* a floor not read from the file has its picture-read rooms put on the drawing's own walls, where it has them */
+      const bytes = isPdf && vectorOn() ? new Uint8Array((await bytesOf()).bytes) : null;
+      const lined = await Promise.all(
+        results.map(async (r, i) => {
+          const w = floors[i].walled;
+          if (!bytes || r.status !== "fulfilled" || (w && "spaces" in w && w.spaces.length)) return null;
+          return onTheLines(bytes, floors[i], r.value).catch((e) => {
+            console.error(`[job-plans] ${planId}/p${floors[i].n} lines: ${String(e)}`);
+            return null;
+          });
+        }),
+      );
       results.forEach((r, i) => {
         const s = sheets[i];
         /* a floor's measured rooms are its rooms; the picture read gives the rest, and is their second reader */
@@ -1035,7 +1065,7 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
             console.error(`[job-plans] ${planId}/${s.sheetId}: ${String(r.reason)}`);
             reading.failed.push({ floorId: s.floorId, sheetId: s.sheetId, reason: `its rooms were measured, but its doors, windows and notes weren't read (${r.reason instanceof Error ? r.reason.message : "it couldn't be read"})` });
           }
-        } else if (r.status === "fulfilled") (reading.floors[s.floorId] ??= []).push(r.value);
+        } else if (r.status === "fulfilled") (reading.floors[s.floorId] ??= []).push(lined[i] ?? r.value);
         else {
           console.error(`[job-plans] ${planId}/${s.sheetId}: ${String(r.reason)}`);
           reading.failed.push({ floorId: s.floorId, sheetId: s.sheetId, reason: r.reason instanceof Error ? r.reason.message : "It couldn't be read" });

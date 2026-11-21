@@ -1,6 +1,7 @@
 import type { ReadLook, ReadSpace, SpaceKind } from "../reading";
-import type { Fill } from "./fills";
-import { wallsOf } from "./walls";
+import type { Fill, Line } from "./fills";
+import { wallsOf, type Walls } from "./walls";
+import { lineWalls } from "./lines";
 import { enclose, outlined, rasterise, type Space } from "./enclose";
 
 /* A FLOOR'S ROOMS READ FROM THE DRAWING FILE ITSELF (Isaac, 22 November 2026:
@@ -17,6 +18,8 @@ export type VectorWord = { text: string; at: { x: number; y: number } };
 
 export type VectorInput = {
   fills: readonly Fill[];
+  /** its straight stroked lines, for walls drawn in lines */
+  lines?: readonly Line[];
   /** the page in points */
   width: number;
   height: number;
@@ -111,10 +114,33 @@ function labelsOf(words: VectorWord[], gap: number): string[] {
 
 const sq = (mm: number, mmPerPx: number) => (mm / mmPerPx) ** 2;
 
-/** A floor's rooms from its drawing file, or why not. */
+/** A floor's rooms from its drawing file, or why not. Its walls are tried
+    as the file fills them, as it draws them in pairs of lines, and as both
+    (a renovation fills its new walls and draws its existing ones), and the
+    reading that lands most of the plan's room names in rooms is kept. */
 export function vectorRooms(input: VectorInput): VectorRooms | { none: string } {
-  const walls = wallsOf(input.fills, input.mmPerPt);
-  if (!walls) return { none: "Its walls aren't drawn as filled shapes in the file" };
+  const filled = wallsOf(input.fills, input.mmPerPt);
+  const drawn = input.lines?.length ? lineWalls(input.lines, input.mmPerPt) : null;
+  if (!filled && !drawn) return { none: "Its walls aren't drawn in the file, filled or in lines" };
+  const tries: Walls[] = [];
+  if (filled) tries.push(filled);
+  if (drawn) tries.push(drawn);
+  if (filled && drawn) tries.push({ colours: [...filled.colours, ...drawn.colours], shapes: [...filled.shapes, ...drawn.shapes], thickness: filled.thickness });
+  let best: VectorRooms | null = null;
+  let why = "";
+  for (const walls of tries) {
+    const r = roomsBetween(walls, input);
+    if ("none" in r) {
+      why ||= r.none;
+      continue;
+    }
+    const score = (x: VectorRooms) => x.found.landed * 2 + x.found.named;
+    if (!best || score(r) > score(best)) best = r;
+  }
+  return best ?? { none: why };
+}
+
+function roomsBetween(walls: Walls, input: VectorInput): VectorRooms | { none: string } {
   /* an unknown scale is taken as 1:100 for the sizes below: a wall, a door, a cupboard */
   const mmPerPx = (input.mmPerPt ?? 35.28) / K;
   const W = Math.ceil(input.width * K);

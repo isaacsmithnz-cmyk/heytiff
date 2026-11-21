@@ -10507,7 +10507,8 @@ html:not([data-ds-display]) .fg:has(#fg-topbar) .dstudio.editing:has(> .ds-edito
   .dstudio .ds-editor.clean .ds-tb-right { flex: 1 0 auto; min-width: max-content; }
 }
 @media (max-width: 1396px) {
-  .dstudio .ds-editor.clean .ds-found { display: none; }
+  /* the bar's chip alone: the plan's own rooms Tiff found are a .ds-found too */
+  .dstudio .ds-editor.clean .ds-id > .ds-found { display: none; }
 }
 @media (max-width: 1245px) {
   .dstudio .ds-editor.clean > .ds-topbar { flex-wrap: wrap; height: auto; min-height: 56px; padding-block: 4px; row-gap: 8px; }

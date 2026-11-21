@@ -10,6 +10,7 @@ import {
   setupNeeds,
   shareAcrossSet,
   sheetTitleOf,
+  mmPerPointOf,
 } from "../plan-set";
 
 /* the title block of 7 Cutler Rd's CD103, as its PDF's words come out */
@@ -228,5 +229,32 @@ describe("the sizes written in its rooms", () => {
 
   test("one room's size alone offers nothing", () => {
     expect(proposedScale(waitara([room("Bed 1", 0, 0, 300, 200, "4.5m x 3.0m")]), "gf")).toBeNull();
+  });
+});
+
+describe("the scale a sheet prints without its paper", () => {
+  const A1 = { width: 2384, height: 1684 };
+  const w = (...t: string[]) => t.map((text) => ({ text }));
+  it("is the ratio, on a page that is a paper size", () => {
+    /* 3570: "1 : 100" in one box and "@ A1" in another */
+    expect(mmPerPointOf(w("NSW", "1", ":", "100", "01/04/2026"), A1)).toEqual({ mmPerPt: (25.4 / 72) * 100, text: "1:100 on A1" });
+    expect(mmPerPointOf(w("SCALE:", "G", "1:50 @ A1"), A1)!.mmPerPt).toBeCloseTo((25.4 / 72) * 50);
+    expect(mmPerPointOf(w("1 : 100"), { width: 1191, height: 842 })!.text).toBe("1:100 on A3");
+  });
+  it("on a copy printed to another paper, is the drawing's size there", () => {
+    const A3 = { width: 1191, height: 842 };
+    /* an A1 set at 1:50 printed on A3: half the size, so a point is twice the building */
+    expect(mmPerPointOf(w("SCALE", "1:50 @ A1"), A3)!.mmPerPt).toBeCloseTo((25.4 / 72) * 50 * 2, 1);
+    expect(mmPerPointOf(w("SCALE", "1:50", "@", "A1"), A3)!.text).toBe("1:50 @ A1 on A3");
+    expect(mmPerPointOf(w("SCALE", "1:50", "@ A1"), A3)!.mmPerPt).toBeCloseTo((25.4 / 72) * 50 * 2, 1);
+    /* on its own paper, as it says */
+    expect(mmPerPointOf(w("1:50", "at", "A3"), A3)!.mmPerPt).toBeCloseTo((25.4 / 72) * 50);
+  });
+  it("prefers the one beside SCALE, and is never a fall", () => {
+    expect(mmPerPointOf(w("1:100", "1:100", "SCALE", "1:50"), A1)!.text).toBe("1:50 on A1");
+    expect(mmPerPointOf(w("1:100", "FALL", "TO", "RWO"), A1)).toBeNull();
+  });
+  it("is none on a page that isn't a paper (a scan, a photo)", () => {
+    expect(mmPerPointOf(w("1:100"), { width: 3024, height: 4032 })).toBeNull();
   });
 });

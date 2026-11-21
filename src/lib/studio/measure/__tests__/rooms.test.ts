@@ -37,6 +37,19 @@ const snap = (
   snapRooms(rooms, walls, z, { backX: same, backY: same, words, mmPerPx: 20 });
 
 describe("corners", () => {
+  it("are read however the pairs are set out, and no odd number is a pixel", () => {
+    const want = parseCorners("x0,y0 x1,y0 x1,y1 x0,y1", walls.grid, same, same);
+    for (const text of ["x0, y0 x1, y0 x1, y1 x0, y1", "(x0,y0) (x1,y0) (x1,y1) (x0,y1)", "x0,y0; x1,y0; x1,y1; x0,y1.", "x0,y0 -> x1,y0 -> x1,y1 -> x0,y1", "[x0,y0], [x1,y0], [x1,y1], [x0,y1]", "y0,x0 y0,x1 y1,x1 y1,x0"])
+      expect(parseCorners(text, walls.grid, same, same)).toEqual(want);
+    for (const text of ["0x10,0x20 0x30,0x20 0x30,0b11", "+5,5 100,5 100,200", "1e3,5 100,5 100,200", "x0,y0 then x1,y0 x1,y1"])
+      expect(parseCorners(text, walls.grid, same, same)).toBeNull();
+  });
+  it("in a straight line along one side are one side, set square", () => {
+    /* every crossing named along the top: x0,y0 x1,y0 x2,y0 */
+    const { spaces } = snap([room("Hall", "x0,y0 x1,y0 x2,y0 x2,y1 x0,y1")]);
+    expect(spaces[0].outline).toHaveLength(4);
+    expect(new Set(spaces[0].outline.filter((p) => p.y < 200).map((p) => p.y)).size).toBe(1);
+  });
   it("are a line's number or a bare pixel, an x then a y", () => {
     expect(walls.grid).toEqual({ x: [100, 400, 700], y: [100, 500] });
     expect(
@@ -50,7 +63,7 @@ describe("corners", () => {
   });
   it("aren't, when a y is given for an x, a line doesn't exist, or there are fewer than three", () => {
     expect(
-      parseCorners("y0,x0 x1,y0 x1,y1", walls.grid, same, same),
+      parseCorners("x0,x0 x1,y0 x1,y1", walls.grid, same, same),
     ).toBeNull();
     expect(
       parseCorners("x0,y0 x9,y0 x1,y1", walls.grid, same, same),
@@ -90,7 +103,8 @@ describe("rooms set on the walls", () => {
     const { spaces } = snap([
       room("Robe", "x1,296 x2,296 x2,y1 x1,y1", { kind: "cupboard" }),
     ]);
-    expect(spaces[0].outline[0].y).toBe(305);
+    /* onto the return's line; the side is mostly open, so it stays on the line rather than going to a face */
+    expect(spaces[0].outline[0].y).toBe(300);
   });
   it("go round the same whichever way the corners are given", () => {
     const a = snap([room("Lounge", "x0,y0 x1,y0 x1,y1 x0,y1")]).spaces[0]

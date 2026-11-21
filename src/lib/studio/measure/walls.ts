@@ -286,16 +286,11 @@ export function gridOf(segs: readonly WallSeg[], z: WallSizes): WallGrid {
     const long = segs
       .filter((s) => s.dir === dir && s.b - s.a + 1 >= z.long)
       .sort((p, q) => p.c - q.c);
-    const out: number[] = [];
+    const found: { c: number; run: number }[] = [];
     let group: WallSeg[] = [];
     const close = () => {
       const run = group.reduce((n, s) => n + (s.b - s.a + 1), 0);
-      if (run >= z.line)
-        out.push(
-          Math.round(
-            (group.reduce((n, s) => n + s.c * (s.b - s.a + 1), 0) / run) * 10,
-          ) / 10,
-        );
+      if (run >= z.line) found.push({ c: group.reduce((n, s) => n + s.c * (s.b - s.a + 1), 0) / run, run });
       group = [];
     };
     for (const s of long) {
@@ -303,7 +298,22 @@ export function gridOf(segs: readonly WallSeg[], z: WallSizes): WallGrid {
       group.push(s);
     }
     if (group.length) close();
-    return out;
+    /* two lines closer than a wall is thick can't be told apart on her
+       picture (3570's were 7 to 9 of its pixels apart, and she swapped
+       between them from one answer to the next): they are one numbered
+       line. Each room's side still goes to its own wall's face, which is
+       found from the pieces, not the line (rooms.ts) */
+    const ts = long.map((s) => s.t).sort((p, q) => p - q);
+    const fold = Math.max(z.near, ts.length ? ts[Math.floor(ts.length / 2)] : 0);
+    const out: { c: number; run: number }[] = [];
+    for (const l of found) {
+      const last = out[out.length - 1];
+      if (last && l.c - last.c < fold) {
+        const run = last.run + l.run;
+        out[out.length - 1] = { c: (last.c * last.run + l.c * l.run) / run, run };
+      } else out.push({ ...l });
+    }
+    return out.map((l) => Math.round(l.c * 10) / 10);
   };
   return { x: lines("v"), y: lines("h") };
 }

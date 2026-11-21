@@ -8,6 +8,7 @@ import { frameOf, picture, readMeasured, type AskMeasured } from "../../measured
 import type { ReadSpace } from "../../reading";
 import { agreement } from "../rooms";
 import { findWalls, scaleWalls, wallsByShade } from "../walls";
+import { mmPerPointOf } from "../../plan-set";
 
 /* THE KEPT TEST against a real set with a known answer. A set is a
    customer's drawing, so it is never in the repo: point PLAN_EVAL at a
@@ -18,8 +19,20 @@ import { findWalls, scaleWalls, wallsByShade } from "../walls";
 
      PLAN_EVAL=~/Developer/heytiff-plan-eval/3570 npx jest eval-set */
 const DIR = process.env.PLAN_EVAL ?? "";
-/* the drawn pages are 2 pixels a PDF point: 17.64 mm a pixel at 1:100, PLAN_EVAL_MM for another scale, 0 for unknown */
-const MM = process.env.PLAN_EVAL_MM === "0" ? null : Number(process.env.PLAN_EVAL_MM ?? 17.64);
+/* the drawn pages are 2 pixels a PDF point. Their scale is found as
+   production finds it, from the words and the page's paper size
+   (mmPerPointOf); PLAN_EVAL_MM gives one instead, 0 for none at all */
+const GIVEN = process.env.PLAN_EVAL_MM;
+const scaleOf = (words: readonly { text: string }[], width: number, height: number): number | null => {
+  if (GIVEN === "0") return null;
+  if (GIVEN) return Number(GIVEN);
+  const r = mmPerPointOf(words, { width: width / 2, height: height / 2 });
+  return r ? r.mmPerPt / 2 : null;
+};
+const wordsAt = (n: number | string) => {
+  const f = path.join(DIR, "pages", `${typeof n === "number" ? `p${n}` : n}.words.json`);
+  return existsSync(f) ? (JSON.parse(readFileSync(f, "utf8")) as { text: string; at: { x: number; y: number } }[]) : [];
+};
 const have = DIR && existsSync(path.join(DIR, "pages"));
 
 (have ? describe : describe.skip)(
@@ -38,6 +51,7 @@ const have = DIR && existsSync(path.join(DIR, "pages"));
           .ensureAlpha()
           .raw()
           .toBuffer({ resolveWithObject: true });
+        const MM = scaleOf(wordsAt(n), info.width, info.height);
         const t0 = Date.now();
         if (process.env.PLAN_EVAL_SHADES)
           console.log(
@@ -157,7 +171,8 @@ const rooms =
               model: process.env.PLAN_EVAL_MODEL ?? "claude-opus-5-5",
               max_tokens: maxTokens,
               output_config: {
-                effort: process.env.PLAN_EVAL_EFFORT ?? "high",
+                /* production asks at medium */
+              effort: process.env.PLAN_EVAL_EFFORT ?? "medium",
                 format: { type: "json_schema", schema },
               },
               messages: [
@@ -194,11 +209,12 @@ const rooms =
           return raw;
         };
         const t0 = Date.now();
-        /* the drawn page is the raster here: times 1 */
+        const MM = scaleOf(words, info.width, info.height);
+        /* the drawn page is the raster here: times 1. Production's time to be done by: 250 s */
         const read = await readMeasured(
           { rgba: data, width: info.width, height: info.height, words },
           1,
-          { floorName: `page ${n}`, mmPerPx: MM, ask },
+          { floorName: `page ${n}`, mmPerPx: MM, ask, deadline: t0 + 250_000 },
         );
         expect(read).not.toBeNull();
         writeFileSync(
@@ -213,6 +229,7 @@ const rooms =
             n,
             secs: Math.round((Date.now() - t0) / 1000),
             usd: Math.round(usd * 100) / 100,
+            mm: MM,
             rounds: read!.rounds,
             key: key.length,
             read: read!.spaces.length,
@@ -239,6 +256,7 @@ const rooms =
     mkdirSync(path.join(DIR, "out"), { recursive: true });
     for (const file of readdirSync(path.join(DIR, "pages")).filter((f) => f.endsWith(".png"))) {
       const { data, info } = await sharp(path.join(DIR, "pages", file)).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+      const MM = scaleOf(wordsAt(file.replace(".png", "")), info.width, info.height);
       const t0 = Date.now();
       const shades = wallsByShade(data, info.width, info.height, MM).slice(0, 3).map((w) => `${w.shade}:${w.run}`);
       const w = findWalls(data, info.width, info.height, MM);

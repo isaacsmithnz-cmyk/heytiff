@@ -1,7 +1,7 @@
 import "server-only";
 import sharp from "sharp";
 import type { PlanWord, ReadPoint, ReadSpace, SpaceKind } from "./reading";
-import { findWalls, scaleWalls, wallSizes, type Walls } from "./measure/walls";
+import { findWalls, scaleWalls, wallSizes, type Walls, type WallSizes } from "./measure/walls";
 import { snapRooms, type NamedRoom, type Problem } from "./measure/rooms";
 import { strokeText } from "./measure/glyphs";
 
@@ -47,7 +47,29 @@ export type MeasuredSheet = {
   walls: Walls;
   /** 1 when her first answer stood, one more each time she changed it on looking again */
   rounds: number;
+  /** the part of the sheet she was shown: a room outside it was never hers to name */
+  frame: { left: number; top: number; width: number; height: number };
 };
+
+/** A floor's walls measured and its picture cut, ready for her to name its
+    rooms. It holds none of the sheet's pixels: a floor drawn to measure is
+    65 MB, and the questions that follow take minutes, so the pixels are
+    let go before the first is asked (the engine's review, 21 November 2026:
+    a dozen floors held at once ran a function out of memory). */
+export type Measuring = { walls: Walls; z: WallSizes; f: Frame; base: Buffer; words: readonly PlanWord[]; mm: number | null; times: number };
+
+/* a question raced against the time left: LATE when the time runs out first */
+const LATE = Symbol("late");
+const within = <T,>(p: Promise<T>, ms: number): Promise<T | typeof LATE> =>
+  ms === Infinity
+    ? p
+    : new Promise((done, fail) => {
+        const t = setTimeout(() => done(LATE), Math.max(0, ms));
+        p.then(
+          (v) => (clearTimeout(t), done(v)),
+          (e) => (clearTimeout(t), fail(e)),
+        );
+      });
 
 const KINDS: SpaceKind[] = [
   "room",
@@ -306,7 +328,12 @@ export async function picture(
   walls: Walls,
   spaces: readonly ReadSpace[] = [],
 ): Promise<Buffer> {
-  const base = await sharp(
+  return drawn(await baseOf(page, f), f, walls, spaces);
+}
+
+/* the frame's part of the page, shrunk to what she is shown: cut once a floor */
+function baseOf(page: FinePage, f: Frame): Promise<Buffer> {
+  return sharp(
     Buffer.from(page.rgba.buffer, page.rgba.byteOffset, page.rgba.byteLength),
     { raw: { width: page.width, height: page.height, channels: 4 } },
   )
@@ -315,6 +342,9 @@ export async function picture(
     .flatten({ background: "#ffffff" })
     .png()
     .toBuffer();
+}
+
+function drawn(base: Buffer, f: Frame, walls: Walls, spaces: readonly ReadSpace[] = []): Promise<Buffer> {
   return sharp(base)
     .composite([
       { input: Buffer.from(overlaySvg(f, walls, spaces)), left: 0, top: 0 },
@@ -323,42 +353,47 @@ export async function picture(
     .toBuffer();
 }
 
-/** One floor read by measure. `page` is the sheet drawn `times` its raster's
-    size, with its words placed on that drawing; `mmPerPx` is the raster's.
-    Everything handed back is in the raster's own pixels. */
-export async function readMeasured(
-  page: FinePage,
-  times: number,
-  opts: { floorName: string; mmPerPx: number | null; ask: AskMeasured; budgetMs?: number },
-): Promise<MeasuredSheet | null> {
-  const started = Date.now();
-  const mm = opts.mmPerPx ? opts.mmPerPx / times : null;
+/** A floor's walls measured off its pixels and its picture cut. Null when
+    the drawing has no wall fill to measure. Nothing it hands back holds the
+    pixels. */
+export async function prepareMeasured(page: FinePage, times: number, mmPerPx: number | null): Promise<Measuring | null> {
+  const mm = mmPerPx ? mmPerPx / times : null;
   const walls = findWalls(page.rgba, page.width, page.height, mm);
   if (!walls) return null;
-  const z = wallSizes(page.width, mm);
   const f = frameOf(walls, page.width, page.height);
+  return { walls, z: wallSizes(page.width, mm), f, base: await baseOf(page, f), words: page.words, mm, times };
+}
+
+/** A measured floor's rooms, named by her and set on its walls. `deadline`
+    is when it must be done by, as Date.now() counts: the route it runs in is
+    killed at five minutes with nothing saved, and 7 Cutler Rd's level took
+    87 s to name and 216 s to look at (the engine's review, 21 November
+    2026). A naming that runs past it throws; a look that would is not
+    taken, or is left, and the answer before it stands. */
+export async function nameRooms(
+  m: Measuring,
+  opts: { floorName: string; ask: AskMeasured; budgetMs?: number; deadline?: number },
+): Promise<MeasuredSheet | null> {
+  const started = Date.now();
+  const { walls, z, f, times } = m;
   const back = {
     backX: (v: number) => v / f.k + f.left,
     backY: (v: number) => v / f.k + f.top,
-    words: page.words,
-    mmPerPx: mm,
+    words: m.words,
+    mmPerPx: m.mm,
   };
+  const left = () => (opts.deadline ?? Infinity) - Date.now();
 
-  const first = roomsOf(
-    await opts.ask(
-      [await picture(page, f, walls)],
-      measuredPrompt(
-        opts.floorName,
-        f.ow,
-        f.oh,
-        walls.grid.x.length,
-        walls.grid.y.length,
-      ),
-      MEASURED_SCHEMA,
-      16000,
-    ),
+  const first = await drawn(m.base, f, walls);
+  /* the time left is read before she is asked, not after */
+  const firstBy = left();
+  const answer = await within(
+    opts.ask([first], measuredPrompt(opts.floorName, f.ow, f.oh, walls.grid.x.length, walls.grid.y.length), MEASURED_SCHEMA, 16000),
+    firstBy,
   );
-  let set = snapRooms(first, walls, z, back);
+  if (answer === LATE) throw new Error("Naming its rooms took too long");
+  const took = Date.now() - started;
+  let set = snapRooms(roomsOf(answer), walls, z, back);
   if (!set.spaces.length) return null;
   let rounds = 1;
 
@@ -368,8 +403,15 @@ export async function readMeasured(
      than the one before it */
   for (let look = 1; look <= 2; look++) {
     if (look === 2 && (!set.problems.length || Date.now() - started > (opts.budgetMs ?? LOOK_AGAIN_MS))) break;
-    const again = await opts.ask([await picture(page, f, walls, set.spaces)], reviewPrompt(opts.floorName, f.ow, f.oh, set.problems, set.spaces.map((s) => s.name)), REVIEW_SCHEMA, 16000).catch(() => null);
-    if (!again || again.right_as_drawn === true) break;
+    /* a look takes about as long as the naming did, a little less */
+    if (left() < took * 0.6) break;
+    const picture = await drawn(m.base, f, walls, set.spaces);
+    const by = left();
+    const again = await within(
+      opts.ask([picture], reviewPrompt(opts.floorName, f.ow, f.oh, set.problems, set.spaces.map((s) => s.name)), REVIEW_SCHEMA, 16000).catch(() => null),
+      by,
+    );
+    if (!again || again === LATE || again.right_as_drawn === true) break;
     const fixed = snapRooms(roomsOf(again), walls, z, back);
     if (!fixed.spaces.length || fixed.problems.length > set.problems.length) break;
     set = fixed;
@@ -385,5 +427,18 @@ export async function readMeasured(
     problems: set.problems,
     walls: scaleWalls(walls, times),
     rounds,
+    frame: { left: Math.round(f.left / times), top: Math.round(f.top / times), width: Math.round(f.width / times), height: Math.round(f.height / times) },
   };
+}
+
+/** One floor read by measure. `page` is the sheet drawn `times` its raster's
+    size, with its words placed on that drawing; `mmPerPx` is the raster's.
+    Everything handed back is in the raster's own pixels. */
+export async function readMeasured(
+  page: FinePage,
+  times: number,
+  opts: { floorName: string; mmPerPx: number | null; ask: AskMeasured; budgetMs?: number; deadline?: number },
+): Promise<MeasuredSheet | null> {
+  const m = await prepareMeasured(page, times, opts.mmPerPx);
+  return m ? nameRooms(m, opts) : null;
 }

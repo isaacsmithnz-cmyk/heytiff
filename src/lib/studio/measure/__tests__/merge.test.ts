@@ -100,3 +100,27 @@ describe("what the picture read found, moved onto the measured rooms", () => {
     expect(got.openings[0].room).toBe("Lounge");
   });
 });
+
+describe("rooms outside the part of the sheet that was measured", () => {
+  const frame = { left: 250, top: 0, width: 400, height: 200 };
+  it("are kept as the picture read drew them, said once, and not called missed", () => {
+    /* only the garage's walls were found: the house lay left of her picture */
+    const pic = picture([sq("Bed 4", 0, 0), sq("Lounge", 100, 0), sq("Garage", 300, 0, "garage")]);
+    const out = withMeasured(pic, { ...measured([sq("Garage", 300, 0, "garage")]), frame }, "p2");
+    expect(out.spaces.map((s) => s.name)).toEqual(["Garage", "Bed 4", "Lounge"]);
+    expect(out.walled!.look).toEqual([{ kind: "readers", room: "", said: "Bed 4, Lounge: outside the part of the sheet that was measured, so they are as the read by picture drew them." }]);
+  });
+  it("a room inside it that only the picture found is still one to check, not added", () => {
+    const pic = picture([sq("Garage", 300, 0, "garage"), sq("Store", 450, 0, "cupboard")]);
+    const out = withMeasured(pic, { ...measured([sq("Garage", 300, 0, "garage")]), frame }, "p2");
+    expect(out.spaces.map((s) => s.name)).toEqual(["Garage"]);
+    expect(out.walled!.look.map((l) => l.room)).toEqual(["Store"]);
+  });
+});
+
+it("says why the measured rooms are doubted when there is no picture read to fall back on", () => {
+  const bad = { ...measured([sq("Lounge", 0, 0), sq("Bed 1", 0, 0)]), look: [1, 2, 3].map(() => ({ kind: "overlap" as const, room: "Lounge", said: "Lounge and Bed 1 overlap." })) };
+  const out = withMeasured(null, bad, "p2");
+  expect(out.spaces).toHaveLength(2);
+  expect(out.walled!.look.at(-1)!.said).toBe("The measured rooms are doubtful (3 of its 2 rooms overlapped or sat on no wall), and the read by picture failed, so there was nothing to check them against.");
+});

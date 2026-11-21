@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type * as THREE_NS from "three";
 import { WALLED, middleOf, toPlan, type Floor3D, type Grille3D, type Opening3D, type Scene3D, type Space3D, type Unit3D, type XZ } from "@/lib/studio/scene3d";
 import { within } from "@/lib/studio/furnish3d";
+import { NAME_PX, NAME_RING_PX, floorNameSize } from "@/lib/studio/floor-name";
 import { clashesOf, distanceWords, roofSpaceOf, roomFor } from "@/lib/studio/checks3d";
 import { latitudeOf, sunAt, towardsSun } from "@/lib/studio/sun";
 import { clipOut, flows } from "@/lib/studio/tidy3d";
@@ -317,8 +318,10 @@ async function build(
      from you, never upside down. A room's floor is mostly behind its own
      walls from above, so the name shows through them; the floor above and
      the roof hide it, as they hid the names before. The Labels switch
-     shows it. Never picked: a tap on it is a tap on the floor under it. */
-  const nameFont = `700 96px ${getComputedStyle(host).fontFamily || "system-ui, sans-serif"}`;
+     shows it. Never picked: a tap on it is a tap on the floor under it.
+     Each letter is ringed in white (floor-name.ts), so a door's frame, a
+     window's, a table or an airflow ribbon under it never swallows it. */
+  const nameFont = `700 ${NAME_PX}px ${getComputedStyle(host).fontFamily || "system-ui, sans-serif"}`;
   const roomNames: THREE_NS.Mesh[] = [];
   const floorName = (text: string, pts: XZ[], y: number, floorIndex: number) => {
     if (!text.trim() || pts.length < 3) return null;
@@ -328,17 +331,18 @@ async function build(
     const d = Math.max(...zs) - Math.min(...zs);
     const meas = document.createElement("canvas").getContext("2d")!;
     meas.font = nameFont;
-    const pw = Math.ceil(meas.measureText(text).width) + 24;
-    const ph = 128;
-    /* the band's height in metres: its words fit 80% of the room's length and half its width */
-    const hm = Math.min(0.45, (Math.max(w, d) * 0.8 * ph) / pw, Math.min(w, d) * 0.5);
-    if (hm < 0.12) return null;
-    const tex = canvasTex(pw, ph, (c) => {
+    const size = floorNameSize(meas.measureText(text).width, w, d);
+    if (!size) return null;
+    const tex = canvasTex(size.canvasW, size.canvasH, (c) => {
       c.font = nameFont;
-      c.fillStyle = "#5F6A79";
       c.textAlign = "center";
       c.textBaseline = "middle";
-      c.fillText(text, pw / 2, ph / 2 + 4);
+      c.lineJoin = "round";
+      c.lineWidth = NAME_RING_PX * 2;
+      c.strokeStyle = "#FFFFFF";
+      c.strokeText(text, size.midX, size.midY + 4);
+      c.fillStyle = "#5F6A79";
+      c.fillText(text, size.midX, size.midY + 4);
     });
     const mat = own(
       new THREE.MeshBasicMaterial({
@@ -349,7 +353,7 @@ async function build(
         toneMapped: false,
       }),
     );
-    const m = new THREE.Mesh(own(new THREE.PlaneGeometry((hm * pw) / ph, hm)), mat);
+    const m = new THREE.Mesh(own(new THREE.PlaneGeometry(size.planeW, size.planeH)), mat);
     m.rotation.x = -Math.PI / 2;
     /* a room deeper than it's wide reads along its depth; which way up is the camera's (frame) */
     m.userData.turn = d > w ? Math.PI / 2 : 0;

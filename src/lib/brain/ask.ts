@@ -30,7 +30,13 @@ import { REPLY_IN_KIND } from "@/lib/lang/policy";
 import { logUsage, type TokenUsage } from "@/lib/tiff/usage";
 import { runTool, toolDefs, type TiffTool, type Viewer } from "@/lib/tiff/registry";
 
-const MODEL = "claude-opus-5";
+/* OPUS 5.5 (bug 68, 21 November 2026: "First response was very slow"). The same
+   question, "Need help with a u2 fault on a daikin", with its library search,
+   timed against the live Library on 22 November: Opus 5 took 19 to 27 s, her first
+   words at 2.7 s; Opus 5.5 took 12.8 to 13.3 s, first words at 1.3 to 1.7 s, and
+   costs a fifth less a token. Same answers. Effort stays as said below: medium is
+   also Opus 5.5's own default. */
+const MODEL = "claude-opus-5-5";
 const MAX_TOKENS = 16_000;
 
 /* One conversational answer over a handful of tool reads is not a research

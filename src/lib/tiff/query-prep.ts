@@ -23,7 +23,9 @@ import Anthropic from "@anthropic-ai/sdk";
 
 import { logUsage } from "./usage";
 
-/* Sonnet 5 at LOW effort. The judgement is shallow ("what would the manual
+/* Haiku 5.5 at LOW effort (bug 68, 22 November 2026: on Sonnet 5 this one step was
+   2.5 of the library search's 3.3 s, and the answer on Haiku came a second sooner,
+   the same answer). Before that, Sonnet 5. The judgement is shallow ("what would the manual
    call this") and it runs on every question, so it is the wrong place to spend
    an Opus call.
 
@@ -34,7 +36,7 @@ import { logUsage } from "./usage";
    invented during ingestion is STORED ON THE CHUNK and goes on matching
    searches for as long as the document is in the library. Same failure, one
    inert and one permanent; only the permanent one is worth Opus money. */
-const MODEL = "claude-sonnet-5";
+const MODEL = "claude-haiku-5-5";
 const MAX_TOKENS = 2_000;
 
 /** Terms per question. Past a dozen the expansion stops being the question. */

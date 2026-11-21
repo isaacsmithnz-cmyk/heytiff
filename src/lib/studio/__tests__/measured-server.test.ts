@@ -2,7 +2,7 @@
 jest.mock("server-only", () => ({}));
 
 import sharp from "sharp";
-import { frameOf, MEASURED_SCHEMA, overlaySvg, readMeasured, REVIEW_SCHEMA, type AskMeasured } from "../measured-server";
+import { frameOf, MEASURED_SCHEMA, overlaySvg, readMeasured, REVIEW_SCHEMA, reviewPrompt, type AskMeasured } from "../measured-server";
 import { findWalls } from "../measure/walls";
 
 /* a drawing made here, 900×700 at 20 mm a pixel: two rooms side by side,
@@ -124,9 +124,18 @@ describe("the picture she is shown", () => {
   });
   it("numbers every line at both ends, and names any room drawn", () => {
     const svg = overlaySvg(frameOf(walls, W, H), walls, [{ name: "Bed <1>", named: true, kind: "room", outline: [{ x: 115, y: 115 }, { x: 395, y: 115 }, { x: 395, y: 485 }], written: "", existing: false, openTo: "", stair: "" }]);
-    expect(svg.match(/>x\d</g)).toHaveLength(6);
-    expect(svg.match(/>y\d</g)).toHaveLength(4);
-    expect(svg).toContain("Bed &lt;1&gt;");
+    expect(svg.match(/data-text="x\d"/g)).toHaveLength(6);
+    expect(svg.match(/data-text="y\d"/g)).toHaveLength(4);
+    /* the room by its number, its name left to the question's words */
+    expect(svg).toContain('data-text="1"');
+    expect(svg).not.toContain("Bed");
     expect(svg).toContain("<polygon");
+  });
+  it("draws no type: nothing in it needs a font, so a server with none draws the same", () => {
+    const svg = overlaySvg(frameOf(walls, W, H), walls, [{ name: "Bed 1", named: true, kind: "room", outline: [{ x: 115, y: 115 }, { x: 395, y: 115 }, { x: 395, y: 485 }], written: "", existing: false, openTo: "", stair: "" }]);
+    expect(svg).not.toMatch(/<text|font-family/);
+  });
+  it("tells her the rooms' names against their numbers when she looks again", () => {
+    expect(reviewPrompt("ground", 100, 100, [], ["Kitchen", "Bed 1"])).toContain("1 Kitchen\n2 Bed 1");
   });
 });

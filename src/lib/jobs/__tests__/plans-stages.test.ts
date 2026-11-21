@@ -66,7 +66,7 @@ const previewsInNode = jest.fn(async (_b: Uint8Array, onProgress?: (d: number, t
   return titles.map((t, i) => ({ n: i + 1, width: 2400, height: 1695, words: words(t), jpeg: "data:image/jpeg;base64,AA==" }));
 });
 const fullInNode = jest.fn(async (_b: Uint8Array, ns: readonly number[]) => ns.map((n) => ({ n, png: Buffer.from("png"), width: 2400, height: 1695, words: words("PLAN") })));
-const pixelsInNode = jest.fn(async (_b: Uint8Array, n: number, times: number) => ({ n, rgba: new Uint8ClampedArray(4), width: 1, height: 1, scale: times, words: [] }));
+const pixelsInNode = jest.fn(async (_b: Uint8Array, n: number, times: number) => ({ n, rgba: new Uint8ClampedArray(4), width: n, height: 1, scale: times, words: [] }));
 jest.mock("../plan-draw-node", () => ({
   previewsInNode: (...a: unknown[]) => previewsInNode(...(a as [Uint8Array])),
   fullInNode: (...a: unknown[]) => fullInNode(...(a as [Uint8Array, number[]])),
@@ -74,12 +74,23 @@ jest.mock("../plan-draw-node", () => ({
 }));
 /* measuring: the lower ground has no wall fill, the ground floor measures, level 1 breaks */
 const bed = { name: "Bed 6", named: true, kind: "room", outline: [{ x: 10, y: 10 }, { x: 110, y: 10 }, { x: 110, y: 110 }, { x: 10, y: 110 }], written: "", existing: false, openTo: "", stair: "" };
-const readMeasured = jest.fn(async (_page: unknown, _times: number, o: { floorName: string }) => {
-  if (o.floorName === "Lower ground") return null;
+const readMeasured = jest.fn(async (_page: unknown, _times: number, o: { floorName: string; deadline?: number }) => {
   if (o.floorName === "Level 1") throw new Error("the model was busy");
   return { spaces: [bed], problems: [{ kind: "overlap", room: "Bed 6", said: "Bed 6 and WIR overlap." }], walls: { shade: 127, segs: [], grid: { x: [10, 110], y: [10, 110] }, run: 400 }, rounds: 2 };
 });
-jest.mock("@/lib/studio/measured-server", () => ({ readMeasured: (...a: unknown[]) => readMeasured(...(a as [unknown, number, { floorName: string }])) }));
+/* the stage measures in two steps (walls off the pixels, then the rooms named): the one fake stands for both */
+const preparing = { now: 0, most: 0, marks: [] as unknown[] };
+jest.mock("@/lib/studio/measured-server", () => ({
+  /* the pixel fake's width is its page number: page 2, the lower ground, has no wall fill */
+  prepareMeasured: async (page: { width: number }) => {
+    preparing.most = Math.max(preparing.most, ++preparing.now);
+    preparing.marks.push((tables.job_plans![0]!.pages as { n: number; walled?: unknown }[]).find((q) => q.n === page.width)?.walled);
+    await Promise.resolve();
+    preparing.now--;
+    return page.width === 2 ? null : {};
+  },
+  nameRooms: (_m: unknown, o: { floorName: string; deadline?: number }) => readMeasured(null, 1, o),
+}));
 const readSheet = jest.fn(async (_o: string, s: { floorId: string }) => ({ sheetId: s.floorId, spaces: [{ name: "Living", points: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }] }, { name: "Kitchen", points: [{ x: 100, y: 0 }, { x: 200, y: 0 }, { x: 200, y: 100 }] }] }));
 jest.mock("@/lib/studio/reading-server", () => ({
   READING_MODEL: "claude-opus-5-5",
@@ -108,6 +119,7 @@ beforeEach(() => {
   fullInNode.mockClear();
   readSheet.mockClear();
   readMeasured.mockClear();
+  Object.assign(preparing, { now: 0, most: 0, marks: [] });
   pixelsInNode.mockClear();
   /* the stages before measuring are tried with it off; its own tests turn it on */
   process.env.PLANS_MEASURED = "0";
@@ -189,7 +201,7 @@ describe("with the floors read by measure, as they are unless PLANS_MEASURED is 
       clock += 1_000;
       await readPlan("org-1", "jplan_1", "https://app.test", client);
     }
-    expect(readMeasured).toHaveBeenCalledTimes(3);
+    expect(pixelsInNode).toHaveBeenCalledTimes(3);
     expect(readSheet).toHaveBeenCalledTimes(3);
     const floors = (plan().reading as { floors: Record<string, { spaces: { name: string }[]; walled?: { rounds: number; look: { kind: string }[] } }[]> }).floors;
     expect(floors.p3[0].spaces.map((s) => s.name)).toEqual(["Bed 6"]);
@@ -200,12 +212,42 @@ describe("with the floors read by measure, as they are unless PLANS_MEASURED is 
     expect(floors.p4[0].spaces.map((s) => s.name)).toEqual(["Living", "Kitchen"]);
   });
 
+  it("draws and measures one floor at a time, each marked unfinished until it lands, and gives the naming a time to be done by", async () => {
+    await readPlan("org-1", "jplan_1", "https://app.test", client);
+    clock += 1_000;
+    const began = clock;
+    await readPlan("org-1", "jplan_1", "https://app.test", client);
+    /* a floor's pixels are 65 MB twice over: never two floors' at once */
+    expect(preparing.most).toBe(1);
+    /* a run killed part-way leaves the mark, and the next reads that floor by picture */
+    expect(preparing.marks).toEqual([{ none: "The measuring didn't finish" }, { none: "The measuring didn't finish" }, { none: "The measuring didn't finish" }]);
+    /* 250 s from the run's start: the route is killed at 300 */
+    expect(readMeasured.mock.calls.map((c) => c[2].deadline)).toEqual([began + 250_000, began + 250_000]);
+  });
+
+  it("says a floor whose rooms measured but whose picture read failed, and asks for the plan to be checked", async () => {
+    readSheet.mockImplementation(async (_o: string, s: { floorId: string }) => {
+      if (s.floorId === "p3") throw new Error("Tiff's answer was too long to finish");
+      return { sheetId: s.floorId, spaces: [{ name: "Living", points: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }] }, { name: "Kitchen", points: [{ x: 100, y: 0 }, { x: 200, y: 0 }, { x: 200, y: 100 }] }] };
+    });
+    for (let i = 0; i < 3; i++) {
+      clock += 1_000;
+      await readPlan("org-1", "jplan_1", "https://app.test", client);
+    }
+    const reading = plan().reading as { floors: Record<string, { spaces: { name: string }[] }[]>; failed: { sheetId: string; reason: string }[] };
+    /* its measured rooms are kept */
+    expect(reading.floors.p3[0].spaces.map((x) => x.name)).toEqual(["Bed 6"]);
+    expect(reading.failed).toEqual([expect.objectContaining({ sheetId: "p3", reason: "its rooms were measured, but its doors, windows and notes weren't read (Tiff's answer was too long to finish)" })]);
+    expect(plan().state).toBe("check");
+    readSheet.mockImplementation(async (_o: string, s: { floorId: string }) => ({ sheetId: s.floorId, spaces: [{ name: "Living", points: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }] }, { name: "Kitchen", points: [{ x: 100, y: 0 }, { x: 200, y: 0 }, { x: 200, y: 100 }] }] }));
+  });
+
   it("isn't tried again on a set it has been through", async () => {
     for (let i = 0; i < 4; i++) {
       clock += 1_000;
       await readPlan("org-1", "jplan_1", "https://app.test", client);
     }
-    expect(readMeasured).toHaveBeenCalledTimes(3);
+    expect(pixelsInNode).toHaveBeenCalledTimes(3);
   });
 });
 

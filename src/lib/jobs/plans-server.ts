@@ -8,7 +8,7 @@ import { signPlanPagesTicket, signPlanReadTicket, type PlanPagesTicket } from "@
 import { mmPerPxFor, printedScaleOf } from "@/lib/studio/plan-set";
 import { scaleFromDimensions, type PlanReading, type PlanWord } from "@/lib/studio/reading";
 import { READING_MODEL, readDimensions, readRoof, readSheet, readSite, type SheetToRead, askWith, pngBlock } from "@/lib/studio/reading-server";
-import { readMeasured } from "@/lib/studio/measured-server";
+import { nameRooms, prepareMeasured } from "@/lib/studio/measured-server";
 import { withMeasured } from "@/lib/studio/measure/merge";
 import { SONNET_FALLBACK } from "@/lib/tiff/sonnet-fallback";
 import { openPdf } from "@/lib/tiff/extract";
@@ -359,16 +359,34 @@ const measuredOn = () => process.env.PLANS_MEASURED !== "0";
 /** how fine a floor is drawn to measure: about 17 mm of building a pixel, a wall a dozen pixels thick */
 const MEASURE_MM = 17.5;
 
-async function measureFloor(bytes: Uint8Array, p: JobPlanPage): Promise<PageWalled> {
+/** When the stage must be done by, from the run's start: the route is killed
+    at 300 s with nothing saved, and the pages still have to be written and
+    handed on (7 Cutler Rd's level took 303 s on its own; the engine's review,
+    21 November 2026). */
+const MEASURE_BY_MS = 250_000;
+/** What a floor's page says until its measuring lands: a run killed part-way
+    (out of time, out of memory) leaves it, and the next run reads that floor
+    by picture instead of measuring the set again and dying the same way. */
+const NOT_FINISHED = "The measuring didn't finish";
+
+/* `oneAtATime` runs what it is given one after another: a floor drawn to
+   measure is 65 MB of pixels twice over, so the floors are drawn and their
+   walls found in turn, and only the questions that follow overlap. The
+   pixels are let go before the first question (prepareMeasured). */
+async function measureFloor(bytes: Uint8Array, p: JobPlanPage, deadline: number, oneAtATime: <T>(fn: () => Promise<T>) => Promise<T>): Promise<PageWalled> {
   const times = p.mmPerPx ? Math.min(2, Math.max(1, Math.round(p.mmPerPx / MEASURE_MM))) : 2;
-  const px = await pixelsInNode(bytes, p.n, times);
-  const read = await readMeasured({ rgba: px.rgba, width: px.width, height: px.height, words: px.words }, times, {
+  const ready = await oneAtATime(async () => {
+    const px = await pixelsInNode(bytes, p.n, times);
+    return prepareMeasured({ rgba: px.rgba, width: px.width, height: px.height, words: px.words }, times, p.mmPerPx);
+  });
+  if (!ready) return { none: "Its walls aren't drawn as a fill, so they couldn't be measured" };
+  const read = await nameRooms(ready, {
     floorName: p.name || `page ${p.n}`,
-    mmPerPx: p.mmPerPx,
+    deadline,
     ask: (pictures, text, schema, maxTokens) => askWith(pictures.map(pngBlock), text, schema, maxTokens, undefined, "medium"),
   });
-  if (!read) return { none: "Its walls aren't drawn as a fill, so they couldn't be measured" };
-  return { spaces: read.spaces, look: read.problems, grid: read.walls.grid, rounds: read.rounds };
+  if (!read) return { none: "Its rooms couldn't be named between its walls" };
+  return { spaces: read.spaces, look: read.problems, grid: read.walls.grid, rounds: read.rounds, frame: read.frame };
 }
 
 
@@ -892,20 +910,33 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
       let done = 0;
       tell({ step: "measuring", done, total: toMeasure.length });
       const bytes = new Uint8Array((await bytesOf()).bytes);
-      const got = new Map<number, PageWalled>();
+      /* each floor is marked first and written as it lands, one write after
+         another: a run that dies here keeps what it had, and what it hadn't
+         is read by picture */
+      const asked = new Set(toMeasure.map((p) => p.n));
+      pages = pages.map((p) => (asked.has(p.n) ? { ...p, walled: { none: NOT_FINISHED } } : p));
+      await write(orgId, planId, { pages });
+      let turn: Promise<unknown> = Promise.resolve();
+      const oneAtATime = <T,>(fn: () => Promise<T>): Promise<T> => {
+        const mine = turn.then(fn);
+        turn = mine.catch(() => undefined);
+        return mine;
+      };
+      let writing: Promise<unknown> = Promise.resolve();
       await Promise.all(
         toMeasure.map(async (p) => {
           /* a floor that can't be measured is read by picture alone, as before; it never fails the set */
-          const w = await measureFloor(bytes, p).catch((e): PageWalled => {
+          const w = await measureFloor(bytes, p, started + MEASURE_BY_MS, oneAtATime).catch((e): PageWalled => {
             console.error(`[job-plans] ${planId}/p${p.n} measure: ${String(e)}`);
             return { none: e instanceof Error ? e.message : "It couldn't be measured" };
           });
-          got.set(p.n, w);
+          pages = pages.map((q) => (q.n === p.n ? { ...q, walled: w } : q));
+          const now = pages;
+          writing = writing.then(() => write(orgId, planId, { pages: now }));
+          await writing;
           tell({ step: "measuring", done: ++done, total: toMeasure.length });
         }),
       );
-      pages = pages.map((p) => (got.has(p.n) ? { ...p, walled: got.get(p.n)! } : p));
-      await write(orgId, planId, { pages });
       return await handOff();
     }
 
@@ -958,8 +989,16 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
         /* a floor's measured rooms are its rooms; the picture read gives the rest, and is their second reader */
         const walled = floors[i].walled;
         const m = walled && "spaces" in walled && walled.spaces.length ? walled : null;
-        if (m) (reading.floors[s.floorId] ??= []).push(withMeasured(r.status === "fulfilled" ? r.value : null, m, s.sheetId));
-        else if (r.status === "fulfilled") (reading.floors[s.floorId] ??= []).push(r.value);
+        if (m) {
+          (reading.floors[s.floorId] ??= []).push(withMeasured(r.status === "fulfilled" ? r.value : null, m, s.sheetId));
+          /* its rooms stand, but its doors, windows and notes were the picture
+             read's to find: said, so the plan asks to be checked and isn't
+             shown as Read (the engine's review, 21 November 2026) */
+          if (r.status === "rejected") {
+            console.error(`[job-plans] ${planId}/${s.sheetId}: ${String(r.reason)}`);
+            reading.failed.push({ floorId: s.floorId, sheetId: s.sheetId, reason: `its rooms were measured, but its doors, windows and notes weren't read (${r.reason instanceof Error ? r.reason.message : "it couldn't be read"})` });
+          }
+        } else if (r.status === "fulfilled") (reading.floors[s.floorId] ??= []).push(r.value);
         else {
           console.error(`[job-plans] ${planId}/${s.sheetId}: ${String(r.reason)}`);
           reading.failed.push({ floorId: s.floorId, sheetId: s.sheetId, reason: r.reason instanceof Error ? r.reason.message : "It couldn't be read" });

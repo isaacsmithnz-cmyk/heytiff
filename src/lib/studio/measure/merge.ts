@@ -11,7 +11,7 @@ import { agreement, inside } from "./rooms";
    rooms, or a pile of rooms that overlap or sit on no wall), the picture's
    rooms stay and the measured ones are set aside, said so. Pure. */
 
-export type MeasuredRooms = { spaces: ReadSpace[]; look: ReadLook[]; grid: { x: number[]; y: number[] }; rounds: number };
+export type MeasuredRooms = { spaces: ReadSpace[]; look: ReadLook[]; grid: { x: number[]; y: number[] }; rounds: number; frame?: { left: number; top: number; width: number; height: number } };
 
 const WALLED = new Set(["room", "wet", "cupboard", "garage"]);
 const walledIn = (spaces: readonly ReadSpace[]) => spaces.filter((s) => WALLED.has(s.kind) && (s.outline?.length ?? 0) >= 3);
@@ -34,23 +34,38 @@ export function withMeasured(picture: SheetReading | null, m: MeasuredRooms, she
   const why = setAside(picture, m);
   if (why && picture) return { ...picture, walled: { grid: m.grid, rounds: m.rounds, look: [{ kind: "readers", room: "", said: `The rooms were also measured off the walls, and that read was set aside: ${why}.` }] } };
   const look = [...m.look];
+  /* nothing to fall back on: the measured rooms stand, and why they are doubted is said */
+  if (why) look.push({ kind: "readers", room: "", said: `The measured rooms are doubtful (${why}), and the read by picture failed, so there was nothing to check them against.` });
+  /* SHE NAMES ONLY WHAT SHE IS SHOWN. Her picture is the part of the sheet
+     the found walls stand on, so where only some of a building's walls were
+     found (new walls in colour, a garage in outline across the yard) the
+     rest lay outside it, and those rooms dropped off the floor with nothing
+     said (the engine's review, 21 November 2026: Frogmore's Bed 4 and
+     Lounge, Albion's garage). A room the picture read drew outside her
+     picture is kept as it drew it. */
+  const fr = m.frame;
+  const out = (s: ReadSpace) => {
+    const c = mean(s.outline ?? []);
+    return !!fr && !!c && (s.outline?.length ?? 0) >= 3 && (c.x < fr.left || c.x > fr.left + fr.width || c.y < fr.top || c.y > fr.top + fr.height);
+  };
+  const beyond = picture ? picture.spaces.filter(out) : [];
+  if (beyond.length) look.push({ kind: "readers", room: "", said: `${[...new Set(beyond.map((s) => s.name))].join(", ")}: outside the part of the sheet that was measured, so ${beyond.length === 1 ? "it is" : "they are"} as the read by picture drew ${beyond.length === 1 ? "it" : "them"}.` });
+  const spaces = [...m.spaces, ...beyond];
   if (picture) {
-    const a = agreement(m.spaces, picture.spaces);
-    const missed = walledIn(picture.spaces).filter((s) => a.onlyB.includes(s.name));
+    const a = agreement(spaces, picture.spaces);
+    const missed = walledIn(picture.spaces).filter((s) => a.onlyB.includes(s.name) && !beyond.includes(s));
     /* said once each: a house has several ensuites, and a list of six is one thing to look at */
     for (const name of [...new Set(missed.map((s) => s.name))])
       look.push({ kind: "readers", room: name, said: `${name}: a second read of the plan found this room and the measured one didn't. Check it isn't missing.` });
-  }
-  if (picture) {
     /* one space, two names: a walled room the second read calls something
        else, when the plan writes both names (a reader's own label for an
        unnamed cupboard is no disagreement) */
-    for (const d of agreement(m.spaces, picture.spaces).differ)
+    for (const d of a.differ)
       if (WALLED.has(d.a.kind) && WALLED.has(d.b.kind) && d.a.named && d.b.named)
         look.push({ kind: "readers", room: d.a.name, said: `${d.a.name}: a second read of the plan calls this room ${d.b.name}. Check which it is.` });
   }
   const base: SheetReading = picture ?? { sheetId, spaces: [], openings: [], marks: [], furniture: [], checklist: [], flags: [], planUp: "" };
-  return { ...base, ...(picture ? rehomed(picture, m.spaces) : {}), spaces: m.spaces, walled: { grid: m.grid, rounds: m.rounds, look } };
+  return { ...base, ...(picture ? rehomed(picture, spaces) : {}), spaces, walled: { grid: m.grid, rounds: m.rounds, look } };
 }
 
 /* WHAT THE PICTURE FOUND, ON THE MEASURED ROOMS. The picture read names the

@@ -2,7 +2,7 @@
 jest.mock("server-only", () => ({}));
 
 import sharp from "sharp";
-import { frameOf, MEASURED_SCHEMA, overlaySvg, readMeasured, REVIEW_SCHEMA, reviewPrompt, type AskMeasured } from "../measured-server";
+import { frameOf, MEASURED_SCHEMA, nameRooms, overlaySvg, prepareMeasured, readMeasured, REVIEW_SCHEMA, reviewPrompt, type AskMeasured } from "../measured-server";
 import { findWalls } from "../measure/walls";
 
 /* a drawing made here, 900×700 at 20 mm a pixel: two rooms side by side,
@@ -91,6 +91,46 @@ describe("a floor read by measure", () => {
     n = 0;
     const hurried = (await readMeasured(page(), 1, { floorName: "g", mmPerPx: 20, ask, budgetMs: -1 }))!;
     expect([n, hurried.rounds, hurried.problems.length]).toEqual([2, 2, 1]);
+  });
+
+  it("gives up a naming that runs past its time, and keeps its answer when a look would", async () => {
+    /* the clock is the test's own, so a busy machine can't change the answer */
+    let clock = 1_000_000;
+    const now = jest.spyOn(Date, "now").mockImplementation(() => clock);
+    try {
+      const m = (await prepareMeasured(page(), 1, 20))!;
+      const never: AskMeasured = () => new Promise(() => {});
+      await expect(nameRooms(m, { floorName: "g", ask: never, deadline: clock - 1 })).rejects.toThrow("Naming its rooms took too long");
+      /* named in 40 s with 15 s then left: no time to look, so the first answer stands, unasked about */
+      let n = 0;
+      const slow: AskMeasured = async () => {
+        n++;
+        clock += 40_000;
+        return { rooms: [LOUNGE, BED] };
+      };
+      const out = (await nameRooms(m, { floorName: "g", ask: slow, deadline: clock + 55_000 }))!;
+      expect([n, out.rounds, out.spaces.length]).toEqual([1, 1, 2]);
+      /* a look still running when the time runs out is left, and the answer before it stands */
+      n = 0;
+      const hangs: AskMeasured = () => {
+        if (n++ > 0) return new Promise(() => {});
+        clock += 10;
+        return Promise.resolve({ rooms: [LOUNGE, BED] });
+      };
+      const kept = (await nameRooms(m, { floorName: "g", ask: hangs, deadline: clock + 17 }))!;
+      expect([n, kept.rounds, kept.spaces.length]).toEqual([2, 1, 2]);
+    } finally {
+      now.mockRestore();
+    }
+  });
+
+  it("holds none of the sheet's pixels once its walls are measured, and says what part of the sheet she was shown", async () => {
+    const m = (await prepareMeasured(page(), 1, 20))!;
+    expect(Object.values(m).some((v) => v instanceof Uint8ClampedArray || v instanceof Uint8Array && !Buffer.isBuffer(v))).toBe(false);
+    expect(m.base.length).toBeLessThan(W * H);
+    const out = (await nameRooms(m, { floorName: "g", ask: async () => ({ rooms: [LOUNGE, BED] }) }))!;
+    expect(out.frame.left + out.frame.width).toBeGreaterThanOrEqual(735);
+    expect(out.frame.left).toBeLessThanOrEqual(64);
   });
 
   it("comes back in the sheet's own pixels when the floor was drawn finer to measure", async () => {

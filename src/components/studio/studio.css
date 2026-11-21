@@ -10492,6 +10492,26 @@ html:not([data-ds-display]) .fg:has(#fg-topbar) .dstudio.editing:has(> .ds-edito
    equal flanks still centre Plan/3D on a wide screen, and on a 13-inch the
    right flank gives way instead of the job's buttons running under Plan */
 .dstudio .ds-editor.clean .ds-tb-left { min-width: max-content; }
+/* a laptop under 1440 (the live walk, 21 November 2026: at 1280 Design,
+   Schematic and Summary ran over GF and View): the tabs and the plan's own
+   controls keep their width and the left flank gives way, Zones Tiff found
+   first, as the column's Zones opens the same, then the job's name and place
+   fade, and under that the tabs take a second line. A 1440 is as it was: its
+   left flank already holds its own and the right takes the rest. A wide
+   screen keeps the equal flanks above. Measured on the window beside the 208
+   sidebar, as the bar made a size container would hold its menus under the
+   plan */
+@media (max-width: 1739px) {
+  .dstudio .ds-editor.clean .ds-tb-left { flex: 0 1 auto; min-width: 0; }
+  .dstudio .ds-editor.clean .ds-centre { flex: none; }
+  .dstudio .ds-editor.clean .ds-tb-right { flex: 1 0 auto; min-width: max-content; }
+}
+@media (max-width: 1396px) {
+  .dstudio .ds-editor.clean .ds-found { display: none; }
+}
+@media (max-width: 1245px) {
+  .dstudio .ds-editor.clean > .ds-topbar { flex-wrap: wrap; height: auto; min-height: 56px; padding-block: 4px; row-gap: 8px; }
+}
 .dstudio .ds-editor.clean .ds-title-input { font: 600 16px/24px var(--font); height: 32px; width: 200px; flex: 0 1 200px; min-width: 120px; padding: 0 8px; border: 1px solid transparent; border-radius: var(--r-control); background: none; color: var(--ink); }
 .dstudio .ds-editor.clean .ds-title-input:hover,
 .dstudio .ds-editor.clean .ds-title-input:focus { border-color: var(--edge); background: var(--paper); }
@@ -10530,6 +10550,16 @@ html:not([data-ds-display]) .fg:has(#fg-topbar) .dstudio.editing:has(> .ds-edito
 .dstudio .ds-editor.clean .ds-save.ds-reading-open .dot { background: var(--q); }
 .dstudio .ds-editor.clean .ds-toolbar .ds-roomfly { top: auto; bottom: calc(100% + 12px); left: 50%; transform: translateX(-50%); border: none; border-radius: var(--r-card); box-shadow: var(--shadow-overlay); }
 .dstudio .ds-editor.clean .ds-toolbar .ds-drawfly { left: 50%; }
+/* the tools keep clear of Help and history (the live walk, 21 November
+   2026: at 1280 Undo was under Select, at 1440 Redo's end under the bar):
+   centred on the plan while it has the room, else starting 12 past them,
+   whose corner ends 267 in. Where that would run into Tiff's pill, Help and
+   history stand over their corner as zoom stands on the pill, and the tools
+   centre again */
+.dstudio .ds-editor.clean .ds-toolbar { left: 279px; right: 279px; width: fit-content; margin-inline: auto; transform: none; }
+@container ds-plan (max-width: 826px) {
+  .dstudio .ds-editor.clean .ds-toolbar { left: 16px; right: 16px; }
+}
 
 /* history and zoom, either side of it */
 .dstudio .ds-editor.clean .ds-history,
@@ -10664,6 +10694,22 @@ html:not([data-ds-display]) .fg:has(#fg-topbar) .dstudio.editing:has(> .ds-edito
 .dstudio .ds-editor.clean .ds-help-btn button:hover { background: var(--hov); }
 .dstudio .ds-editor.clean .ds-help-btn button[aria-expanded="true"] { background: rgba(5, 5, 5, 0.07); }
 .dstudio .ds-help { position: absolute; left: 72px; bottom: 72px; z-index: 20; width: 360px; max-width: calc(100% - 88px); max-height: calc(100% - 96px); overflow: auto; border-radius: 16px; background: var(--paper); box-shadow: var(--shadow-overlay); color: var(--ink); }
+/* Help and history 8 over the tools where those need the plan's foot (the
+   tool bar above), zoom level with them, and How to design rising over them */
+@container ds-plan (max-width: 826px) {
+  .dstudio .ds-editor.clean .ds-plan-foot-left,
+  .dstudio .ds-editor.clean .ds-zoomctl { bottom: 76px; }
+  .dstudio .ds-editor.clean .ds-canvas-col:has(.ds-hud) .ds-plan-foot-left { bottom: 176px; }
+  .dstudio .ds-editor.clean .ds-help { bottom: 132px; }
+}
+/* a plan too narrow for the tools beside Tiff's pill (a 1024 window): the
+   pill stands level with Help and history, and zoom over it */
+@container ds-plan (max-width: 563px) {
+  .dstudio .ds-editor.clean .ds-canvas-col .tc-ask { bottom: 76px; }
+  .dstudio .ds-editor.clean .ds-zoomctl { bottom: 128px; }
+  .dstudio .ds-editor.clean .ds-canvas-col:has(.ds-hud) .tc-ask { bottom: 176px; }
+  .dstudio .ds-editor.clean .ds-canvas-col:has(.ds-hud) .ds-zoomctl { bottom: 228px; }
+}
 .dstudio .ds-help-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 16px 8px; }
 .dstudio .ds-help-head h2 { margin: 0; font: 600 16px/24px var(--font); }
 .dstudio .ds-help-close { display: grid; place-items: center; width: 32px; height: 32px; border-radius: var(--r-button); color: var(--ink); }

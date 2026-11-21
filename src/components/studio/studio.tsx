@@ -2306,7 +2306,7 @@ function Editor({
             {step === 1 && activeFloor?.scaleMmPerUnit != null && doc.reading?.floors[activeFloor.id]?.length ? (
               <button
                 type="button"
-                className="ds-save ds-reading read ds-reading-open"
+                className="ds-save ds-reading read ds-reading-open ds-found"
                 onClick={() => (flow === "next" ? setRoomsOpen(true) : setRoomsFor(activeFloor.id))}
               >
                 <span className="dot" />

@@ -1,6 +1,8 @@
 import "server-only";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { threadOf, type TiffThread } from "./threads";
+import { nameThread } from "./thread-name";
+import { nameFrom, shownTitle } from "./thread-title";
 
 /* A person's threads with Tiff, on the server (docs/migrations/tiff_threads.sql,
    NOT YET APPLIED). Service role, by org and sign-in: a thread is only ever
@@ -15,7 +17,7 @@ export type ThreadOwner = { orgId: string; userSub: string };
 /** The most a person's list holds when it is read. */
 export const THREADS_READ_MAX = 200;
 
-type Row = { id: string; title: string; messages: unknown; updated_at: string };
+type Row = { id: string; title: string; named: string | null; messages: unknown; updated_at: string };
 
 /* Postgres's "no such table", and PostgREST's "not in the schema cache",
    which is what a table that was never created looks like through the API. */
@@ -27,14 +29,17 @@ export type ReadResult = { kept: true; threads: TiffThread[] } | { kept: false; 
 export async function readThreads(k: ThreadOwner): Promise<ReadResult> {
   const { data, error } = await supabaseAdmin
     .from("tiff_threads")
-    .select("id, title, messages, updated_at")
+    .select("id, title, named, messages, updated_at")
     .eq("org_id", k.orgId)
     .eq("user_sub", k.userSub)
     .order("updated_at", { ascending: false })
     .limit(THREADS_READ_MAX);
   if (error) return { kept: false, missing: missingTable(error) };
   const threads = ((data ?? []) as Row[])
-    .map((r) => threadOf({ id: r.id, title: r.title, updatedAt: Date.parse(r.updated_at), messages: r.messages }))
+    .map((r) => {
+      const t = threadOf({ id: r.id, title: r.title, updatedAt: Date.parse(r.updated_at), messages: r.messages });
+      return t ? { ...t, title: shownTitle(t.title, r.named, t.messages) } : null;
+    })
     .filter((t): t is TiffThread => t !== null);
   return { kept: true, threads };
 }
@@ -58,4 +63,33 @@ export async function writeThreads(k: ThreadOwner, upsert: TiffThread[], remove:
     if (error) return false;
   }
   return true;
+}
+
+/** The most she names in one keep: a first send can carry a browser's whole history. */
+const NAMES_PER_KEEP = 3;
+
+/** Name what was just kept and has no name of hers yet (./thread-title). Run after the answer has gone; never throws. */
+export async function nameKeptThreads(k: ThreadOwner, kept: TiffThread[]): Promise<void> {
+  const ready = kept.flatMap((t) => {
+    const from = nameFrom(t);
+    return from ? [{ id: t.id, ...from }] : [];
+  });
+  if (ready.length === 0) return;
+  const { data, error } = await supabaseAdmin
+    .from("tiff_threads")
+    .select("id")
+    .eq("org_id", k.orgId)
+    .eq("user_sub", k.userSub)
+    .is("named", null)
+    .in(
+      "id",
+      ready.map((r) => r.id),
+    );
+  if (error) return;
+  const unnamed = new Set(((data ?? []) as { id: string }[]).map((r) => r.id));
+  for (const r of ready.filter((x) => unnamed.has(x.id)).slice(0, NAMES_PER_KEEP)) {
+    const named = await nameThread(r.asked, r.answer);
+    if (!named) continue;
+    await supabaseAdmin.from("tiff_threads").update({ named }).eq("org_id", k.orgId).eq("user_sub", k.userSub).eq("id", r.id).is("named", null);
+  }
 }

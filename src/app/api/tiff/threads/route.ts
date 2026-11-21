@@ -1,8 +1,9 @@
 import { createHash } from "node:crypto";
+import { after } from "next/server";
 import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
 import { THREADS_PER_CALL, threadIdOf, threadOf, type TiffThread } from "@/lib/tiff/threads";
-import { readThreads, writeThreads, type ThreadOwner } from "@/lib/tiff/threads-server";
+import { nameKeptThreads, readThreads, writeThreads, type ThreadOwner } from "@/lib/tiff/threads-server";
 
 /* A person's conversations with Tiff (lib/tiff/threads.ts): GET reads them,
    POST keeps some and removes others. Gated as asking Tiff is, by `tiff`.
@@ -59,5 +60,7 @@ export async function POST(req: Request) {
   }
   if (upsert.length === 0 && remove.length === 0) return Response.json({ ok: true });
   const saved = await writeThreads(g.owner, upsert, remove);
+  /* once she has answered, she names it (lib/tiff/thread-title), after the answer has gone */
+  if (saved && upsert.length) after(() => nameKeptThreads(g.owner, upsert));
   return saved ? Response.json({ ok: true }) : Response.json(NOT_KEPT, { status: 503 });
 }

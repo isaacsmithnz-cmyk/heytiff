@@ -9,6 +9,8 @@
    The database is a small recording stand-in. */
 
 let session: { orgId?: string; user?: { sub?: string } } | null = { orgId: "org-1", user: { sub: "auth0|isaac" } };
+/* naming a kept thread runs after the answer (lib/tiff/thread-title); not here */
+jest.mock("next/server", () => ({ ...jest.requireActual("next/server"), after: () => undefined }));
 jest.mock("@/lib/auth0", () => ({ auth0: { getSession: async () => session } }));
 let tiff = true;
 jest.mock("@/lib/permissions-server", () => ({ can: async () => tiff }));

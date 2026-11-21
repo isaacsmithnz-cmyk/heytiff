@@ -1,5 +1,6 @@
 import { THREADS_PER_CALL, threadIdOf, threadOf, type TiffThread } from "@/lib/tiff/threads";
-import { readThreads, writeThreads } from "@/lib/tiff/threads-server";
+import { after } from "next/server";
+import { nameKeptThreads, readThreads, writeThreads } from "@/lib/tiff/threads-server";
 import { ok, requireMobile } from "@/lib/mobile/auth";
 
 /* YOUR CONVERSATIONS WITH TIFF, from the phone: the same threads as the
@@ -38,6 +39,9 @@ export async function POST(request: Request) {
     remove.push(id);
   }
   if (upsert.length === 0 && remove.length === 0) return ok({ kept: true });
-  const saved = await writeThreads({ orgId: ctx.orgId, userSub: ctx.userId }, upsert, remove);
+  const owner = { orgId: ctx.orgId, userSub: ctx.userId };
+  const saved = await writeThreads(owner, upsert, remove);
+  /* once she has answered, she names it (lib/tiff/thread-title), after the answer has gone */
+  if (saved && upsert.length) after(() => nameKeptThreads(owner, upsert));
   return saved ? ok({ kept: true }) : no(503, NOT_KEPT);
 }

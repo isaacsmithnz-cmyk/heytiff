@@ -101,7 +101,7 @@ export default async function StudioPage({
      is the Design page's now. The current flow's screens stay behind the
      switch (flow.tsx) until they are taken out. */
   return (
-    <StudioKeep design={openDesignId} job={forJob?.remoteId}>
+    <StudioKeep job={forJob?.remoteId}>
       <Studio
         flow="next"
         sm8Jobs={sm8Connected && boardAccess}

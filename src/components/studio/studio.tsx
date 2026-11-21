@@ -3507,6 +3507,8 @@ function DrawTool({
    stays on the WRAPPER, so it keeps pointing at the trigger however far the
    menu is nudged. */
 const MENU_EDGE_GAP = 8;
+/* the least a menu keeps when the frame is short: a few rows to scroll */
+const MENU_MIN_ROOM = 160;
 
 /* What a bare scroll does — the OUTCOME first, then the device it suits.
    "Zoom / Pan" alone is exactly as opaque as the two icons this replaced, so
@@ -3522,14 +3524,23 @@ const SCROLL_CHOICES: { mode: WheelMode; label: string; device: string }[] = [
   { mode: "pan", label: "Move around the plan", device: "a trackpad" },
 ];
 
-function useClampedMenu(open: boolean) {
+/* ...and DOWN, as far as the frame goes. View holds the layers, the display,
+   Fullscreen, Scale and north and the scrolling choices, 683 high, and at a
+   757 screen its foot ran off the window with nothing to reach it by
+   (Isaac, 22 November 2026: "check the web Studio for cut off text"). A menu
+   taller than the room under its pill stops at the frame's foot and scrolls
+   inside itself; one that fits is left as it is. Escape closes it, as it
+   closes the Studio's other menus (the floor menu didn't). */
+function useClampedMenu(open: boolean, setOpen: (open: boolean) => void) {
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     const el = ref.current;
     if (!open || !el) return;
     const place = () => {
-      // measure from the centred position, then correct
+      // measure from the centred position at its full height, then correct
       el.style.setProperty("--ds-menu-nudge", "0px");
+      el.style.maxHeight = "";
+      el.style.overflowY = "";
       const frame = el.closest(".dstudio")?.getBoundingClientRect();
       if (!frame) return;
       const r = el.getBoundingClientRect();
@@ -3537,11 +3548,23 @@ function useClampedMenu(open: boolean) {
       const under = frame.left + MENU_EDGE_GAP - r.left;
       const nudge = over > 0 ? -over : under > 0 ? under : 0;
       el.style.setProperty("--ds-menu-nudge", `${Math.round(nudge)}px`);
+      const room = Math.floor(Math.min(frame.bottom, window.innerHeight) - MENU_EDGE_GAP - r.top);
+      if (r.height > room) {
+        el.style.maxHeight = `${Math.max(MENU_MIN_ROOM, room)}px`;
+        el.style.overflowY = "auto";
+      }
     };
     place();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
     window.addEventListener("resize", place);
-    return () => window.removeEventListener("resize", place);
-  }, [open]);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open, setOpen]);
   return ref;
 }
 
@@ -3689,9 +3712,9 @@ function CanvasControls({
   const [layersOpen, setLayersOpen] = useState(false);
   const [calibOpen, setCalibOpen] = useState(false);
   const [floorMenuOpen, setFloorMenuOpen] = useState(false);
-  const floorMenuRef = useClampedMenu(floorMenuOpen);
-  const calibMenuRef = useClampedMenu(calibOpen);
-  const viewMenuRef = useClampedMenu(layersOpen);
+  const floorMenuRef = useClampedMenu(floorMenuOpen, setFloorMenuOpen);
+  const calibMenuRef = useClampedMenu(calibOpen, setCalibOpen);
+  const viewMenuRef = useClampedMenu(layersOpen, setLayersOpen);
   /* a subfloor or roof space in the floor menu: picked from its name, its
      height typed in metres as a floor's is, taken off with its x */
   const spaceRow = (kind: SpaceKind) => {

@@ -8312,8 +8312,13 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .ds2-title { display:flex; align-items:baseline; gap:12px; min-width:0; }
 .fg .ds2-title h1 { margin:0; font-size:24px; line-height:32px; font-weight:600; color:var(--ink); }
 .fg .ds2-acts { display:flex; align-items:center; gap:8px; }
-.fg .ds2-body { display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:48px; align-items:start; }
-.fg .ds2-list { display:flex; flex-direction:column; gap:16px; min-width:0; }
+/* The list has the room and the unit library stands beside it only where
+   there is room for both: under about 1,230 across (a 1440 screen, a laptop)
+   the library drops under the list, so a design's name and its job aren't
+   squeezed to a word beside it (Isaac, 22 November 2026: "check the web
+   Studio for cut off text"; at 1280 "12/8-10 Park Avenue" read "12/8-10 Pa") */
+.fg .ds2-body { display:flex; flex-wrap:wrap; gap:32px 48px; align-items:flex-start; }
+.fg .ds2-list { display:flex; flex-direction:column; gap:16px; flex:1 1 880px; min-width:0; }
 .fg .ds2-sr { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
 .fg .ds2-bar { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
 .fg .ds2-search { width:360px; }
@@ -8329,7 +8334,8 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .ds2-hold { min-height:240px; }
 .fg .ds2-name { font-weight:600; min-width:0; }
 .fg .ds2-job { min-width:0; }
-.fg .ds2-num { color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .ds2-num { color:var(--ink); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.fg .ds2-when { white-space:nowrap; }
 .fg .ds2-quiet { color:var(--q); }
 .fg .ds2-thumb { display:flex; align-items:center; justify-content:center; width:72px; height:54px; box-sizing:border-box; border:1px solid var(--line); border-radius:var(--r-control); overflow:hidden; background:var(--white); color:var(--q); }
 .fg .ds2-thumb img { width:100%; height:100%; object-fit:contain; display:block; }
@@ -8338,7 +8344,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .ds2-item:hover .ds2-del, .fg .ds2-item:focus-within .ds2-del { opacity:1; }
 .fg .ds2-more { align-self:flex-start; padding:0; border:0; background:none; font:inherit; font-size:14px; line-height:20px; font-weight:500; }
 /* the unit library, in the rail */
-.fg .ds2-rail { display:flex; flex-direction:column; align-items:flex-start; gap:8px; min-width:0; }
+.fg .ds2-rail { display:flex; flex-direction:column; align-items:flex-start; gap:8px; flex:0 1 300px; min-width:0; }
 .fg .ds2-rail-h { margin:0; padding:8px 0 4px; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
 .fg .ds2-rail-line { margin:0; font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
 /* the unit library's door, a second button in the rail: studio.css draws it

@@ -95,6 +95,7 @@ export function StackRow({
   strong,
   drag,
   held,
+  wrap,
 }: {
   lead?: ReactNode;
   name: ReactNode;
@@ -124,6 +125,10 @@ export function StackRow({
   drag?: { onDragStart: (e: DragEvent<HTMLElement>) => void; onDragEnd: () => void };
   /** dragged out right now: the row stays, filled as a selection is */
   held?: boolean;
+  /** the name and its grey lines wrap and are read whole, never faded: a
+      system named by its quote, the zones on no system (Isaac, 22 November
+      2026: "check the web Studio for cut off text") */
+  wrap?: boolean;
 }) {
   const inner = (
     <>
@@ -149,7 +154,7 @@ export function StackRow({
       ) : null}
     </>
   );
-  const cls = `ds-stack-row${onPress ? " press" : ""}${lit || held ? " lit" : ""}${blue ? " blue" : ""}${danger ? " danger" : ""}${drag ? " drag" : ""}`;
+  const cls = `ds-stack-row${onPress ? " press" : ""}${lit || held ? " lit" : ""}${blue ? " blue" : ""}${danger ? " danger" : ""}${drag ? " drag" : ""}${wrap ? " wrap" : ""}`;
   const dragProps = drag ? { draggable: true, onDragStart: drag.onDragStart, onDragEnd: drag.onDragEnd } : {};
   return onPress ? (
     <button type="button" className={cls} aria-label={label} aria-current={lit || undefined} onClick={onPress} {...dragProps}>

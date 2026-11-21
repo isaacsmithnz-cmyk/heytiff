@@ -726,11 +726,19 @@ html[data-ds-display] .dstudio.editing {
   color: var(--ink);
   border-color: var(--ink);
 }
+/* as wide as what it holds, so a design's address in its name and the
+   longest climate zone with its city ("Zone 2 — Warm humid summer, mild
+   winter — Brisbane") read whole; 200 cut "12/8-10 Park Avenue, Waita" and
+   "Zone 5 — Warm temperate -" (Isaac, 22 November 2026: "check the web
+   Studio for cut off text") */
 .dstudio .ds-menu-pop {
   position: absolute;
   top: calc(100% + 8px);
   left: 0;
-  width: 200px;
+  width: max-content;
+  min-width: 280px;
+  max-width: calc(100vw - 32px);
+  box-sizing: border-box;
   background: var(--paper);
   border: 1px solid var(--ds-border);
   border-radius:var(--r-card); box-shadow: var(--shadow-overlay);
@@ -10421,6 +10429,13 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
 .dstudio .ds-stack-row-l { flex: 1 1 40%; min-width: 96px; display: flex; flex-direction: column; }
 .dstudio .ds-stack-row-t { font: 500 14px/20px var(--font); overflow: hidden; white-space: nowrap; }
 .dstudio .ds-stack-row-s { font: 400 13px/18px var(--font); color: var(--q); overflow: hidden; white-space: nowrap; }
+/* a row whose words are read whole (StackRow's wrap): a system named by its
+   quote, "Mitsubishi Electric multi 8 kW: 5 kW living, 2.5 kW each bedroom",
+   and the zones on no system, every one named, wrap instead of fading at a
+   column's width (Isaac, 22 November 2026: "check the web Studio for cut off
+   text") */
+.dstudio .ds-stack-row.wrap .ds-stack-row-t,
+.dstudio .ds-stack-row.wrap .ds-stack-row-s { white-space: normal; overflow-wrap: anywhere; }
 .dstudio .ds-stack-row-v { flex: 0 1 auto; max-width: 60%; font: 400 14px/20px var(--font); color: var(--q); text-align: right; }
 .dstudio .ds-stack-row-v.ok { color: var(--ok-t); font-weight: 600; }
 .dstudio .ds-stack-row-v.look { color: var(--warn-t); font-weight: 600; }

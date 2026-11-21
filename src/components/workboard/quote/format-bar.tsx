@@ -172,7 +172,9 @@ export function FormatBar({ photos, children }: { photos: readonly BarPhoto[]; c
         chosen={at?.style ?? null}
         onClose={() => {
           setMenu(false);
-          done();
+          /* the menu says it's closing before it says what was picked: the
+             pick saves first, and this finds nothing left to save */
+          setTimeout(() => done(), 0);
         }}
         onSelect={(key) => {
           setMenu(false);
@@ -215,6 +217,7 @@ export function FormatBar({ photos, children }: { photos: readonly BarPhoto[]; c
             <li key={p.id}>
               <button
                 type="button"
+                className="qc-tb-pic"
                 aria-label={p.name || "A photo"}
                 onClick={() => {
                   setPicking(false);

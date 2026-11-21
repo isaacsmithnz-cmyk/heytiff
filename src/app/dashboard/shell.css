@@ -3828,7 +3828,7 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
    the job's photos (proposal-marks.ts) */
 .fg .lp-rich > * + * { margin-top:8px; }
 .fg .lp-rich p { margin:0; }
-.fg .lp-rich h3 { margin:16px 0 0; font-size:14px; font-weight:700; line-height:1.4; }
+.fg .lp-rich h3 { margin:16px 0 0; font-size:16px; font-weight:700; line-height:1.4; }
 .fg .lp-rich ul, .fg .lp-rich ol { margin:0; padding-left:24px; }
 .fg .lp-rich ul { list-style:disc; }
 .fg .lp-rich ol { list-style:decimal; }
@@ -6498,10 +6498,11 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .qc-tb .qc-tb-g.i { font-style:italic; }
 .fg .qc-tb .qc-tb-g.u { text-decoration:underline; }
 .fg .qc-tb-end { display:flex; align-items:center; gap:12px; margin-left:auto; padding-right:4px; }
-.fg .qc-tb-pics { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:8px; }
-.fg .qc-tb-pics button { display:block; width:100%; aspect-ratio:4 / 3; overflow:hidden; border-radius:var(--r-button); cursor:pointer; }
-.fg .qc-tb-pics button:focus-visible { box-shadow:var(--ring); }
-.fg .qc-tb-pics img { width:100%; height:100%; object-fit:cover; }
+/* the photo picker is a dialog, portalled to the body, outside .fg */
+.qc-tb-pics { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:8px; margin:0; padding:0; list-style:none; }
+.qc-tb-pics .qc-tb-pic { display:block; width:100%; aspect-ratio:4 / 3; padding:0; overflow:hidden; border:0; border-radius:var(--r-button); background:none; cursor:pointer; }
+.qc-tb-pics .qc-tb-pic:focus-visible { box-shadow:var(--ring); }
+.qc-tb-pics img { display:block; width:100%; height:100%; object-fit:cover; }
 /* the quote's paper on the Price tab, read only: Open quote changes it */
 .fg .lp-ro .lp-edit { display:none; }
 .fg .jpr-body.jpr-body--one { grid-template-columns:minmax(0, 1fr); }

@@ -1,7 +1,7 @@
 "use client";
 
 import { notPricedOf, pricedOnOf, type WriteUp, type WriteUpRow } from "@/lib/quotes/write-up";
-import type { LinesProposal } from "@/lib/quotes/lines-proposal";
+import { plainWords, type LinesProposal } from "@/lib/quotes/lines-proposal";
 
 /* SCOPE, WRITTEN AS A SCOPE (Isaac's walk of 3423, 30 October 2026; the mock
    https://claude.ai/artifact/DDfCy926GBnc6e7c7Fuqp5): the proposal's words,
@@ -40,7 +40,8 @@ function Rows({ heading, rows }: { heading: string; rows: WriteUpRow[] }) {
 }
 
 export function QuoteScope({ words, writeUp }: { words?: QuoteScopeWords; writeUp: WriteUp | null }) {
-  const proposal = words?.proposal ?? null;
+  /* plain words here: the formatting is the paper's */
+  const proposal = words?.proposal ? plainWords(words.proposal) : null;
   const several = (words?.options.length ?? 0) > 1;
   const options = (words?.options ?? [])
     .map((i) => ({ i, name: words?.optionNames[i] ?? "", said: proposal?.options[i] }))

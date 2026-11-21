@@ -24,6 +24,7 @@ export function PrintQuote(props: {
   jobNumber: string | null;
   preparedBy: string | null;
   brand: OrgBrand;
+  photos: { id: string; url: string | null }[];
 }) {
   return (
     <div className="fg qpdf">

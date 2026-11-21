@@ -82,6 +82,7 @@ export function JobPriceTab({
   materials,
   ask,
   doc = null,
+  photos = null,
   onDocStage,
   onOpenPaper,
   onToast,
@@ -106,6 +107,9 @@ export function JobPriceTab({
   /** the quote in a tab of its own: the quote alone, Build, Breakdown and
       Proposal, with no cards over it */
   doc?: "quote" | "invoice" | null;
+  /** the job's photos, for the proposal's Add a photo and to draw one put
+      on it; null while they're read */
+  photos?: readonly JobMediaItem[] | null;
   /** where the quote's or the invoice's up to, its name, and an invoice's own
       name for its tab, for the head of its tab */
   onDocStage?: (stage: (DocStage & { title: string | null; label?: string | null }) | null) => void;
@@ -206,6 +210,7 @@ export function JobPriceTab({
             start={starting && !quoteBegun(quote)}
             option={ask?.option ?? null}
             update={!!ask?.update}
+            photos={photos}
             onOpenPaper={onOpenPaper}
             onToast={onToast}
             onChanged={() => setReads((n) => n + 1)}
@@ -283,7 +288,7 @@ export function JobPriceTab({
       />
     );
   else if (shown.kind === "quote")
-    body = <QuotePreview job={job} detail={detail} money={financials} starting={starting && !quoteBegun(quote)} />;
+    body = <QuotePreview job={job} detail={detail} money={financials} starting={starting && !quoteBegun(quote)} photos={photos} />;
   else if (shown.key === "new-invoice")
     body = (
       <Suspense fallback={<Loading what="Working out the invoice" />}>
@@ -375,6 +380,7 @@ function PriceQuote({
   start,
   option,
   update,
+  photos,
   onOpenPaper,
   onToast,
   onChanged,
@@ -388,6 +394,7 @@ function PriceQuote({
   start: boolean;
   option: number | null;
   update: boolean;
+  photos: readonly JobMediaItem[] | null;
   onOpenPaper: (item: JobMediaItem) => void;
   onToast: (message: string, undo?: () => void) => void;
   /** the quote moved: the cards read where it stands again */
@@ -446,6 +453,7 @@ function PriceQuote({
       <QuoteLinesFace
         job={job}
         views
+        photos={photos}
         meta={{ title: proposalTitle(address), client: detail?.clientName ?? null, site: address, jobNumber: detail?.jobNumber ?? null }}
         price={price}
         onPriced={() => {
@@ -485,7 +493,19 @@ const docStageOf = (st: QuoteStage): DocStage & { title: string | null } => ({
    paper as the customer gets it, read only, and Open quote, which opens it
    in a tab of its own to change. A tech, who never sees the quote's money,
    has no paper (the paper is the money's), only Open quote. */
-function QuotePreview({ job, detail, money, starting }: { job: string; detail: MirrorJobDetail | null; money: boolean; starting: boolean }) {
+function QuotePreview({
+  job,
+  detail,
+  money,
+  starting,
+  photos,
+}: {
+  job: string;
+  detail: MirrorJobDetail | null;
+  money: boolean;
+  starting: boolean;
+  photos: readonly JobMediaItem[] | null;
+}) {
   const { view } = useQuoteLines(job, money);
   const price = useQuotePrice(job, money, view ? "preview" : null);
   const address = detail?.address ?? detail?.geoLine ?? null;
@@ -521,6 +541,7 @@ function QuotePreview({ job, detail, money, starting }: { job: string; detail: M
                 site={address}
                 jobNumber={detail?.jobNumber ?? null}
                 preparedBy={view.names[view.me ?? ""] ?? null}
+                photos={photos && photos.map((m) => ({ id: m.remoteId, url: m.url }))}
                 busy
                 readOnly
                 onSave={() => undefined}

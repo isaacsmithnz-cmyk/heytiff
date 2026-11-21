@@ -1,4 +1,5 @@
 import { PAYMENT_PRESETS, PAYMENT_PRESET_KEYS, type PaymentPreset, type PaymentStage } from "./payment";
+import { inlinePlain, plainOf } from "./proposal-marks";
 
 /* THE PROPOSAL FOR A QUOTE BUILT ON ITS LINES (slice 7.1, mock-up screen 7,
    Isaac 2026-10-07: "the price should not be first… each option… clear
@@ -94,6 +95,23 @@ export function proposalOf(raw: unknown): LinesProposal {
     approvedAt: typeof r.approvedAt === "string" ? r.approvedAt : null,
     approvedBy: typeof r.approvedBy === "string" ? r.approvedBy : null,
     typed: [...new Set((Array.isArray(r.typed) ? r.typed : []).filter((k): k is string => typeof k === "string" && BLOCK.test(k)))].slice(0, 80),
+  };
+}
+
+/** The words with their formatting taken off (proposal-marks.ts), for
+    whatever wants plain words: ServiceM8, the job's Scope, the phone. */
+export function plainWords<T extends Pick<LinesProposal, "title" | "intro" | "options" | "notIncluded">>(p: T): T {
+  return {
+    ...p,
+    title: inlinePlain(p.title),
+    intro: plainOf(p.intro),
+    options: p.options.map((o) => ({
+      ...o,
+      summary: plainOf(o.summary),
+      areas: o.areas.map((a) => ({ name: inlinePlain(a.name), items: a.items.map(inlinePlain) })),
+      included: o.included.map(inlinePlain),
+    })),
+    notIncluded: p.notIncluded.map(inlinePlain),
   };
 }
 

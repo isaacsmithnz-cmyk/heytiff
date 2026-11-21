@@ -181,6 +181,37 @@ describe("New job", () => {
     expect(screen.getByRole("combobox", { name: "Site" })).toHaveTextContent("41 Waverley St, Bondi Junction");
   });
 
+  it("finds the address as it's typed, and a picked one is the line ServiceM8 keeps, checked against our sites", async () => {
+    const realFetch = global.fetch;
+    const fetchMock = jest.fn((_url: string, init: { body: string }) => {
+      const { op } = JSON.parse(init.body);
+      const body =
+        op === "suggest"
+          ? { enabled: true, suggestions: [{ placeId: "p1", text: "2 Krui Street, Fairlight NSW, Australia" }] }
+          : { enabled: true, formatted: "2 Krui St, Fairlight NSW 2094, Australia", parts: { address: "2 Krui St", suburb: "Fairlight", state: "NSW", postcode: "2094" } };
+      return Promise.resolve({ ok: true, status: 200, json: async () => body });
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+    try {
+      draw();
+      await typeName("Built");
+      await pickCustomer(/Built By MK/);
+      await user().type(screen.getByLabelText("Site address"), "2 Krui");
+      await act(async () => {
+        jest.advanceTimersByTime(250);
+      });
+      await user().click(await screen.findByRole("option", { name: /2 Krui Street/ }));
+      await waitFor(() => expect(screen.getByLabelText("Site address")).toHaveValue("2 Krui St, Fairlight NSW 2094"));
+      expect(fetchMock.mock.calls[0]![0]).toBe("/api/address");
+      await act(async () => {
+        jest.advanceTimersByTime(450);
+      });
+      expect(matchPreviousSite).toHaveBeenLastCalledWith("2 Krui St, Fairlight NSW 2094");
+    } finally {
+      global.fetch = realFetch;
+    }
+  });
+
   it("creates the job under a new site, with its contact, kind and how they came in, then opens it on its page", async () => {
     const onClose = draw();
     await typeName("Built");

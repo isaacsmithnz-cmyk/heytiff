@@ -4,7 +4,8 @@ import { useContext, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog } from "@/components/parts/dialog";
 import { Button, IconButton } from "@/components/parts/button";
-import { Field, TextArea, TextInput } from "@/components/parts/field";
+import { Field, TextInput } from "@/components/parts/field";
+import { AddressField } from "@/components/address/address-field";
 import { NoteToken } from "@/components/notes/note-token";
 import { Chooser } from "@/components/parts/chooser";
 import { Tray } from "@/components/parts/tabs";
@@ -423,17 +424,24 @@ export function NewJobForm({ onClose, initial, onMade }: { onClose: () => void; 
           )
         ) : (
           <>
-            <Field label={builder ? "Site address" : "Address"} error={wrong.where}>
-              <TextArea
+            <Field id="new-job-address" label={builder ? "Site address" : "Address"} error={wrong.where}>
+              {/* Google finds it as you type (Isaac, 22 November 2026: "it needs it"), as the phone's
+                  New job does; whatever's typed still counts. Always asked: a deployment with no key
+                  answers 503 and the field turns itself into the plain box it looks like. */}
+              <AddressField
+                name="new-job-address"
+                className={`pt-input${wrong.where ? " pt-input--invalid" : ""}`}
                 value={address}
-                rows={2}
-                invalid={!!wrong.where}
+                enabled
                 placeholder={builder ? "The new site's address" : "Where the job is"}
-                onChange={(e) => {
-                  setAddress(e.target.value);
+                onChange={(v) => {
+                  setAddress(v);
                   setMatch(null);
                   setWrong((w) => ({ ...w, where: undefined }));
                 }}
+                onResolve={(parts, formatted) =>
+                  setAddress(parts.address && parts.suburb ? `${parts.address}, ${[parts.suburb, parts.state, parts.postcode].filter(Boolean).join(" ")}` : formatted.replace(/,\s*Australia\s*$/i, ""))
+                }
               />
             </Field>
             {match && (

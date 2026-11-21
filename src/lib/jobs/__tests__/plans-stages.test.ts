@@ -67,7 +67,11 @@ const previewsInNode = jest.fn(async (_b: Uint8Array, onProgress?: (d: number, t
 });
 const fullInNode = jest.fn(async (_b: Uint8Array, ns: readonly number[]) => ns.map((n) => ({ n, png: Buffer.from("png"), width: 2400, height: 1695, words: words("PLAN") })));
 const pixelsInNode = jest.fn(async (_b: Uint8Array, n: number, times: number) => ({ n, rgba: new Uint8ClampedArray(4), width: n, height: 1, scale: times, words: [] }));
+/* the drawing file's shapes: none drawn as walls, unless a test gives a floor some */
+const fileFloors = new Map<number, { fills: Fill[]; words: { text: string; at: { x: number; y: number } }[] }>();
+const vectorsInNode = jest.fn(async (_b: Uint8Array, n: number) => ({ n, width: 400, height: 300, rasterScale: 2, fills: fileFloors.get(n)?.fills ?? [], words: fileFloors.get(n)?.words ?? [] }));
 jest.mock("../plan-draw-node", () => ({
+  vectorsInNode: (...a: unknown[]) => vectorsInNode(...(a as [Uint8Array, number])),
   previewsInNode: (...a: unknown[]) => previewsInNode(...(a as [Uint8Array])),
   fullInNode: (...a: unknown[]) => fullInNode(...(a as [Uint8Array, number[]])),
   pixelsInNode: (...a: unknown[]) => pixelsInNode(...(a as [Uint8Array, number, number])),
@@ -105,6 +109,8 @@ jest.mock("@/lib/studio/reading-server", () => ({
 const fetchMock = jest.fn(async () => new Response("{}"));
 global.fetch = fetchMock as unknown as typeof fetch;
 
+import type { Fill } from "@/lib/studio/vector/fills";
+import { roomWords, threeRooms } from "@/lib/studio/vector/__fixtures__/three-rooms";
 import { readPlan } from "../plans-server";
 
 const client = { beta: { messages: { create: jest.fn() } } } as never;
@@ -121,6 +127,8 @@ beforeEach(() => {
   readMeasured.mockClear();
   Object.assign(preparing, { now: 0, most: 0, marks: [] });
   pixelsInNode.mockClear();
+  vectorsInNode.mockClear();
+  fileFloors.clear();
   /* off unless asked for; its own tests turn it on */
   delete process.env.PLANS_MEASURED;
   fetchMock.mockClear();
@@ -257,4 +265,35 @@ it("measures nothing unless it is switched on", async () => {
   await readPlan("org-1", "jplan_1", "https://app.test", client);
   expect(readMeasured).not.toHaveBeenCalled();
   expect(pixelsInNode).not.toHaveBeenCalled();
+});
+
+describe("with a floor's rooms read from the drawing file", () => {
+  it("takes them as its rooms, and goes straight on to the read by picture in the same run", async () => {
+    fileFloors.set(3, { fills: threeRooms(), words: roomWords });
+    await readPlan("org-1", "jplan_1", "https://app.test", client);
+    clock += 1_000;
+    const out = await readPlan("org-1", "jplan_1", "https://app.test", client);
+    expect(out).toMatchObject({ ok: true, finished: { jobUuid: "job-3570" } });
+    expect(vectorsInNode.mock.calls.map((c) => c[1])).toEqual([2, 3, 4]);
+    /* no model was asked to measure */
+    expect(pixelsInNode).not.toHaveBeenCalled();
+    const walled = Object.fromEntries((plan().pages as { n: number; kind: string; walled?: unknown }[]).filter((p) => p.kind === "floor").map((p) => [p.n, p.walled]));
+    expect(walled[2]).toEqual({ none: "Its walls aren't drawn as filled shapes in the file" });
+    expect(walled[3]).toMatchObject({ from: "file", rounds: 0, look: [] });
+    const floors = (plan().reading as { floors: Record<string, { spaces: { name: string }[] }[]> }).floors;
+    expect(floors.p3[0].spaces.map((s) => s.name)).toEqual(["Bed 1", "Living", "Ensuite"]);
+    expect(floors.p2[0].spaces.map((s) => s.name)).toEqual(["Living", "Kitchen"]);
+  });
+
+  it("isn't tried when PLANS_VECTOR is 0", async () => {
+    process.env.PLANS_VECTOR = "0";
+    try {
+      await readPlan("org-1", "jplan_1", "https://app.test", client);
+      clock += 1_000;
+      await readPlan("org-1", "jplan_1", "https://app.test", client);
+      expect(vectorsInNode).not.toHaveBeenCalled();
+    } finally {
+      delete process.env.PLANS_VECTOR;
+    }
+  });
 });

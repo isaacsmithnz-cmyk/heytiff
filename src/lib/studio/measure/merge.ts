@@ -11,7 +11,7 @@ import { agreement, inside } from "./rooms";
    rooms, or a pile of rooms that overlap or sit on no wall), the picture's
    rooms stay and the measured ones are set aside, said so. Pure. */
 
-export type MeasuredRooms = { spaces: ReadSpace[]; look: ReadLook[]; grid: { x: number[]; y: number[] }; rounds: number; frame?: { left: number; top: number; width: number; height: number } };
+export type MeasuredRooms = { /** "file": read from the drawing file (lib/studio/vector), whose unnamed spaces may be yards */ from?: "file"; spaces: ReadSpace[]; look: ReadLook[]; grid: { x: number[]; y: number[] }; rounds: number; frame?: { left: number; top: number; width: number; height: number } };
 
 const WALLED = new Set(["room", "wet", "cupboard", "garage"]);
 const walledIn = (spaces: readonly ReadSpace[]) => spaces.filter((s) => WALLED.has(s.kind) && (s.outline?.length ?? 0) >= 3);
@@ -50,7 +50,26 @@ export function withMeasured(picture: SheetReading | null, m: MeasuredRooms, she
   };
   const beyond = picture ? picture.spaces.filter(out) : [];
   if (beyond.length) look.push({ kind: "readers", room: "", said: `${[...new Set(beyond.map((s) => s.name))].join(", ")}: outside the part of the sheet that was measured, so ${beyond.length === 1 ? "it is" : "they are"} as the read by picture drew ${beyond.length === 1 ? "it" : "them"}.` });
-  const spaces = [...m.spaces, ...beyond];
+  /* A ROOM THE FILE GAVE NO NAME takes the name the picture read gives the
+     room standing there: a plan whose names aren't text (Frogmore draws
+     them), a robe or a WC the plan leaves unlabelled (22 November 2026) */
+  const taken = new Set<ReadSpace>();
+  const measured = m.spaces.map((s) => {
+    if (s.named || !picture || (s.outline?.length ?? 0) < 3) return s;
+    const hit = picture.spaces.find((p) => !taken.has(p) && WALLED.has(p.kind) && (p.outline?.length ?? 0) >= 3 && inside(mean(p.outline)!, s.outline));
+    if (!hit) return s;
+    taken.add(hit);
+    return { ...s, name: hit.name, named: hit.named, kind: hit.kind };
+  }).filter((s) => s.named || s.kind === "cupboard" || !m.from);
+  /* what walls don't close off is the picture's to give: a terrace, a void,
+     a stair in a hall, where the measured rooms have none of their own there */
+  const OPEN = new Set(["outdoor", "void", "notch", "stair"]);
+  const open = picture
+    ? picture.spaces.filter(
+        (p) => OPEN.has(p.kind) && !beyond.includes(p) && (p.outline?.length ?? 0) >= 3 && !measured.some((s) => s.kind === p.kind && (s.outline?.length ?? 0) >= 3 && inside(mean(s.outline)!, p.outline)),
+      )
+    : [];
+  const spaces = [...measured, ...beyond, ...open];
   if (picture) {
     const a = agreement(spaces, picture.spaces);
     const missed = walledIn(picture.spaces).filter((s) => a.onlyB.includes(s.name) && !beyond.includes(s));

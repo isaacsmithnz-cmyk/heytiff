@@ -124,3 +124,27 @@ it("says why the measured rooms are doubted when there is no picture read to fal
   expect(out.spaces).toHaveLength(2);
   expect(out.walled!.look.at(-1)!.said).toBe("The measured rooms are doubtful (3 of its 2 rooms overlapped or sat on no wall), and the read by picture failed, so there was nothing to check them against.");
 });
+
+describe("rooms read from the drawing file", () => {
+  const unnamed = (x: number, y: number, kind: ReadSpace["kind"] = "room"): ReadSpace => ({ ...sq("Unnamed space", x, y, kind), named: false });
+  it("an unnamed one takes the name the picture read gives the room standing there", () => {
+    const pic = picture([sq("Lounge", 5, 5), sq("WC", 205, 5, "wet")]);
+    const out = withMeasured(pic, { ...measured([sq("Lounge", 0, 0), unnamed(200, 0)]), from: "file" }, "p2");
+    expect(out.spaces.map((s) => [s.name, s.kind, s.named])).toEqual([
+      ["Lounge", "room", true],
+      ["WC", "wet", true],
+    ]);
+  });
+  it("one still unnamed is dropped, a yard or a porch, unless it is cupboard-sized", () => {
+    const out = withMeasured(picture([sq("Lounge", 5, 5)]), { ...measured([sq("Lounge", 0, 0), unnamed(500, 0), unnamed(700, 0, "cupboard")]), from: "file" }, "p2");
+    expect(out.spaces.map((s) => [s.name, s.kind])).toEqual([
+      ["Lounge", "room"],
+      ["Unnamed space", "cupboard"],
+    ]);
+  });
+  it("the terrace, the void and the stair walls don't close off are the picture's", () => {
+    const pic = picture([sq("Lounge", 5, 5), sq("Terrace", 0, 300, "outdoor"), sq("Stair", 10, 10, "stair")]);
+    const out = withMeasured(pic, { ...measured([sq("Lounge", 0, 0)]), from: "file" }, "p2");
+    expect(out.spaces.map((s) => s.name)).toEqual(["Lounge", "Terrace", "Stair"]);
+  });
+});

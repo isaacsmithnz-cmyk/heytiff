@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 let pathname = "/dashboard/studio";
 let search = "";
@@ -23,10 +23,12 @@ function FakeStudio({ label }: { label: string }) {
   );
 }
 
-function App({ design, job, label, page }: { design?: string; job?: string; label: string; page: "studio" | "jobs" }) {
+/* The page reads `?design=` on the server for the studio it draws; the
+   keeper reads the address for where that studio is asked to be. */
+function App({ job, label, page, studio }: { job?: string; label: string; page: "studio" | "jobs"; studio?: ReactNode }) {
   return (
     <>
-      <main className="outlet">{page === "studio" ? <StudioKeep design={design} job={job}><FakeStudio label={label} /></StudioKeep> : <p>Jobs</p>}</main>
+      <main className="outlet">{page === "studio" ? <StudioKeep job={job}>{studio ?? <FakeStudio label={label} />}</StudioKeep> : <p>Jobs</p>}</main>
       <StudioHost />
     </>
   );
@@ -74,13 +76,13 @@ it("follows the design the studio opens, so coming back to it shows the same stu
      drawn again later reads the same address, design and all) */
   act(() => noteKeptDesign("d1"));
   go("/dashboard/studio", "design=d1");
-  view.rerender(<App design="d1" label="studio" page="studio" />);
+  view.rerender(<App label="studio" page="studio" />);
   expect(screen.getByRole("button", { name: "studio 1" })).toBeVisible();
 
   go("/dashboard/jobs");
   view.rerender(<App label="studio" page="jobs" />);
   go("/dashboard/studio", "design=d1");
-  view.rerender(<App design="d1" label="fresh" page="studio" />);
+  view.rerender(<App label="fresh" page="studio" />);
   expect(screen.getByRole("button", { name: "studio 1" })).toBeVisible();
 });
 
@@ -88,12 +90,34 @@ it("starts a new studio when the address asks for somewhere else", () => {
   const view = render(<App label="studio" page="studio" />);
   act(() => noteKeptDesign("d1"));
   go("/dashboard/studio", "design=d1");
-  view.rerender(<App design="d1" label="studio" page="studio" />);
+  view.rerender(<App label="studio" page="studio" />);
 
   // the Design place in the sidebar: the list of designs, not the open one
   go("/dashboard/studio");
   view.rerender(<App label="fresh" page="studio" />);
   expect(screen.getByRole("button", { name: "fresh 0" })).toBeVisible();
+});
+
+/* Isaac, 22 November 2026: opened from the list, a design, then Design in
+   the sidebar, and the page sat on "Opening the Design Studio" until a
+   reload. The studio wrote `?design=` with replaceState, so the page was
+   never drawn again; the sidebar asked for the page already drawn, and the
+   router handed back the same page, the same studio element and all. */
+it("starts the list again when Design asks for the page already drawn, the same element and all", () => {
+  const same = <FakeStudio label="list" />;
+  const view = render(<App label="list" page="studio" studio={same} />);
+  fireEvent.click(screen.getByRole("button", { name: "list 0" }));
+  // the studio opens a design from the list and writes the address
+  act(() => noteKeptDesign("d1"));
+  go("/dashboard/studio", "design=d1");
+  view.rerender(<App label="list" page="studio" studio={same} />);
+  expect(screen.getByRole("button", { name: "list 1" })).toBeVisible();
+
+  // Design in the sidebar: the address drops the design, the page is the same
+  go("/dashboard/studio");
+  view.rerender(<App label="list" page="studio" studio={same} />);
+  expect(screen.getByRole("button", { name: "list 0" })).toBeVisible();
+  expect(document.documentElement).toHaveAttribute("data-studio-kept");
 });
 
 /* the quote's Design step (Isaac, 28 October 2026): Design it opens the

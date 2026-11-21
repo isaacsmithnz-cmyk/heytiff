@@ -86,7 +86,7 @@ export function SystemsList({
       {onAddQuoted &&
         quoted.map((o) => (
           <StackGroup key={o.index}>
-            <StackRow lead={<span className="ds-stack-quote" aria-hidden="true">&ldquo;</span>} name={o.name} />
+            <StackRow wrap lead={<span className="ds-stack-quote" aria-hidden="true">&ldquo;</span>} name={o.name} />
             {o.outdoor && <StackRow name="Outdoor" value={o.outdoor.model ?? o.outdoor.code} />}
             {o.heads.map((h, i) => (
               <StackRow
@@ -109,6 +109,7 @@ export function SystemsList({
             return (
               <StackRow
                 key={sys.id}
+                wrap
                 lead={<StackDot colour={sys.colour} />}
                 name={sys.name}
                 sub={`${type}, ${zonesWord(n)}`}
@@ -124,6 +125,7 @@ export function SystemsList({
       {free.length > 0 && (
         <StackGroup>
           <StackRow
+            wrap
             name={`${zonesWord(free.length)} on no system`}
             sub={free.map((z) => String(z.props.name ?? "Zone")).join(", ")}
           >

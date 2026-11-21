@@ -248,11 +248,12 @@ export function DesignHome({
                   <li key={r.id} className="ds2-item">
                     <button type="button" className="ds2-row" onClick={() => onOpen(r.id)}>
                       <Thumb refId={r.thumbRef} planImages={planImages} mode={r.mode} />
-                      <Fade className="ds2-name">{r.name}</Fade>
-                      {jobWord(r) ? <Fade className="ds2-job">{jobWord(r)}</Fade> : <span className="ds2-quiet">Not on a job</span>}
+                      {/* two lines each before a fade: a name or a job is read whole */}
+                      <Fade lines={2} className="ds2-name">{r.name}</Fade>
+                      {jobWord(r) ? <Fade lines={2} className="ds2-job">{jobWord(r)}</Fade> : <span className="ds2-quiet">Not on a job</span>}
                       <span className="ds2-num">{r.floorCount === 1 ? "1 floor" : `${r.floorCount} floors`}</span>
                       <span className="ds2-num">{r.systemCount === 1 ? "1 system" : `${r.systemCount} systems`}</span>
-                      <span className="ds2-quiet">{timeAgo(r.updatedAt)}</span>
+                      <span className="ds2-quiet ds2-when">{timeAgo(r.updatedAt)}</span>
                     </button>
                     <Button kind="quiet" size={32} className="ds2-del" aria-label={`Delete ${r.name}`} onClick={() => setDeleting(r)}>
                       Delete

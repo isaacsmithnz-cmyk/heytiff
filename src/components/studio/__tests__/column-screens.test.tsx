@@ -184,6 +184,13 @@ describe("Systems", () => {
     const free = screen.getByText("1 zone on no system").closest(".ds-stack-row") as HTMLElement;
     fireEvent.click(within(free).getByRole("button", { name: "Leave out" }));
     expect(onLeaveOut).toHaveBeenCalledWith(["robe"]);
+    /* the zones on no system and a system's name are read whole, wrapping
+       instead of fading (Isaac, 22 November 2026: "check the web Studio for
+       cut off text") */
+    expect(free).toHaveClass("wrap");
+    for (const sys of doc.systems) {
+      expect(screen.getByText(sys.name).closest(".ds-stack-row")).toHaveClass("wrap");
+    }
   });
 });
 

@@ -29,6 +29,8 @@ describe("recent designs are capped at twelve", () => {
     const names = await within(card).findAllByText(/^Design \d+$/);
     expect(names.map((n) => n.textContent)).toEqual(["Design 14", "Design 13", "Design 12", "Design 11", "Design 10", "Design 9", "Design 8", "Design 7", "Design 6", "Design 5", "Design 4", "Design 3"]);
     expect(within(card).getByRole("button", { name: "Show 2 more designs" })).toBeInTheDocument();
+    // a name takes two lines before it fades (Isaac, 22 November 2026: "check the web Studio for cut off text")
+    expect(names[0]).toHaveClass("ds2-name", "pt-fade--2");
   });
 
   /* it was a line of text that counted them, and pressing it did nothing */

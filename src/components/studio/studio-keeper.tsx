@@ -71,9 +71,24 @@ function keep(element: ReactNode, design: string | null, job: string | null): vo
 
 /** The Design page's studio, handed to the keeper. Draws only the studio's
     dark hold, which shows while the keeper hasn't drawn it yet (a first load,
-    or a new studio for another design) and steps aside once it has. */
-export function StudioKeep({ design, job, children }: { design?: string; job?: string; children: ReactNode }) {
-  const asked = design ?? null;
+    or a new studio for another design) and steps aside once it has.
+
+    WHERE IT IS ASKED TO BE IS THE ADDRESS'S `?design=`, not a prop the page
+    read on the server. The studio writes `?design=` with replaceState, which
+    moves the address and leaves the page as it was drawn: opened from the
+    list, the page still holds the list's studio. Design in the sidebar then
+    asks for `/dashboard/studio`, the page already drawn, and the router can
+    hand back that same page with the same studio element, so with only the
+    page's props nothing here ran again: the kept studio stayed on its
+    design, the host hid it as not where the address asked, and the page sat
+    on the hold for good (Isaac, 22 November 2026, walking the web Studio;
+    a reload fixed it). Read from the address, this runs again on that click.
+    While the studio writes the address it has already said it's there
+    (noteKeptDesign), so nothing is replaced; once the address asks for
+    somewhere else, the element this page holds is the one drawn for that
+    address, so a new studio starts from it. */
+export function StudioKeep({ job, children }: { job?: string; children: ReactNode }) {
+  const asked = useSearchParams().get("design");
   const onJob = job ?? null;
   useEffect(() => {
     keep(children, asked, onJob);

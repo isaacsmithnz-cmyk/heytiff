@@ -324,6 +324,41 @@ describe("Design canvas", () => {
     expect(document.querySelector(".ds-editor.two-col")).not.toBeNull();
   });
 
+  /* Isaac, 22 November 2026: "check the web Studio for cut off text". View
+     was 683 high and at a 757 window its scrolling choices ran off the
+     foot; the floor menu didn't close on Escape. */
+  it("stops View at the frame's foot to scroll inside itself, and Escape closes the plan's menus", async () => {
+    const { user } = await openBlankDesignOnCanvas();
+    const box = (top: number, height: number, left = 0, width = 300) =>
+      ({ top, bottom: top + height, left, right: left + width, width, height, x: left, y: top, toJSON: () => ({}) }) as DOMRect;
+    const real = Element.prototype.getBoundingClientRect;
+    const spy = jest.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+      if (this.classList.contains("dstudio")) return box(0, 757, 0, 1440);
+      if (this.classList.contains("ds-view-menu")) return box(80, 683, 600);
+      if (this.classList.contains("ds-floor-menu")) return box(80, 200, 400);
+      return real.call(this);
+    });
+    try {
+      const bar = document.querySelector(".ds-topbar") as HTMLElement;
+      await user.click(within(bar).getByRole("button", { name: "View" }));
+      const view = document.querySelector(".ds-view-menu") as HTMLElement;
+      expect(view.style.maxHeight).toBe(`${757 - 8 - 80}px`);
+      expect(view.style.overflowY).toBe("auto");
+      await user.keyboard("{Escape}");
+      expect(document.querySelector(".ds-view-menu")).toBeNull();
+
+      await user.click(document.querySelector(".ds-floor-trigger") as HTMLElement);
+      const floors = document.querySelector(".ds-floor-menu") as HTMLElement;
+      // a menu that fits is left as it is
+      expect(floors.style.maxHeight).toBe("");
+      expect(floors.style.overflowY).toBe("");
+      await user.keyboard("{Escape}");
+      expect(document.querySelector(".ds-floor-menu")).toBeNull();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it("shows the drawing rail from the start — a zone needs no system", async () => {
     const user = userEvent.setup();
     render(localStudio());

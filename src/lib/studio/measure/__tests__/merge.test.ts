@@ -65,3 +65,38 @@ describe("the measured rooms into a sheet's reading", () => {
     expect(setAside(pic, { ...messy, look: messy.look.slice(0, 2) })).toBeNull();
   });
 });
+
+describe("what the picture read found, moved onto the measured rooms", () => {
+  /* the picture saw one big kitchen-family room; measuring found two rooms
+     there, named differently. A window on each, a fan and a sofa */
+  const pic: SheetReading = {
+    ...picture([sq("KITCHEN / FAMILY", 0, 0), sq("BED 1", 300, 0)]),
+    spaces: [{ ...sq("KITCHEN / FAMILY", 0, 0), outline: [{ x: 0, y: 0 }, { x: 200, y: 0 }, { x: 200, y: 100 }, { x: 0, y: 100 }] }, sq("BED 1", 300, 0)],
+    openings: [
+      { kind: "window", tag: "W1", a: { x: 20, y: -4 }, b: { x: 60, y: -4 }, widthMm: 1200, room: "KITCHEN / FAMILY", external: true, facing: "N" },
+      { kind: "window", tag: "W2", a: { x: 140, y: -4 }, b: { x: 180, y: -4 }, widthMm: 1200, room: "KITCHEN / FAMILY", external: true, facing: "N" },
+      { kind: "window", tag: "W3", a: { x: 330, y: -4 }, b: { x: 370, y: -4 }, widthMm: 900, room: "BED 1", external: true, facing: "N" },
+      { kind: "door", tag: "D9", a: { x: 0, y: 900 }, b: { x: 10, y: 900 }, widthMm: 820, room: "Shed", external: true, facing: "" },
+    ],
+    marks: [{ item: "fan", text: "EF", room: "KITCHEN / FAMILY", outline: [{ x: 150, y: 40 }, { x: 160, y: 40 }, { x: 160, y: 50 }] }],
+    furniture: [{ kind: "sofa", room: "KITCHEN / FAMILY", outline: [{ x: 120, y: 60 }, { x: 180, y: 60 }, { x: 180, y: 90 }] }],
+  };
+  const mine = measured([sq("Kitchen", 0, 0), sq("Family Room", 100, 0), sq("Bed 1", 300, 0)]);
+  const out = withMeasured(pic, mine, "p2");
+  it("names each window for the room it sits on, not the picture's room", () => {
+    expect(out.openings.map((o) => o.room)).toEqual(["Kitchen", "Family Room", "Bed 1", "Shed"]);
+  });
+  it("and each fan, note and piece of furniture for the room it is in", () => {
+    expect(out.marks[0].room).toBe("Family Room");
+    expect(out.furniture[0].room).toBe("Family Room");
+  });
+  it("a door between two rooms goes to the one standing where its picture room stood", () => {
+    const two: SheetReading = { ...picture([sq("LOUNGE", 0, 0), sq("HALL", 100, 0, "circulation")]), openings: [{ kind: "door", tag: "D1", a: { x: 100, y: 40 }, b: { x: 100, y: 60 }, widthMm: 820, room: "HALL", external: false, facing: "" }] };
+    const got = withMeasured(two, measured([sq("Lounge", 0, 0), sq("Entry Hall", 100, 0, "circulation")]), "p2");
+    expect(got.openings[0].room).toBe("Entry Hall");
+  });
+  it("leaves alone a name the measured read already has", () => {
+    const got = withMeasured(picture([sq("Lounge", 5, 5)]), measured([sq("Lounge", 0, 0)]), "p2");
+    expect(got.openings[0].room).toBe("Lounge");
+  });
+});

@@ -3,6 +3,7 @@ import sharp from "sharp";
 import type { PlanWord, ReadPoint, ReadSpace, SpaceKind } from "./reading";
 import { findWalls, scaleWalls, wallSizes, type Walls } from "./measure/walls";
 import { snapRooms, type NamedRoom, type Problem } from "./measure/rooms";
+import { strokeText } from "./measure/glyphs";
 
 /* A FLOOR READ BY MEASURE (Isaac, 21 November 2026: "include all of that,
    build it"). The walls come off the drawing's own fill (measure/walls.ts),
@@ -138,8 +139,11 @@ export const reviewPrompt = (
   w: number,
   h: number,
   problems: readonly Problem[],
+  names: readonly string[] = [],
 ) =>
-  `This is the same ${floor} plan, ${w}×${h} pixels, with the rooms you named drawn over it: each one tinted, outlined on the inside of its walls, with its name. The numbered wall lines are still there.
+  `This is the same ${floor} plan, ${w}×${h} pixels, with the rooms you named drawn over it: each one tinted, outlined on the inside of its walls, with its number in black:
+${names.map((n, i) => `${i + 1} ${n}`).join("\n")}
+The numbered wall lines are still there.
 
 Look at your own work as the installer will. For each room: does its outline sit on the walls of that room as drawn, does its name match the label inside it, is it the right kind? Is any room, cupboard, hall, stair or outdoor space on the plan left with no tint? Is any tint lying across a wall or over two rooms?
 ${problems.length ? `\nChecks on the answer found these, which need putting right:\n${problems.map((p) => `- ${p.said}`).join("\n")}\n` : ""}
@@ -209,11 +213,6 @@ export function frameOf(walls: Walls, width: number, height: number): Frame {
   };
 }
 
-const esc = (t: string) =>
-  t.replace(
-    /[<>&"]/g,
-    (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" })[c] ?? c,
-  );
 const TINT: Record<SpaceKind, string> = {
   room: "#3b82f6",
   wet: "#06b6d4",
@@ -236,12 +235,17 @@ export function overlaySvg(
   const X = (v: number) => ((v - f.left) * f.k).toFixed(1);
   const Y = (v: number) => ((v - f.top) * f.k).toFixed(1);
   const size = Math.max(15, Math.round(f.ow / 110));
+  /* drawn as strokes, not <text>: a server with no fonts (a Vercel function)
+     draws text as empty boxes, and she'd be naming rooms by lines she can't
+     read (glyphs.ts) */
   const tag = (x: number, y: number, text: string, colour: string) =>
-    `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" font-family="Helvetica, Arial, sans-serif" font-size="${size}" font-weight="700" text-anchor="middle" fill="${colour}" stroke="#fff" stroke-width="${(size / 4).toFixed(1)}" paint-order="stroke">${esc(text)}</text>`;
+    strokeText(text, x, y, size * 0.8, colour);
   const out: string[] = [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${f.ow}" height="${f.oh}">`,
   ];
-  for (const sp of spaces) {
+  /* a room carries its number in the list; its name goes to her in words
+     (reviewPrompt), so drawing it needs no font either */
+  for (const [i, sp] of spaces.entries()) {
     if (sp.outline.length < 3) continue;
     const pts = sp.outline.map((p) => `${X(p.x)},${Y(p.y)}`).join(" ");
     const mx = sp.outline.reduce((n, p) => n + p.x, 0) / sp.outline.length;
@@ -250,7 +254,7 @@ export function overlaySvg(
       `<polygon points="${pts}" fill="${TINT[sp.kind]}" fill-opacity="0.28" stroke="${TINT[sp.kind]}" stroke-width="3"/>`,
     );
     out.push(
-      tag(Number(X(mx)), Number(Y(my)) + size * 1.4, sp.name, "#111827"),
+      tag(Number(X(mx)), Number(Y(my)) + size * 0.4, String(i + 1), "#111827"),
     );
   }
   /* numbers step down three rows so neighbours on close lines don't sit on each other */
@@ -364,7 +368,7 @@ export async function readMeasured(
      than the one before it */
   for (let look = 1; look <= 2; look++) {
     if (look === 2 && (!set.problems.length || Date.now() - started > (opts.budgetMs ?? LOOK_AGAIN_MS))) break;
-    const again = await opts.ask([await picture(page, f, walls, set.spaces)], reviewPrompt(opts.floorName, f.ow, f.oh, set.problems), REVIEW_SCHEMA, 16000).catch(() => null);
+    const again = await opts.ask([await picture(page, f, walls, set.spaces)], reviewPrompt(opts.floorName, f.ow, f.oh, set.problems, set.spaces.map((s) => s.name)), REVIEW_SCHEMA, 16000).catch(() => null);
     if (!again || again.right_as_drawn === true) break;
     const fixed = snapRooms(roomsOf(again), walls, z, back);
     if (!fixed.spaces.length || fixed.problems.length > set.problems.length) break;

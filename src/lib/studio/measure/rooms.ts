@@ -44,8 +44,9 @@ function coord(
     const v = grid[axis][Number(m[2])];
     return v == null ? null : { v, line: Number(m[2]) };
   }
-  const v = Number(word);
-  return Number.isFinite(v) ? { v: back(v), line: null } : null;
+  /* a pixel is plain digits: "0x10", "1e3" or "+5" is no pixel she meant */
+  if (!/^\d+(\.\d+)?$/.test(word.trim())) return null;
+  return { v: back(Number(word)), line: null };
 }
 
 /** A room's corners as written, read. Null when any of it isn't a corner. */
@@ -55,10 +56,20 @@ export function parseCorners(
   backX: (v: number) => number,
   backY: (v: number) => number,
 ): Corner[] | null {
+  /* read as pairs, however they are set out: "x3,y4 x5,y4", "x3, y4",
+     "(x3,y4)", "x3,y4; x5,y4", "x3,y4 -> x5,y4", "y4,x3", a full stop at
+     the end. Anything left over that isn't between pairs, and it isn't
+     corners (the engine's review, 21 November 2026: any of these dropped
+     the room) */
   const out: Corner[] = [];
-  for (const pair of text.trim().split(/\s+/)) {
-    const [a, b, ...rest] = pair.split(",");
-    if (!a || !b || rest.length) return null;
+  const TERM = "[xy]\\d+|\\d+(?:\\.\\d+)?";
+  const PAIR = new RegExp(`(${TERM})\\s*,\\s*(${TERM})`, "gi");
+  const rest = text.replace(PAIR, " ").replace(/[\s()[\]{};,.|>=\-–—→]+/g, "");
+  if (rest) return null;
+  for (const m of text.matchAll(PAIR)) {
+    let [a, b] = [m[1], m[2]];
+    /* the y said first: swapped back */
+    if (/^y/i.test(a) && /^x/i.test(b)) [a, b] = [b, a];
     const x = coord(a, "x", grid, backX);
     const y = coord(b, "y", grid, backY);
     if (!x || !y) return null;
@@ -122,16 +133,17 @@ function wallAlong(
   a: ReadPoint,
   b: ReadPoint,
   z: WallSizes,
-): { t: number; on: number } {
+): { t: number; on: number; c: number } {
   const level = Math.abs(a.y - b.y) < 0.5;
   const upright = Math.abs(a.x - b.x) < 0.5;
-  if (!level && !upright) return { t: 0, on: 0 };
+  if (!level && !upright) return { t: 0, on: 0, c: 0 };
   const c = level ? a.y : a.x;
   const lo = Math.min(level ? a.x : a.y, level ? b.x : b.y);
   const hi = Math.max(level ? a.x : a.y, level ? b.x : b.y);
   let on = 0;
   let weight = 0;
   let thick = 0;
+  let mid = 0;
   for (const s of segs) {
     if (
       s.dir !== (level ? "h" : "v") ||
@@ -143,15 +155,24 @@ function wallAlong(
     on += cover;
     weight += cover;
     thick += s.t * cover;
+    mid += s.c * cover;
   }
   return {
     t: weight ? thick / weight : 0,
     on: hi > lo ? Math.min(1, on / (hi - lo)) : 0,
+    c: weight ? mid / weight : c,
   };
 }
 
 /** The room's outline on the INSIDE face of its walls, as every reading
-    gives one: each edge lying on a wall moves in by half that wall. */
+    gives one: each edge lying mostly on a wall goes to that wall's face,
+    half its thickness in from the wall's own centre (not the grid line,
+    which can sit between two runs). A side with little or no wall on it (an
+    open plan's join, a stub at one end) stays on its line, so the room
+    beside it meets it there (the engine's review, 21 November 2026). */
+/* how much of a side must be wall for it to go to the wall's face */
+const MOSTLY_WALL = 0.5;
+
 function inner(
   pts: readonly ReadPoint[],
   segs: readonly WallSeg[],
@@ -162,13 +183,13 @@ function inner(
   /* how far each edge i (from point i to i+1) moves, and which way */
   const move = pts.map((a, i) => {
     const b = pts[(i + 1) % n];
-    const { t } = wallAlong(segs, a, b, z);
-    if (!t) return { dx: 0, dy: 0 };
+    const { t, on, c } = wallAlong(segs, a, b, z);
+    if (!t || on < MOSTLY_WALL) return { dx: 0, dy: 0 };
     const half = t / 2;
     /* y runs down the sheet: going round with the inside on the right */
     if (Math.abs(a.y - b.y) < 0.5)
-      return { dx: 0, dy: (b.x > a.x === cw ? 1 : -1) * half };
-    return { dx: (b.y > a.y === cw ? -1 : 1) * half, dy: 0 };
+      return { dx: 0, dy: c - a.y + (b.x > a.x === cw ? 1 : -1) * half };
+    return { dx: c - a.x + (b.y > a.y === cw ? -1 : 1) * half, dy: 0 };
   });
   return pts.map((p, i) => {
     const before = move[(i + n - 1) % n];
@@ -215,7 +236,7 @@ export function snapRooms(
       problems.push({
         kind: "shape",
         room: room.name,
-        said: `${room.name}: its corners "${room.corners}" aren't corners. Give each as x,y, a line (x3) or a pixel.`,
+        said: `${room.name}: its corners "${room.corners}" aren't corners. Give each as x,y, a line or a pixel; the lines are x0 to x${walls.grid.x.length - 1} and y0 to y${walls.grid.y.length - 1}.`,
       });
       continue;
     }
@@ -240,10 +261,19 @@ export function snapRooms(
       x: c.x.line != null ? c.x.v : onto("x", c.x.v),
       y: c.y.line != null ? c.y.v : onto("y", c.y.v),
     }));
-    /* corners said twice running, or three in a line, are one */
-    const tidy = pts.filter((p, i) => {
+    /* corners said twice running are one; and a corner in a straight line
+       between its neighbours is no corner, so one straight side is one edge
+       with one inset (she names every crossing along a long wall) */
+    const once = pts.filter((p, i) => {
       const q = pts[(i + pts.length - 1) % pts.length];
       return Math.abs(p.x - q.x) > 0.5 || Math.abs(p.y - q.y) > 0.5;
+    });
+    const tidy = once.filter((p, i) => {
+      const a = once[(i + once.length - 1) % once.length];
+      const b = once[(i + 1) % once.length];
+      const level = Math.abs(a.y - p.y) < 0.5 && Math.abs(p.y - b.y) < 0.5;
+      const upright = Math.abs(a.x - p.x) < 0.5 && Math.abs(p.x - b.x) < 0.5;
+      return once.length <= 3 || !(level || upright);
     });
     if (tidy.length < 3 || area(tidy) < z.short * z.short * 0.5) {
       problems.push({

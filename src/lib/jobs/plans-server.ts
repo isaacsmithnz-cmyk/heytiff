@@ -5,7 +5,7 @@ import { DOCUMENTS_BUCKET } from "@/lib/documents/query";
 import { newId } from "@/lib/studio/document";
 import { launchHeadless, printBase } from "@/lib/studio/pdf-render";
 import { signPlanPagesTicket, signPlanReadTicket, type PlanPagesTicket } from "@/lib/studio/pdf-request";
-import { mmPerPxFor, printedScaleOf } from "@/lib/studio/plan-set";
+import { mmPerPointOf, mmPerPxFor, printedScaleOf } from "@/lib/studio/plan-set";
 import { scaleFromDimensions, type PlanReading, type PlanWord } from "@/lib/studio/reading";
 import { READING_MODEL, readDimensions, readRoof, readSheet, readSite, type SheetToRead, askWith, pngBlock } from "@/lib/studio/reading-server";
 import { nameRooms, prepareMeasured } from "@/lib/studio/measured-server";
@@ -353,9 +353,13 @@ const HANDOFF_MS = 90_000;
    and always hands on when it is done, so the read that follows has five
    minutes of its own. For a PDF set: the walls need a drawing, and a photo
    has none to measure (a scanned set finds no walls and is read by picture
-   as before). PLANS_MEASURED=0 turns the stage off without a deploy. */
+   as before). OFF unless PLANS_MEASURED=1: on 3570 it found fewer rooms than
+   the read by picture (63 of 68 against 67) with sides only a little closer,
+   and it had never run on a real plan (the re-test and the outside review,
+   21–22 November 2026). It stays for the kept test until it beats the
+   picture read. */
 const MEASURE_ROOM_MS = 30_000;
-const measuredOn = () => process.env.PLANS_MEASURED !== "0";
+const measuredOn = () => process.env.PLANS_MEASURED === "1";
 /** how fine a floor is drawn to measure: about 17 mm of building a pixel, a wall a dozen pixels thick */
 const MEASURE_MM = 17.5;
 
@@ -374,10 +378,17 @@ const NOT_FINISHED = "The measuring didn't finish";
    walls found in turn, and only the questions that follow overlap. The
    pixels are let go before the first question (prepareMeasured). */
 async function measureFloor(bytes: Uint8Array, p: JobPlanPage, deadline: number, oneAtATime: <T>(fn: () => Promise<T>) => Promise<T>): Promise<PageWalled> {
-  const times = p.mmPerPx ? Math.min(2, Math.max(1, Math.round(p.mmPerPx / MEASURE_MM))) : 2;
+  /* the scale somebody set, else the title block's "1:100 @ A1" */
+  const known = (p.set && p.set.mmPerPx > 0 ? p.set.mmPerPx : null) ?? p.mmPerPx;
+  const times = known ? Math.min(2, Math.max(1, Math.round(known / MEASURE_MM))) : 2;
   const ready = await oneAtATime(async () => {
     const px = await pixelsInNode(bytes, p.n, times);
-    return prepareMeasured({ rgba: px.rgba, width: px.width, height: px.height, words: px.words }, times, p.mmPerPx);
+    /* else the ratio it prints alone ("1 : 100") on a page that is a paper
+       size: without a scale the walls' sizes are guessed from the page's
+       width, two to four times out on most sheets */
+    const ratio = known ? null : mmPerPointOf(px.words, { width: px.width / px.scale, height: px.height / px.scale });
+    const mm = known ?? (ratio ? (ratio.mmPerPt / px.scale) * times : null);
+    return prepareMeasured({ rgba: px.rgba, width: px.width, height: px.height, words: px.words }, times, mm);
   });
   if (!ready) return { none: "Its walls aren't drawn as a fill, so they couldn't be measured" };
   const read = await nameRooms(ready, {

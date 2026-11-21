@@ -70,6 +70,60 @@ export function mmPerPxFor(scale: PrintedScale, sheet: { width: number; height: 
   return (long / rl) * scale.ratio;
 }
 
+/* the scales a plan is drawn at; a gradient (1:100 fall) is the same
+   figure, so one followed by a word of falls is never a scale */
+const RATIOS = new Set([10, 20, 25, 50, 75, 100, 125, 150, 200, 250, 500]);
+const RATIO_RE = /^1\s*:\s*(\d{1,4})(?:\s*(?:@|at)\s*(A[0-4]))?$/i;
+/* the paper a scale is for, when written after it in words of its own: "@ A1", "at", "A1" */
+const FOR_RE = /^(?:(?:@|at)\s*)?(A[0-4])$/i;
+const FALL_RE = /^(fall|falls|grade|gradient|min|minimum|max|to|slope)\b/i;
+/** paper sizes in PDF points, long side first */
+const PAPER_PT = Object.fromEntries(Object.entries(PAPER_MM).map(([k, [l, s]]) => [k, [(l / 25.4) * 72, (s / 25.4) * 72]])) as Record<Paper, [number, number]>;
+
+/** Building millimetres per PDF point, from the scale a sheet prints without
+    its paper ("1 : 100", with the paper in another box or not at all), when
+    the page itself is a paper size: a vector set printed to A1 is 2384 by
+    1684 points, so one point is 0.353 mm of paper. Most title blocks print
+    it this way (the engine's review, 21 November 2026: five of six real
+    sets had no "1:100 @ A1" for printedScaleOf, so their walls were measured
+    with no scale). The ratio near the word SCALE wins; else the one written
+    most. Null: no ratio, or a page that isn't a paper (a scan or a photo). */
+export function mmPerPointOf(words: readonly Word[] | null | undefined, page: { width: number; height: number }): { mmPerPt: number; text: string } | null {
+  if (!words?.length) return null;
+  const long = Math.max(page.width, page.height);
+  const short = Math.min(page.width, page.height);
+  const paper = (Object.keys(PAPER_PT) as Paper[]).find((k) => Math.abs(long / PAPER_PT[k][0] - 1) < 0.03 && Math.abs(short / PAPER_PT[k][1] - 1) < 0.03);
+  if (!paper) return null;
+  const seen: { ratio: number; scale: boolean; for: Paper | null }[] = [];
+  for (let i = 0; i < words.length; i++) {
+    /* "1:100", or "1" ":" "100", or "1 :" "100" split across tokens */
+    for (const k of [1, 2, 3]) {
+      const text = words.slice(i, i + k).map((w) => w.text.trim()).join(" ");
+      const m = RATIO_RE.exec(text);
+      if (!m) continue;
+      const ratio = Number(m[1]);
+      const next = words[i + k]?.text.trim() ?? "";
+      /* the paper it is for: in the same word, or the next one or two ("@" "A1") */
+      const after = FOR_RE.exec(next) ?? FOR_RE.exec(`${next} ${words[i + k + 1]?.text.trim() ?? ""}`.trim());
+      const named = (m[2] ?? after?.[1])?.toUpperCase() as Paper | undefined;
+      if (RATIOS.has(ratio) && !FALL_RE.test(next))
+        seen.push({ ratio, scale: words.slice(Math.max(0, i - 3), i).some((w) => /^scale\b/i.test(w.text.trim())), for: named && named in PAPER_PT ? named : null });
+      break;
+    }
+  }
+  if (!seen.length) return null;
+  const count = new Map<number, number>();
+  for (const s of seen) count.set(s.ratio, (count.get(s.ratio) ?? 0) + 1);
+  const ratio = seen.find((s) => s.scale)?.ratio ?? [...count].sort((a, b) => b[1] - a[1])[0][0];
+  /* a scale for another paper is a copy printed bigger or smaller: an A1 set
+     at 1:50 printed on A3 is drawn at half that size, so a point is twice the
+     building (the outside review, 21 November 2026: "a ratio printed before a
+     fit-to-page copy can be internally consistent yet physically wrong") */
+  const named = seen.find((s) => s.ratio === ratio && s.for)?.for ?? null;
+  const fit = named && named !== paper ? PAPER_PT[named][0] / PAPER_PT[paper][0] : 1;
+  return { mmPerPt: (25.4 / 72) * ratio * fit, text: `1:${ratio}${named && named !== paper ? ` @ ${named}` : ""} on ${paper}` };
+}
+
 const SHEET_NO_RE = /^[A-Z]{1,3}[-.]?\d{2,4}[A-Z]?$/;
 const TITLE_RE = /\b(floor|plan|level|ground|basement|roof|mezzanine|attic)\b/i;
 

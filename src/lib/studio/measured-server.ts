@@ -210,7 +210,16 @@ type Frame = {
 export function frameOf(walls: Walls, width: number, height: number): Frame {
   const xs = walls.segs.flatMap((g) => (g.dir === "h" ? [g.a, g.b] : [g.c]));
   const ys = walls.segs.flatMap((g) => (g.dir === "v" ? [g.a, g.b] : [g.c]));
-  const pad = Math.max(width, height) * 0.04;
+  /* room round the walls for the lines' numbers, so they are printed on
+     margin and not on the building: at least the band they take (the
+     engine's review: the third column of y numbers sat on 3570's east wall) */
+  const shrinkOf = (pad: number) => fit(Math.min(width, Math.max(...xs) - Math.min(...xs) + 2 * pad), Math.min(height, Math.max(...ys) - Math.min(...ys) + 2 * pad));
+  let pad = Math.max(width, height) * 0.04;
+  for (let i = 0; i < 2; i++) {
+    const k = shrinkOf(pad);
+    const size = labelSize(Math.round((Math.max(...xs) - Math.min(...xs) + 2 * pad) * k));
+    pad = Math.max(pad, (size * BAND) / k);
+  }
   const span = (lo: number, hi: number, most: number) => {
     const need = Math.max(hi - lo + 2 * pad, most * 0.45);
     const a = Math.max(0, Math.min(most - need, (lo + hi) / 2 - need / 2));
@@ -248,6 +257,24 @@ const TINT: Record<SpaceKind, string> = {
   other: "#64748b",
 };
 
+/* a number's height on her picture, from the picture's width */
+const labelSize = (ow: number) => Math.max(15, Math.round(ow / 110));
+/* how far in from the picture's edge the numbers reach, in numbers' heights */
+const BAND = 7;
+
+/** Where each number goes along its edge: in the first row (counting in
+    from the edge) where it clears the number before it, so numbers on close
+    lines never print over each other however many there are. */
+function rowsFor(at: readonly number[], width: number, gap: number): number[] {
+  const ends: number[] = [];
+  return at.map((v) => {
+    let row = ends.findIndex((e) => e + gap <= v - width / 2);
+    if (row < 0) row = ends.length < 3 ? ends.length : ends.indexOf(Math.min(...ends));
+    ends[row] = v + width / 2;
+    return row;
+  });
+}
+
 /** The numbered lines, and her rooms when there are any, as a drawing to lay over the plan. */
 export function overlaySvg(
   f: Frame,
@@ -256,7 +283,7 @@ export function overlaySvg(
 ): string {
   const X = (v: number) => ((v - f.left) * f.k).toFixed(1);
   const Y = (v: number) => ((v - f.top) * f.k).toFixed(1);
-  const size = Math.max(15, Math.round(f.ow / 110));
+  const size = labelSize(f.ow);
   /* drawn as strokes, not <text>: a server with no fonts (a Vercel function)
      draws text as empty boxes, and she'd be naming rooms by lines she can't
      read (glyphs.ts) */
@@ -279,43 +306,24 @@ export function overlaySvg(
       tag(Number(X(mx)), Number(Y(my)) + size * 0.4, String(i + 1), "#111827"),
     );
   }
-  /* numbers step down three rows so neighbours on close lines don't sit on each other */
+  /* each number in the first row in from the edge where it clears its
+     neighbour (rowsFor); a number is about 0.6 of its height wide a figure */
+  const wide = (t: string) => size * 0.8 * (0.8 * t.length - 0.2);
+  const xr = rowsFor(walls.grid.x.map((v) => Number(X(v))), wide(`x${walls.grid.x.length}`), size * 0.3);
   walls.grid.x.forEach((v, i) => {
     out.push(
       `<line x1="${X(v)}" y1="0" x2="${X(v)}" y2="${f.oh}" stroke="#d946ef" stroke-width="1.5" stroke-opacity="0.75"/>`,
     );
-    out.push(
-      tag(Number(X(v)), size * (1.1 + (i % 3) * 1.15), `x${i}`, "#a21caf"),
-    );
-    out.push(
-      tag(
-        Number(X(v)),
-        f.oh - size * (0.4 + (i % 3) * 1.15),
-        `x${i}`,
-        "#a21caf",
-      ),
-    );
+    out.push(tag(Number(X(v)), size * (1.1 + xr[i] * 1.15), `x${i}`, "#a21caf"));
+    out.push(tag(Number(X(v)), f.oh - size * (0.4 + xr[i] * 1.15), `x${i}`, "#a21caf"));
   });
+  const yr = rowsFor(walls.grid.y.map((v) => Number(Y(v))), size, size * 0.2);
   walls.grid.y.forEach((v, j) => {
     out.push(
       `<line x1="0" y1="${Y(v)}" x2="${f.ow}" y2="${Y(v)}" stroke="#16a34a" stroke-width="1.5" stroke-opacity="0.75"/>`,
     );
-    out.push(
-      tag(
-        size * (1.3 + (j % 3) * 2.2),
-        Number(Y(v)) + size * 0.35,
-        `y${j}`,
-        "#15803d",
-      ),
-    );
-    out.push(
-      tag(
-        f.ow - size * (1.3 + (j % 3) * 2.2),
-        Number(Y(v)) + size * 0.35,
-        `y${j}`,
-        "#15803d",
-      ),
-    );
+    out.push(tag(size * (1.3 + yr[j] * 2.2), Number(Y(v)) + size * 0.35, `y${j}`, "#15803d"));
+    out.push(tag(f.ow - size * (1.3 + yr[j] * 2.2), Number(Y(v)) + size * 0.35, `y${j}`, "#15803d"));
   });
   out.push("</svg>");
   return out.join("");

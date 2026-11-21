@@ -11,6 +11,8 @@
 import { generateKeyPairSync, sign } from "node:crypto";
 
 const { publicKey, privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+/* naming a kept thread runs after the answer (lib/tiff/thread-title); not here */
+jest.mock("next/server", () => ({ ...jest.requireActual("next/server"), after: () => undefined }));
 jest.mock("@/lib/mobile/token", () => ({
   ...jest.requireActual("@/lib/mobile/token"),
   tenantKeys: () => async (kid: string) => (kid === "k1" ? publicKey : null),
@@ -59,6 +61,7 @@ jest.mock("@/lib/mobile/tiff-files", () => ({
 }));
 const kept: { op: string; owner: unknown; upsert?: unknown; remove?: unknown }[] = [];
 jest.mock("@/lib/tiff/threads-server", () => ({
+  nameKeptThreads: async () => undefined,
   readThreads: async (owner: unknown) => (kept.push({ op: "read", owner }), { kept: true, threads: [{ id: "t-1", title: "Stanmore", updatedAt: 1, messages: [] }] }),
   writeThreads: async (owner: unknown, upsert: unknown, remove: unknown) => (kept.push({ op: "write", owner, upsert, remove }), true),
 }));

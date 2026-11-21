@@ -26,7 +26,8 @@ import type { Scene3D } from "@/lib/studio/scene3d";
    `{"glb": "..."}` (or `{"glb": null}` when there's none), for the app's
    own AR to stand on a table. */
 
-export type Posted = { scene?: Scene3D; look?: Look3D; glb?: true };
+/** `paused`: built but drawing nothing, while the app's plan is in front of it (bug 70) */
+export type Posted = { scene?: Scene3D; look?: Look3D; glb?: true; paused?: boolean };
 
 /** an ArrayBuffer as base64, a slice at a time so a big house doesn't overflow the call */
 function base64(buf: ArrayBuffer) {
@@ -47,6 +48,7 @@ export function Phone3D() {
   const [scene, setScene] = useState<Scene3D | null>(null);
   const [look, setLook] = useState<Look3D>({ floor: ALL_FLOORS, apart: false, labels: true, layer: "roof" });
   const glbRef = useRef<(() => Promise<ArrayBuffer>) | null>(null);
+  const [paused, setPaused] = useState(false);
 
   useEffect(() => {
     const answer = (m: { glb: string | null }) => {
@@ -66,6 +68,7 @@ export function Phone3D() {
       if (p.scene) setScene(p.scene);
       if (p.look) setLook(p.look);
       if (p.glb) void house();
+      if (typeof p.paused === "boolean") setPaused(p.paused);
     };
     const onMessage = (e: MessageEvent) => {
       const d: unknown = e.data;
@@ -81,5 +84,5 @@ export function Phone3D() {
     };
   }, []);
 
-  return <div className="dstudio" style={{ position: "fixed", inset: 0 }}>{scene ? <View3D scene={scene} look={look} onHouse={(g) => (glbRef.current = g)} /> : null}</div>;
+  return <div className="dstudio" style={{ position: "fixed", inset: 0 }}>{scene ? <View3D scene={scene} look={look} paused={paused} onHouse={(g) => (glbRef.current = g)} /> : null}</div>;
 }

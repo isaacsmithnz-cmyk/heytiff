@@ -5,11 +5,22 @@ import { act, render, screen } from "@testing-library/react";
 
 jest.mock("@/components/studio/view-3d", () => ({
   ALL_FLOORS: "all",
-  View3D: ({ scene, look, onHouse }: { scene: { span: number }; look: { floor: string; apart: boolean }; onHouse?: (g: (() => Promise<ArrayBuffer>) | null) => void }) => {
+  View3D: ({
+    scene,
+    look,
+    paused,
+    onHouse,
+  }: {
+    scene: { span: number };
+    look: { floor: string; apart: boolean };
+    paused?: boolean;
+    onHouse?: (g: (() => Promise<ArrayBuffer>) | null) => void;
+  }) => {
     onHouse?.(scene.span > 20 ? null : async () => new Uint8Array([103, 108, 84, 70]).buffer);
     return (
       <p>
         drawn {scene.span} m, floor {look.floor}, {look.apart ? "apart" : "together"}
+        {paused ? ", paused" : ""}
       </p>
     );
   },
@@ -64,4 +75,14 @@ it("hands the app the house as a GLB for AR, and says when there's none", async 
   act(() => window.heytiff3d!({ glb: true }));
   await act(async () => {});
   expect(JSON.parse(said.at(-1)!)).toEqual({ glb: btoa("glTF") });
+});
+
+/* bug 70: the app loads its 3D behind the plan and pauses it there, so 3D opens on a house already built */
+it("stops drawing while the app's plan is in front of it, and starts again", () => {
+  render(<Phone3D />);
+  act(() => window.heytiff3d!({ scene, paused: true }));
+  expect(screen.getByText(/drawn 12 m.*paused/)).toBeTruthy();
+  act(() => window.heytiff3d!({ paused: false }));
+  expect(screen.queryByText(/paused/)).toBeNull();
+  expect(screen.getByText(/drawn 12 m/)).toBeTruthy();
 });

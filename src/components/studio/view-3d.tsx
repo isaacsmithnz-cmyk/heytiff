@@ -105,6 +105,8 @@ type Built = {
   glb: () => Promise<ArrayBuffer>;
   /** one frame drawn now, as a PNG: the picture for the PDF */
   still: () => string;
+  /** stop drawing frames, or start again: the phone's 3D waiting behind its plan */
+  pause: (on: boolean) => void;
   dispose: () => void;
 };
 
@@ -1878,6 +1880,7 @@ async function build(
   const clock = new THREE.Clock();
   const eyeIn = new THREE.Vector3();
   let raf = 0;
+  let paused = false;
   const ahead = new THREE.Vector3();
   const frame = () => {
     controls.update();
@@ -1991,6 +1994,17 @@ async function build(
         for (const o of hidden) o.visible = true;
       }
     },
+    /* THE PHONE LOADS ITS 3D BEHIND THE PLAN (bug 70, 21 November 2026: "Designs load slowly when 3d tapped"), so
+       pressing 3D shows a house already built; out of sight it draws nothing, and the clock's jump is let go */
+    pause: (on: boolean) => {
+      if (gone || on === paused) return;
+      paused = on;
+      cancelAnimationFrame(raf);
+      if (!on) {
+        clock.getDelta();
+        frame();
+      }
+    },
     dispose: () => {
       gone = true;
       cancelAnimationFrame(raf);
@@ -2025,6 +2039,7 @@ export function View3D({
   onHouse,
   about,
   customer,
+  paused,
 }: {
   scene: Scene3D;
   look: Look3D;
@@ -2036,8 +2051,11 @@ export function View3D({
   about?: (p: Pick3D) => About3D;
   /** the customer's link: no install checks (roof space, measure) in the tray */
   customer?: boolean;
+  /** built but drawing nothing: the phone's 3D behind its plan */
+  paused?: boolean;
 }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
+  const pausedRef = useRef(!!paused);
   const urlRef = useRef(planUrl);
   const houseRef = useRef(onHouse);
   const aboutRef = useRef(about);
@@ -2057,6 +2075,11 @@ export function View3D({
   }, [look]);
 
   useEffect(() => {
+    pausedRef.current = !!paused;
+    builtRef.current?.pause(!!paused);
+  }, [paused]);
+
+  useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
     let gone = false;
@@ -2068,6 +2091,7 @@ export function View3D({
       }
       if (!b) setNoGl(true);
       builtRef.current = b;
+      if (pausedRef.current) b?.pause(true);
       houseRef.current?.(b ? b.glb : null);
     });
     return () => {

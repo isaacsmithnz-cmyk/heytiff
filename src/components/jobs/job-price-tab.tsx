@@ -34,6 +34,7 @@ import type { JobMediaItem } from "@/lib/workboard/job-media";
 import { fmtAud } from "@/lib/workboard/project-money";
 import { fmtMinutesAsHours } from "@/lib/workboard/all-jobs";
 import type { TrackerRead } from "@/lib/jobs/job-tracker";
+import { withoutCountry } from "@/lib/au-address";
 
 /* THE JOB'S PRICE TAB (the job page plan's build 10; the Price Tab mock,
    drawn on 3408 on 13 November 2026; Isaac, 14 November: "Build all as
@@ -426,7 +427,8 @@ function PriceQuote({
 
   /* the price, to the money grant only; read for each version of the quote */
   const price = useQuotePrice(job, financials, onLines ? `lines-${linesRev}` : null);
-  const address = detail?.address ?? detail?.geoLine ?? null;
+  /* the site on the paper with ServiceM8's ", Australia" off, as the head has it */
+  const address = withoutCountry(detail?.address ?? detail?.geoLine ?? "") || null;
 
   if (onLines === false)
     return (
@@ -508,7 +510,7 @@ function QuotePreview({
 }) {
   const { view } = useQuoteLines(job, money);
   const price = useQuotePrice(job, money, view ? "preview" : null);
-  const address = detail?.address ?? detail?.geoLine ?? null;
+  const address = withoutCountry(detail?.address ?? detail?.geoLine ?? "") || null;
   const href = quoteHref(job, { start: starting });
   const lines = (view?.lines ?? []).filter((l) => !(view?.variations ?? []).some((v) => v.option === l.optionIndex));
   return (

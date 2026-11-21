@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { withoutCountry } from "@/lib/au-address";
 import { Button } from "@/components/parts/button";
 import { Initials } from "@/components/parts/initials";
 import { StateWord } from "@/components/parts/state";
@@ -105,15 +106,7 @@ function Fact({
   );
 }
 
-/** An address with ServiceM8's country left off its lines: every job is in
-    the business's own country, so ", Australia" says nothing, and it pushed
-    the street to its own line over "Australia" (Isaac, 20 November 2026,
-    on a quote's head line: "i think its actually a bug"). Only the country
-    as a part of its own, after a comma or alone on a line: "Perth, Western
-    Australia" keeps its state. */
-export function withoutCountry(where: string): string {
-  return where.replace(/(?:^|,)[ \t]*Australia[ \t]*$/gim, "").trim();
-}
+export { withoutCountry };
 
 /** The address as two lines, the street over the rest: ServiceM8's own
     lines where it has them, else split at its last comma ("2 Krui Street,

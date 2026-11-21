@@ -1,6 +1,6 @@
 import type { BuildUp } from "./buildup";
 import { optionHeading, type ProposalDraft } from "./proposal";
-import { areasText, listText, type LinesProposal } from "./lines-proposal";
+import { areasText, listText, plainWords, type LinesProposal } from "./lines-proposal";
 import { namedByRole } from "./unit-name";
 import { billsForIt } from "./sm8-quote-brief";
 
@@ -89,7 +89,9 @@ const scopeOf = (draft: ProposalDraft, i: number, proposal?: ProposalWords | nul
     proposal's title and introduction, each option's scope, what isn't
     included and the payment stages; the options' scopes alone with no
     proposal. */
-export function quoteDescription(draft: ProposalDraft, indices: readonly number[], proposal?: ProposalWords | null): string {
+export function quoteDescription(draft: ProposalDraft, indices: readonly number[], formatted?: ProposalWords | null): string {
+  /* ServiceM8 holds plain words: the proposal's formatting stays on the paper */
+  const proposal = formatted ? plainWords(formatted) : formatted;
   const scopes = indices.map((i) => scopeOf(draft, i, proposal));
   if (!proposal) return scopes.join("\n\n");
   const pay = proposal.payment.stages.map((s) => `- ${s.when}${s.percent != null ? `: ${s.percent}%` : ""}`);
@@ -111,7 +113,8 @@ export function quoteDescription(draft: ProposalDraft, indices: readonly number[
     2026: "Job description is a summary. Quote description is the full
     proposal"). The introduction is left out: it's a letter to the
     customer ("Hi Josh, …"), not what the job is. */
-export function quoteSummary(draft: ProposalDraft, indices: readonly number[], proposal?: ProposalWords | null): string {
+export function quoteSummary(draft: ProposalDraft, indices: readonly number[], formatted?: ProposalWords | null): string {
+  const proposal = formatted ? plainWords(formatted) : formatted;
   const several = indices.length > 1;
   if (!proposal) return indices.map((i) => optionHeading(draft, i)).join("\n");
   const options = indices.map((i) => {

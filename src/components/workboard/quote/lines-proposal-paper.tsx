@@ -12,6 +12,7 @@ import type { QuotePrice } from "@/lib/quotes/quote-price-server";
 import type { QuoteNote } from "@/lib/templates/settings";
 import { themeVars } from "@/lib/org/theme";
 import { fmtAud } from "@/lib/workboard/project-money";
+import { RichTyped, type PhotoUrl } from "./marked";
 import { Typed, TypedList } from "./typed";
 
 /* THE PROPOSAL, FOR A QUOTE BUILT ON ITS LINES (slice 7.1, mock-up screen 7,
@@ -48,6 +49,9 @@ type Props = {
   /** the business's brand as the server read it: the PDF's print page has
       no session to ask for it with (app/print/quote) */
   brand?: OrgBrand;
+  /** the job's photos, by id, with their addresses: a photo put on the
+      proposal is drawn from here; null while they're still coming */
+  photos?: readonly { id: string; url: string | null }[] | null;
 };
 
 type Block = "intro" | "notIncluded" | "payment" | "choice" | "notes" | `summary-${number}` | `work-${number}` | `included-${number}`;
@@ -99,6 +103,8 @@ export function LinesProposalPaper(props: Props) {
     save({ options: Array.from({ length: options }, (_, j) => (j === i ? { ...optionWords(j), ...change } : optionWords(j))) });
   const nameOf = (i: number) => props.optionNames[i] || priced[i]?.name || `Option ${i + 1}`;
   const terms = props.paymentTerms ?? PAYMENT_PRESETS;
+  const photosKnown = props.photos != null;
+  const photoUrl: PhotoUrl = (id) => props.photos?.find((ph) => ph.id === id)?.url ?? null;
 
   return (
     <article ref={paperRef} className="lp-paper" aria-label="The proposal" style={themeVars(brand.color)}>
@@ -128,7 +134,16 @@ export function LinesProposalPaper(props: Props) {
       {/* typed where it sits, as on a page in Word (the Price overhaul, 18 November 2026) */}
       <div className="lp-intro">
         <Typed as="h2" value={p.title || props.title} label="The proposal's title" readOnly={ro} onSave={(title) => save({ title })} />
-        <Typed value={p.intro} label="The introduction" empty="No introduction written yet." multiline readOnly={ro} onSave={(intro) => save({ intro })} />
+        <RichTyped
+          name="intro"
+          value={p.intro}
+          label="The introduction"
+          empty="No introduction written yet."
+          readOnly={ro}
+          photoUrl={photoUrl}
+          photosKnown={photosKnown}
+          onSave={(intro) => save({ intro })}
+        />
       </div>
 
       {Array.from({ length: options }, (_, i) => {
@@ -144,13 +159,15 @@ export function LinesProposalPaper(props: Props) {
                 <h3>{nameOf(i)}</h3>
               </div>
             </header>
-            <Typed
+            <RichTyped
+              name={`summary-${i}`}
               className="lp-osum"
               value={w.summary}
               label={`Option ${i + 1}'s summary`}
               empty="No summary written yet."
-              multiline
               readOnly={ro}
+              photoUrl={photoUrl}
+              photosKnown={photosKnown}
               onSave={(summary) => setOption(i, { summary })}
             />
             <div className="lp-ocols">

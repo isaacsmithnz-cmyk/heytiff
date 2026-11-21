@@ -1938,6 +1938,7 @@ export function JobSheet({
           materials={materials}
           ask={priceAsk}
           doc={page.doc ?? null}
+          photos={media ? media.photos.filter((m) => m.kind === "photo") : null}
           onDocStage={setDocStage}
           onOpenPaper={(item) =>
             setViewer(media?.documents.some((d) => d.remoteId === item.remoteId) ? { kind: "paper", id: item.remoteId } : { kind: "page", item })

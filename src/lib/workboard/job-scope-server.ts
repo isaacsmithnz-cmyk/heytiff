@@ -1,3 +1,4 @@
+import { plainWords } from "@/lib/quotes/lines-proposal";
 import { suppliedNow } from "@/lib/jobs/supplied-scope-server";
 import { suppliedOf } from "@/lib/jobs/supplied-scope";
 import Anthropic from "@anthropic-ai/sdk";
@@ -145,7 +146,7 @@ async function readQuoteWords(orgId: string, jobUuid: string, timezone: string |
     .filter((e) => e.text)
     .map((e) => `${e.on}: ${e.text}`)
     .reverse();
-  return { said, proposal: byHand?.proposal ? proposalWords(byHand.proposal) : "" };
+  return { said, proposal: byHand?.proposal ? proposalWords(plainWords(byHand.proposal)) : "" };
 }
 
 /** Whether the job's quote has any lines yet: before it does, nothing's been

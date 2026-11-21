@@ -8,7 +8,9 @@ import { namesBySignIn, readLines } from "@/lib/quotes/lines-server";
 import { proposalTitle } from "@/lib/quotes/proposal";
 import { readQuotePrice } from "@/lib/quotes/quote-price-server";
 import { orgTemplates } from "@/lib/templates/query";
-import { readMirrorJobDetail } from "@/lib/workboard/all-jobs-query";
+import { familyMediaSources, readMirrorJobDetail } from "@/lib/workboard/all-jobs-query";
+import { photosIn } from "@/lib/quotes/proposal-marks";
+import { readJobMediaGroups } from "@/lib/workboard/job-media-query";
 import { todayInZone } from "@/lib/workboard/dates";
 import { getSm8Timezone } from "@/lib/workboard/query";
 import { PrintQuote } from "./print-quote";
@@ -38,6 +40,10 @@ export default async function PrintQuotePage({ searchParams }: { searchParams: P
     orgBrand(orgId, { seconds: 600 }),
   ]);
   if (!detail || lines.length === 0) notFound();
+  /* the job's photos, only where the proposal has one on it */
+  const p = byHand.proposal;
+  const wanted = p ? [p.intro, ...p.options.map((o) => o.summary)].some((w) => photosIn(w).length > 0) : false;
+  const media = wanted ? await readJobMediaGroups(orgId, jobUuid, await familyMediaSources(orgId, jobUuid)).catch(() => null) : null;
   const address = detail.address ?? detail.geoLine;
   /* the quote's own options: a variation is its own paper */
   const variations = new Set(byHand.variations.map((v) => v.option));
@@ -54,6 +60,7 @@ export default async function PrintQuotePage({ searchParams }: { searchParams: P
     jobNumber: detail.jobNumber ?? null,
     preparedBy: names[by] ?? null,
     brand,
+    photos: (media?.photos ?? []).map((m) => ({ id: m.remoteId, url: m.url })),
   };
   return <PrintQuote {...paper} />;
 }

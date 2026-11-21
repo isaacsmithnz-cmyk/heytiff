@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FocusEvent, type KeyboardEvent } from "react";
+import { fillItem, itemOf, MarkedLine, plainPaste } from "./marked";
 
 /* TYPED ON THE PAGE (the Price overhaul, 18 November 2026: "the proposal is
    a pretty much full screen display of what the customer will see, and it's
@@ -8,8 +9,9 @@ import { useEffect, useRef, useState, type FocusEvent, type KeyboardEvent } from
    are typed where they sit, as on a page in Word: a heading or a paragraph
    is its own box, a list is one line an item, Enter starts the next item and
    Backspace on an empty one takes it away. Each block saves itself as you
-   leave it; Escape puts it back as it was. Plain words only: the figures
-   are the lines', changed in Breakdown (decision 4). */
+   leave it; Escape puts it back as it was. A list's items take bold, italic
+   and underline from the bar over the page (format-bar.tsx); a heading is
+   plain words. The figures are the lines', changed in Breakdown (decision 4). */
 
 /* the words go in once, as the box is made, and the page keeps them from
    then on: React never writes into a box someone is typing in */
@@ -131,7 +133,9 @@ export function TypedList({
     return items.length ? (
       <ul className={className}>
         {items.map((it, n) => (
-          <li key={n}>{it}</li>
+          <li key={n}>
+            <MarkedLine value={it} />
+          </li>
         ))}
       </ul>
     ) : empty ? (
@@ -153,17 +157,19 @@ export function TypedList({
         <li
           key={r.id}
           ref={(el) => {
-            fill(el, r.text);
+            fillItem(el, r.text);
             if (el) boxes.current.set(r.id, el);
             else boxes.current.delete(r.id);
           }}
           className="lp-typed"
-          contentEditable="plaintext-only"
+          contentEditable
           suppressContentEditableWarning
           role="textbox"
           aria-label={`${label}, item ${n + 1}`}
           data-empty={rows.length === 1 ? empty : undefined}
-          onInput={(e) => typed.current.set(r.id, textOf(e.currentTarget))}
+          data-fmt="inline"
+          onPaste={plainPaste}
+          onInput={(e) => typed.current.set(r.id, itemOf(e.currentTarget))}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
@@ -172,7 +178,7 @@ export function TypedList({
               rows.forEach((x, k) => typed.current.set(x.id, texts[k] ?? x.text));
               setRows([...rows.slice(0, n + 1), next, ...rows.slice(n + 1)]);
               setFocusOn({ id: next.id, end: false });
-            } else if (e.key === "Backspace" && !textOf(e.currentTarget).trim() && rows.length > 1) {
+            } else if (e.key === "Backspace" && !(e.currentTarget.textContent ?? "").trim() && rows.length > 1) {
               e.preventDefault();
               const back = rows[n - 1] ?? rows[n + 1];
               typed.current.delete(r.id);

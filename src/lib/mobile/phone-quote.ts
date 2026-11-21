@@ -1,7 +1,7 @@
 import { leftOn } from "@/lib/quotes/quote-left";
 import type { OptionPrice, QuotePrice } from "@/lib/quotes/quote-price-server";
 import { labourOf, unitsOf } from "@/lib/quotes/quote-sum";
-import type { LinesProposal } from "@/lib/quotes/lines-proposal";
+import { plainWords, type LinesProposal } from "@/lib/quotes/lines-proposal";
 import type { QuoteLine } from "@/lib/quotes/lines";
 import { stillUnknown } from "@/lib/quotes/lines-price";
 import { twinsOf } from "@/lib/quotes/line-twins";
@@ -271,7 +271,8 @@ const titleOf = (name: string | undefined) => {
 
 function optionOf(i: number, view: LinesView, price: OptionPrice | null): PhoneOption {
   const b = price?.build ?? null;
-  const words = view.proposal?.options[i];
+  /* the phone shows plain words: the proposal's formatting is the paper's */
+  const words = view.proposal ? plainWords(view.proposal).options[i] : undefined;
   const units = b ? unitsOf(b) : null;
   const labour = b ? labourOf(b) : null;
   return {
@@ -327,7 +328,7 @@ export function phoneQuoteOf(view: LinesView, price: QuotePrice | null, events: 
     .filter(Boolean)
     .join(", ");
 
-  const p = view.proposal;
+  const p = view.proposal && plainWords(view.proposal);
   const sent = view.sent ? { trial: view.sent.trial, at: view.sent.at ?? null, by: nameOf(names, view.sent.by ?? "") } : null;
   const accepted = view.accepted.length > 0;
   return {

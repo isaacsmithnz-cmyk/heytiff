@@ -30,6 +30,7 @@ import { QuoteLineItems, RemoveLine, groupKey, sellEachOf } from "./quote-line-i
 import { optionsWords, twinsOf } from "@/lib/quotes/line-twins";
 import { AddedRows, InServiceM8, OptionPick, OptionRows, QuoteCard, QuoteRail, QuoteTotal, WhereUpTo, signed } from "./quote-rail";
 import { changingWords, pastQuote as goneToClient, priceThemWords, withoutAdded, type JobScopeRead, type ScopeAdded, type ScopeQuoted } from "@/lib/jobs/job-scope";
+import { FormatBar, type BarPhoto } from "./format-bar";
 import { LinesButton, panelFoot, QuoteActions, Share, type Moved } from "./quote-actions";
 import { sm8JobUrl } from "@/lib/integrations/sm8-links";
 import { Dialog } from "@/components/parts/dialog";
@@ -196,7 +197,11 @@ export function QuoteLinesFace({
   jobStatus = null,
   update = false,
   views = false,
+  photos = null,
 }: {
+  /** the job's photos: the proposal's Add a photo picks from them, and a
+      photo put on it is drawn from them; null while they're read */
+  photos?: readonly JobMediaItem[] | null;
   job: string;
   price: QuotePrice | null | undefined;
   /** told the quote's state word, for the line under the job's name */
@@ -798,6 +803,8 @@ export function QuoteLinesFace({
   /* the quote's buttons, pinned at the rail's foot: the paper, and the next
      step. Approve quote is the main one (layout B) */
   const pdfHref = money && view?.approved && !variation ? `/api/workboard/quote-pdf?job=${encodeURIComponent(job)}` : null;
+  /* the job's photos with an address, for the bar's Add a photo */
+  const barPhotos: BarPhoto[] = (photos ?? []).flatMap((m) => (m.kind === "photo" && m.url ? [{ id: m.remoteId, url: m.url, name: m.name }] : []));
   const acceptable = !!view?.approved || accepted.length > 0;
   /* once something's landed since it was sent, the rail's own Update
      quote, with it written in, is the one */
@@ -941,23 +948,19 @@ export function QuoteLinesFace({
           />
           {paper ? (
             <div className="hd-face qp-face ql-face qc-fill">
-              {/* the page saves itself as you type on it, and says so */}
-              {/* and Share at the bar's right, over the page it shares, as a
-                  document's is (Isaac, 21 November 2026: "share could be in
-                  proposal view?") */}
-              {views && !shown && !variation && (busy || savedAt || pdfHref) && (
-                <div className="qc-fmt">
+              {/* the bar over the page, as a document's (format-bar.tsx): the
+                  page saves itself as you type on it and says so at its end,
+                  then Share, over the page it shares (Isaac, 21 November
+                  2026: "share could be in proposal view?") */}
+              {views && !shown && !variation && (
+                <FormatBar photos={barPhotos}>
                   {(busy || savedAt) && (
                     <span role="status">
                       <StateWord tone="info">{busy ? "Saving" : `Saved, ${fmtAuTime(new Date(savedAt!))}`}</StateWord>
                     </span>
                   )}
-                  {pdfHref && (
-                    <span className="qc-share">
-                      <Share pdf={pdfHref} size={32} />
-                    </span>
-                  )}
-                </div>
+                  {pdfHref && <Share pdf={pdfHref} size={32} />}
+                </FormatBar>
               )}
               <div className="lp-desk">
                 {shown ? (
@@ -994,6 +997,7 @@ export function QuoteLinesFace({
                     preparedBy={view?.names[view?.me ?? ""] ?? null}
                     busy={busy}
                     editAsk={paperAsk}
+                    photos={photos && photos.map((m) => ({ id: m.remoteId, url: m.url }))}
                     onSave={(patch) => void act({ op: "proposal", patch }).then((v) => v?.ok && setSavedAt(new Date().toISOString()))}
                   />
                 )}

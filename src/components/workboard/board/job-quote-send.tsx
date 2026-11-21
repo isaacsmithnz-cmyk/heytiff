@@ -106,7 +106,8 @@ export function JobQuoteSend({
     if (!offer.offered) return offer.held ? <StateWord tone="look">{offer.held}</StateWord> : null;
     return (
       <>
-        <Button kind="main" disabled={sending || !fresh} onClick={() => void send()}>
+        {/* in ServiceM8's green, as every button that goes to ServiceM8 (rule 31) */}
+        <Button kind="sm8" disabled={sending || !fresh} onClick={() => void send()}>
           {sending ? "Sending" : offer.trial ? "Trial send to ServiceM8" : "Send to ServiceM8"}
         </Button>
         {answer && <SendResult answer={answer} />}

@@ -144,7 +144,7 @@ it("sends the approved quote as a quote: its description and the job's, left a Q
 
 /* layout B (Isaac, 21 October 2026): on the quote page it's the main button
    pinned under Approved, and once it went, Sent to ServiceM8 and its day */
-it("is the pinned Send to ServiceM8 on the quote page: the main button alone, then Sent and its day", async () => {
+it("is the pinned Send to ServiceM8 on the quote page: in ServiceM8's green, alone, then Sent and its day", async () => {
   quoteSendOffered.mockResolvedValue({ offered: true, trial: false });
   sendQuoteToSm8.mockResolvedValue({ ok: true, trial: false, sent: 1, waiting: 0, failed: [] });
   const plan: SendPlan = {
@@ -161,7 +161,7 @@ it("is the pinned Send to ServiceM8 on the quote page: the main button alone, th
   const onSent = jest.fn();
   const { unmount } = render(<JobQuoteSend job="j-1" visible as="quote" look="button" onSent={onSent} />);
   const go = await screen.findByRole("button", { name: "Send to ServiceM8" });
-  expect(go).toHaveClass("pt-btn--main", "pt-btn--36");
+  expect(go).toHaveClass("pt-btn--sm8", "pt-btn--36");
   /* the paper it sends is Preview quote's: no plan here */
   expect(screen.queryByText("Job description")).toBeNull();
   await act(async () => {

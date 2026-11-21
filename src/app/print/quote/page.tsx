@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { withoutCountry } from "@/lib/au-address";
 import "@/app/dashboard/shell.css";
 import "./quote-print.css";
 import { orgBrand } from "@/lib/org/query";
@@ -44,7 +45,8 @@ export default async function PrintQuotePage({ searchParams }: { searchParams: P
   const p = byHand.proposal;
   const wanted = p ? [p.intro, ...p.options.map((o) => o.summary)].some((w) => photosIn(w).length > 0) : false;
   const media = wanted ? await readJobMediaGroups(orgId, jobUuid, await familyMediaSources(orgId, jobUuid)).catch(() => null) : null;
-  const address = detail.address ?? detail.geoLine;
+  /* ServiceM8's ", Australia" off, as the screen's paper has it */
+  const address = withoutCountry(detail.address ?? detail.geoLine ?? "") || null;
   /* the quote's own options: a variation is its own paper */
   const variations = new Set(byHand.variations.map((v) => v.option));
   const paper = {

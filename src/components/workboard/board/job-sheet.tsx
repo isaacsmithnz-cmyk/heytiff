@@ -29,7 +29,7 @@ import { buildJobStory, storyStamp } from "@/lib/workboard/job-story";
 import { JobMoneyBlock } from "./job-money-block";
 import { cacheJobFiles } from "@/app/actions/workboard-media";
 import { addPlansToJob, chooseFloorsOnPlan, pageForScale, readPlanAgainOnJob, readPlansOnJob, setScaleOnPlan } from "@/app/actions/job-plans";
-import { kickPlanReads, PLAN_POLL_MS, PLAN_STUCK_MS, SCOPE_FROM_PLANS_MS } from "@/lib/jobs/plans-client";
+import { kickPlanReads, PLAN_POLL_MS, plansToAskAgain, SCOPE_FROM_PLANS_MS } from "@/lib/jobs/plans-client";
 import type { JobPlanRead, PlanPick } from "@/lib/jobs/plans";
 import { fileOnJob } from "@/lib/documents/file-on-job";
 import { readJobPhotos } from "@/app/actions/photo-readings";
@@ -564,14 +564,16 @@ export function JobSheet({
   };
 
   /* A plan left reading longer than a read takes was dropped on the way
-     (a deploy, a timeout, or put back by hand): asked for once more while
-     the job is open. The read route's claim means a read still going isn't
-     started twice. */
-  const plansKicked = useRef(new Set<string>());
+     (a deploy, a timeout, a hand-on to the next run that was lost, or put
+     back by hand): asked for again while the job is open, once a claim's
+     length. The read route's claim means a read still going isn't started
+     twice. */
+  const plansKicked = useRef(new Map<string, number>());
   useEffect(() => {
-    const stuck = (plans ?? []).filter((p) => p.state === "reading" && Date.now() - new Date(p.addedAt).getTime() > PLAN_STUCK_MS && !plansKicked.current.has(p.id)).map((p) => p.id);
+    const now = Date.now();
+    const stuck = plansToAskAgain(plans ?? [], plansKicked.current, now);
     if (stuck.length === 0) return;
-    for (const id of stuck) plansKicked.current.add(id);
+    for (const id of stuck) plansKicked.current.set(id, now);
     kickPlanReads(stuck);
   }, [plans]);
 

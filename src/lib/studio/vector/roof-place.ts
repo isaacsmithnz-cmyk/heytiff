@@ -6,12 +6,14 @@ import { riseOf, type RoofFace } from "./roof";
    under A104's eaves, page point for page point. So a face is moved onto a
    floor's sheet by that sheet's own pixels to the point, and that is only
    trusted when it plainly holds: most of the rooms read on the floors stand
-   under the faces. Each face then goes on the highest floor with a space
-   under it (a hip over level 1 is carried by level 1's walls, a verandah
-   over the ground floor's), its eave the height the read took off the
-   sections for the roof part it sits in, else that floor's ceiling, and its
-   overhang measured off the file's own walls. A face with no floor under it
-   is left out. Pure. */
+   under the faces, and a floor's roofs' eaves stand out past its walls
+   alike on opposite sides, both ways across it. Each face then goes on the
+   highest floor under most of it (a hip over level 1 is carried by level
+   1's walls, a verandah over the ground floor's), its eave the height the
+   read took off the sections for the roof part it sits in, else that
+   floor's ceiling, and its overhang measured off the file's own walls. A
+   face with no floor under it, or standing half on one, or on a roof whose
+   overhang can't be measured, is left out. Pure. */
 
 /** A floor as the read left it, its sheet's pixels to a page point. */
 export type FloorUnder = {
@@ -32,6 +34,16 @@ export type FloorUnder = {
 const UNDER = 0.5;
 /** An overhang longer than this, mm, is a verandah or a carport, not an eave's: no wall is looked for past it. */
 const LONGEST_EAVE = 1500;
+/** How many points each way a face is tried at for the floor under it. */
+const ACROSS = 10;
+/** The share of a face's points over the floors that one floor must stand under to carry it. */
+const CARRIES = 0.5;
+/** A floor under more of a face than this and not most of it has the face half on it: which floor carries it isn't known. */
+const HALF_ON = 0.15;
+/** How far a roof's eaves on opposite sides may measure apart, mm, for the roof plan to be taken as drawn over the floor: one set off by more than half this stands its eaves that much further out on one side and in on the other. */
+const OPPOSITE_MM = 150;
+/** Two pairs of opposite eaves check the floor both ways across when their falls are within 30° of square to each other: cos 60°. */
+const CROSSING = 0.5;
 
 const centre = (ring: readonly ReadPoint[]): ReadPoint => {
   /* the area-weighted middle; a thin L's corner can fall outside it, so a point inside is taken when it does */
@@ -67,32 +79,62 @@ const centre = (ring: readonly ReadPoint[]): ReadPoint => {
   return best;
 };
 
-/** A point under a face: inside it, or on the line round it (a room's middle can fall on a ridge). */
-const ON_LINE_PT = 1.5;
-function under1(ring: readonly ReadPoint[], p: ReadPoint): boolean {
-  if (inside(p, ring as ReadPoint[])) return true;
+/** How far a point is from the line round a ring. */
+function offRing(ring: readonly ReadPoint[], p: ReadPoint): number {
+  let d = Infinity;
   for (let i = 0; i < ring.length; i++) {
     const a = ring[i];
     const b = ring[(i + 1) % ring.length];
     const vx = b.x - a.x;
     const vy = b.y - a.y;
     const u = Math.max(0, Math.min(1, ((p.x - a.x) * vx + (p.y - a.y) * vy) / (vx * vx + vy * vy || 1)));
-    if (Math.hypot(p.x - a.x - u * vx, p.y - a.y - u * vy) <= ON_LINE_PT) return true;
+    d = Math.min(d, Math.hypot(p.x - a.x - u * vx, p.y - a.y - u * vy));
   }
-  return false;
+  return d;
 }
 
+/** A point under a face: inside it, or on the line round it (a room's middle can fall on a ridge). */
+const ON_LINE_PT = 1.5;
+const under1 = (ring: readonly ReadPoint[], p: ReadPoint) => inside(p, ring as ReadPoint[]) || offRing(ring, p) <= ON_LINE_PT;
+
 const INDOOR = new Set<ReadSpace["kind"]>(["room", "wet", "circulation", "garage", "cupboard"]);
+
+/** Whether a point is in a floor's walls: each wall's box taken once for
+    the floor, by a plain loop (a long curved wall has more points than can
+    be spread into Math.min), then its outlines even-odd. */
+function wallsAt(walls: readonly ReadPoint[][][]): (p: ReadPoint) => boolean {
+  const boxes = walls.map((w) => {
+    const b = [Infinity, Infinity, -Infinity, -Infinity];
+    for (const ring of w)
+      for (const p of ring) {
+        if (p.x < b[0]) b[0] = p.x;
+        if (p.y < b[1]) b[1] = p.y;
+        if (p.x > b[2]) b[2] = p.x;
+        if (p.y > b[3]) b[3] = p.y;
+      }
+    return b;
+  });
+  return (p) => walls.some((w, i) => p.x >= boxes[i][0] && p.x <= boxes[i][2] && p.y >= boxes[i][1] && p.y <= boxes[i][3] && w.filter((r) => inside(p, r as ReadPoint[])).length % 2 === 1);
+}
+
+/** Points spread over a face: the middles of a grid's cells that fall in it, else its middle. */
+function spread(ring: readonly ReadPoint[]): ReadPoint[] {
+  const xs = ring.map((p) => p.x);
+  const ys = ring.map((p) => p.y);
+  const [x0, y0, x1, y1] = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+  const out: ReadPoint[] = [];
+  for (let i = 0; i < ACROSS; i++)
+    for (let j = 0; j < ACROSS; j++) {
+      const p = { x: x0 + ((i + 0.5) * (x1 - x0)) / ACROSS, y: y0 + ((j + 0.5) * (y1 - y0)) / ACROSS };
+      if (inside(p, ring as ReadPoint[])) out.push(p);
+    }
+  return out.length ? out : [centre(ring)];
+}
 
 /** How far a face's eave stands out past the wall under it, sheet pixels:
     from points along its eave, straight in up its fall, to the first wall.
     Null where no wall is met within an eave's reach (a verandah on posts). */
-function overhangOf(outline: readonly ReadPoint[], fall: ReadPoint, walls: readonly ReadPoint[][][], reach: number): number | null {
-  const boxes = walls.map((w) => {
-    const pts = w.flat();
-    return [Math.min(...pts.map((p) => p.x)), Math.min(...pts.map((p) => p.y)), Math.max(...pts.map((p) => p.x)), Math.max(...pts.map((p) => p.y))];
-  });
-  const inWall = (p: ReadPoint) => walls.some((w, i) => p.x >= boxes[i][0] && p.x <= boxes[i][2] && p.y >= boxes[i][1] && p.y <= boxes[i][3] && w.filter((r) => inside(p, r as ReadPoint[])).length % 2 === 1);
+function overhangOf(outline: readonly ReadPoint[], fall: ReadPoint, inWall: (p: ReadPoint) => boolean, reach: number): number | null {
   const down = (p: ReadPoint) => p.x * fall.x + p.y * fall.y;
   const low = Math.max(...outline.map(down));
   const found: number[] = [];
@@ -199,38 +241,109 @@ export function placeFaces(
   if (under < UNDER * rooms.length) return { none: `Only ${under} of the ${rooms.length} rooms read stand under the roof plan's faces` };
 
   const high = [...floors].sort((a, b) => b.level - a.level);
-  const out: (ReadRoofFace & { over: number | null })[] = [];
+  const walled = new Map(high.map((f) => [f, f.walls?.length ? wallsAt(f.walls) : () => false]));
+  /* a floor stands under a point where one of its spaces or its walls is (a notch is a cut out of it) */
+  const standsUnder = (f: FloorUnder, p: ReadPoint) => {
+    const q = { x: p.x * f.pxPerPt, y: p.y * f.pxPerPt };
+    return f.spaces.some((s) => s.kind !== "notch" && s.outline.length >= 3 && inside(q, s.outline)) || walled.get(f)!(q);
+  };
+  const out: (Omit<ReadRoofFace, "overhangMm"> & { measured: number | null; mmPerPx: number | null })[] = [];
   let left = 0;
   faces.forEach((face, i) => {
-    const mid = centre(rings[i]);
-    /* the highest floor with a space under the face's middle carries it */
-    const fl = high.find((f) => f.spaces.some((s) => s.outline.length >= 3 && inside({ x: mid.x * f.pxPerPt, y: mid.y * f.pxPerPt }, s.outline)));
+    /* THE FLOOR UNDER MOST OF IT carries it, not the one under its middle
+       alone: a face's middle can fall in the wall between two rooms. A
+       floor under only part of it (a face read across two roofs, a sheet
+       set a little off) leaves which floor carries it unknown, so it is
+       left out rather than dropped a storey. Its points over no floor (its
+       eave's overhang) count for none. */
+    const hit = spread(rings[i]).map((p) => high.map((f) => standsUnder(f, p)));
+    const any = hit.filter((h) => h.some(Boolean)).length;
+    let fl: FloorUnder | undefined;
+    for (let j = 0; j < high.length && any; j++) {
+      const share = hit.filter((h) => h[j]).length / any;
+      /* from the top: the first floor under most of it carries it; one under some of it and not most, none does */
+      if (share >= CARRIES) fl = high[j];
+      if (share > HALF_ON) break;
+    }
     if (!fl) return void left++;
+    const mid = centre(rings[i]);
     const outline = rings[i].map((p) => ({ x: Math.round(p.x * fl.pxPerPt * 10) / 10, y: Math.round(p.y * fl.pxPerPt * 10) / 10 }));
     const at = { x: mid.x * fl.pxPerPt, y: mid.y * fl.pxPerPt };
     const part = parts.find((p) => p.floorId === fl.floorId && p.sheetId === fl.sheetId && p.outline.length >= 3 && inside(at, p.outline));
     const eaveMm = part?.eaveMm ?? fl.ceilingMm;
     if (eaveMm == null || !(eaveMm > 0)) return void left++;
     const fall = { x: face.fall[0], y: face.fall[1] };
-    const over = fl.mmPerPx && fl.walls?.length ? overhangOf(outline, fall, fl.walls, LONGEST_EAVE / fl.mmPerPx) : null;
-    out.push({ floorId: fl.floorId, sheetId: fl.sheetId, outline, pitchDeg: face.pitchDeg, fall, eaveMm, overhangMm: 0, existing: part?.existing ?? false, page, over });
+    const measured = fl.mmPerPx && fl.walls?.length ? overhangOf(outline, fall, walled.get(fl)!, LONGEST_EAVE / fl.mmPerPx) : null;
+    out.push({ floorId: fl.floorId, sheetId: fl.sheetId, outline, pitchDeg: face.pitchDeg, fall, eaveMm, existing: part?.existing ?? false, page, measured, mmPerPx: fl.mmPerPx });
   });
   /* ONE OVERHANG FOR ONE ROOF. A face's own measure meets an inside wall or
      no wall at all as often as the one under its eave (3570's level 1: 0 to
      590 mm), and faces that sit at different heights don't meet at their
      hips. The faces one floor carries at one pitch and eave are one roof,
-     and take the middle of their measures; none measured, they sit at the
-     wall line. */
-  const groups = new Map<string, number[]>();
-  const key = (f: ReadRoofFace) => `${f.floorId}|${f.pitchDeg}|${f.eaveMm}`;
-  for (const f of out) if (f.over != null) groups.set(key(f), [...(groups.get(key(f)) ?? []), f.over]);
-  const placed: ReadRoofFace[] = out.map(({ over: _over, ...f }) => {
-    const got = (groups.get(key(f)) ?? []).sort((a, b) => a - b);
-    const mmPerPx = floors.find((fl) => fl.floorId === f.floorId)?.mmPerPx ?? null;
-    return { ...f, overhangMm: got.length && mmPerPx ? Math.round(got[Math.floor(got.length / 2)] * mmPerPx) : 0 };
-  });
+     and take the middle of their measures. */
+  const key = (f: Pick<ReadRoofFace, "floorId" | "pitchDeg" | "eaveMm">) => `${f.floorId}|${f.pitchDeg}|${f.eaveMm}`;
+  const roofs = new Map<string, typeof out>();
+  for (const f of out) roofs.set(key(f), [...(roofs.get(key(f)) ?? []), f]);
+  const middle = (v: readonly number[]) => [...v].sort((a, b) => a - b)[Math.floor(v.length / 2)];
+  /* ITS EAVES STAND OUT ALIKE ON OPPOSITE SIDES. A roof plan set a metre off
+     the floor under it still has most of the floor's rooms under it, but
+     its eaves stand a metre further out on one side and a metre in on the
+     other, or past an eave's reach and measure nothing. One pair checks it
+     one way only: a roof plan set a metre along a gable's ridge, or a hip's
+     whose short ends didn't measure, still has its long eaves alike. So a
+     floor carries faces only when its roofs have opposite eaves measured
+     alike both ways across it, two pairs falling near square to each
+     other, and every pair measured on it is alike. */
+  const sure = new Map<string, { alike: ReadPoint[]; apart: number }>();
+  for (const roof of roofs.values()) {
+    const sides: { fall: ReadPoint; got: number[] }[] = [];
+    for (const f of roof) {
+      if (f.measured == null) continue;
+      const side = sides.find((s) => s.fall.x * f.fall.x + s.fall.y * f.fall.y > 0.95);
+      if (side) side.got.push(f.measured);
+      else sides.push({ fall: f.fall, got: [f.measured] });
+    }
+    const t = sure.get(roof[0].floorId) ?? { alike: [], apart: 0 };
+    for (let a = 0; a < sides.length; a++)
+      for (let b = a + 1; b < sides.length; b++) {
+        if (sides[a].fall.x * sides[b].fall.x + sides[a].fall.y * sides[b].fall.y > -0.95) continue;
+        if (Math.abs(middle(sides[a].got) - middle(sides[b].got)) * roof[0].mmPerPx! <= OPPOSITE_MM) t.alike.push(sides[a].fall);
+        else t.apart++;
+      }
+    sure.set(roof[0].floorId, t);
+  }
+  const trusted = (floorId: string) => {
+    const t = sure.get(floorId);
+    return !!t && t.apart === 0 && t.alike.some((u, i) => t.alike.some((v, j) => j > i && Math.abs(u.x * v.x + u.y * v.y) <= CROSSING));
+  };
+  /* a roof whose overhang wasn't measured is left out, not set at the wall line: its eave's height would be guessed */
+  const placed: ReadRoofFace[] = [];
+  for (const { measured: _m, mmPerPx, ...f } of out) {
+    const got = roofs.get(key(f))!.flatMap((g) => (g.measured == null ? [] : [g.measured]));
+    if (!trusted(f.floorId) || !got.length || !mmPerPx) left++;
+    else placed.push({ ...f, overhangMm: Math.round(middle(got) * mmPerPx) });
+  }
   const kept = meeting(placed, floors);
   left += placed.length - kept.length;
-  if (!kept.length) return { none: "None of its faces stood over a floor" };
+  if (!kept.length) {
+    if (!out.length) return { none: "None of its faces stood over a floor" };
+    if (out.every((f) => f.measured == null)) return { none: "No overhang could be measured off the file's walls under it" };
+    if (![...sure.keys()].some(trusted)) return { none: "Its eaves didn't measure alike on opposite sides both ways across any floor, so it isn't known to be drawn over them" };
+    return { none: "None of its faces had its roof's overhang measured and met its neighbours at one height" };
+  }
   return { faces: kept, left };
+}
+
+/** Whether every face another roof plan page placed is one of these read
+    again: on the same floor at the same pitch, each corner of either within
+    an edge's width of the other's outline. A face of its own (an existing
+    roof's, where these are the proposed one's) makes it another roof. */
+export function readAgain(other: readonly ReadRoofFace[], faces: readonly ReadRoofFace[], floors: readonly FloorUnder[]): boolean {
+  const mmOf = new Map(floors.map((f) => [f.floorId, f.mmPerPx]));
+  return other.every((g) => {
+    const k = mmOf.get(g.floorId);
+    if (!k) return false;
+    const tol = SAME_EDGE_MM / k;
+    return faces.some((f) => f.floorId === g.floorId && f.pitchDeg === g.pitchDeg && g.outline.every((p) => offRing(f.outline, p) <= tol) && f.outline.every((p) => offRing(g.outline, p) <= tol));
+  });
 }

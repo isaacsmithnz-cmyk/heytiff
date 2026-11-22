@@ -77,27 +77,52 @@ export function suggestionsFor(floor: Pick<Floor, "plans">, sheets: SheetReading
    height; the set's schedule does, by its mark (schedule.ts). */
 const WINDOW_HEIGHT_M = 1.2;
 
-/** The glass read for a room, in m²: each window's width by its scheduled height, else 1.2 m. */
-export const glassM2 = (s: Pick<Suggestion, "windows">) => s.windows.reduce((t, w) => t + (w.widthMm / 1000) * (w.heightMm && w.heightMm > 0 ? w.heightMm / 1000 : WINDOW_HEIGHT_M), 0);
+/** A room's glass as read, and its outside openings: its kind, for a garage's doors. */
+type Glass = Pick<Suggestion, "windows"> & Partial<Pick<Suggestion, "openings" | "kind">>;
+
+/* a width is read only where the plan or its schedule writes one: 0 is none read */
+const unread = (o: ReadOpening) => !(o.widthMm > 0);
+
+/** The openings whose glass isn't known: a window of no width read, and an
+    outside door of none, which may be a slider (a garage's is a roller door). */
+const glassUnread = (s: Glass) => [...s.windows.filter(unread), ...(s.kind === "garage" ? [] : (s.openings ?? []).filter((o) => o.kind === "door" && unread(o)))];
+
+/** The glass read for a room, in m²: each window's width by its scheduled
+    height, else 1.2 m. Null where a window's width, or an outside door's,
+    isn't read: how much glass it has isn't known. */
+export const glassM2 = (s: Glass): number | null =>
+  glassUnread(s).length ? null : s.windows.reduce((t, w) => t + (w.widthMm / 1000) * (w.heightMm && w.heightMm > 0 ? w.heightMm / 1000 : WINDOW_HEIGHT_M), 0);
 
 /** The glazing level from glass over floor area, by the fixed cut-offs
     (Isaac left it to the most reliable answer, 20 October): under 15% low,
     15 to 30% moderate, over 30% high. Undefined when there's no floor area
-    to judge by. */
-export function glazingFor(areaM2: number, glass: number): GlazingLevel | undefined {
-  if (!(areaM2 > 0)) return undefined;
+    to judge by, or the glass isn't known. */
+export function glazingFor(areaM2: number, glass: number | null): GlazingLevel | undefined {
+  if (!(areaM2 > 0) || glass == null) return undefined;
   const r = glass / areaM2;
   return r < 0.15 ? "low" : r <= 0.3 ? "moderate" : "high";
 }
 
 const FACES = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"] as const;
 
-/** The way the room faces: the external wall with the most glass. */
-export function orientationFor(s: Pick<Suggestion, "windows">): Orientation | undefined {
+/** The way the room faces: the external wall with the most glass. Where a
+    width isn't read, which way has the most isn't known: it faces a way
+    only when all its glass, and every outside door that may be, faces it. */
+export function orientationFor(s: Glass): Orientation | undefined {
+  const face = (o: ReadOpening) => {
+    const f = o.facing.toUpperCase().trim();
+    return o.external && (FACES as readonly string[]).includes(f) ? f : null;
+  };
+  const glass = s.windows.filter(face);
+  const unsure = glassUnread(s).filter(face);
+  if (unsure.length) {
+    const ways = new Set([...glass, ...unsure].map(face));
+    return glass.length && ways.size === 1 ? (face(glass[0]) as Orientation) : undefined;
+  }
   const by = new Map<string, number>();
-  for (const w of s.windows) {
-    const f = w.facing.toUpperCase().trim();
-    if (w.external && (FACES as readonly string[]).includes(f)) by.set(f, (by.get(f) ?? 0) + w.widthMm);
+  for (const w of glass) {
+    const f = face(w)!;
+    by.set(f, (by.get(f) ?? 0) + w.widthMm);
   }
   let best: string | undefined;
   for (const [f, mm] of by) if (!best || mm > by.get(best)!) best = f;

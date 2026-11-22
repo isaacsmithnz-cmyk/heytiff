@@ -194,9 +194,10 @@ export type Roof3D = { floorId: string; existing: boolean; faces: Mesh; fills: M
 export type Site3D = {
   boundary: XZ[];
   surfaces: { kind: SiteSurfaceKind; pts: XZ[]; finish: string }[];
-  /** the kerb nearest the house and how wide the road is, metres */
-  street: { name: string; kerb: [XZ, XZ]; width: number } | null;
-  neighbours: { pts: XZ[]; storeys: number; attached: boolean; note: string }[];
+  /** the kerb nearest the house and how wide the road is, metres; null where the set doesn't give its width */
+  street: { name: string; kerb: [XZ, XZ]; width: number | null } | null;
+  /** storeys null where the set doesn't say them */
+  neighbours: { pts: XZ[]; storeys: number | null; attached: boolean; note: string }[];
   fences: { pts: XZ[]; height: number }[];
 };
 
@@ -370,11 +371,12 @@ const CLEARLY_BETTER = 1.1;
     on their sheets yet still overlapped by more than half, so the first
     floor stood 4.4 m out over the ground). Every stair below against every
     stair above, since an outdoor stair or an old one kept is a stair too,
-    and as drawn: whichever stands most of the floor on the one below. */
-export function lineUp(ground: Raw, other: Raw): XZ {
-  const g = boxOf(solid(ground).flatMap((s) => s.pts));
-  const o = boxOf(solid(other).flatMap((s) => s.pts));
-  if (!g || !o) return [0, 0];
+    and as drawn: whichever stands most of the floor on the one below. With
+    no stair to go by the floor stays as drawn: its middle put over the
+    ground's would be a guess, and the floor can be moved by hand. With
+    `near` off, only a stair that stands the floor clearly better moves it. */
+export function lineUp(ground: Raw, other: Raw, { near: nearOn = true }: { near?: boolean } = {}): XZ {
+  if (!solid(ground).length || !solid(other).length) return [0, 0];
   const below = walledBoxes(ground);
   const above = walledBoxes(other);
   let best: XZ | null = null;
@@ -397,16 +399,25 @@ export function lineUp(ground: Raw, other: Raw): XZ {
         most = n;
         best = d;
       }
-      if (overlap(ba, bb) < 0.7 && n >= near) {
+      if (nearOn && overlap(ba, bb) < 0.7 && n >= near) {
         near = n;
         nearBest = d;
       }
     }
   }
-  if (best) return best;
-  if (nearBest) return nearBest;
-  if (overlap(g, o) >= 0.5) return [0, 0];
-  return [(g.x0 + g.x1) / 2 - (o.x0 + o.x1) / 2, (g.z0 + g.z1) / 2 - (o.z0 + o.z1) / 2];
+  return best ?? nearBest ?? [0, 0];
+}
+
+/** A floor's sheets as pages of the one PDF the design's plans came from,
+    all at one size, with the floor's scale; null when they aren't, or that
+    can't be told (files dropped in together, a photo). */
+function pagesOf(doc: DesignDocument, f: Floor): { size: string; scale: number | null; refs: string[] } | null {
+  const imp = doc.planImport;
+  if (imp?.sources.length !== 1 || imp.sources[0].kind !== "pdf" || !f.plans.length) return null;
+  const placed = new Set(Object.values(imp.placed));
+  if (!f.plans.every((s) => placed.has(s.imageRef))) return null;
+  const sizes = new Set(f.plans.map((s) => `${s.width}x${s.height}`));
+  return sizes.size === 1 ? { size: [...sizes][0], scale: f.scaleMmPerUnit, refs: f.plans.map((s) => s.imageRef) } : null;
 }
 
 const shift = ([dx, dz]: XZ) => (p: XZ): XZ => [p[0] + dx, p[1] + dz];
@@ -502,8 +513,21 @@ export function sceneOf(doc: DesignDocument, unitRow?: (model: string) => UnitRo
     if (r) raws.set(f.id, r);
   }
   const groundRaw = groundFloor ? raws.get(groundFloor.id) : undefined;
+  /* PAGES OF ONE FILE SHARE AN ORIGIN: an architect's sheets at one size
+     and scale draw every floor in the same place on its page (3570's), so a
+     stair read a little off can't walk a floor on another page of the one
+     PDF out of register: only a stair that stands it clearly better on the
+     ground moves it (6 Nostrud Ave's first floor, drawn 4.4 m higher up its
+     page). A floor from a file of its own, drawn on the ground floor's own
+     page, or at another scale (its point on paper lands elsewhere in the
+     world) is lined up by its stairs as before. */
+  const groundPages = groundFloor ? pagesOf(doc, groundFloor) : null;
   const moves = new Map<string, XZ>();
-  for (const [id, r] of raws) moves.set(id, groundRaw && r !== groundRaw ? lineUp(groundRaw, r) : [0, 0]);
+  for (const [id, r] of raws) {
+    const pages = pagesOf(doc, r.floor);
+    const oneFile = !!pages && !!groundPages && pages.size === groundPages.size && pages.scale === groundPages.scale && !pages.refs.some((ref) => groundPages.refs.includes(ref));
+    moves.set(id, groundRaw && r !== groundRaw ? lineUp(groundRaw, r, { near: !oneFile }) : [0, 0]);
+  }
 
   /* A SUBFLOOR (floor-spaces.ts): the house stands on it, so every floor goes
      up by its height and it stands on the ground under the lowest one */
@@ -770,8 +794,24 @@ export function sceneOf(doc: DesignDocument, unitRow?: (model: string) => UnitRo
     roofs.push({ floorId: f.id, existing: part.existing, faces, fills, finish: roofFinishFor(part, roofRead?.material ?? "") });
   }
   /* THE ROOF'S OWN FACES (lib/studio/vector/roof.ts): each at its pitch from
-     its eave, the eave a rafter's seat over the top of the wall under it and
-     its overhang's fall lower at the eave line the plan draws */
+     the top of the wall under it, a rafter's seat above it as the read's
+     parts sit (seatOf), and its overhang's fall lower at the eave line the
+     plan draws. One seat for one roof (the faces one floor carries at one
+     eave), at its pitch most faces have: a seat that differed with each
+     face's pitch would step two faces apart where they meet, at heights
+     roof-place.ts checked as one. Without it the roof stood a rafter's depth
+     low (3570: median 0.46 m under the outside study's against 0.18) */
+  const seatOfRoof = new Map<string, number>();
+  {
+    const counts = new Map<string, Map<number, number>>();
+    for (const face of roofRead?.faces ?? []) {
+      const key = `${face.floorId}|${face.eaveMm}`;
+      const m = counts.get(key) ?? new Map<number, number>();
+      m.set(face.pitchDeg, (m.get(face.pitchDeg) ?? 0) + 1);
+      counts.set(key, m);
+    }
+    for (const [key, m] of counts) seatOfRoof.set(key, seatAt([...m].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0]));
+  }
   for (const face of roofRead?.faces ?? []) {
     const f = floorById.get(face.floorId);
     const floor = doc.floors.find((x) => x.id === face.floorId);
@@ -781,7 +821,7 @@ export function sceneOf(doc: DesignDocument, unitRow?: (model: string) => UnitRo
     const mv = shift(moves.get(f.id)!);
     const rise = riseOf(face.outline.map((p) => [p.x, p.y] as [number, number]), [face.fall.x, face.fall.y], face.pitchDeg);
     const t = Math.tan((face.pitchDeg * Math.PI) / 180);
-    const eave = f.y0 + face.eaveMm / 1000 + seatAt(face.pitchDeg) - (face.overhangMm / 1000) * t;
+    const eave = f.y0 + face.eaveMm / 1000 + (seatOfRoof.get(`${face.floorId}|${face.eaveMm}`) ?? 0) - (face.overhangMm / 1000) * t;
     const pts = face.outline.map((p, i): [number, number, number] => {
       const [x, z] = mv([((sheet.x + p.x) * k) / 1000, ((sheet.y + p.y) * k) / 1000]);
       return [x, eave + (rise[i] * k) / 1000, z];
@@ -1251,11 +1291,13 @@ function siteOf(doc: DesignDocument, moves: Map<string, XZ>): Site3D | null {
     return [mm(x), mm(z)];
   };
   const kerb = site.street?.kerb.map(M);
+  /* a road width or storeys the set doesn't give are 0 in the read (reading-server toSite): none to draw, not none there */
   return {
     boundary: site.boundary.map(M),
     surfaces: site.surfaces.map((x) => ({ kind: x.kind, pts: x.outline.map(M), finish: x.finish })),
-    street: site.street && kerb && kerb.length >= 2 ? { name: site.street.name, kerb: [kerb[0], kerb[kerb.length - 1]], width: site.street.widthMm / 1000 } : null,
-    neighbours: site.neighbours.map((x) => ({ pts: x.outline.map(M), storeys: x.storeys, attached: x.attached, note: x.note })),
+    street:
+      site.street && kerb && kerb.length >= 2 ? { name: site.street.name, kerb: [kerb[0], kerb[kerb.length - 1]], width: site.street.widthMm > 0 ? site.street.widthMm / 1000 : null } : null,
+    neighbours: site.neighbours.map((x) => ({ pts: x.outline.map(M), storeys: x.storeys > 0 ? x.storeys : null, attached: x.attached, note: x.note })),
     fences: site.fences.map((x) => ({ pts: x.line.map(M), height: x.heightMm / 1000 })),
   };
 }

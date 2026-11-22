@@ -19,19 +19,39 @@ const lightness = (c: string) => {
   return (parseInt(m[1], 16) + parseInt(m[2], 16) + parseInt(m[3], 16)) / (3 * 255);
 };
 
-/* one line's pieces along one coordinate made one run where they touch */
+/* one line's pieces along one coordinate made one run where they touch. The
+   pieces lying within 0.15 of each other across are taken together first,
+   then joined in turn along: a file draws one face as pieces a hair apart
+   (100, then 100.000000001, then 100 again), and sorted by where they lie
+   across, a piece came after a run that had started past it and was lost
+   in it, leaving a hole in the wall where the drawing has none */
 function runs(lines: { at: number; from: number; to: number }[], join: number): Run[] {
-  const sorted = [...lines].sort((a, b) => a.at - b.at || a.from - b.from);
+  const sorted = [...lines].sort((a, b) => a.at - b.at);
   const out: Run[] = [];
-  for (const l of sorted) {
-    const last = out[out.length - 1];
-    if (last && Math.abs(last.at - l.at) <= 0.15 && l.from <= last.to + join) last.to = Math.max(last.to, l.to);
-    else out.push({ ...l });
+  for (let i = 0, j = 0; i < sorted.length; i = j) {
+    while (j < sorted.length && sorted[j].at - sorted[i].at <= 0.15) j++;
+    let last: Run | null = null;
+    for (const l of sorted.slice(i, j).sort((a, b) => a.from - b.from)) {
+      if (last && l.from <= last.to + join) last.to = Math.max(last.to, l.to);
+      else out.push((last = { at: sorted[i].at, from: l.from, to: l.to }));
+    }
   }
   return out;
 }
 
 type Band = { box: [number, number, number, number]; thick: number; length: number };
+
+/* the first of runs sorted by where they lie across at `at` or past it, found by halving */
+function firstAt(sorted: readonly Run[], at: number): number {
+  let lo = 0;
+  let hi = sorted.length;
+  while (lo < hi) {
+    const m = (lo + hi) >> 1;
+    if (sorted[m].at < at) lo = m + 1;
+    else hi = m;
+  }
+  return lo;
+}
 
 /* faces facing each other: for each run, the nearest run past it a wall's thickness away that overlaps it */
 function pairs(rs: Run[], lo: number, hi: number, across: (r: Run, s: Run, from: number, to: number) => [number, number, number, number]): Band[] {
@@ -39,7 +59,8 @@ function pairs(rs: Run[], lo: number, hi: number, across: (r: Run, s: Run, from:
   const out: Band[] = [];
   for (let i = 0; i < sorted.length; i++) {
     const a = sorted[i];
-    for (let j = i + 1; j < sorted.length; j++) {
+    /* from a little short of a wall's thickness on: the runs along the same line are passed over */
+    for (let j = Math.max(i + 1, firstAt(sorted, a.at + lo / 2)); j < sorted.length; j++) {
       const b = sorted[j];
       const d = b.at - a.at;
       if (d < lo) continue;
@@ -47,8 +68,16 @@ function pairs(rs: Run[], lo: number, hi: number, across: (r: Run, s: Run, from:
       const from = Math.max(a.from, b.from);
       const to = Math.min(a.to, b.to);
       if (to - from < Math.max(d * 1.5, lo * 2)) continue;
-      /* a stair's treads: the same line again the same step on, a ladder of them */
-      const like = (at: number) => sorted.some((c) => Math.abs(c.at - at) <= d * 0.12 && Math.abs(c.from - a.from) <= d && Math.abs(c.to - a.to) <= d);
+      /* a stair's treads: the same line again the same step on, a ladder of
+         them. Looked for only among the runs near that place across: every
+         run looked at for every pair took seconds on a big sheet */
+      const like = (at: number) => {
+        for (let k = firstAt(sorted, at - d * 0.2); k < sorted.length && sorted[k].at <= at + d * 0.2; k++) {
+          const c = sorted[k];
+          if (Math.abs(c.at - at) <= d * 0.12 && Math.abs(c.from - a.from) <= d && Math.abs(c.to - a.to) <= d) return true;
+        }
+        return false;
+      };
       if (!(like(b.at + d) || like(a.at - d))) out.push({ box: across(a, b, from, to), thick: d, length: to - from });
       break;
     }

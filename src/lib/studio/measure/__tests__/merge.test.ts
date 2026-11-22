@@ -45,6 +45,16 @@ describe("the measured rooms into a sheet's reading", () => {
     const out = withMeasured(picture([sq("Grand Hall", 5, 5), sq("Store", 300, 0, "cupboard")]), measured([sq("Washroom", 0, 0, "wet"), { ...sq("Cupboard", 300, 0, "cupboard"), named: false }]), "p2");
     expect(out.walled!.look).toEqual([{ kind: "readers", room: "Washroom", said: "Washroom: a second read of the plan calls this room Grand Hall. Check which it is." }]);
   });
+  it("a measured room with no name takes the name of the picture's room that is plainly it, not of one it sits inside", () => {
+    /* a robe the picture read drew inside Bed 2, and Bed 2 itself: both unnamed by measure */
+    const robe: ReadSpace = { ...sq("Unnamed", 0, 0, "cupboard"), named: false, outline: [{ x: 40, y: 40 }, { x: 60, y: 40 }, { x: 60, y: 60 }, { x: 40, y: 60 }] };
+    const bed: ReadSpace = { ...sq("Unnamed", 0, 0), named: false };
+    const out = withMeasured(picture([sq("Bed 2", 0, 0)]), measured([robe, bed]), "p2");
+    expect(out.spaces.map((s) => [s.name, s.kind])).toEqual([
+      ["Unnamed", "cupboard"],
+      ["Bed 2", "room"],
+    ]);
+  });
   it("stand alone when the picture read failed", () => {
     const out = withMeasured(null, measured([sq("Lounge", 0, 0)]), "p2");
     expect(out).toMatchObject({ sheetId: "p2", openings: [], planUp: "" });
@@ -149,6 +159,53 @@ describe("rooms read from the drawing file, the picture read leading", () => {
   });
 });
 
+describe("a named room the file offers as one with the unnamed space past its nibs", () => {
+  const rect = (name: string, x0: number, y0: number, x1: number, y1: number, kind: ReadSpace["kind"] = "room"): ReadSpace => ({
+    ...sq(name, 0, 0, kind),
+    outline: [
+      { x: x0, y: y0 },
+      { x: x1, y: y0 },
+      { x: x1, y: y1 },
+      { x: x0, y: y1 },
+    ],
+  });
+  /* the file's Living, 100 across, and a space 40 across with no name past a nib each side 4 thick; a window in Living's bottom wall, and the gap between the nibs */
+  const window = { a: { x: 30, y: 100 }, b: { x: 60, y: 100 }, t: 4 };
+  const between = { a: { x: 102, y: 20 }, b: { x: 102, y: 80 }, t: 4 };
+  const file = {
+    ...measured([rect("Living", 0, 0, 100, 100), { ...rect("Unnamed space", 104, 0, 144, 100), named: false }]),
+    from: "file" as const,
+    walls: [[[{ x: 0, y: 0 }, { x: 144, y: 0 }, { x: 144, y: 4 }]]],
+    gaps: [window, between],
+    joins: [{ into: 0, from: [1], outline: rect("", 0, 0, 144, 100).outline, gaps: [1] }],
+  };
+  it("are one room where the picture's room is more nearly both than the named part alone: it takes their outline, and the gap between them is no door's or window's place", () => {
+    const out = withMeasured(picture([rect("Living", 1, 1, 143, 99)]), file, "p2");
+    expect(out.spaces.map((s) => [s.name, s.outline])).toEqual([["Living", file.joins[0].outline]]);
+    expect(out.walled!.gaps).toEqual([window]);
+  });
+  it("stay apart where the picture's room is the named part alone, the gap kept", () => {
+    const out = withMeasured(picture([rect("Living", 1, 1, 99, 99)]), file, "p2");
+    expect(out.spaces.map((s) => [s.name, s.outline])).toEqual([["Living", file.spaces[0].outline]]);
+    expect(out.walled!.gaps).toEqual([window, between]);
+  });
+  it("stay apart where the picture read has a room of its own in the part with no name", () => {
+    const out = withMeasured(picture([rect("Living", 1, 1, 143, 99), rect("Robe", 106, 2, 142, 98, "cupboard")]), file, "p2");
+    expect(out.spaces.map((s) => [s.name, s.outline])).toEqual([
+      ["Living", rect("", 1, 1, 143, 99).outline],
+      ["Robe", file.spaces[1].outline],
+    ]);
+    expect(out.walled!.gaps).toEqual([window, between]);
+  });
+  it("stay apart with no read by picture to tell, and that is said", () => {
+    const out = withMeasured(null, file, "p2");
+    expect(out.spaces.map((s) => [s.name, s.outline])).toEqual([["Living", file.spaces[0].outline]]);
+    expect(out.walled!.look).toEqual([
+      { kind: "label", room: "Living", said: "Living: it opens wider than a doorway onto a space the plan gives no name, which may be part of it. There was no read by picture to tell, so it is only the part the plan names." },
+    ]);
+  });
+});
+
 describe("doors and windows in the gaps their walls leave", () => {
   const op = (x: number, y: number, kind: "door" | "window" = "window") => ({ kind, tag: "", a: { x: x - 20, y }, b: { x: x + 20, y }, widthMm: 900, room: "Lounge", external: true, facing: "N" });
   const gaps = [
@@ -162,6 +219,12 @@ describe("doors and windows in the gaps their walls leave", () => {
     expect(out[1]).toMatchObject({ a: { x: 100, y: 70 }, b: { x: 140, y: 70 } });
     expect(out[1].inGap).toBeUndefined();
     expect(out[2].inGap).toBeUndefined();
+  });
+  it("a gap far longer than the opening as read is another's, and the opening stays as read", () => {
+    /* a window read 40 px across by a 150 px gap: a door's, not this one's */
+    const out = onGaps([op(130, 55)], [{ a: { x: 60, y: 50 }, b: { x: 210, y: 50 }, t: 8 }]);
+    expect(out[0].inGap).toBeUndefined();
+    expect(out[0].a).toEqual({ x: 110, y: 55 });
   });
   it("a floor read from the file carries its walls and gaps on its reading, its openings in them", () => {
     const walls = [[[{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 8 }, { x: 0, y: 8 }]]];

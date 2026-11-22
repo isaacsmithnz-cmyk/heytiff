@@ -17,8 +17,8 @@ import type { Floor, PlanImport, PlanImportSource } from "@/lib/studio/document"
 import { newId } from "@/lib/studio/document";
 import { defaultFloorName, placeSheets, type UploadedSheet } from "@/lib/studio/plans";
 import type { TrimRect } from "@/lib/studio/plan-trim";
-import type { MeasuredScale, PlanReading, PlanWord, ReadLook, ReadPoint, ReadSpace, SheetReading, WallGap } from "@/lib/studio/reading";
-import { area, scaleFromWritten, suggestedRooms } from "@/lib/studio/reading";
+import type { MeasuredScale, PlanReading, PlanWord, ReadLook, ReadPoint, ReadSpace, SheetReading, SpaceJoin, WallGap } from "@/lib/studio/reading";
+import { area, SCALE_AGREES, scaleFromWritten, suggestedRooms } from "@/lib/studio/reading";
 export { scaleFromWritten };
 import { andList } from "@/lib/swms/library";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
@@ -73,6 +73,9 @@ export type JobPlanPage = {
       the Plans dialog: from then on what it is is theirs, not a guess to
       check (Isaac, 14 November 2026, on the mock's "Changing a floor") */
   picked?: { by: string | null; at: string } | null;
+  /** neither its words nor Tiff's look said what it is: filed "other", and
+      said on the row, since it may be a floor plan that wasn't read */
+  unlooked?: true;
 };
 
 /** A scale set by hand: the length between two points pressed on the page
@@ -118,7 +121,7 @@ export type JobPlan = {
 };
 
 /** A floor's rooms measured off its drawing's walls, in the raster's pixels; or `none`, with why. */
-export type PageWalled = { spaces: ReadSpace[]; look: ReadLook[]; grid: { x: number[]; y: number[] }; rounds: number; /** the part of the sheet that was measured, in the raster's pixels */ frame?: { left: number; top: number; width: number; height: number }; /** "file": its walls read from the drawing file itself (lib/studio/vector); else measured off its picture */ from?: "file"; /** the file's own walls and the gaps in them, in the raster's pixels */ walls?: ReadPoint[][][]; gaps?: WallGap[] } | { none: string };
+export type PageWalled = { spaces: ReadSpace[]; look: ReadLook[]; grid: { x: number[]; y: number[] }; rounds: number; /** the part of the sheet that was measured, in the raster's pixels */ frame?: { left: number; top: number; width: number; height: number }; /** "file": its walls read from the drawing file itself (lib/studio/vector); else measured off its picture */ from?: "file"; /** the file's own walls and the gaps in them, in the raster's pixels */ walls?: ReadPoint[][][]; gaps?: WallGap[]; /** a named room and the unnamed spaces it may be one room with, for the read by picture to settle */ joins?: SpaceJoin[] } | { none: string };
 
 /** A read's place: the pages drawn small, the floors found among them,
     the floors drawn in full, then each floor read with the roof and the site. */
@@ -167,11 +170,21 @@ type Word = { text: string };
    cabana's "ground floor plans" were taken for the house */
 const LEVEL_WORDS =
   "LOWER\\s+GROUND|UPPER\\s+GROUND|GROUND|FIRST|SECOND|THIRD|FOURTH|FIFTH|UPPER|LOWER|BASEMENT|MEZZANINE|ATTIC|LOFT|LEVEL\\s*\\d{1,2}|L\\s?\\d{1,2}|1ST|2ND|3RD|LGF|UGF|LG|UG|GF|FF";
-const FLOOR_TITLE = new RegExp(`\\b(?:(${LEVEL_WORDS})\\s+(?:FLOOR\\s+)?PLAN\\b|\\bFLOOR\\s+PLAN\\b|\\bPLAN\\s*[-–:]?\\s*(LOWER\\s+GROUND|GROUND|FIRST|SECOND|BASEMENT|LEVEL\\s*\\d{1,2}|LGF|GF|FF))`);
+const FLOOR_TITLE = new RegExp(`\\b(?:(${LEVEL_WORDS})\\s+(?:FLOOR\\s+)?PLAN\\b|\\bFLOOR\\s+PLAN\\b|\\bPLAN\\s*[-–:]?\\s*(LOWER\\s+GROUND|GROUND|FIRST|SECOND|BASEMENT|LEVEL\\s*\\d{1,2}|LGF|GF|FF))`, "g");
 /** a building of its own on the site: its floors aren't the house's */
 /** ...named just before the title, as "GARAGE GROUND FLOOR PLAN" names it:
     a room called Pool beside a house's plan is not one */
 const OUTBUILDING_BEFORE = /\b(GARAGE|GARGE|CARPORT|CABANA|POOL\s+HOUSE|SHED|GRANNY\s+FLAT|SECONDARY\s+DWELLING|WORKSHOP|BARN)\b[\s&A-Z]{0,12}$/;
+/** the building as it stands before the work, named against the title:
+    "EXISTING GROUND FLOOR PLAN", "GF PLAN - EXISTING". Only a PROPOSED
+    joined to the EXISTING ("PROPOSED/EXISTING", "EXISTING & PROPOSED")
+    draws the new over the old: one a word or two off may be the next
+    drawing's title, and a legend's "EXISTING WALLS" after the title is no
+    qualifier of it */
+const EXISTING_BEFORE = /\bEXISTING\W{0,3}$/;
+const JOINED_BEFORE = /\bPROPOSED\s*(?:\/|&|AND|\+)\s*EXISTING\W{0,3}$/;
+const EXISTING_AFTER = /^\s*[-–:(]\s*EXISTING\b(?!\s*(?:\/|&|AND|\+)\s*PROPOSED)/;
+const PROPOSED_BEFORE = /\bPROPOSED\W{0,3}$/;
 /** a plan of something other than the rooms: never a floor to read */
 const NOT_A_FLOOR = /\b(DEMOLITION|ELECTRICAL|LIGHTING|REFLECTED\s+CEILING|RCP|DRAINAGE|STORMWATER|SEWER|HYDRAULIC|LANDSCAPE|SEDIMENT|EROSION|SET[\s-]?OUT|SLAB|FOOTING|FRAMING|BRACING|TILING|FINISHES|FURNITURE|CEILING\s+PLAN|SHADOW|WASTE|BASIX|FIRE|SIGNAGE|MARKING)\b/;
 const SITE_TITLE = /\b(SITE\s+(?:ANALYSIS\s+)?PLAN|LOCATION\s+PLAN|LOCALITY\s+PLAN|SITE\s+AND\s+ROOF\s+PLAN|SITE\/ROOF\s+PLAN|BLOCK\s+PLAN)\b/;
@@ -224,18 +237,34 @@ export function guessPageByWords(words: readonly Word[] | null | undefined): Pag
     .replace(/\s+/g, " ");
   if (!text) return null;
   /* a title that says what kind of plan it is, from the title block first */
-  const floor = text.match(FLOOR_TITLE);
-  if (floor) {
-    const around = text.slice(Math.max(0, floor.index! - 24), floor.index! + floor[0].length + 24);
-    if (!NOT_A_FLOOR.test(around)) {
-      /* a garage's or a cabana's floor is that building's, not the house's:
-         stacked with the house it would stand on its top floor in the 3D
-         (3570: the garage as level 2 over the first floor). Not a floor of
-         the house; Choose floors can still take it. */
-      if (OUTBUILDING_BEFORE.test(text.slice(Math.max(0, floor.index! - 20), floor.index!))) return { kind: "other", name: "", level: null };
-      const lv = levelOfTitle(floor[0]);
-      return { kind: "floor", name: lv?.name ?? "Floor plan", level: lv?.level ?? 0 };
-    }
+  const titles = [...text.matchAll(FLOOR_TITLE)];
+  const floor = titles[0];
+  const before = (m: RegExpMatchArray) => text.slice(Math.max(0, m.index! - 24), m.index!);
+  const after = (m: RegExpMatchArray) => text.slice(m.index! + m[0].length, m.index! + m[0].length + 28);
+  const existing = (m: RegExpMatchArray) =>
+    (EXISTING_BEFORE.test(before(m)) && !JOINED_BEFORE.test(before(m))) || (EXISTING_AFTER.test(after(m)) && !PROPOSED_BEFORE.test(before(m)));
+  const notAFloor = (m: RegExpMatchArray) => NOT_A_FLOOR.test(text.slice(Math.max(0, m.index! - 24), m.index! + m[0].length + 24));
+  if (floor && !notAFloor(floor)) {
+    /* a garage's or a cabana's floor is that building's, not the house's:
+       stacked with the house it would stand on its top floor in the 3D
+       (3570: the garage as level 2 over the first floor). Not a floor of
+       the house; Choose floors can still take it. */
+    if (OUTBUILDING_BEFORE.test(before(floor))) return { kind: "other", name: "", level: null };
+    const house = titles.filter((m) => !notAFloor(m) && !OUTBUILDING_BEFORE.test(before(m)));
+    /* the house as it stands before the work isn't the floor that's built
+       (the look's own rule, plans-server.ts): an alterations set draws both,
+       and the two read as one ground floor put the real one a floor up. One
+       that draws the new over the old, "EXISTING/PROPOSED", is the floor; a
+       sheet drawing the old beside the new isn't one floor to read. */
+    if (house.some(existing)) return { kind: "other", name: "", level: null };
+    /* a page naming floors at two levels may be a cover's drawing list, a
+       sheet drawing two floors, or one floor whose stair says "REFER FIRST
+       FLOOR PLAN": the words don't say which, so it's left to the look,
+       which takes a cover for one (a cover read as the ground floor put the
+       house's own a floor up; one taken as other lost a floor unsaid) */
+    if (new Set(house.flatMap((m) => levelOfTitle(m[0])?.level ?? [])).size > 1) return null;
+    const lv = levelOfTitle(floor[0]);
+    return { kind: "floor", name: lv?.name ?? "Floor plan", level: lv?.level ?? 0 };
   }
   /* a plan of something other than the rooms, named as one: not a floor to read, and not for a look either */
   if (!floor && NOT_A_FLOOR.test(text) && /\bPLAN\b/.test(text)) return { kind: "other", name: "", level: null };
@@ -247,38 +276,60 @@ export function guessPageByWords(words: readonly Word[] | null | undefined): Pag
   return null;
 }
 
-/** Two floors can't share a level in a stack: the second "Ground floor" of a
-    set (a west half, a stage two) goes up one, and keeps its name. */
-export function stackLevels<T extends { level: number | null; kind: PlanPageKind }>(pages: T[]): T[] {
-  const used = new Set<number>();
-  return pages.map((p) => {
-    if (p.kind !== "floor" || p.level === null) return p;
-    let level = p.level;
-    while (used.has(level)) level += 1;
-    used.add(level);
-    return level === p.level ? p : { ...p, level };
-  });
-}
-
 /** The floor pages, the lowest first. */
 export const floorPagesOf = (plan: { pages: readonly JobPlanPage[] }): JobPlanPage[] =>
   plan.pages.filter((p) => p.kind === "floor" && p.ref).sort((a, b) => (a.level ?? 0) - (b.level ?? 0) || a.n - b.n);
 
 /* ── a page's scale ───────────────────────────────────────────────────────── */
 
+/* ONE SET, ONE SCALE: a set's floors stand over each other from their
+   pages' corners, so a floor measured 2% off the one under it is 0.8 m out
+   at 40 m (plan-set.ts gives a design's floors the same rule). A set's
+   floor pages are its file's, drawn at one size. */
+
+/** How far apart two floors' scales may be and still line up: 1% is 0.2 m
+    across a 20 m house, about a wall. */
+const LINES_UP = 0.01;
+
+/** A page's own sure scale: the one somebody set on it, else the one it prints. */
+const ownSure = (p: JobPlanPage): number | null => (p.set && p.set.mmPerPx > 0 ? p.set.mmPerPx : p.mmPerPx) || null;
+
+/** Two floor pages of one set. */
+const sameSet = (a: JobPlanPage, b: JobPlanPage) => a.n !== b.n && a.kind === "floor" && b.kind === "floor" && a.width === b.width && a.height === b.height;
+
+/** The floor page of `set` whose sure scale a page's measure, `mm`, is but
+    for noise, the measuring's own leeway (SCALE_AGREES), well inside the
+    nearest two scales a plan is drawn at, 1:125 and 1:150; the first, in
+    the set's order. Null when none is. */
+function sureOfSet(page: JobPlanPage, set: readonly JobPlanPage[], mm: number): JobPlanPage | null {
+  for (const q of set) {
+    const sure = sameSet(page, q) ? ownSure(q) : null;
+    if (sure && Math.abs(mm / sure - 1) <= SCALE_AGREES) return q;
+  }
+  return null;
+}
+
 /** A page's scale and what it rests on: the one somebody set, else the one
     the title block prints, else the lengths printed along its dimension
-    lines, else the sizes written in its rooms. Null: none to be had. */
-export function pageScale(page: JobPlanPage, spaces: readonly ReadSpace[]): { mmPerPx: number; from: string; sure: boolean } | null {
+    lines, else the sizes written in its rooms. Given the plan's pages, one
+    only measured takes the sure scale a floor of its set has where the two
+    are one but for the measuring's noise, and `of` is that floor's page.
+    Null: none to be had. */
+export function pageScale(page: JobPlanPage, spaces: readonly ReadSpace[], set: readonly JobPlanPage[] = []): { mmPerPx: number; from: string; sure: boolean; of?: number } | null {
   if (page.set && page.set.mmPerPx > 0) {
     const who = page.set.by ?? "someone";
     return { mmPerPx: page.set.mmPerPx, from: page.set.mm ? `the ${Math.round(page.set.mm)} mm ${who} measured on it` : `the scale ${who} measured in a design`, sure: true };
   }
   if (page.mmPerPx) return { mmPerPx: page.mmPerPx, from: page.scale ? `the plan's printed scale, ${page.scale}` : "the plan's scale", sure: true };
-  if (page.measured) return { mmPerPx: page.measured.mmPerPx, from: page.measured.sure ? page.measured.from : `${page.measured.from}, one figure alone`, sure: page.measured.sure };
-  const w = scaleFromWritten(spaces);
-  if (w) return { mmPerPx: w.mmPerPx, from: `the sizes written in ${w.rooms} of its rooms`, sure: true };
-  return null;
+  const w = page.measured ? null : scaleFromWritten(spaces);
+  const own = page.measured
+    ? { mmPerPx: page.measured.mmPerPx, from: page.measured.sure ? page.measured.from : `${page.measured.from}, one figure alone`, sure: page.measured.sure }
+    : w
+      ? { mmPerPx: w.mmPerPx, from: `the sizes written in ${w.rooms} of its rooms`, sure: true }
+      : null;
+  const of = own && sureOfSet(page, set, own.mmPerPx);
+  if (!of) return own;
+  return { mmPerPx: ownSure(of)!, from: of.set && of.set.mmPerPx > 0 ? `the scale ${of.set.by ?? "someone"} set on page ${of.n}` : `page ${of.n}'s printed scale${of.scale ? `, ${of.scale}` : ""}`, sure: true, of: of.n };
 }
 
 /** The spaces she read on a page. */
@@ -292,15 +343,29 @@ const scalesOf = (plan: ScaledPlan) =>
     ? []
     : floorPagesOf(plan)
         .filter((p) => plan.reading?.floors[pageKey(p.n)]?.length)
-        .map((p) => ({ page: p, scale: pageScale(p, spacesOn(plan.reading, p.n)) }));
+        .map((p) => ({ page: p, scale: pageScale(p, spacesOn(plan.reading, p.n), plan.pages) }));
+
+/** The pages of a set left on scales that don't line up, the ones not on a
+    sure scale of the set: two measures neither surer than the other, or one
+    too far from the set's to be taken for it (it may be drawn at another
+    scale). Two scales a person set or the drawing prints are theirs to say. */
+function offScale(each: ReturnType<typeof scalesOf>): number[] {
+  return each
+    .filter(({ page, scale }) => scale && !ownSure(page) && scale.of == null)
+    .filter((a) => each.some((b) => b.scale && sameSet(a.page, b.page) && Math.abs(a.scale!.mmPerPx / b.scale.mmPerPx - 1) > LINES_UP))
+    .map((a) => a.page.n);
+}
 
 /** What a read plan asks of a person about its scale, page by page
     (Isaac, 14 November 2026: "Like plans uploaded, tiff read but scale is
     incomplete?", "Yep"): `set` where the page has no scale to be had, so
     its rooms have no sizes; `check` where the scale rests on one printed
-    figure alone, which is usable and worth a look. */
+    figure alone, which is usable and worth a look, or where a floor isn't
+    on its set's scale, so it won't line up over the others. */
 export function scaleAsks(plan: ScaledPlan): { n: number; ask: "set" | "check" }[] {
-  return scalesOf(plan).flatMap(({ page, scale }): { n: number; ask: "set" | "check" }[] => (!scale ? [{ n: page.n, ask: "set" }] : !scale.sure ? [{ n: page.n, ask: "check" }] : []));
+  const each = scalesOf(plan);
+  const off = offScale(each);
+  return each.flatMap(({ page, scale }): { n: number; ask: "set" | "check" }[] => (!scale ? [{ n: page.n, ask: "set" }] : !scale.sure || off.includes(page.n) ? [{ n: page.n, ask: "check" }] : []));
 }
 
 /** The line's sentence on the scale: what's missing, or what the sizes rest on. */
@@ -313,6 +378,8 @@ export function scaleSaid(plan: ScaledPlan): string | null {
     if (!many || none.length === each.length) return "No scale on the plan, so the rooms have no sizes";
     return `No scale on ${pagesWordOf(none).toLowerCase()}, so ${none.length === 1 ? "its" : "their"} rooms have no sizes`;
   }
+  const off = offScale(each);
+  if (off.length) return `Its floors aren't on one scale, so they may not line up: check ${pagesWordOf(off).toLowerCase()}`;
   const one = each.find((e) => !e.scale!.sure);
   if (one) {
     const figure = one.page.measured?.from.match(/\d+/)?.[0];
@@ -351,8 +418,11 @@ export function pagesWordOf(ns: readonly number[]): string {
 
 /** The state a read plan is in, and what to say about it. Read, when every
     floor page read as a floor; Check the read when a page she read has no
-    rooms on it, a page couldn't be read, or the set had no floor plan in it.
-    What's said goes in the row's grey line after the facts. */
+    rooms on it, a page couldn't be read, two floor pages read at one level,
+    a page wasn't looked at, the read left something out (its `missed`: the
+    roof, the site, the schedule), or the set had no floor plan in it. What's
+    said goes in the row's grey line after the facts, and is worked out again
+    here each time, so it stands after Choose floors. */
 export function stateOfRead(pages: readonly JobPlanPage[], reading: PlanReading | null): { state: JobPlanState; said: string | null } {
   if (!reading) return { state: "failed", said: "The plans couldn't be read" };
   const floors = pages.filter((p) => p.kind === "floor" && p.ref);
@@ -372,6 +442,19 @@ export function stateOfRead(pages: readonly JobPlanPage[], reading: PlanReading 
     if (!sheets?.length || p.picked) continue;
     if (roomsOnPage(reading, p.n) < 2) said.push(`Page ${p.n} has no rooms on it, so it may not be a floor plan`);
   }
+  /* two pages read at one level (an existing and a proposed, a cover, a
+     west half) stay there, neither put a floor up to make room, which
+     stood a ground floor on top of the house: which is which is for a
+     person to say, and once they have it is theirs */
+  const atLevel = new Map<number, JobPlanPage[]>();
+  for (const p of floors) if (p.level !== null && !p.picked) atLevel.set(p.level, [...(atLevel.get(p.level) ?? []), p]);
+  for (const [level, on] of atLevel) {
+    if (on.length < 2) continue;
+    said.push(`${pagesWordOf(on.map((p) => p.n))} ${on.length === 2 ? "both" : "all"} read as ${on[0].name || defaultFloorName(level)}: choose which floor each is`);
+  }
+  const unlooked = pages.filter((p) => p.unlooked).map((p) => p.n);
+  if (unlooked.length) said.push(`Tiff didn't get to look at ${pagesWords(unlooked)}, which ${unlooked.length === 1 ? "may be a floor plan" : "may be floor plans"}`);
+  said.push(...(reading.missed ?? []));
   return said.length ? { state: "check", said: said.join(". ") } : { state: "read", said: null };
 }
 
@@ -577,19 +660,23 @@ export type DesignFromPlan = {
     ("FFL 194.000", "FFL: RL 197.700"): the one printed most, and of two
     printed as often the higher, since a step down is to outside (3570's
     ground floor prints 194.000 in its hall and 193.850 on its colonnade).
-    Null when it prints none. Pure. */
+    A set that prints its levels from its ground floor up reads ±0.000
+    there and -2.800 a basement down. Null when it prints none. Pure. */
 export function floorLevelOf(words: readonly { text: string }[] | null | undefined): number | null {
   if (!words?.length) return null;
   const count = new Map<number, number>();
-  /* "194.000", "+60,240", "63, 315": metres, the comma Ipsum's way of writing the point */
-  const NUM = /[+±]?\s*(\d{1,3})[.,]\s?(\d{2,3})\b/;
+  /* "194.000", "+60,240", "63, 315", "-2.800": metres, the comma Ipsum's way
+     of writing the point; a minus only where it touches the figure, since
+     "FFL - 194.000" is a dash between the words */
+  const NUM = /(?:([-−])|[+±]\s*)?(\d{1,3})[.,]\s?(\d{2,3})\b/;
   for (let i = 0; i < words.length; i++) {
     const t = words[i].text.trim();
     if (!/\bF\.?F\.?L\b/i.test(t)) continue;
     const m = NUM.exec(t.replace(/^.*?F\.?F\.?L\.?/i, "")) ?? NUM.exec(words[i + 1]?.text ?? "") ?? NUM.exec(words[i + 2]?.text ?? "");
     if (!m) continue;
-    const v = Number(`${m[1]}.${m[2]}`);
-    if (v > 0 && v < 1000) count.set(v, (count.get(v) ?? 0) + 1);
+    /* + 0 so a level of -0.000 is the datum's own */
+    const v = (m[1] ? -1 : 1) * Number(`${m[2]}.${m[3]}`) + 0;
+    count.set(v, (count.get(v) ?? 0) + 1);
   }
   if (!count.size) return null;
   return [...count].sort((a, b) => b[1] - a[1] || b[0] - a[0])[0][0];
@@ -617,8 +704,15 @@ export function designFromPlan(plan: JobPlan): DesignFromPlan {
     const plans = placeSheets([], sheets);
     const id = newId("flr");
     on.forEach((p, i) => sheetOf.set(p.n, { floorId: id, sheetId: plans[i].id }));
-    /* the scale somebody set first, then the printed one */
-    const scaled = on.map((p) => (p.set && p.set.mmPerPx > 0 ? p.set.mmPerPx : p.mmPerPx)).find((mm) => !!mm);
+    /* the scale somebody set first, then the printed one, then the one of
+       those a floor of the set has where this page's own measure is it but
+       for noise; one only measured is the design's to offer (proposedScale) */
+    const scaled = on
+      .map((p) => {
+        const scale = pageScale(p, spacesOn(plan.reading, p.n), plan.pages);
+        return ownSure(p) ?? (scale?.of != null ? scale.mmPerPx : null);
+      })
+      .find((mm) => !!mm);
     return {
       id,
       name: on[0].name || defaultFloorName(level),

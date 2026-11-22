@@ -56,6 +56,9 @@ const tanOf = (r: RoofRect) => Math.tan((Math.max(0, r.part.pitchDeg) * Math.PI)
    too, come up through the roof at a low eave (23 Rumour St, 20 October). */
 export const seatOf = (r: RoofRect): number => (r.part.form === "flat" ? 0 : RAFTER.h / Math.cos(Math.atan(tanOf(r))) + 0.02);
 
+/** The sheets' seat over the wall at a pitch: seatOf for a face read off the roof plan. */
+export const seatAt = (pitchDeg: number): number => (pitchDeg > 0 ? RAFTER.h / Math.cos((pitchDeg * Math.PI) / 180) + 0.02 : 0);
+
 /** Which way a skillion climbs in v: true when its low side is at v0. */
 function lowAtV0(r: RoofRect): boolean {
   const f = r.part.fallsTo;
@@ -96,9 +99,6 @@ function tri(m: Mesh, a: V3, b: V3, c: V3) {
   m.verts.push(a, b, c);
   m.tris.push(i, i + 1, i + 2);
 }
-
-/** The sheets' seat over the wall at a pitch (seatOf, for a face read off the roof plan). */
-export const seatAt = (pitchDeg: number): number => (pitchDeg > 0 ? RAFTER.h / Math.cos(Math.atan(Math.tan((pitchDeg * Math.PI) / 180))) + 0.02 : 0);
 
 /** One face of the roof as the roof plan draws it, its corners already at
     their heights: cut into triangles on the plan by ear clipping, since a

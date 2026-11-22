@@ -101,6 +101,8 @@ export function RoomsFromPlan({
         points: joinOutlines(sel.points, other.points, wall),
         keep: true,
         windows: [...sel.windows, ...other.windows],
+        /* its outside doors too: one of no width read leaves the zone's glass unknown */
+        openings: [...(sel.openings ?? []), ...(other.openings ?? [])],
         notes: [...sel.notes, ...other.notes],
       };
       setRooms(rooms.filter((r) => r.key !== key).map((r) => (r.key === sel.key ? joined : r)));
@@ -121,7 +123,7 @@ export function RoomsFromPlan({
     setRooms((rs) => rs.map((r) => (r.key === d.key ? { ...r, points: r.points.map((q, i) => (i === d.corner ? p : q)) } : r)));
   };
 
-  const glass = sel ? glassM2(sel) : 0;
+  const glass = sel ? glassM2(sel) : null;
   const level = sel && mm ? glazingFor(m2(sel.points), glass) : undefined;
   const faces = sel ? orientationFor(sel) : undefined;
   const kw = sel && mm ? loadOf(sel) : null;
@@ -227,7 +229,7 @@ export function RoomsFromPlan({
                 <dt>Area</dt>
                 <dd>{mm ? `${formatArea(m2(sel.points))}, ${sel.points.length} corners` : "Set the scale first"}</dd>
                 <dt>Glass</dt>
-                <dd>{sel.windows.length ? `${glass.toFixed(1)} m²${level ? `, ${GLAZING_WORD[level]}` : ""}` : "No windows read"}</dd>
+                <dd>{!sel.windows.length ? "No windows read" : glass == null ? "Not read" : `${glass.toFixed(1)} m²${level ? `, ${GLAZING_WORD[level]}` : ""}`}</dd>
                 <dt>Faces</dt>
                 <dd>{faces ?? "Not read"}</dd>
                 <dt>Load</dt>

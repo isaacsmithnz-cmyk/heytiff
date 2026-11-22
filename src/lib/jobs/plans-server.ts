@@ -15,14 +15,14 @@ import { withMeasured } from "@/lib/studio/measure/merge";
 import { K, vectorRooms } from "@/lib/studio/vector/read";
 import { facesOf, snapped } from "@/lib/studio/vector/snap";
 import { pitchOf, roofLines } from "@/lib/studio/vector/roof";
-import { placeFaces, type FloorUnder } from "@/lib/studio/vector/roof-place";
+import { placeFaces, readAgain, type FloorUnder } from "@/lib/studio/vector/roof-place";
 import { SONNET_FALLBACK } from "@/lib/tiff/sonnet-fallback";
 import { openPdf } from "@/lib/tiff/extract";
 import { fullInNode, pixelsInNode, previewsInNode, textsInNode, vectorsInNode } from "./plan-draw-node";
-import { airPages, plainWords } from "./take-in";
+import { airPages, pagesWords, plainWords } from "./take-in";
 import { staffDisplayNames } from "@/lib/workboard/job-notes-query";
 import type { DrawnFull, DrawnPreview, PlanPagesAnswer } from "@/app/print/plan-pages/plan-pages";
-import { chooseFloors, guessPageByWords, pageKey, pageScale, stackLevels, stateOfRead, type JobPlan, type JobPlanKind, type SpecWords, type JobPlanPage, type JobPlanRead, type PageGuess, type PlanPageKind, type PlanPick, type PlanProgress , type PageWalled } from "./plans";
+import { chooseFloors, guessPageByWords, pageKey, pageScale, stateOfRead, type JobPlan, type JobPlanKind, type SpecWords, type JobPlanPage, type JobPlanRead, type PageGuess, type PlanPageKind, type PlanPick, type PlanProgress , type PageWalled } from "./plans";
 import { planRoomsOf, planRoomsSaid, type JobPlanRooms } from "./plan-rooms";
 
 /* PLANS ON THE JOB, THE SERVER SIDE (lib/jobs/plans.ts says what a plan is).
@@ -50,7 +50,7 @@ const PLANS_BUCKET = "studio-plans";
 const SIGNED_SECONDS = 3600;
 const PREVIEW_MIME = "image/jpeg";
 const CLASSIFY_MODEL = "claude-sonnet-5-5";
-/** a set past this many pages is classified off its words alone; Tiff is not shown forty pages */
+/** the most pages Tiff is shown in one look: a set with more its words leave undecided has a look for each this many, all at once, so no page goes unlooked for being far into the set */
 const CLASSIFY_LOOK_CAP = 24;
 
 type Row = {
@@ -229,6 +229,13 @@ export async function addJobPlans(orgId: string, jobUuid: string, picks: readonl
       state: "reading",
       added_by: staffId,
     });
+    /* put in by another door in the moment since it was looked for (an
+       upload's take-in beside a press of Add plans): it is there, and the
+       rest of the picks still go in */
+    if ((error as { code?: string } | null)?.code === "23505") {
+      already++;
+      continue;
+    }
     if (error) return { ok: false, error: "The plan couldn't be added. Try again." };
     planIds.push(id);
   }
@@ -381,8 +388,12 @@ const MEASURE_MM = 17.5;
     handed on (7 Ipsum Rd's level took 303 s on its own; the engine's review,
     21 November 2026). */
 const MEASURE_BY_MS = 250_000;
-/** When a run's roof and site reads must be back by, from its start: the route is killed at 300 s, and what was read still has to be written. */
+/** When a run's floors, roof and site reads must be back by, from its start: the route is killed at 300 s, and what was read still has to be written. */
 const READ_BY_MS = 235_000;
+/** The same for a run with only the roof and the site left to read: nothing
+    else waits on them but the write and the job's scope after it, so a roof
+    that takes four minutes lands rather than being paid for twice and lost. */
+const ALONE_BY_MS = 260_000;
 /** What a floor's page says until its measuring lands: a run killed part-way
     (out of time, out of memory) leaves it, and the next run reads that floor
     by picture instead of measuring the set again and dying the same way. */
@@ -406,7 +417,7 @@ async function measureFloor(bytes: Uint8Array, p: JobPlanPage, deadline: number,
       const ratio = known ? null : mmPerPointOf(v.words.map((w) => ({ ...w, at: { x: w.at.x / K, y: w.at.y / K } })), { width: v.width, height: v.height });
       const mmPerPt = known ? known * v.rasterScale : (ratio?.mmPerPt ?? null);
       const read = vectorRooms({ fills: v.fills, lines: v.lines, width: v.width, height: v.height, words: v.words, mmPerPt, rasterScale: v.rasterScale });
-      if (!("none" in read)) return { spaces: read.spaces, look: read.look, grid: read.grid, rounds: read.rounds, frame: read.frame, from: "file", walls: read.walls, gaps: read.gaps };
+      if (!("none" in read)) return { spaces: read.spaces, look: read.look, grid: read.grid, rounds: read.rounds, frame: read.frame, from: "file", walls: read.walls, gaps: read.gaps, joins: read.joins };
       why = read.none;
     }
   }
@@ -434,15 +445,24 @@ async function measureFloor(bytes: Uint8Array, p: JobPlanPage, deadline: number,
 
 /** At most this many pages are read for the roof's faces: a set's roof plans are a page or two. */
 const ROOF_PAGES = 3;
+/** By when, from a run's start, the roof's faces are started, and each roof plan page read for them: the words take a couple of seconds (a 25-page set's, 1.8 s) and a page about one (3570's A104, 0.6 s on a laptop), and the route is killed at 300 s. */
+const FACES_BY_MS = 270_000;
 
 /* THE ROOF OFF THE ROOF PLAN'S OWN LINES (lib/studio/vector/roof.ts,
    roof-place.ts): the pages that print three or more roof pitches, each read
    for the faces its lines close round them and set over the floors read.
    Only a floor drawn on a page the same size as the roof plan's is set
-   under it: the sheets' shared origin is what puts the faces in place. Any
-   page that doesn't read cleanly gives nothing, and the read's own roof
-   parts stand. Never fails the read. */
-async function roofFacesOf(bytes: Uint8Array, pages: readonly JobPlanPage[], reading: PlanReading): Promise<{ faces: NonNullable<NonNullable<PlanReading["roof"]>["faces"]>; left: number } | null> {
+   under it: the sheets' shared origin is what puts the faces in place. ONE
+   ROOF: the faces are the one page's that places most of them, when every
+   other page's are its own read again (a roof plan and its drainage plan).
+   Two pages that place different roofs (a set's existing and proposed roof
+   plans) leave which is the roof unknown, and give none: stood together
+   they would stand one roof through the other. A page not started by `by`
+   is left unread, so one started late can't run the route past its limit,
+   and the faces are the pages' read before it. Any page that doesn't read
+   cleanly gives nothing, and the read's own roof parts stand. Never fails
+   the read. */
+export async function roofFacesOf(bytes: Uint8Array, pages: readonly JobPlanPage[], reading: PlanReading, by: number): Promise<{ faces: NonNullable<NonNullable<PlanReading["roof"]>["faces"]>; left: number } | null> {
   const roof = reading.roof;
   if (!roof) return null;
   const read = pages.filter((p) => p.kind === "floor" && reading.floors[pageKey(p.n)]?.length);
@@ -454,9 +474,12 @@ async function roofFacesOf(bytes: Uint8Array, pages: readonly JobPlanPage[], rea
     .filter((t) => t.pitches >= 3)
     .sort((a, b) => b.pitches - a.pitches)
     .slice(0, ROOF_PAGES);
-  const faces: NonNullable<NonNullable<PlanReading["roof"]>["faces"]> = [];
-  let left = 0;
-  for (const { n } of found) {
+  const got: { n: number; faces: NonNullable<NonNullable<PlanReading["roof"]>["faces"]>; left: number; under: FloorUnder[] }[] = [];
+  for (const [i, { n }] of found.entries()) {
+    if (Date.now() >= by) {
+      console.log(`[job-plans] the roof's faces were read off ${i} of ${found.length} pages, the run was out of time`);
+      break;
+    }
     const v = await vectorsInNode(bytes, n);
     const lines = roofLines({ lines: v.lines, words: v.words.map((w) => ({ text: w.text, at: { x: w.at.x / K, y: w.at.y / K } })), width: v.width, height: v.height });
     if ("none" in lines) {
@@ -478,7 +501,7 @@ async function roofFacesOf(bytes: Uint8Array, pages: readonly JobPlanPage[], rea
           spaces: sheet.spaces,
           walls: sheet.walled?.walls,
           ceilingMm: roof.levels.find((l) => l.floorId === pageKey(p.n))?.ceilingMm ?? null,
-          mmPerPx: pageScale(p, sheet.spaces)?.mmPerPx ?? null,
+          mmPerPx: pageScale(p, sheet.spaces, pages)?.mmPerPx ?? null,
         };
       });
     const placed = placeFaces(lines.faces, n, under, roof.parts);
@@ -486,10 +509,19 @@ async function roofFacesOf(bytes: Uint8Array, pages: readonly JobPlanPage[], rea
       console.log(`[job-plans] p${n} roof faces: ${placed.none}`);
       continue;
     }
-    faces.push(...placed.faces);
-    left += placed.left + lines.left.length;
+    got.push({ n, faces: placed.faces, left: placed.left + lines.left.length, under });
   }
-  return faces.length ? { faces, left } : null;
+  if (!got.length) return null;
+  const best = got.reduce((a, b) => (b.faces.length > a.faces.length ? b : a));
+  for (const o of got) {
+    if (o === best) continue;
+    if (!readAgain(o.faces, best.faces, best.under)) {
+      console.log(`[job-plans] p${best.n} and p${o.n} place different roofs: which is the roof isn't known`);
+      return null;
+    }
+    console.log(`[job-plans] p${o.n}'s roof faces are p${best.n}'s read again, and are left out`);
+  }
+  return { faces: best.faces, left: best.left };
 }
 
 /** At most this many schedule sheets are read: a set's schedules are a page or two. */
@@ -497,17 +529,20 @@ const SCHEDULE_PAGES = 3;
 
 /* THE SET'S DOOR AND WINDOW SCHEDULE (lib/studio/schedule.ts): the pages
    that schedule them found by their words, each drawn and read once, every
-   mark with its size. */
-async function schedulesOf(bytes: Uint8Array, pages: readonly JobPlanPage[]): Promise<{ pages: number[]; items: ScheduleItem[] }> {
+   mark with its size. `onFound` is told the pages as soon as they are
+   found, so a read that runs out of time can say which went unread. */
+async function schedulesOf(bytes: Uint8Array, pages: readonly JobPlanPage[], onFound?: (pages: number[]) => void): Promise<{ pages: number[]; items: ScheduleItem[] }> {
   const others = pages.filter((p) => p.kind !== "floor").map((p) => p.n);
   if (!others.length) return { pages: [], items: [] };
   const found = (await textsInNode(bytes, others)).filter((t) => isSchedulePage(t.words)).map((t) => t.n).slice(0, SCHEDULE_PAGES);
+  onFound?.(found);
   if (!found.length) return { pages: [], items: [] };
   const drawn = await fullInNode(bytes, found);
   const per = await Promise.all(
     drawn.map((d) =>
       readSchedule(d.png, d.words ?? [])
-        .then((raw) => itemsOf(raw, d.n))
+        /* a width the page doesn't print isn't the architect's */
+        .then((raw) => itemsOf(raw, d.n, d.words ?? []))
         .catch((e) => {
           console.error(`[job-plans] schedule p${d.n}: ${String(e)}`);
           return [] as ScheduleItem[];
@@ -523,29 +558,43 @@ const SNAP_MM = 450;
 /* A FLOOR READ BY PICTURE, ITS ROOMS ON THE DRAWING'S OWN WALLS
    (lib/studio/vector/snap.ts): each square side moved onto the face of the
    wall the file draws along it. On 3570's level 1 the sides on the true face
-   to within 30 mm went from 21 of 70 to 48 (22 November 2026). */
+   to within 30 mm went from 21 of 70 to 48 (22 November 2026). What is a
+   wall and how far a side may move are lengths, so they need the page's
+   scale as the Studio will take it (set, printed, off its dimensions or its
+   written sizes), else the bare "1 : 100" the file prints; with neither,
+   the sides stay where the read put them, rather than moved by a guessed
+   1:100. */
 async function onTheLines(bytes: Uint8Array, p: JobPlanPage, sheet: SheetReading): Promise<SheetReading> {
   const v = await vectorsInNode(bytes, p.n);
-  const known = (p.set && p.set.mmPerPx > 0 ? p.set.mmPerPx : null) ?? p.mmPerPx;
+  const known = pageScale(p, sheet.spaces)?.mmPerPx ?? null;
   const ratio = known ? null : mmPerPointOf(v.words.map((w) => ({ ...w, at: { x: w.at.x / K, y: w.at.y / K } })), { width: v.width, height: v.height });
-  /* at an unknown scale, 1:100: what is a wall and how far a side moves are guessed from it */
-  const mmPerPt = known ? known * v.rasterScale : (ratio?.mmPerPt ?? 35.28);
+  const mmPerPt = known ? known * v.rasterScale : (ratio?.mmPerPt ?? null);
+  if (!mmPerPt) return sheet;
   const faces = facesOf(v.lines, v.fills, 300 / mmPerPt, 70 / mmPerPt, 650 / mmPerPt);
   return { ...sheet, spaces: snapped(sheet.spaces, faces, v.rasterScale, SNAP_MM / mmPerPt).spaces };
 }
 
 /** The read route asked for a plan by the server itself, and let go once
-    it has the request: the read writes its row as it goes. */
-async function askReadRoute(orgId: string, planId: string, origin: string): Promise<void> {
+    it has the request: the read writes its row as it goes. True when the
+    route took it: still going at four seconds, or done. An answer inside
+    them that isn't a 2xx is the route turning it away, and a fetch that
+    fails before then never reached it. */
+async function askReadRoute(orgId: string, planId: string, origin: string): Promise<boolean> {
   const stop = new AbortController();
   const timer = setTimeout(() => stop.abort(), 4_000);
-  await fetch(new URL("/api/jobs/plans/read", printBase(origin)), {
-    method: "POST",
-    headers: { "content-type": "application/json", "x-plan-read": signPlanReadTicket({ orgId, planId }) },
-    body: JSON.stringify({ planId }),
-    signal: stop.signal,
-  }).catch(() => {});
-  clearTimeout(timer);
+  try {
+    const res = await fetch(new URL("/api/jobs/plans/read", printBase(origin)), {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-plan-read": signPlanReadTicket({ orgId, planId }) },
+      body: JSON.stringify({ planId }),
+      signal: stop.signal,
+    });
+    return res.ok;
+  } catch {
+    return stop.signal.aborted;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /* ── how far a read has got ── */
@@ -595,11 +644,11 @@ function progressWriter(orgId: string, planId: string): (p: PlanProgress) => voi
 const KINDS: PlanPageKind[] = ["floor", "site", "roof", "elevation", "section", "other"];
 
 /** Tiff looks at the small pages once and says what each is, for a set
-    whose words don't say (a scan, a photographed set). */
+    whose words don't say (a scan, a photographed set): at most
+    CLASSIFY_LOOK_CAP of them (classify). */
 async function guessPagesByLook(previews: readonly DrawnPreview[], client: Anthropic): Promise<Map<number, PageGuess>> {
-  const shown = previews.slice(0, CLASSIFY_LOOK_CAP);
   const blocks: Anthropic.Beta.Messages.BetaContentBlockParam[] = [];
-  for (const p of shown) {
+  for (const p of previews) {
     blocks.push({ type: "text", text: `Page ${p.n}:` });
     blocks.push({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: p.jpeg.replace(/^data:[^,]*,/, "") } });
   }
@@ -645,12 +694,15 @@ async function guessPagesByLook(previews: readonly DrawnPreview[], client: Anthr
 }
 
 /** Every page's kind: by its words, then by a look where the words decide
-    nothing for any page, then "other". A picture is one floor plan. */
-async function classify(kind: "pdf" | "image", previews: readonly DrawnPreview[], client: Anthropic): Promise<Map<number, PageGuess>> {
+    nothing for any page, then "other". A picture is one floor plan.
+    `unlooked`: the pages filed "other" that neither their words nor Tiff
+    decided (the answer left them out, or its look failed); `lookFailed`: a
+    look failed, so the pages it had weren't looked at. */
+async function classify(kind: "pdf" | "image", previews: readonly DrawnPreview[], client: Anthropic): Promise<{ guesses: Map<number, PageGuess>; unlooked: number[]; lookFailed: boolean }> {
   const out = new Map<number, PageGuess>();
   if (kind === "image") {
     out.set(1, { kind: "floor", name: "Ground floor", level: 0 });
-    return out;
+    return { guesses: out, unlooked: [], lookFailed: false };
   }
   let decided = 0;
   for (const p of previews) {
@@ -660,18 +712,36 @@ async function classify(kind: "pdf" | "image", previews: readonly DrawnPreview[]
       decided++;
     }
   }
+  let lookFailed = false;
   if (decided < previews.length) {
     /* the pages the words left undecided, looked at, whatever else was found:
        a set's own floors can be the ones its words don't name (3570's LGF,
-       GF and FF, beside a garage's "ground floor plan" the words did) */
-    const looked = await guessPagesByLook(previews.filter((p) => !out.has(p.n)), client).catch((e) => {
-      console.error(`[job-plans] the look at the pages failed: ${String(e)}`);
-      return new Map<number, PageGuess>();
-    });
-    for (const [n, g] of looked) if (!out.has(n) || (out.get(n)!.kind !== "floor" && g.kind === "floor")) out.set(n, g);
+       GF and FF, beside a garage's "ground floor plan" the words did), and
+       every one of them, a look for each CLASSIFY_LOOK_CAP: a set drawn from
+       the top down has its ground floor near its end */
+    const undecided = previews.filter((p) => !out.has(p.n));
+    const batches: DrawnPreview[][] = [];
+    for (let i = 0; i < undecided.length; i += CLASSIFY_LOOK_CAP) batches.push(undecided.slice(i, i + CLASSIFY_LOOK_CAP));
+    const looks = await Promise.all(
+      batches.map((b) =>
+        guessPagesByLook(b, client).catch((e) => {
+          console.error(`[job-plans] the look at pages ${b[0].n} to ${b.at(-1)!.n} failed: ${String(e)}`);
+          lookFailed = true;
+          return new Map<number, PageGuess>();
+        }),
+      ),
+    );
+    /* an answer is taken only for a page its look was shown: a page number
+       echoed wrong doesn't make a page the words decided, or another look's,
+       a floor */
+    for (const [k, looked] of looks.entries()) {
+      const shown = new Set(batches[k].map((p) => p.n));
+      for (const [n, g] of looked) if (shown.has(n)) out.set(n, g);
+    }
   }
-  for (const p of previews) if (!out.has(p.n)) out.set(p.n, { kind: "other", name: "", level: null });
-  return out;
+  const unlooked = previews.filter((p) => !out.has(p.n)).map((p) => p.n);
+  for (const n of unlooked) out.set(n, { kind: "other", name: "", level: null });
+  return { guesses: out, unlooked, lookFailed };
 }
 
 /* ── the scale off a page's printed dimensions ── */
@@ -679,18 +749,21 @@ async function classify(kind: "pdf" | "image", previews: readonly DrawnPreview[]
 /** The floor pages with no printed scale, each given the scale its own
     dimension lines print (plans.ts `measured`), looked for once: a page
     looked at before, with or without a find, is left as it is. A read that
-    fails leaves the page unlooked, for the next ask. */
+    fails counts as a look without a find, and the page's scale is left to
+    be set: left unlooked, it was asked again, an Opus read and its wait, on
+    every one of Tiff's quote turns that asked for the rooms. */
 async function measurePages(orgId: string, pages: readonly JobPlanPage[], photo: boolean): Promise<JobPlanPage[]> {
   return Promise.all(
     pages.map(async (p): Promise<JobPlanPage> => {
       /* a page somebody set the scale on has nothing left to look for */
       if (p.kind !== "floor" || !p.ref || p.mmPerPx || p.set || p.measured !== undefined) return p;
       try {
-        const dims = await readDimensions(orgId, { floorId: pageKey(p.n), floorName: p.name || `Page ${p.n}`, sheetId: pageKey(p.n), ref: p.ref, ...(p.trim ? { crop: p.trim } : {}), mmPerPx: null, photo });
+        /* with its own words where the file has them: a figure is kept only where it is printed */
+        const dims = await readDimensions(orgId, { floorId: pageKey(p.n), floorName: p.name || `Page ${p.n}`, sheetId: pageKey(p.n), ref: p.ref, ...(p.trim ? { crop: p.trim } : {}), mmPerPx: null, photo, ...(p.words?.length ? { words: p.words } : {}) });
         return { ...p, measured: scaleFromDimensions(dims, p) };
       } catch (e) {
         console.error(`[job-plans] page ${p.n} dimensions: ${String(e)}`);
-        return p;
+        return { ...p, measured: null };
       }
     }),
   );
@@ -796,15 +869,28 @@ export async function keepSubfloorHeight(orgId: string, planId: string, heightMm
 
 /** how long an ask waits on a read it started before saying it's still going */
 const READ_WAIT_MS = 150_000;
+/** how often an ask looks at the row of a read it is waiting on */
+const READ_POLL_MS = 5_000;
 /** a plan left "reading" this long was dropped mid-read: the next ask picks it up */
 const STALE_MS = 6 * 60_000;
+/** how long a read's claim holds (claimRead) */
+const CLAIM_MS = 10 * 60_000;
+/** the rows no run is reading: no claim on them, or one past its time */
+const unclaimed = () => `claimed_at.is.null,claimed_at.lt.${new Date(Date.now() - CLAIM_MS).toISOString()}`;
+
+const unmeasured = (pg: JobPlanPage) => pg.kind === "floor" && !!pg.ref && !pg.mmPerPx && !pg.set && pg.measured === undefined;
 
 /** The rooms off the job's plans, by plan and floor, with their sizes
     (plan-rooms.ts). `add` puts one of the job's files into its Plans first
     and reads it, as pressing Add plans does, once: a file already there is
     left as it is. A plan read before the dimension read existed gets its
-    scale looked for here, once. `origin` is where the headless browser draws
-    the pages: without it nothing can be added or picked up. */
+    scale looked for here, once. `origin` is where the read route is asked
+    to read a plan: without it nothing can be added or picked up.
+
+    The read runs in a run of the read route's own, asked as a hand-on is,
+    and its row is watched here: run inside the quote's turn, it was killed
+    with the turn mid-stage, its claim left on it for ten minutes (the
+    outside review, 22 November 2026). */
 export async function jobPlanRooms(orgId: string, jobUuid: string, opts: { add?: PlanPick; origin?: string | null } = {}): Promise<JobPlanRooms | string> {
   let toRead: string[] = [];
   if (opts.add) {
@@ -820,19 +906,57 @@ export async function jobPlanRooms(orgId: string, jobUuid: string, opts: { add?:
   const origin = opts.origin;
   if (origin) for (const p of plans) if (p.state === "reading" && !toRead.includes(p.id) && Date.now() - new Date(p.addedAt).getTime() > STALE_MS) toRead.push(p.id);
   if (origin && toRead.length) {
-    const reads = Promise.all(toRead.map((id) => readPlan(orgId, id, origin).catch(() => null)));
-    await Promise.race([reads, new Promise((done) => setTimeout(done, READ_WAIT_MS))]);
+    /* a read the route turned away, or that never reached it, isn't waited
+       on: with nothing reading it, it is failed and said, as a hand-on that
+       can't go is, so Tiff is told it couldn't be read and its row shows
+       Read again rather than "Reading the plans" for good. One a run holds
+       the claim on is that run's. */
+    const taken = await Promise.all(toRead.map((id) => askReadRoute(orgId, id, origin)));
+    await Promise.all(
+      toRead
+        .filter((_, i) => !taken[i])
+        .map((id) =>
+          supabaseAdmin
+            .from("job_plans")
+            .update({ state: "failed", said: "The read couldn't be started" })
+            .eq("org_id", orgId)
+            .eq("id", id)
+            .eq("state", "reading")
+            .or(unclaimed())
+            .then(
+              () => {},
+              () => {},
+            ),
+        ),
+    );
+    const waiting = toRead.filter((_, i) => taken[i]);
+    const until = Date.now() + READ_WAIT_MS;
+    while (waiting.length) {
+      const { data: now } = await supabaseAdmin.from("job_plans").select("id, state").eq("org_id", orgId).eq("job_uuid", jobUuid);
+      const going = ((now ?? []) as { id: string; state: string }[]).some((r) => waiting.includes(r.id) && r.state === "reading");
+      if (!going || Date.now() >= until) break;
+      await new Promise((done) => setTimeout(done, READ_POLL_MS));
+    }
   }
   /* a plan read before its dimensions were: its scale, looked for once */
   await Promise.all(
     plans.map(async (p) => {
       if (p.state !== "read" && p.state !== "check") return;
-      if (!p.pages.some((pg) => pg.kind === "floor" && pg.ref && !pg.mmPerPx && !pg.set && pg.measured === undefined)) return;
-      const pages = await measurePages(orgId, p.pages, p.sourceKind === "image");
-      if (pages.some((pg, i) => pg !== p.pages[i])) await write(orgId, p.id, { pages }).catch(() => {});
+      if (!p.pages.some(unmeasured)) return;
+      const looked = await measurePages(orgId, p.pages, p.sourceKind === "image");
+      const found = new Map(looked.filter((pg, i) => pg !== p.pages[i]).map((pg) => [pg.n, pg.measured]));
+      if (!found.size) return;
+      /* onto the row as it is now, only what was found: a scale set or floors
+         chosen while Tiff looked are kept, not written over by the pages as
+         they were before she looked */
+      const { data: row } = await supabaseAdmin.from("job_plans").select("pages, state").eq("org_id", orgId).eq("id", p.id).maybeSingle();
+      const now = row as { pages: JobPlanPage[] | null; state: string } | null;
+      if (!now || !Array.isArray(now.pages) || (now.state !== "read" && now.state !== "check")) return;
+      const pages = now.pages.map((pg) => (found.has(pg.n) && unmeasured(pg) ? { ...pg, measured: found.get(pg.n) } : pg));
+      if (pages.some((pg, i) => pg !== now.pages![i])) await write(orgId, p.id, { pages }).catch(() => {});
     }),
   );
-  if (toRead.length || plans.some((p) => p.pages.some((pg) => pg.kind === "floor" && pg.ref && !pg.mmPerPx && !pg.set && pg.measured === undefined))) {
+  if (toRead.length || plans.some((p) => p.pages.some(unmeasured))) {
     const again = await supabaseAdmin.from("job_plans").select(COLS).eq("org_id", orgId).eq("job_uuid", jobUuid).order("added_at", { ascending: true });
     if (!again.error) plans = ((again.data ?? []) as Row[]).map((r) => planOf(r, new Map()));
   }
@@ -848,18 +972,19 @@ export type ReadPlanOutcome = { ok: true; state: JobPlan["state"]; finished?: { 
 
 /** A read claimed before it starts, for ten minutes: an upload's own read
     and a press of Add plans asking at once pay for one. A workspace whose
-    job_plans has no claimed_at yet reads as before. */
+    job_plans has no claimed_at yet reads as before; a claim that fails for
+    any other reason reads nothing, and the plan is asked for again by the
+    screen that has it open, rather than read twice at once. */
 async function claimRead(orgId: string, planId: string): Promise<boolean> {
-  const cutoff = new Date(Date.now() - 10 * 60_000).toISOString();
   const { data, error } = await supabaseAdmin
     .from("job_plans")
     .update({ claimed_at: new Date().toISOString() })
     .eq("org_id", orgId)
     .eq("id", planId)
     .eq("state", "reading")
-    .or(`claimed_at.is.null,claimed_at.lt.${cutoff}`)
+    .or(unclaimed())
     .select("id");
-  if (error) return true;
+  if (error) return error.code === "42703" || error.code === "PGRST204";
   return (data ?? []).length > 0;
 }
 
@@ -908,10 +1033,13 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
   const tell = progressWriter(orgId, planId);
   const started = Date.now();
   /* the rest of the read to a fresh run of the route: the claim let go,
-     the route asked with a signed ticket, this run done */
+     the route asked with a signed ticket, this run done. A claim that
+     couldn't be let go, or a route that turned it away, leaves nothing
+     reading it: said, so Read again shows, rather than "Reading the plans"
+     for good */
   const handOff = async (): Promise<ReadPlanOutcome> => {
-    await supabaseAdmin.from("job_plans").update({ claimed_at: null }).eq("org_id", orgId).eq("id", planId);
-    await askReadRoute(orgId, planId, origin);
+    const { error } = await supabaseAdmin.from("job_plans").update({ claimed_at: null }).eq("org_id", orgId).eq("id", planId);
+    if (error || !(await askReadRoute(orgId, planId, origin))) return failed("The read couldn't be handed on");
     return { ok: true, state: "reading" };
   };
   try {
@@ -955,8 +1083,17 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
       previews ??= (await draw({ orgId, url: signedUrl, kind: plan.sourceKind }, origin, file, report)).previews ?? [];
       if (previews.length === 0) return failed("No pages could be drawn from the file.");
       tell({ step: "finding", done: 0, total: 1 });
-      const guesses = await classify(plan.sourceKind, previews, client);
-      const floors = stackLevels(previews.map((p) => ({ n: p.n, ...guesses.get(p.n)! }))).filter((p) => p.kind === "floor");
+      const { guesses, unlooked, lookFailed } = await classify(plan.sourceKind, previews, client);
+      /* a page nobody decided may be the set's floor plan: a read that went
+         on would read the floors its words named and call it done, or say it
+         has none. A look that failed, or no floor found among pages left
+         undecided, fails the read, and Read again looks again; floors found
+         beside pages the answer left out are read, and those pages are kept
+         marked, so the row says them (stateOfRead) */
+      if (lookFailed) return failed(`Tiff couldn't look at ${pagesWords(unlooked)} to see which are floor plans`);
+      /* two at one level stay there, and the read says so (stateOfRead) */
+      const floors = previews.map((p) => ({ n: p.n, ...guesses.get(p.n)! })).filter((p) => p.kind === "floor");
+      if (!floors.length && unlooked.length) return failed(`No floor plan was found, and Tiff didn't get to look at ${pagesWords(unlooked)}`);
       /* the floors' small pictures, for the row's thumbnails */
       const previewRefs = new Map<number, string>();
       for (const f of floors) {
@@ -983,6 +1120,7 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
           ...(words.length ? { words } : {}),
           mmPerPx: scale ? mmPerPxFor(scale, { width: pv.width, height: pv.height }) : null,
           scale: scale?.text ?? null,
+          ...(unlooked.includes(pv.n) ? { unlooked: true as const } : {}),
         };
       });
       await write(orgId, planId, { pages, page_count: previews.length });
@@ -1091,9 +1229,16 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
 
     /* 5. the read: each floor, the roof and the site off the set */
     const floors = pages.filter((p) => p.kind === "floor" && p.ref).sort((a, b) => (a.level ?? 0) - (b.level ?? 0) || a.n - b.n);
-    /* a read handed on with its floors done (below): only its roof and its site are left to read */
-    const kept = plan.reading?.partial && plan.state === "reading" ? plan.reading : null;
+    /* a read handed on part-way (below): the floors it has read, and its roof and its site where they came back */
+    const kept: PlanReading | null = plan.reading?.partial && plan.state === "reading" ? plan.reading : null;
     const reading: PlanReading = kept ? { ...kept } : { at: new Date().toISOString(), model: READING_MODEL, floors: {}, failed: [] };
+    const lateBefore = kept?.late ?? 0;
+    delete reading.late;
+    /* a roof or a site this run couldn't read: kept on the reading only once
+       the plan is read, since a run handed on reads them again. What a run
+       before left out for good (a schedule not back in time for its floors)
+       is on the reading already */
+    const missed: string[] = [];
     /* a photo or sketch: read smaller, and its roof left to the Studio, which
        reads it when the 3D wants it (its 243 s on 3465's photo held the read) */
     const photo = plan.sourceKind === "image";
@@ -1106,22 +1251,32 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
         ...(p.trim ? { crop: p.trim } : {}),
         mmPerPx: p.mmPerPx,
         photo,
+        /* its names, sizes and marks are what its own words print (a photo has none) */
+        ...(p.words?.length ? { words: p.words } : {}),
       }));
       const pdf = plan.sourceKind === "pdf" ? sourceRef : null;
-      const first = Math.max(0, floors[0].n - 1);
+      /* the set's first floor plan page, whatever its level: the lowest floor
+         of a set drawn from the top down comes after its upper floors and its
+         roof plan, which a big set cut from there would leave out */
+      const first = Math.max(0, Math.min(...floors.map((p) => p.n)) - 1);
       const ground = sheets[0];
+      /* the floors left to read: every one, or on a run handed on part-way,
+         the ones the run before didn't get back in time */
+      const todo = sheets.flatMap((s, i) => (reading.floors[s.floorId] || reading.failed.some((f) => f.floorId === s.floorId) ? [] : [i]));
       /* THE ROOF AND THE SITE ARE READ OFF THE WHOLE SET AND CAN TAKE FIVE
          MINUTES, the route's whole life: a run cut off there lost the floors
          with them and the plan sat on reading, read again and again (3570,
          22 November 2026: four runs, each to four of five). So they have
          until READ_BY_MS from the run's start. Late, the floors are saved as
-         they stand and the roof and the site get a run of their own; late
-         again, the plan is finished without them, and the Studio reads the
-         roof when its 3D wants it, as it does for a photo. */
+         they stand and the roof and the site get a run of their own, with
+         until ALONE_BY_MS; late again, the plan is finished without them, and
+         the Studio reads the roof when its 3D wants it, as it does for a
+         photo. The floors have the same time: the ones not back by then are
+         left to the next run, and a plan whose floors run out twice is failed. */
       const wantRoof = !photo && !(kept && kept.roof !== undefined);
       const wantSite = !(kept && kept.site !== undefined);
       /* each floor, the roof and the site counted off as it comes back */
-      const total = (kept ? 0 : sheets.length) + (wantRoof ? 1 : 0) + (wantSite ? 1 : 0);
+      const total = todo.length + (wantRoof ? 1 : 0) + (wantSite ? 1 : 0);
       let done = 0;
       tell({ step: "reading", done, total });
       const counted = <T,>(p: Promise<T>): Promise<T> =>
@@ -1129,94 +1284,27 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
           done++;
           tell({ step: "reading", done, total });
         });
+      const why = (e: unknown) => (e instanceof Error ? e.message : "It couldn't be read");
+      /* a roof or a site whose read failed is left unread, not kept as none:
+         a run handed on reads it again, and so does the Studio when a design
+         wants it (the read's null says the set has no site plan) */
       const roofP: Promise<PlanReading["roof"]> = wantRoof
         ? counted(readRoof(orgId, pdf, sheets, undefined, first))
             .then(({ said: _said, ...r }) => r)
             .catch((e) => {
               console.error(`[job-plans] ${planId}/roof: ${String(e)}`);
-              return null;
+              missed.push(`The roof couldn't be read: ${why(e)}`);
+              return undefined;
             })
         : Promise.resolve(photo ? undefined : kept?.roof);
       const siteP: Promise<PlanReading["site"]> = wantSite
         ? counted(readSite(orgId, pdf, ground, first)).catch((e) => {
             console.error(`[job-plans] ${planId}/site: ${String(e)}`);
-            return null;
+            missed.push(`The site couldn't be read: ${why(e)}`);
+            return undefined;
           })
         : Promise.resolve(kept?.site);
-      if (!kept) {
-      const [results, measured, schedule] = await Promise.all([
-        Promise.allSettled(sheets.map((s) => counted(readSheet(orgId, s)))),
-        measurePages(orgId, pages, photo),
-        isPdf
-          ? schedulesOf(new Uint8Array((await bytesOf()).bytes), pages).catch((e) => {
-              console.error(`[job-plans] ${planId}/schedule: ${String(e)}`);
-              return { pages: [] as number[], items: [] as ScheduleItem[] };
-            })
-          : { pages: [] as number[], items: [] as ScheduleItem[] },
-      ]);
-      /* each floor's rooms: a measured floor's merged with the picture read's, the rest as the picture read them */
-      const merged = results.map((r, i) => {
-        const s = sheets[i];
-        const walled = floors[i].walled;
-        const m = walled && "spaces" in walled && walled.spaces.length ? walled : null;
-        if (m) {
-          /* its rooms stand, but its doors, windows and notes were the picture
-             read's to find: said, so the plan asks to be checked and isn't
-             shown as Read (the engine's review, 21 November 2026) */
-          if (r.status === "rejected") {
-            console.error(`[job-plans] ${planId}/${s.sheetId}: ${String(r.reason)}`);
-            reading.failed.push({ floorId: s.floorId, sheetId: s.sheetId, reason: `its rooms were measured, but its doors, windows and notes weren't read (${r.reason instanceof Error ? r.reason.message : "it couldn't be read"})` });
-          }
-          return withMeasured(r.status === "fulfilled" ? r.value : null, m, s.sheetId);
-        }
-        if (r.status === "fulfilled") return r.value;
-        console.error(`[job-plans] ${planId}/${s.sheetId}: ${String(r.reason)}`);
-        reading.failed.push({ floorId: s.floorId, sheetId: s.sheetId, reason: r.reason instanceof Error ? r.reason.message : "It couldn't be read" });
-        return null;
-      });
-      /* a floor not read from the file has its picture-read rooms put on the
-         drawing's own walls, where it has them. One read from the file isn't
-         moved again: on 3570 that moved the file's own outlines off their
-         walls and cost its ground floor's rooms a tenth of their area */
-      const bytes = isPdf && vectorOn() ? new Uint8Array((await bytesOf()).bytes) : null;
-      const fromFile = (i: number) => {
-        const w = floors[i].walled;
-        return !!(w && "spaces" in w && w.spaces.length);
-      };
-      const lined = await Promise.all(
-        merged.map(async (sh, i) =>
-          !bytes || !sh || fromFile(i)
-            ? sh
-            : onTheLines(bytes, floors[i], sh).catch((e) => {
-                console.error(`[job-plans] ${planId}/p${floors[i].n} lines: ${String(e)}`);
-                return sh;
-              }),
-        ),
-      );
-      lined.forEach((sh, i) => {
-        if (sh) (reading.floors[sheets[i].floorId] ??= []).push(sh);
-      });
-      /* each opening its schedule's width, height and sill, by its mark */
-      if (schedule.items.length) {
-        let matched = 0;
-        for (const id of Object.keys(reading.floors))
-          reading.floors[id] = reading.floors[id].map((sh) => {
-            const p = floors.find((f) => pageKey(f.n) === sh.sheetId);
-            /* its scale as the Studio will take it: set, printed, or measured off its dimensions (3570 prints none) */
-            const mmPerPx = (p ? pageScale(p, [])?.mmPerPx : undefined) ?? 35;
-            const words = (p?.words ?? []) as { text: string; at: { x: number; y: number } }[];
-            /* on a floor whose file draws its walls, each printed mark in the gap it sits by */
-            const gapped = marksInGaps(sh, words, schedule.items, mmPerPx).sheet;
-            /* a door the read left untagged takes the mark printed beside it, within 900 mm */
-            const w = withSchedule(taggedFromWords(gapped, words, schedule.items, 900 / mmPerPx), schedule.items);
-            matched += w.matched;
-            return w.sheet;
-          });
-        reading.schedule = { pages: schedule.pages, marks: schedule.items.length, matched };
-      }
-      pages = measured;
-      }
-      const until = started + READ_BY_MS;
+      const until = started + (todo.length ? READ_BY_MS : ALONE_BY_MS);
       const LATE = Symbol("late");
       const byThen = <T,>(pr: Promise<T>): Promise<T | typeof LATE> => {
         let timer: ReturnType<typeof setTimeout> | undefined;
@@ -1225,29 +1313,168 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
         });
         return Promise.race([pr, late]).finally(() => clearTimeout(timer));
       };
+      if (todo.length) {
+        /* each floor kept as it lands, and each page's dimensions and the
+           schedule as they land: what is back when the time is up is what
+           this run has. A page whose dimensions weren't back stays unmeasured,
+           its row saying it has no scale, and the quote's rooms look for it
+           again (jobPlanRooms); a schedule that wasn't back is said, since
+           the floors this run reads aren't read again */
+        const landed = new Map<number, PromiseSettledResult<SheetReading>>();
+        const measured = new Map<number, JobPlanPage>();
+        let schedule: { pages: number[]; items: ScheduleItem[] } = { pages: [], items: [] };
+        let scheduleBack = !isPdf;
+        let schedulePages = null as number[] | null;
+        await byThen(
+          Promise.all([
+            Promise.all(
+              todo.map((i) =>
+                counted(readSheet(orgId, sheets[i])).then(
+                  (value) => void landed.set(i, { status: "fulfilled", value }),
+                  (reason: unknown) => void landed.set(i, { status: "rejected", reason }),
+                ),
+              ),
+            ),
+            Promise.all(pages.map((p) => measurePages(orgId, [p], photo).then(([m]) => void measured.set(p.n, m)))),
+            isPdf
+              ? bytesOf()
+                  .then((f) => schedulesOf(new Uint8Array(f.bytes), pages, (found) => void (schedulePages = found)))
+                  .then((s) => void (schedule = s))
+                  .catch((e) => console.error(`[job-plans] ${planId}/schedule: ${String(e)}`))
+                  .finally(() => void (scheduleBack = true))
+              : null,
+          ]),
+        );
+        /* as they stood then: what lands after is past this run */
+        const results = todo.map((i) => landed.get(i));
+        const items = schedule.items;
+        const unscheduled = !scheduleBack;
+        const foundThen = schedulePages;
+        pages = pages.map((p) => measured.get(p.n) ?? p);
+        const bytes = isPdf && vectorOn() ? new Uint8Array((await bytesOf()).bytes) : null;
+        let matched = 0;
+        /* the floors this run read */
+        const readNow: number[] = [];
+        for (const [k, i] of todo.entries()) {
+          const r = results[k];
+          /* not back in time: the next run reads it */
+          if (!r) continue;
+          const s = sheets[i];
+          /* the floor's page as this run measured it */
+          const p = pages.find((q) => q.n === floors[i].n) ?? floors[i];
+          /* each floor's rooms: a measured floor's merged with the picture read's, the rest as the picture read them */
+          const walled = floors[i].walled;
+          const m = walled && "spaces" in walled && walled.spaces.length ? walled : null;
+          let sh: SheetReading;
+          if (m) {
+            /* its rooms stand, but its doors, windows and notes were the picture
+               read's to find: said, so the plan asks to be checked and isn't
+               shown as Read (the engine's review, 21 November 2026) */
+            if (r.status === "rejected") {
+              console.error(`[job-plans] ${planId}/${s.sheetId}: ${String(r.reason)}`);
+              reading.failed.push({ floorId: s.floorId, sheetId: s.sheetId, reason: `its rooms were measured, but its doors, windows and notes weren't read (${why(r.reason)})` });
+            }
+            sh = withMeasured(r.status === "fulfilled" ? r.value : null, m, s.sheetId);
+          } else if (r.status === "fulfilled") {
+            sh = r.value;
+            /* a floor not read from the file has its picture-read rooms put on
+               the drawing's own walls, where it has them, one floor at a time:
+               each opens the whole set again. One read from the file isn't
+               moved again: on 3570 that moved the file's own outlines off their
+               walls and cost its ground floor's rooms a tenth of their area */
+            if (bytes) {
+              const read = sh;
+              sh = await onTheLines(bytes, p, read).catch((e) => {
+                console.error(`[job-plans] ${planId}/p${p.n} lines: ${String(e)}`);
+                return read;
+              });
+            }
+          } else {
+            console.error(`[job-plans] ${planId}/${s.sheetId}: ${String(r.reason)}`);
+            reading.failed.push({ floorId: s.floorId, sheetId: s.sheetId, reason: why(r.reason) });
+            continue;
+          }
+          /* each opening its schedule's width, height and sill, by its mark */
+          if (items.length) {
+            /* its scale as the Studio will take it: set, printed, measured off
+               its dimensions in this run (3570 prints none), or off the sizes
+               written in its rooms, on its set's scale where its own measure is
+               that but for noise. With none, how far a mark sits from an opening
+               can't be told, and only the marks the read gave the openings
+               themselves are sized */
+            const mmPerPx = pageScale(p, sh.spaces, pages)?.mmPerPx;
+            if (mmPerPx) {
+              const words = (p.words ?? []) as { text: string; at: { x: number; y: number } }[];
+              /* on a floor whose file draws its walls, each printed mark in the gap it sits by */
+              sh = marksInGaps(sh, words, items, mmPerPx).sheet;
+              /* a read tag checked against its printed mark, and a door the read left untagged given the mark printed beside it */
+              sh = taggedFromWords(sh, words, items, mmPerPx);
+            }
+            const w = withSchedule(sh, items);
+            matched += w.matched;
+            sh = w.sheet;
+          }
+          (reading.floors[s.floorId] ??= []).push(sh);
+          readNow.push(p.n);
+        }
+        if (items.length) reading.schedule = { pages: schedule.pages, marks: items.length, matched: (reading.schedule?.matched ?? 0) + matched };
+        /* the floors read without the schedule aren't read again, so it is kept on the reading, handed on or not */
+        if (unscheduled && readNow.length) {
+          const what = foundThen?.length ? `The door and window schedule on ${pagesWords(foundThen)} wasn't read in time` : "The set wasn't looked through for a door and window schedule in time";
+          reading.missed = [...(reading.missed ?? []), `${what}, so the openings on ${pagesWords(readNow.sort((a, b) => a - b))} aren't sized by it`];
+        }
+        const unread = todo.filter((_, k) => !results[k]).map((i) => floors[i].n);
+        if (unread.length) {
+          /* the floors back stand, with the roof and the site if they came
+             back too; the rest go to a run of their own. Twice, and the plan
+             is failed and said, what it has kept for Read again to go on from */
+          const [roof, site] = await Promise.all([byThen(roofP), byThen(siteP)]);
+          if (roof !== LATE && roof !== undefined) reading.roof = roof;
+          if (site !== LATE && site !== undefined) reading.site = site;
+          if (lateBefore >= 1) {
+            const said = `Reading ${pagesWords(unread)} ran out of time twice`;
+            await write(orgId, planId, { pages, reading: { ...reading, partial: true }, state: "failed", said });
+            return { ok: false, error: said };
+          }
+          await write(orgId, planId, { pages, reading: { ...reading, partial: true, late: lateBefore + 1 } });
+          return await handOff();
+        }
+      }
       const [roof, site] = await Promise.all([byThen(roofP), byThen(siteP)]);
       if (roof !== LATE && roof !== undefined) reading.roof = roof;
       /* the roof's faces off the roof plan's own lines, where it draws them so they read */
-      /* only with the run's time to spare: a read cut off by the route's limit loses everything with it */
-      if (reading.roof && isPdf && vectorOn() && !reading.roof.faces && Date.now() < until) {
-        const got = await roofFacesOf(new Uint8Array((await bytesOf()).bytes), pages, reading).catch((e) => {
-          console.error(`[job-plans] ${planId}/roof faces: ${String(e)}`);
-          return null;
-        });
-        if (got) reading.roof = { ...reading.roof, faces: got.faces, facesLeft: got.left };
+      if (reading.roof && isPdf && vectorOn() && !reading.roof.faces) {
+        /* by a time of their own, not the readers': they take seconds, and a read cut off by the route's limit loses everything with it */
+        if (Date.now() < started + FACES_BY_MS) {
+          const got = await roofFacesOf(new Uint8Array((await bytesOf()).bytes), pages, reading, started + FACES_BY_MS).catch((e) => {
+            console.error(`[job-plans] ${planId}/roof faces: ${String(e)}`);
+            return null;
+          });
+          if (got) reading.roof = { ...reading.roof, faces: got.faces, facesLeft: got.left };
+        } else console.log(`[job-plans] ${planId}: the roof's faces weren't read off the roof plan, the run was out of time`);
       }
-      if (site !== LATE) reading.site = site;
-      if ((roof === LATE || site === LATE) && !kept) {
+      if (site !== LATE && site !== undefined) reading.site = site;
+      if ((roof === LATE || site === LATE) && todo.length) {
         /* the floors stand; the roof and the site get a run of their own */
         await write(orgId, planId, { pages, reading: { ...reading, partial: true } });
         return await handOff();
       }
-      if (roof === LATE || site === LATE) console.error(`[job-plans] ${planId}: finished without its ${[roof === LATE ? "roof" : "", site === LATE ? "site" : ""].filter(Boolean).join(" and ")}, which took too long twice`);
+      /* late on its own run: a run before had it late, or couldn't read it */
+      const slow = [roof === LATE ? "roof" : "", site === LATE ? "site" : ""].filter(Boolean).join(" and ");
+      if (slow) {
+        console.error(`[job-plans] ${planId}: finished without its ${slow}, which took too long on a run of its own`);
+        missed.push(`The ${slow} took too long to read`);
+      }
       delete reading.partial;
     }
-    const { state, said } = stateOfRead(pages, reading);
-    await write(orgId, planId, { pages, reading, state, said, read_at: new Date().toISOString() });
-    return { ok: true, state, finished: { jobUuid: plan.jobUuid } };
+    /* what was left out goes on the reading, so the row says it, asks to be
+       checked, and still does after Choose floors works its state out again */
+    const left = [...(reading.missed ?? []), ...missed];
+    if (left.length) reading.missed = left;
+    else delete reading.missed;
+    const read = stateOfRead(pages, reading);
+    await write(orgId, planId, { pages, reading, state: read.state, said: read.said, read_at: new Date().toISOString() });
+    return { ok: true, state: read.state, finished: { jobUuid: plan.jobUuid } };
   } catch (e) {
     console.error(`[job-plans] ${planId}: ${String(e)}`);
     return failed(e instanceof Error ? e.message : "The plan couldn't be read");

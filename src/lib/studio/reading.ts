@@ -36,6 +36,12 @@ export type ReadSpace = {
 /** A gap in a wall the drawing file draws: a door's or a window's place. */
 export type WallGap = { a: ReadPoint; b: ReadPoint; t: number };
 
+/** A room the drawing file names and the closed spaces with no name it opens
+    onto wider than a doorway, which may be one room with it (vector/enclose.ts
+    `joins`): their places among the file's spaces, their outline taken
+    together, and the places among its gaps of the gaps between them. */
+export type SpaceJoin = { into: number; from: number[]; outline: ReadPoint[]; gaps: number[] };
+
 export type ReadOpening = {
   kind: "door" | "window" | "skylight";
   tag: string;
@@ -228,8 +234,12 @@ export type PlanReading = {
   site?: SiteReading | null;
   /** a sheet she couldn't read, and why, said rather than dropped */
   failed: { floorId: string; sheetId: string; reason: string }[];
-  /** its floors are read and saved while its roof and site, which ran long, are read in a run of their own (plans-server.ts); gone once the plan is read */
+  /** read part-way and saved, the rest left to a run of its own (plans-server.ts): floors that weren't back in time, or a roof and a site that ran long; gone once the plan is read */
   partial?: boolean;
+  /** how many of a part-way read's runs ran out of time before its floors were all read: two, and the plan is failed */
+  late?: number;
+  /** what the read left out and why ("The site couldn't be read: …"): said on the plan's row, which asks to be checked while there is any */
+  missed?: string[];
   /** the door and window schedule read off the set: its pages, how many marks it sized, how many openings on the plans it gave a size */
   schedule?: { pages: number[]; marks: number; matched: number };
 };
@@ -388,8 +398,9 @@ export type ReadDimension = { mm: number; a: ReadPoint; b: ReadPoint; what: stri
     so a person checking the scale sees the figure she used. */
 export type MeasuredScale = { mmPerPx: number; from: string; sure: boolean; at?: { a: ReadPoint; b: ReadPoint; mm: number } };
 
-/** how far two dimensions' scales may sit apart and still agree */
-const SCALE_AGREES = 0.08;
+/** how far two dimensions' scales may sit apart and still agree; a page's
+    own measure is taken for its set's scale within it too (plans.ts, plan-set.ts) */
+export const SCALE_AGREES = 0.08;
 
 export function scaleFromDimensions(dims: readonly ReadDimension[], sheet: { width: number; height: number }): MeasuredScale | null {
   /* a short span makes every room's error large: a twentieth of the sheet at least */

@@ -69,7 +69,8 @@ const box = (outline: readonly ReadPoint[]) => {
 export function planRoomsOf(plan: JobPlan): PlanRooms {
   const floors: PlanFloorRooms[] = floorPagesOf(plan).map((page) => {
     const spaces = (plan.reading?.floors[pageKey(page.n)] ?? []).flatMap((s) => s.spaces).filter((s) => ROOM_KINDS.has(s.kind) && s.outline.length >= 3);
-    const scale = pageScale(page, spaces);
+    /* on its set's scale, as the plan's line, its m² and a design take it */
+    const scale = pageScale(page, spaces, plan.pages);
     const rooms = spaces.map((s): PlanRoom => {
       const written = parseWritten(s.written);
       const base = { name: s.name, kind: s.kind as PlanRoom["kind"], ...(s.written ? { written: s.written } : {}) };

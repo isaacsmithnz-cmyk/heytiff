@@ -755,21 +755,29 @@ async function build(
       if ((cx - mid[0]) * nrm[0] + (cz - mid[1]) * nrm[1] > 0) nrm = [-nrm[0], -nrm[1]];
       const run = Math.max(len, scene3.span) + 20;
       const at = (t: number, o: number): XZ => [mid[0] + u[0] * t + nrm[0] * o, mid[1] + u[1] * t + nrm[1] * o];
+      /* a road as wide as the set gives it; where it doesn't, the kerb alone */
       const w = site.street.width;
-      const road = flat([at(-run, 0.15), at(run, 0.15), at(run, w), at(-run, w)], asphalt, groundY - 0.02);
-      road.receiveShadow = true;
-      siteG.add(road, flat([at(-run, 0), at(run, 0), at(run, 0.15), at(-run, 0.15)], kerbMat, groundY + 0.03));
+      if (w != null) {
+        const road = flat([at(-run, 0.15), at(run, 0.15), at(run, w), at(-run, w)], asphalt, groundY - 0.02);
+        road.receiveShadow = true;
+        siteG.add(road);
+      }
+      siteG.add(flat([at(-run, 0), at(run, 0), at(run, 0.15), at(-run, 0.15)], kerbMat, groundY + 0.03));
     }
     const ghost = own(new THREE.MeshStandardMaterial({ color: 0xe5e7eb, transparent: true, opacity: 0.3, depthWrite: false, roughness: 1 }));
     const ghostEdge = own(new THREE.LineBasicMaterial({ color: 0x9ca3af, transparent: true, opacity: 0.6 }));
     for (const nb of site.neighbours) {
-      const g = new THREE.ExtrudeGeometry(shape(nb.pts), { depth: nb.storeys * 3, bevelEnabled: false });
+      /* as tall as its storeys where the set says them; else its footprint's outline on the ground, no height made up */
+      const g = nb.storeys ? new THREE.ExtrudeGeometry(shape(nb.pts), { depth: nb.storeys * 3, bevelEnabled: false }) : new THREE.ShapeGeometry(shape(nb.pts));
       g.rotateX(-Math.PI / 2);
-      const m = new THREE.Mesh(g, ghost);
-      m.position.y = groundY;
       const e = new THREE.LineSegments(new THREE.EdgesGeometry(g), ghostEdge);
-      e.position.y = groundY;
-      siteG.add(m, e);
+      e.position.y = groundY + (nb.storeys ? 0 : 0.02);
+      if (nb.storeys) {
+        const m = new THREE.Mesh(g, ghost);
+        m.position.y = groundY;
+        siteG.add(m);
+      } else g.dispose();
+      siteG.add(e);
     }
     const fenceMat = M({ color: 0x8b6b4a, roughness: 0.9 });
     for (const fc of site.fences) for (let i = 1; i < fc.pts.length; i++) for (const o of segBox(fc.pts[i - 1], fc.pts[i], groundY, fc.height, 0.04, fenceMat, false)) siteG.add(o);

@@ -2,7 +2,7 @@ import "server-only";
 import sharp from "sharp";
 import type { PlanWord, ReadPoint, ReadSpace, SpaceKind } from "./reading";
 import { findWalls, scaleWalls, wallSizes, type Walls, type WallSizes } from "./measure/walls";
-import { snapRooms, type NamedRoom, type Problem } from "./measure/rooms";
+import { agreement, snapRooms, type NamedRoom, type Problem } from "./measure/rooms";
 import { strokeText } from "./measure/glyphs";
 
 /* A FLOOR READ BY MEASURE (Isaac, 21 November 2026: "include all of that,
@@ -361,6 +361,26 @@ function drawn(base: Buffer, f: Frame, walls: Walls, spaces: readonly ReadSpace[
     .toBuffer();
 }
 
+/** Whether a look again left out a room the answer before it had, that no
+    check found fault with. No check sees a room that isn't there, so a room
+    dropped reads as fewer problems, and the look would be kept. A room
+    still stands when one stands where it stood (renamed, that's a
+    correction), or one carries its name, alone or among an open plan's
+    ("Kitchen, Family"). One a check found fault with (a robe over the
+    lounge) may go. */
+function leftOut(before: { spaces: readonly ReadSpace[]; problems: readonly Problem[] }, after: { spaces: readonly ReadSpace[] }): boolean {
+  const key = (s: string) => s.trim().toLowerCase();
+  const names = new Set(after.spaces.flatMap((s) => [s.name, ...s.name.split(/[,/&]/)].map(key)));
+  /* a problem names its room, and a second only as rooms.ts words it ("A and B overlap.", "which is B's name."):
+     whole names, so a problem on "Bed 2" doesn't count against "Bed" */
+  const faulted = (name: string) =>
+    before.problems.some((p) => {
+      const said = key(p.said);
+      return key(p.room) === key(name) || said.startsWith(`${key(p.room)} and ${key(name)} overlap.`) || said.includes(`which is ${key(name)}'s name.`);
+    });
+  return agreement(after.spaces, before.spaces).onlyB.some((n) => !names.has(key(n)) && !faulted(n));
+}
+
 /** A floor's walls measured off its pixels and its picture cut. Null when
     the drawing has no wall fill to measure. Nothing it hands back holds the
     pixels. */
@@ -408,7 +428,8 @@ export async function nameRooms(
   /* her own rooms drawn over the plan, and what the checks found: a second
      look, and a third when the second still leaves something the checks
      find and there is time. An answer is kept only when it checks no worse
-     than the one before it */
+     than the one before it, and leaves out none of its rooms that checked
+     sound (leftOut) */
   for (let look = 1; look <= 2; look++) {
     if (look === 2 && (!set.problems.length || Date.now() - started > (opts.budgetMs ?? LOOK_AGAIN_MS))) break;
     /* a look takes about as long as the naming did, a little less */
@@ -421,7 +442,7 @@ export async function nameRooms(
     );
     if (!again || again === LATE || again.right_as_drawn === true) break;
     const fixed = snapRooms(roomsOf(again), walls, z, back);
-    if (!fixed.spaces.length || fixed.problems.length > set.problems.length) break;
+    if (!fixed.spaces.length || fixed.problems.length > set.problems.length || leftOut(set, fixed)) break;
     set = fixed;
     rounds++;
   }

@@ -1016,9 +1016,12 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
           tell({ step: "measuring", done: ++done, total: toMeasure.length });
         }),
       );
-      /* read from the file alone, it took a second or two: the read by picture
-         goes on in this run when there is time; the model's measuring hands on */
-      if (measuredOn() || Date.now() - started > HANDOFF_MS) return await handOff();
+      /* the read by picture always has a run of its own: on a big set the
+         roof read alone takes four minutes, and carried on in the run that
+         drew and measured it was cut off at five (3570's re-read, 22
+         November 2026: the roof, the site and the schedule were lost and
+         the plan stuck on reading) */
+      return await handOff();
     }
 
     /* 5. the read: each floor, the roof and the site off the set */

@@ -172,6 +172,9 @@ it("draws the pages in Node, saves the floors it found, and hands the rest on wh
 it("picks up where it stopped: the floors drawn in full in Node, saved, then read", async () => {
   await readPlan("org-1", "jplan_1", "https://app.test", client);
   clock += 1_000;
+  /* the floors drawn, and their walls looked for in the file: then a run of its own for the read */
+  expect(await readPlan("org-1", "jplan_1", "https://app.test", client)).toEqual({ ok: true, state: "reading" });
+  clock += 1_000;
   const out = await readPlan("org-1", "jplan_1", "https://app.test", client);
   /* read through (the fake's rooms are too few to call it sure, so it asks for a check) */
   expect(out).toEqual({ ok: true, state: "check", finished: { jobUuid: "job-3570" } });
@@ -276,9 +279,12 @@ it("measures nothing unless it is switched on", async () => {
 });
 
 describe("with a floor's rooms read from the drawing file", () => {
-  it("takes them as its rooms, and goes straight on to the read by picture in the same run", async () => {
+  it("takes them as its rooms, and hands the read by picture to a run of its own", async () => {
     fileFloors.set(3, { fills: threeRooms(), words: roomWords });
     await readPlan("org-1", "jplan_1", "https://app.test", client);
+    clock += 1_000;
+    expect(await readPlan("org-1", "jplan_1", "https://app.test", client)).toEqual({ ok: true, state: "reading" });
+    expect(readSheet).not.toHaveBeenCalled();
     clock += 1_000;
     const out = await readPlan("org-1", "jplan_1", "https://app.test", client);
     expect(out).toMatchObject({ ok: true, finished: { jobUuid: "job-3570" } });
@@ -316,9 +322,10 @@ describe("the set's door and window schedule", () => {
       openings: [{ kind: "window", tag: "GW.21", a: { x: 0, y: 0 }, b: { x: 50, y: 0 }, widthMm: 900, room: "Living", external: true, facing: "N" }],
     })) as never);
     try {
-      await readPlan("org-1", "jplan_1", "https://app.test", client);
-      clock += 1_000;
-      await readPlan("org-1", "jplan_1", "https://app.test", client);
+      for (let i = 0; i < 3; i++) {
+        clock += 1_000;
+        await readPlan("org-1", "jplan_1", "https://app.test", client);
+      }
     } finally {
       readSheet.mockImplementation(async (_o: string, sh: { floorId: string }) => ({ sheetId: sh.floorId, spaces: [{ name: "Living", points: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }] }, { name: "Kitchen", points: [{ x: 100, y: 0 }, { x: 200, y: 0 }, { x: 200, y: 100 }] }] }));
     }

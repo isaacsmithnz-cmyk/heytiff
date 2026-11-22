@@ -9,6 +9,7 @@ import { mmPerPointOf, mmPerPxFor, printedScaleOf } from "@/lib/studio/plan-set"
 import { scaleFromDimensions, type PlanReading, type PlanWord, type SheetReading } from "@/lib/studio/reading";
 import { READING_MODEL, readDimensions, readRoof, readSchedule, readSheet, readSite, type SheetToRead, askWith, pngBlock } from "@/lib/studio/reading-server";
 import { isSchedulePage, itemsOf, taggedFromWords, withSchedule, type ScheduleItem } from "@/lib/studio/schedule";
+import { marksInGaps } from "@/lib/studio/gap-marks";
 import { nameRooms, prepareMeasured } from "@/lib/studio/measured-server";
 import { withMeasured } from "@/lib/studio/measure/merge";
 import { K, vectorRooms } from "@/lib/studio/vector/read";
@@ -19,7 +20,7 @@ import { fullInNode, pixelsInNode, previewsInNode, textsInNode, vectorsInNode } 
 import { airPages, plainWords } from "./take-in";
 import { staffDisplayNames } from "@/lib/workboard/job-notes-query";
 import type { DrawnFull, DrawnPreview, PlanPagesAnswer } from "@/app/print/plan-pages/plan-pages";
-import { chooseFloors, guessPageByWords, pageKey, stackLevels, stateOfRead, type JobPlan, type JobPlanKind, type SpecWords, type JobPlanPage, type JobPlanRead, type PageGuess, type PlanPageKind, type PlanPick, type PlanProgress , type PageWalled } from "./plans";
+import { chooseFloors, guessPageByWords, pageKey, pageScale, stackLevels, stateOfRead, type JobPlan, type JobPlanKind, type SpecWords, type JobPlanPage, type JobPlanRead, type PageGuess, type PlanPageKind, type PlanPick, type PlanProgress , type PageWalled } from "./plans";
 import { planRoomsOf, planRoomsSaid, type JobPlanRooms } from "./plan-rooms";
 
 /* PLANS ON THE JOB, THE SERVER SIDE (lib/jobs/plans.ts says what a plan is).
@@ -1138,10 +1139,14 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
         let matched = 0;
         for (const id of Object.keys(reading.floors))
           reading.floors[id] = reading.floors[id].map((sh) => {
-            /* a door the read left untagged takes the mark printed beside it, within 900 mm */
             const p = floors.find((f) => pageKey(f.n) === sh.sheetId);
-            const reach = 900 / (p?.mmPerPx && p.mmPerPx > 0 ? p.mmPerPx : 35);
-            const w = withSchedule(taggedFromWords(sh, (p?.words ?? []) as { text: string; at: { x: number; y: number } }[], schedule.items, reach), schedule.items);
+            /* its scale as the Studio will take it: set, printed, or measured off its dimensions (3570 prints none) */
+            const mmPerPx = (p ? pageScale(p, [])?.mmPerPx : undefined) ?? 35;
+            const words = (p?.words ?? []) as { text: string; at: { x: number; y: number } }[];
+            /* on a floor whose file draws its walls, each printed mark in the gap it sits by */
+            const gapped = marksInGaps(sh, words, schedule.items, mmPerPx).sheet;
+            /* a door the read left untagged takes the mark printed beside it, within 900 mm */
+            const w = withSchedule(taggedFromWords(gapped, words, schedule.items, 900 / mmPerPx), schedule.items);
             matched += w.matched;
             return w.sheet;
           });

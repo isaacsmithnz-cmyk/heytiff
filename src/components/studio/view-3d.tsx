@@ -1236,26 +1236,55 @@ async function build(
         if (len < 0.05) continue;
         const ux = (gap.b[0] - gap.a[0]) / len;
         const uz = (gap.b[1] - gap.a[1]) / len;
-        const mid: XZ = [(gap.a[0] + gap.b[0]) / 2, (gap.a[1] + gap.b[1]) / 2];
         const nx = (-uz * gap.t) / 2;
         const nz = (ux * gap.t) / 2;
         /* the floor runs through the gap */
         const sl = slab({ name: "", kind: "room", pts: [[gap.a[0] + nx, gap.a[1] + nz], [gap.b[0] + nx, gap.b[1] + nz], [gap.b[0] - nx, gap.b[1] - nz], [gap.a[0] - nx, gap.a[1] - nz]], existing: false }, f);
         standOn.set(sl, f.id);
         g.add(sl);
-        const o = f.openings.find((x) => x.inGap && Math.hypot((x.a[0] + x.b[0]) / 2 - mid[0], (x.a[1] + x.b[1]) / 2 - mid[1]) < 0.05);
-        if (!o) {
-          if (len <= 2.5) addAll(g, segBox(gap.a, gap.b, f.y0 + 2.1, f.ceiling - 2.1, gap.t, wallMat, true));
+        /* the doors and windows in it, in order along it: one fills it jamb to
+           jamb; three marks along a gap are three windows side by side (gap-marks.ts) */
+        const inIt = f.openings
+          .filter((x) => x.inGap)
+          .map((x) => {
+            const at = (p: XZ) => (p[0] - gap.a[0]) * ux + (p[1] - gap.a[1]) * uz;
+            const off = (p: XZ) => Math.abs((p[0] - gap.a[0]) * uz - (p[1] - gap.a[1]) * ux);
+            const s0 = at(x.a);
+            const s1 = at(x.b);
+            return { o: x, s0: Math.min(s0, s1), s1: Math.max(s0, s1), off: Math.max(off(x.a), off(x.b)) };
+          })
+          .filter((x) => x.off < 0.05 && x.s0 > -0.05 && x.s1 < len + 0.05 && x.s1 - x.s0 > 0.05)
+          .sort((p, q) => p.s0 - q.s0);
+        const at = (s: number): XZ => [gap.a[0] + ux * s, gap.a[1] + uz * s];
+        /* what no opening takes: a pier between two to the ceiling, else as a gap with none */
+        const rest = (s0: number, s1: number, between: boolean) => {
+          if (s1 - s0 < 0.02) return;
+          if (between && s1 - s0 < 0.6) addAll(g, segBox(at(s0), at(s1), f.y0, f.ceiling, gap.t, wallMat, true));
+          else if (s1 - s0 <= 2.5) addAll(g, segBox(at(s0), at(s1), f.y0 + 2.1, f.ceiling - 2.1, gap.t, wallMat, true));
+        };
+        if (!inIt.length) {
+          rest(0, len, false);
           continue;
         }
-        const head = Math.min(o.head, f.ceiling);
-        addAll(g, segBox(gap.a, gap.b, f.y0, o.sill, gap.t, wallMat, true));
-        addAll(g, segBox(gap.a, gap.b, f.y0 + head, f.ceiling - head, gap.t, wallMat, true));
-        const fg = fill({ ...o, head }, len);
-        const [mx, mz] = P(mid);
-        fg.position.set(mx, f.y0 + o.sill, mz);
-        fg.rotation.y = -Math.atan2(uz, ux);
-        g.add(fg);
+        let from = 0;
+        inIt.forEach(({ o, s0, s1 }, i) => {
+          const a0 = Math.max(from, s0);
+          const a1 = Math.min(len, s1);
+          rest(from, a0, i > 0);
+          if (a1 - a0 < 0.05) return;
+          const A = at(a0);
+          const B = at(a1);
+          const head = Math.min(o.head, f.ceiling);
+          addAll(g, segBox(A, B, f.y0, o.sill, gap.t, wallMat, true));
+          addAll(g, segBox(A, B, f.y0 + head, f.ceiling - head, gap.t, wallMat, true));
+          const fg = fill({ ...o, head }, a1 - a0);
+          const [mx, mz] = P([(A[0] + B[0]) / 2, (A[1] + B[1]) / 2]);
+          fg.position.set(mx, f.y0 + o.sill, mz);
+          fg.rotation.y = -Math.atan2(uz, ux);
+          g.add(fg);
+          from = a1;
+        });
+        rest(from, len, false);
       }
     }
     /* the floor across a wall's thickness where it's open or a door goes through it */

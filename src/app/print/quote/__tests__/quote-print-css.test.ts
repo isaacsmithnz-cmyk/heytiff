@@ -31,7 +31,8 @@ describe("where the quote's pages break", () => {
     expect(rule(".qpdf h3")).toMatch(/break-after:\s*avoid/);
   });
   it("keeps an option's price with its option", () => {
-    expect(rule(".qpdf .lp-price")).toMatch(/break-before:\s*avoid/);
+    expect(rule(".qpdf .lp-eq + .lp-price")).toMatch(/break-before:\s*avoid/);
+    expect(css).toMatch(/^\.qpdf \.lp-price \{ break-inside: avoid; \}$/m);
   });
   it("never cuts a row, an item, a photo or the signing lines in two", () => {
     expect(rule(".qpdf tr")).toMatch(/break-inside:\s*avoid/);
@@ -40,4 +41,8 @@ describe("where the quote's pages break", () => {
 
 it("keeps an option's units together, one table on one page", () => {
   expect(css).toMatch(/\.qpdf \.lp-eq[^{]*\{[^}]*break-inside:\s*avoid/);
+});
+
+it("lets an option's units start a page, so an option never goes over whole", () => {
+  expect(css).toMatch(/^\.qpdf \.lp-eq, \.qpdf \.lp-table \{ break-inside: avoid; \}$/m);
 });

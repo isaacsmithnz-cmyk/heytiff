@@ -13,10 +13,14 @@
 /* Where the pages break (Isaac, 22 November 2026: "Yes, fix breaks"). A
    heading goes over with what it heads, never alone at a page's foot
    ("Payment" on one page, its stages on the next); an option's price stays
-   with the option it prices; a row, an item, a photo, a note or the
+   with its units; a row, an item, a photo, a note or the
    signing lines are never cut in two, and an option's units or the choice
-   of options go over whole (3464: its two units split one a page). */
+   of options go over whole (3464: its two units split one a page). The
+   units may start a page, their price with them: tied to the work above
+   as well, a whole option was one block, and went over leaving page 1
+   with the introduction alone (#1678). */
 .qpdf h3, .qpdf h4, .qpdf .lp-opt > header { break-after: avoid; }
-.qpdf .lp-price { break-before: avoid; break-inside: avoid; }
-.qpdf .lp-eq, .qpdf .lp-table { break-before: avoid; break-inside: avoid; }
+.qpdf .lp-price { break-inside: avoid; }
+.qpdf .lp-eq + .lp-price { break-before: avoid; }
+.qpdf .lp-eq, .qpdf .lp-table { break-inside: avoid; }
 .qpdf tr, .qpdf li, .qpdf figure, .qpdf .lp-note, .qpdf .lp-sign, .qpdf .lp-inc { break-inside: avoid; }

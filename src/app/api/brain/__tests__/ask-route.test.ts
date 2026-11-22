@@ -113,12 +113,12 @@ describe("capability filtering — asking must not reach past the screens", () =
     expect(names).not.toContain("kb_search");
   });
 
-  it("tiff-only viewers get kb_search and no workboard or staff tools", async () => {
+  it("tiff-only viewers get the data books and kb_search, and no workboard or staff tools", async () => {
     caps = new Set(["tiff"]);
     await POST(req({ question: "how do I clear an E6?" }));
     const names = (loopInput().tools as { name: string }[]).map((t) => t.name);
-    // the library read, and a move to a screen or a document; no job or staff tools
-    expect(names).toEqual(["kb_search", "open_screen", "open_document"]);
+    // the data books and the library read, and a move to a screen or a document; no job or staff tools
+    expect(names).toEqual(["data_pack", "kb_search", "open_screen", "open_document"]);
   });
 });
 

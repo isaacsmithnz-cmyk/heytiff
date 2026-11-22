@@ -1,6 +1,6 @@
 import { fillsOf, type FillOps } from "../fills";
 import { wallsOf } from "../walls";
-import { bridged, enclose, gapsOf, outlined, rasterise, simplify } from "../enclose";
+import { bridged, enclose, gapsOf, outlined, rasterise, reopen, simplify } from "../enclose";
 import { roomWord, vectorRooms } from "../read";
 import { lineWalls } from "../lines";
 import { facesOf, snapped } from "../snap";
@@ -236,6 +236,44 @@ describe("two rooms' names in one space", () => {
       ["Ensuite", "wet"],
     ]);
     expect(r.look).toEqual([]);
+  });
+});
+
+describe("two nibs facing each other across one room", () => {
+  it("are no doorway: a 9 m room with a nib each side and 6.2 m between them is one room, with no gap read there", () => {
+    /* at 94 mm a point the living room is 96 points (9 m) across; a nib 13 long down from its top wall and up from its bottom, near its right side */
+    const nib = (y0: number, y1: number) => ({ colour: "#808080", rings: [[[224, y0], [228, y0], [228, y1], [224, y1]] as [number, number][]] });
+    const r = vectorRooms({ fills: [...threeRooms(), nib(54, 67), nib(133, 146)], width: 400, height: 300, words: roomWords, mmPerPt: 94, rasterScale: 2 });
+    if ("none" in r) throw new Error(r.none);
+    expect(r.spaces.map((s) => s.name)).toEqual(["Bed 1", "Living", "Ensuite"]);
+    const xs = r.spaces[1].outline.map((p) => p.x);
+    expect([Math.min(...xs), Math.max(...xs)]).toEqual([304, 496]);
+    expect(r.gaps.filter((g) => g.a.x > 440 && g.a.x < 464)).toEqual([]);
+  });
+  it("are opened again only past a doorway's width, between a named space and a smaller one with no name of its own", () => {
+    /* a 30 by 20 grid walled round: a nib from the top and one from the bottom at x 12, and a wall at x 20 with a door 3 high */
+    const W = 30;
+    const H = 20;
+    const g = new Uint8Array(W * H);
+    for (let x = 0; x < W; x++) g[x] = g[(H - 1) * W + x] = 1;
+    for (let y = 0; y < H; y++) {
+      g[y * W] = g[y * W + W - 1] = 1;
+      if (y <= 3 || y >= 15) g[y * W + 12] = g[y * W + 13] = 1;
+      if (y < 8 || y > 10) g[y * W + 20] = g[y * W + 21] = 1;
+    }
+    const read = (names: number[]) => {
+      const e = enclose(g, W, H, 14, 3);
+      const id = (x: number) => e.label[5 * W + x];
+      reopen(e, g, 5, (s) => names.map(id).includes(s));
+      return e.spaces.map((s) => s.n).sort((a, b) => a - b);
+    };
+    /* left 11 wide, middle 6, right 7: each 18 high */
+    expect(read([])).toEqual([108, 126, 198]);
+    /* the middle with no name, smaller than the named left: one room through the nibs' 11-pixel gap; the door to the right stays shut */
+    expect(read([5, 25])).toEqual([126, 108 + 198 + 22]);
+    /* both named, or the one with no name the larger: as they were */
+    expect(read([5, 16, 25])).toEqual([108, 126, 198]);
+    expect(read([16, 25])).toEqual([108, 126, 198]);
   });
 });
 

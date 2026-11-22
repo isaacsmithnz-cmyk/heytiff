@@ -346,12 +346,14 @@ export function parted(
 /** A gap closed in a wall: a door's or a window's place. Its two jambs' middles and the wall's thickness there, in the grid's pixels. */
 export type Gap = { a: [number, number]; b: [number, number]; t: number };
 
-/** The gaps `bridged` closed: each run of closed pixels, with a wall at both
-    its ends along x (a gap in a wall running across) or along y (one running
-    up and down). `wall` is the grid before, `shut` after. */
-export function gapsOf(wall: Uint8Array, shut: Uint8Array, W: number, H: number): Gap[] {
+type Closed = { px: number[]; box: [number, number, number, number]; along: "x" | "y" | null };
+
+/* each run of pixels `bridged` closed (`wall` before, `shut` after): its
+   pixels, its box, and the way it closes a gap: along x, a wall at both its
+   ends that way (a gap in a wall running across), or along y */
+function closedRuns(wall: Uint8Array, shut: Uint8Array, W: number, H: number): Closed[] {
   const seen = new Uint8Array(W * H);
-  const out: Gap[] = [];
+  const out: Closed[] = [];
   const queue = new Int32Array(W * H);
   const is = (i: number) => shut[i] === 1 && wall[i] === 0;
   for (let s = 0; s < W * H; s++) {
@@ -375,13 +377,64 @@ export function gapsOf(wall: Uint8Array, shut: Uint8Array, W: number, H: number)
           queue[tail++] = j;
         }
     }
-    const cx = (x0 + x1 + 1) / 2;
-    const cy = (y0 + y1 + 1) / 2;
+    const cx = Math.floor((x0 + x1 + 1) / 2);
+    const cy = Math.floor((y0 + y1 + 1) / 2);
     const at = (x: number, y: number) => x >= 0 && y >= 0 && x < W && y < H && wall[y * W + x] === 1;
-    const across = at(x0 - 1, Math.floor(cy)) && at(x1 + 1, Math.floor(cy));
-    const down = at(Math.floor(cx), y0 - 1) && at(Math.floor(cx), y1 + 1);
-    if (across && (!down || x1 - x0 >= y1 - y0)) out.push({ a: [x0, cy], b: [x1 + 1, cy], t: y1 - y0 + 1 });
-    else if (down) out.push({ a: [cx, y0], b: [cx, y1 + 1], t: x1 - x0 + 1 });
+    const across = at(x0 - 1, cy) && at(x1 + 1, cy);
+    const down = at(cx, y0 - 1) && at(cx, y1 + 1);
+    out.push({ px: Array.from(queue.subarray(0, tail)), box: [x0, y0, x1, y1], along: across && (!down || x1 - x0 >= y1 - y0) ? "x" : down ? "y" : null });
   }
   return out;
+}
+
+/** The gaps `bridged` closed: each run of closed pixels, with a wall at both
+    its ends along x (a gap in a wall running across) or along y (one running
+    up and down). `wall` is the grid before, `shut` after. */
+export function gapsOf(wall: Uint8Array, shut: Uint8Array, W: number, H: number): Gap[] {
+  const out: Gap[] = [];
+  for (const { box, along } of closedRuns(wall, shut, W, H)) {
+    const [x0, y0, x1, y1] = box;
+    const cx = (x0 + x1 + 1) / 2;
+    const cy = (y0 + y1 + 1) / 2;
+    if (along === "x") out.push({ a: [x0, cy], b: [x1 + 1, cy], t: y1 - y0 + 1 });
+    else if (along === "y") out.push({ a: [cx, y0], b: [cx, y1 + 1], t: x1 - x0 + 1 });
+  }
+  return out;
+}
+
+/** TWO NIBS FACING EACH OTHER ACROSS ONE ROOM ARE NO DOORWAY (a 9 m room
+    with a nib each side and 6 m between them came back as two spaces, and
+    the half with no name of its own was dropped or taken for the room).
+    A gap `bridged` closed wider than `wider` (a doorway at its widest) is
+    opened again where it parts a space `named` says has a name from a
+    smaller closed one that has none, and the two are one space. Both named,
+    neither, or the one with no name the larger, it stays shut: a hall or a
+    yard the plan doesn't name isn't made part of a room. `wall` is the grid
+    before any gap was closed. `e` is changed in place: its grids are a
+    sheet's size. */
+export function reopen(e: Enclosed, wall: Uint8Array, wider: number, named: (id: number) => boolean): void {
+  const W = e.width;
+  const H = e.height;
+  const byId = new Map(e.spaces.map((s) => [s.id, s]));
+  const at = (x: number, y: number) => byId.get(x >= 0 && y >= 0 && x < W && y < H ? e.label[y * W + x] : -1);
+  for (const { px, box, along } of closedRuns(wall, e.wall, W, H)) {
+    const [x0, y0, x1, y1] = box;
+    if (!along || (along === "x" ? x1 - x0 + 1 : y1 - y0 + 1) <= wider) continue;
+    /* the floor either side of the gap, at its middle */
+    const cx = Math.floor((x0 + x1 + 1) / 2);
+    const cy = Math.floor((y0 + y1 + 1) / 2);
+    const [a, b] = along === "x" ? [at(cx, y0 - 1), at(cx, y1 + 1)] : [at(x0 - 1, cy), at(x1 + 1, cy)];
+    if (!a || !b || a === b || a.open || b.open || named(a.id) === named(b.id)) continue;
+    const [into, from] = named(a.id) ? [a, b] : [b, a];
+    if (from.n >= into.n) continue;
+    for (let y = from.box[1]; y <= from.box[3]; y++) for (let x = from.box[0]; x <= from.box[2]; x++) if (e.label[y * W + x] === from.id) e.label[y * W + x] = into.id;
+    for (const i of px) {
+      e.wall[i] = 0;
+      e.label[i] = into.id;
+    }
+    into.n += from.n + px.length;
+    into.box = [Math.min(into.box[0], from.box[0], x0), Math.min(into.box[1], from.box[1], y0), Math.max(into.box[2], from.box[2], x1), Math.max(into.box[3], from.box[3], y1)];
+    byId.delete(from.id);
+  }
+  e.spaces = e.spaces.filter((s) => byId.has(s.id));
 }

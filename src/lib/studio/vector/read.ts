@@ -2,7 +2,7 @@ import type { ReadLook, ReadPoint, ReadSpace, SpaceKind } from "../reading";
 import type { Fill, Line } from "./fills";
 import { wallsOf, type Walls } from "./walls";
 import { lineWalls } from "./lines";
-import { enclose, gapsOf, outlined, parted, rasterise } from "./enclose";
+import { enclose, gapsOf, outlined, parted, rasterise, reopen } from "./enclose";
 
 /* A FLOOR'S ROOMS READ FROM THE DRAWING FILE ITSELF (Isaac, 22 November 2026:
    "I need the plans accurate to design it"; "build the new way"). The walls
@@ -211,8 +211,11 @@ function roomsBetween(walls: Walls, input: VectorInput): VectorRooms | { none: s
     l.push(w);
     inSpace.set(id, l);
   }
+  /* a gap wider than a doorway that parts a named room from a smaller space
+     with no name of its own is two nibs across one room: opened again */
+  reopen(e, grid, tee, (id) => inSpace.has(id));
 
-  type Kept = { n: number; outline: () => [number, number][]; names: string[]; strong: number };
+  type Kept ={ n: number; outline: () => [number, number][]; names: string[]; strong: number };
   const keep: Kept[] = [];
   for (const s of e.spaces) {
     if (s.open) continue;

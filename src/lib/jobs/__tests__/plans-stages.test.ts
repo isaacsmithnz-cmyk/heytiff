@@ -274,11 +274,12 @@ describe("with a floor's rooms read from the drawing file", () => {
     clock += 1_000;
     const out = await readPlan("org-1", "jplan_1", "https://app.test", client);
     expect(out).toMatchObject({ ok: true, finished: { jobUuid: "job-3570" } });
-    expect(vectorsInNode.mock.calls.map((c) => c[1])).toEqual([2, 3, 4]);
+    /* each floor's file read once for its walls, then the two not read from it again, to put the picture's rooms on its walls */
+    expect(vectorsInNode.mock.calls.map((c) => c[1])).toEqual([2, 3, 4, 2, 4]);
     /* no model was asked to measure */
     expect(pixelsInNode).not.toHaveBeenCalled();
     const walled = Object.fromEntries((plan().pages as { n: number; kind: string; walled?: unknown }[]).filter((p) => p.kind === "floor").map((p) => [p.n, p.walled]));
-    expect(walled[2]).toEqual({ none: "Its walls aren't drawn as filled shapes in the file" });
+    expect(walled[2]).toEqual({ none: "Its walls aren't drawn in the file, filled or in lines" });
     expect(walled[3]).toMatchObject({ from: "file", rounds: 0, look: [] });
     const floors = (plan().reading as { floors: Record<string, { spaces: { name: string }[] }[]> }).floors;
     expect(floors.p3[0].spaces.map((s) => s.name)).toEqual(["Bed 1", "Living", "Ensuite"]);

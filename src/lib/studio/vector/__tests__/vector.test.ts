@@ -2,6 +2,9 @@ import { fillsOf, type FillOps } from "../fills";
 import { wallsOf } from "../walls";
 import { bridged, enclose, outlined, rasterise, simplify } from "../enclose";
 import { roomWord, vectorRooms } from "../read";
+import { lineWalls } from "../lines";
+import { facesOf, snapped } from "../snap";
+import type { Line } from "../fills";
 import { roomWords, threeRooms, WALLS } from "../__fixtures__/three-rooms";
 
 /* pdf.js's OPS numbers, as many as are read */
@@ -101,7 +104,7 @@ describe("a floor's rooms read from its drawing file", () => {
   });
   it("isn't trusted when the room names it writes don't land in rooms", () => {
     expect(vectorRooms({ ...input, words: [] })).toEqual({ none: "Only 3 rooms closed off between its walls, and it writes no room names as text" });
-    expect(vectorRooms({ ...input, fills: [] })).toEqual({ none: "Its walls aren't drawn as filled shapes in the file" });
+    expect(vectorRooms({ ...input, fills: [] })).toEqual({ none: "Its walls aren't drawn in the file, filled or in lines" });
   });
 });
 
@@ -111,5 +114,57 @@ describe("words that name a room", () => {
     expect(roomWord("MAHJONG")).toBe(2);
     expect(roomWord("SHELF")).toBe(1);
     expect(["W.05", "FFL 194.000", "SMOKE ALARMS TO COMPLY WITH", "2400", "Soundscreen Batts to walls"].map(roomWord)).toEqual([0, 0, 0, 0, 0]);
+  });
+});
+
+/* the same three rooms drawn as their walls' two faces, in lines */
+const facesOfWalls = (): Line[] =>
+  WALLS.flatMap((r) => {
+    const [[x0, y0], , [x1, y1]] = r;
+    const long = x1 - x0 >= y1 - y0;
+    return long
+      ? [
+          { colour: "#000000", width: 0.5, a: [x0, y0] as [number, number], b: [x1, y0] as [number, number] },
+          { colour: "#000000", width: 0.5, a: [x0, y1] as [number, number], b: [x1, y1] as [number, number] },
+        ]
+      : [
+          { colour: "#000000", width: 0.5, a: [x0, y0] as [number, number], b: [x0, y1] as [number, number] },
+          { colour: "#000000", width: 0.5, a: [x1, y0] as [number, number], b: [x1, y1] as [number, number] },
+        ];
+  });
+
+describe("walls drawn in lines", () => {
+  it("two faces a wall's thickness apart are a wall, and the rooms are read between them", () => {
+    const w = lineWalls(facesOfWalls(), null)!;
+    expect(w.colours).toEqual(["lines"]);
+    expect(w.thickness).toBeCloseTo(4, 1);
+    const r = vectorRooms({ fills: [], lines: facesOfWalls(), width: 400, height: 300, words: roomWords, mmPerPt: null, rasterScale: 2 });
+    if ("none" in r) throw new Error(r.none);
+    expect(r.spaces.map((s) => s.name)).toEqual(["Bed 1", "Living", "Ensuite"]);
+    expect(r.spaces[0].outline[0]).toEqual({ x: 108, y: 108 });
+  });
+  it("a stair's treads, evenly spaced, are no wall", () => {
+    const treads: Line[] = Array.from({ length: 12 }, (_, i) => ({ colour: "#000000", width: 0.5, a: [100, 100 + i * 7] as [number, number], b: [130, 100 + i * 7] as [number, number] }));
+    expect(lineWalls(treads, null)).toBeNull();
+  });
+});
+
+describe("a room read by picture, put on the drawing's walls", () => {
+  it("each side moves onto the face of the wall along it on the room's side, within reach", () => {
+    const faces = facesOf(facesOfWalls(), [], 8, 1, 18);
+    const bed = { name: "Bed 1", named: true, kind: "room" as const, written: "", existing: false, openTo: "", stair: "", outline: [{ x: 57, y: 53 }, { x: 146, y: 55 }, { x: 146, y: 144 }, { x: 57, y: 144 }] };
+    const { spaces, moved, sides } = snapped([bed], faces, 1, 6);
+    expect(spaces[0].outline).toEqual([
+      { x: 54, y: 54 },
+      { x: 148, y: 54 },
+      { x: 148, y: 146 },
+      { x: 54, y: 146 },
+    ]);
+    expect([moved, sides]).toEqual([4, 4]);
+  });
+  it("a side with no wall in reach stays where it was read", () => {
+    const faces = facesOf(facesOfWalls(), [], 8, 1, 18);
+    const odd = { name: "Nook", named: true, kind: "room" as const, written: "", existing: false, openTo: "", stair: "", outline: [{ x: 80, y: 80 }, { x: 120, y: 80 }, { x: 120, y: 120 }, { x: 80, y: 120 }] };
+    expect(snapped([odd], faces, 1, 6).spaces[0].outline).toEqual(odd.outline);
   });
 });

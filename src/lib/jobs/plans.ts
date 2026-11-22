@@ -573,6 +573,28 @@ export type DesignFromPlan = {
     where it printed one; the import record the Studio's Edit plans reads;
     and her reading of the plan, moved onto the design's floors and sheets
     (its points stay where they are: a sheet's pixels are its page's). */
+/** A floor plan's own floor level, in metres, from the levels it prints
+    ("FFL 194.000", "FFL: RL 197.700"): the one printed most, and of two
+    printed as often the higher, since a step down is to outside (3570's
+    ground floor prints 194.000 in its hall and 193.850 on its colonnade).
+    Null when it prints none. Pure. */
+export function floorLevelOf(words: readonly { text: string }[] | null | undefined): number | null {
+  if (!words?.length) return null;
+  const count = new Map<number, number>();
+  /* "194.000", "+60,240", "63, 315": metres, the comma Cutler's way of writing the point */
+  const NUM = /[+±]?\s*(\d{1,3})[.,]\s?(\d{2,3})\b/;
+  for (let i = 0; i < words.length; i++) {
+    const t = words[i].text.trim();
+    if (!/\bF\.?F\.?L\b/i.test(t)) continue;
+    const m = NUM.exec(t.replace(/^.*?F\.?F\.?L\.?/i, "")) ?? NUM.exec(words[i + 1]?.text ?? "") ?? NUM.exec(words[i + 2]?.text ?? "");
+    if (!m) continue;
+    const v = Number(`${m[1]}.${m[2]}`);
+    if (v > 0 && v < 1000) count.set(v, (count.get(v) ?? 0) + 1);
+  }
+  if (!count.size) return null;
+  return [...count].sort((a, b) => b[1] - a[1] || b[0] - a[0])[0][0];
+}
+
 export function designFromPlan(plan: JobPlan): DesignFromPlan {
   const floors = floorPagesOf(plan);
   const byLevel = new Map<number, JobPlanPage[]>();
@@ -607,6 +629,16 @@ export function designFromPlan(plan: JobPlan): DesignFromPlan {
       plans,
     };
   });
+
+  /* each floor as tall as the plans print it: the next floor's FFL less its own */
+  const ffl = new Map(levels.map((level) => [level, byLevel.get(level)!.map((p) => floorLevelOf(p.words)).find((v) => v != null) ?? null]));
+  for (const f of made) {
+    const here = ffl.get(f.level);
+    const above = ffl.get(f.level + 1);
+    if (here == null || above == null) continue;
+    const h = Math.round((above - here) * 1000) / 1000;
+    if (h >= 2.2 && h <= 8) f.heightM = h;
+  }
 
   const sources: PlanImportSource[] = plan.sourceRef ? [{ ref: plan.sourceRef, kind: plan.sourceKind }] : [];
   const placed: Record<number, string> = {};

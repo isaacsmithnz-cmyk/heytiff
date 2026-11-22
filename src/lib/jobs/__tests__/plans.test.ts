@@ -1,5 +1,5 @@
 import type { PlanReading, SheetReading } from "@/lib/studio/reading";
-import { areaM2Of, chooseFloors, choosablePages, designFromPlan, floorOptions, floorValueOf, designFromPlans, floorNamesOf, guessPageByWords, levelOfTitle, pagesWordOf, planLine, planReadLine, planStateWord, replacedBy, scaleAsks, scaleSaid, stackLevels, stateOfRead, startablePlans, type JobPlan, type JobPlanPage, type JobPlanRead } from "../plans";
+import { areaM2Of, chooseFloors, floorLevelOf, choosablePages, designFromPlan, floorOptions, floorValueOf, designFromPlans, floorNamesOf, guessPageByWords, levelOfTitle, pagesWordOf, planLine, planReadLine, planStateWord, replacedBy, scaleAsks, scaleSaid, stackLevels, stateOfRead, startablePlans, type JobPlan, type JobPlanPage, type JobPlanRead } from "../plans";
 
 /* PLANS ON THE JOB, the pure side (lib/jobs/plans.ts): which pages are
    floors by their words, what a read came to, what the row says, and a
@@ -339,3 +339,17 @@ describe("a set a later one replaced", () => {
   });
 });
 
+
+describe("a floor's printed level", () => {
+  it("is the FFL it prints most, of two as often the higher, in metres however written", () => {
+    expect(floorLevelOf([{ text: "FFL 194.000" }, { text: "FFL 193.850" }])).toBe(194);
+    expect(floorLevelOf([{ text: "FFL" }, { text: "+60,240" }, { text: "FFL: 63,360" }, { text: "FFL: 63,360" }])).toBe(63.36);
+    expect(floorLevelOf([{ text: "EX FFL +63, 315" }])).toBe(63.315);
+    expect(floorLevelOf([{ text: "FINISHED FLOOR LEVEL (FFL)." }, { text: "2400" }])).toBeNull();
+    expect(floorLevelOf(null)).toBeNull();
+  });
+  it("makes each floor as tall as the next floor's level less its own", () => {
+    const made = designFromPlan(plan({ pages: [page(3, { words: [{ text: "FFL 194.000", at: { x: 1, y: 1 } }] }), page(4, { words: [{ text: "FFL 197.700", at: { x: 1, y: 1 } }] })] }));
+    expect(made.floors.map((f) => f.heightM)).toEqual([3.7, undefined]);
+  });
+});

@@ -96,6 +96,7 @@ export function StackRow({
   drag,
   held,
   wrap,
+  clamp,
 }: {
   lead?: ReactNode;
   name: ReactNode;
@@ -129,13 +130,16 @@ export function StackRow({
       system named by its quote, the zones on no system (Isaac, 22 November
       2026: "check the web Studio for cut off text") */
   wrap?: boolean;
+  /** its grey line stops at two lines, the second fading: a list Zones
+      shows whole (bug 72, 22 November 2026) */
+  clamp?: boolean;
 }) {
   const inner = (
     <>
       {lead}
       <span className="ds-stack-row-l">
         <Fade className="ds-stack-row-t">{name}</Fade>
-        {sub ? <Fade className="ds-stack-row-s">{sub}</Fade> : null}
+        {sub ? <Fade className={`ds-stack-row-s${clamp ? " ds-stack-clamp" : ""}`}>{sub}</Fade> : null}
         {more ? <Fade className="ds-stack-row-s">{more}</Fade> : null}
       </span>
       {value != null && value !== "" ? (
@@ -154,7 +158,7 @@ export function StackRow({
       ) : null}
     </>
   );
-  const cls = `ds-stack-row${onPress ? " press" : ""}${lit || held ? " lit" : ""}${blue ? " blue" : ""}${danger ? " danger" : ""}${drag ? " drag" : ""}${wrap ? " wrap" : ""}`;
+  const cls = `ds-stack-row${onPress ? " press" : ""}${lit || held ? " lit" : ""}${blue ? " blue" : ""}${danger ? " danger" : ""}${drag ? " drag" : ""}${wrap ? " ds-stack-row-wrap" : ""}`;
   const dragProps = drag ? { draggable: true, onDragStart: drag.onDragStart, onDragEnd: drag.onDragEnd } : {};
   return onPress ? (
     <button type="button" className={cls} aria-label={label} aria-current={lit || undefined} onClick={onPress} {...dragProps}>

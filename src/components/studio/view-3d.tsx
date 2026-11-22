@@ -122,6 +122,10 @@ type Built = {
 
 /** how wide the View panel is over the picture's right, and where its open or folded is kept */
 const VIEW_PANEL_PX = 256;
+/* the card floats 16 in from the picture's right, so the house centres left of both (bug 72) */
+const VIEW_SPAN_PX = VIEW_PANEL_PX + 16;
+/* --t-slide, the panel's 280 */
+const VIEW_SLIDE_MS = 280;
 const VIEW_KEY = "heytiff.3d-view";
 /* kept on this browser, as the canvas's wheel setting is (wheel-mode.ts):
    the markup that hydrates is open, and only then the stored choice */
@@ -2220,8 +2224,24 @@ export function View3D({
   const panelRef = useRef(panel);
   useEffect(() => {
     panelRef.current = panel;
-    builtRef.current?.inset(panel ? VIEW_PANEL_PX : 0);
+    builtRef.current?.inset(panel ? VIEW_SPAN_PX : 0);
   }, [panel]);
+  /* the card slides back to its tab before it folds (bug 72, 22 November
+     2026: "view button does not pop out nicely"), but not where motion is
+     turned down */
+  const [closing, setClosing] = useState(false);
+  const foldAway = () => {
+    if (closing) return;
+    if (typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      foldView(false);
+      return;
+    }
+    setClosing(true);
+    window.setTimeout(() => {
+      setClosing(false);
+      foldView(false);
+    }, VIEW_SLIDE_MS);
+  };
 
   useEffect(() => {
     lookRef.current = look;
@@ -2246,7 +2266,7 @@ export function View3D({
       if (!b) setNoGl(true);
       builtRef.current = b;
       if (pausedRef.current) b?.pause(true);
-      b?.inset(panelRef.current ? VIEW_PANEL_PX : 0);
+      b?.inset(panelRef.current ? VIEW_SPAN_PX : 0);
       houseRef.current?.(b ? b.glb : null);
     });
     return () => {
@@ -2290,8 +2310,8 @@ export function View3D({
         </button>
       )}
       {panel && (
-        <div className="ds3-view" role="group" aria-label="View">
-          <button type="button" className="ds3-view-head" aria-expanded onClick={() => foldView(false)}>
+        <div className={`ds3-view${closing ? " closing" : ""}`} role="group" aria-label="View">
+          <button type="button" className="ds3-view-head" aria-expanded onClick={foldAway}>
             <Icon name="layers" size={14} />
             <span className="ds3-view-word">View</span>
             <Icon name="chevR" size={14} />

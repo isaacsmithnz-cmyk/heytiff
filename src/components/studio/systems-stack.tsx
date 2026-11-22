@@ -126,6 +126,7 @@ export function SystemsList({
         <StackGroup>
           <StackRow
             wrap
+            clamp
             name={`${zonesWord(free.length)} on no system`}
             sub={free.map((z) => String(z.props.name ?? "Zone")).join(", ")}
           >

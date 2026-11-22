@@ -68,7 +68,7 @@ it("an untagged door takes the schedule mark printed nearest it, each mark once,
     { text: "FW.01", at: { x: 120, y: 12 } },
     { text: "2400", at: { x: 220, y: 5 } },
   ];
-  const out = taggedFromWords(doors, words, items, 40);
+  const out = taggedFromWords(doors, words, items, 22.5);
   expect(out.openings.map((o) => o.tag)).toEqual(["GW.22", "FW.01", ""]);
 });
 
@@ -124,23 +124,34 @@ describe("a tag the read gave", () => {
     { text: "GW.22", at: { x: 900, y: -30 } },
   ];
   it("stands where the plan prints it by the opening; a misread gives way to the mark printed there", () => {
-    const out = taggedFromWords(sheet(["GW.21", "GW.22", "X9"]), words, items, 40);
+    const out = taggedFromWords(sheet(["GW.21", "GW.22", "X9"]), words, items, 22.5);
     expect(out.openings.map((o) => o.tag)).toEqual(["GW.21", "FW.01", "X9"]);
     expect(withSchedule(out, items).sheet.openings.map((o) => o.widthMm)).toEqual([750, 1000, 900]);
   });
   it("keeps only what of it is printed by the opening", () => {
-    expect(taggedFromWords(sheet(["GW 21 W.05"]), words, items, 40).openings[0].tag).toBe("GW.21");
+    expect(taggedFromWords(sheet(["GW 21 W.05"]), words, items, 22.5).openings[0].tag).toBe("GW.21");
+  });
+  it("stands where its mark is printed 1.2 m off, past the reach a free mark is given in, and isn't handed another's", () => {
+    /* 22.5 mm a pixel: GW.21 printed 53 px (1.2 m) off its window, FW.01 printed 30 px off it */
+    const out = taggedFromWords(sheet(["GW.21"]), [{ text: "GW.21", at: { x: 25, y: -53 } }, { text: "FW.01", at: { x: 25, y: 30 } }], items, 22.5);
+    expect(out.openings[0].tag).toBe("GW.21");
+  });
+  it("is left as read where the plan prints only types, not marks", () => {
+    /* a lone type word printed far off is no mark to check GW.21 by */
+    const typeOnly = sheet(["GW.21"]);
+    const type = items.find((i) => i.type)!.type;
+    expect(taggedFromWords(typeOnly, [{ text: type, at: { x: 900, y: 900 } }], items, 22.5).openings[0].tag).toBe("GW.21");
   });
   it("is left as read in a wall's gap, and where the plan prints none of the schedule's marks", () => {
     const inGap = { ...sheet(["GW.21"]), openings: [{ ...sheet(["GW.21"]).openings[0], inGap: true }] };
-    expect(taggedFromWords(inGap, [{ text: "GW.21", at: { x: 25, y: -60 } }], items, 40).openings[0].tag).toBe("GW.21");
+    expect(taggedFromWords(inGap, [{ text: "GW.21", at: { x: 25, y: -120 } }], items, 22.5).openings[0].tag).toBe("GW.21");
     const bare = sheet(["GW.22"]);
-    expect(taggedFromWords(bare, [{ text: "LOUNGE", at: { x: 0, y: 0 } }], items, 40)).toBe(bare);
+    expect(taggedFromWords(bare, [{ text: "LOUNGE", at: { x: 0, y: 0 } }], items, 22.5)).toBe(bare);
   });
 });
 
 it("a mark printed between two untagged doors goes to the nearer, whichever was read first", () => {
   const doors = { ...sheet(["", ""]), openings: sheet(["", ""]).openings.map((o) => ({ ...o, kind: "door" as const })) };
-  const out = taggedFromWords(doors, [{ text: "GW.21", at: { x: 90, y: 0 } }], items, 70);
+  const out = taggedFromWords(doors, [{ text: "GW.21", at: { x: 90, y: 0 } }], items, 900 / 70);
   expect(out.openings.map((o) => o.tag)).toEqual(["", "GW.21"]);
 });

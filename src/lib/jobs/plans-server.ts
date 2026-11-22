@@ -541,7 +541,8 @@ async function schedulesOf(bytes: Uint8Array, pages: readonly JobPlanPage[], onF
   const per = await Promise.all(
     drawn.map((d) =>
       readSchedule(d.png, d.words ?? [])
-        .then((raw) => itemsOf(raw, d.n))
+        /* a width the page doesn't print isn't the architect's */
+        .then((raw) => itemsOf(raw, d.n, d.words ?? []))
         .catch((e) => {
           console.error(`[job-plans] schedule p${d.n}: ${String(e)}`);
           return [] as ScheduleItem[];
@@ -1406,8 +1407,8 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
               const words = (p.words ?? []) as { text: string; at: { x: number; y: number } }[];
               /* on a floor whose file draws its walls, each printed mark in the gap it sits by */
               sh = marksInGaps(sh, words, items, mmPerPx).sheet;
-              /* a door the read left untagged takes the mark printed beside it, within 900 mm */
-              sh = taggedFromWords(sh, words, items, 900 / mmPerPx);
+              /* a read tag checked against its printed mark, and a door the read left untagged given the mark printed beside it */
+              sh = taggedFromWords(sh, words, items, mmPerPx);
             }
             const w = withSchedule(sh, items);
             matched += w.matched;

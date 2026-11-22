@@ -106,7 +106,7 @@ describe("the marks in the gaps", () => {
       { kind: "window", tag: "GW.01", a: { x: 20, y: 0 }, b: { x: 120, y: 0 }, widthMm: 1000, room: "Lounge", external: true, facing: "N" },
       door({ x: 60, y: 10 }, { x: 80, y: 10 }),
     ]);
-    expect(taggedFromWords(s, [word("GW.01", 70, 5)], items, 90).openings[1].tag).toBe("");
+    expect(taggedFromWords(s, [word("GW.01", 70, 5)], items, 10).openings[1].tag).toBe("");
   });
 
   /* a set that marks its windows by type: W1 printed at each of six */

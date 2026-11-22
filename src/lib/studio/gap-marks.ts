@@ -1,4 +1,4 @@
-import { byMarkOf, checkedTag, markKey, offOpening, partsOf, type ScheduleItem } from "./schedule";
+import { byMarkOf, checkedTag, markKey, offOpening, partsOf, TAG_CHECK_MM, type ScheduleItem } from "./schedule";
 import type { ReadOpening, ReadPoint, ReadSpace, SheetReading, WallGap } from "./reading";
 
 /* THE MARKS IN THE GAPS. Where a floor's drawing file draws its walls, every
@@ -101,12 +101,13 @@ export function marksInGaps(sheet: SheetReading, words: readonly Word[], items: 
   const printed: Word[] = [];
   for (const w of words)
     if (known.has(markKey(w.text)) && !printed.some((p) => markKey(p.text) === markKey(w.text) && Math.hypot(p.at.x - w.at.x, p.at.y - w.at.y) < px(SAME_MM))) printed.push(w);
-  if (!printed.length) return { sheet, placed: 0 };
+  /* a plan that prints only types (bare figures like "03" can be printed anywhere) has no mark to place or check a tag by */
+  const marks = printed.filter((w) => byMark.has(markKey(w.text)));
+  if (!marks.length) return { sheet, placed: 0 };
   const picture = (sheet.openings ?? []).map((o): ReadOpening => {
-    const tag = o.tag ? checkedTag(o, printed, known, px(REACH_MM)) : o.tag;
+    const tag = o.tag ? checkedTag(o, printed, known, px(TAG_CHECK_MM)) : o.tag;
     return tag === o.tag ? o : { ...o, tag };
   });
-  const marks = printed.filter((w) => byMark.has(markKey(w.text)));
 
   /* every mark against every gap it could be in, nearest first */
   const pairs: { m: number; g: number; cost: number; t: number }[] = [];

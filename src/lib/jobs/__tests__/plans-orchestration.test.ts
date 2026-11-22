@@ -75,7 +75,10 @@ const previewsInNode = jest.fn(async () => {
   clock += 120_000;
   return titles.now.map((t, i) => ({ n: i + 1, width: 2400, height: 1695, words: [{ text: t, at: { x: 2000, y: 1600 } }], jpeg: "data:image/jpeg;base64,AA==" }));
 });
-const fullInNode = jest.fn(async (_b: Uint8Array, ns: readonly number[]) => ns.map((n) => ({ n, png: Buffer.from("png"), width: 2400, height: 1695, words: [{ text: "DOOR SCHEDULE", at: { x: 10, y: 10 } }] })));
+/* the schedule page prints its mark and its figures, as a schedule does: a size it doesn't print is no size of the architect's */
+const fullInNode = jest.fn(async (_b: Uint8Array, ns: readonly number[]) =>
+  ns.map((n) => ({ n, png: Buffer.from("png"), width: 2400, height: 1695, words: ["DOOR SCHEDULE", "GD.10", "820", "2040"].map((text, i) => ({ text, at: { x: 10 + 80 * i, y: 10 } })) })),
+);
 /* the file's shapes: none, so no floor is read from the file; how many are opened at once is kept */
 const opening = { now: 0, most: 0 };
 const vectorsInNode = jest.fn(async (_b: Uint8Array, n: number) => {

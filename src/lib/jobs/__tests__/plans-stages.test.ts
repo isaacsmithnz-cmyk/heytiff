@@ -65,7 +65,9 @@ const previewsInNode = jest.fn(async (_b: Uint8Array, onProgress?: (d: number, t
   titles.forEach((_t, i) => onProgress?.(i + 1, titles.length));
   return titles.map((t, i) => ({ n: i + 1, width: 2400, height: 1695, words: words(t), jpeg: "data:image/jpeg;base64,AA==" }));
 });
-const fullInNode = jest.fn(async (_b: Uint8Array, ns: readonly number[]) => ns.map((n) => ({ n, png: Buffer.from("png"), width: 2400, height: 1695, words: words("PLAN") })));
+/* the schedule page prints its mark and its figures, as a schedule does: a size it doesn't print is no size of the architect's */
+const printedSchedule = () => [...words("PLAN"), ...(scheduleOn.prints ? ["GW.21", "750", "1800", "300"] : ["GW.21"]).map((text, i) => ({ text, at: { x: 100 + 60 * i, y: 100 } }))];
+const fullInNode = jest.fn(async (_b: Uint8Array, ns: readonly number[]) => ns.map((n) => ({ n, png: Buffer.from("png"), width: 2400, height: 1695, words: n === scheduleOn.page ? printedSchedule() : words("PLAN") })));
 const pixelsInNode = jest.fn(async (_b: Uint8Array, n: number, times: number) => ({ n, rgba: new Uint8ClampedArray(4), width: n, height: 1, scale: times, words: [] }));
 /* the drawing file's shapes: none drawn as walls, unless a test gives a floor some */
 const fileFloors = new Map<number, { fills: Fill[]; words: { text: string; at: { x: number; y: number } }[] }>();
@@ -78,7 +80,7 @@ const vectorsInNode = jest.fn(async (_b: Uint8Array, n: number) => {
   return { n, width: 400, height: 300, rasterScale: 2, fills: fileFloors.get(n)?.fills ?? [], words: fileFloors.get(n)?.words ?? [] };
 });
 /* the set's pages' words: none a schedule, unless a test makes page 6 one */
-const scheduleOn = { page: 0 };
+const scheduleOn = { page: 0, prints: true };
 const textsInNode = jest.fn(async (_b: Uint8Array, ns: readonly number[]) => ns.map((n) => ({ n, words: roofPages.get(n)?.words ?? (n === scheduleOn.page ? [{ text: "WINDOW SCHEDULE" }] : [{ text: "SECTION A" }]) })));
 jest.mock("../plan-draw-node", () => ({
   textsInNode: (...a: unknown[]) => textsInNode(...(a as [Uint8Array, number[]])),
@@ -153,6 +155,7 @@ beforeEach(() => {
   readRoof.mockClear();
   readSite.mockClear();
   scheduleOn.page = 0;
+  scheduleOn.prints = true;
   fileFloors.clear();
   roofPages.clear();
   /* off unless asked for; its own tests turn it on */
@@ -356,11 +359,22 @@ describe("the set's door and window schedule", () => {
     expect(reading.floors.p3[0].openings[0]).toMatchObject({ widthMm: 750, heightMm: 1800, sillMm: 300 });
   });
 
+  it("sizes nothing by a schedule whose page doesn't print the size it gave", async () => {
+    scheduleOn.page = 6;
+    /* the page prints the mark, not the 750 the read gave it */
+    scheduleOn.prints = false;
+    for (let i = 0; i < 3; i++) {
+      clock += 1_000;
+      await readPlan("org-1", "jplan_1", "https://app.test", client);
+    }
+    expect((plan().reading as { schedule?: unknown }).schedule).toBeUndefined();
+  });
+
   it("finds a window's mark beside it at its set's scale, where the floor prints none and measures 2% off it", async () => {
     scheduleOn.page = 6;
     /* the ground floor prints 1:50 @ A1 (17.52 mm a pixel); level 1 prints none and has its mark 51 px from its window */
     fullInNode.mockImplementationOnce(async (_b: Uint8Array, ns: readonly number[]) =>
-      ns.map((n) => ({ n, png: Buffer.from("png"), width: 2400, height: 1695, words: n === 3 ? [...words("PLAN"), ...words("SCALE"), ...words("1:50 @ A1")] : n === 4 ? [...words("PLAN"), { text: "GW.21", at: { x: 125, y: 151 } }] : words("PLAN") })),
+      ns.map((n) => ({ n, png: Buffer.from("png"), width: 2400, height: 1695, words: n === 3 ? [...words("PLAN"), ...words("SCALE"), ...words("1:50 @ A1")] : n === 4 ? [...words("PLAN"), { text: "GW.21", at: { x: 125, y: 151 } }] : n === scheduleOn.page ? printedSchedule() : words("PLAN") })),
     );
     /* level 1's dimension lines give 17.87 mm a pixel: on its own, 900 mm is 50.4 px, short of the mark; at its set's 1:50, 51.4 */
     readDimensions.mockImplementation(async (_o: string, sh: { floorId: string }) =>

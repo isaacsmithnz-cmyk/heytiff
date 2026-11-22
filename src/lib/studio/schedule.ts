@@ -146,22 +146,33 @@ export function checkedTag(o: ReadOpening, printed: readonly Word[], known: Read
   return seen.map((k) => by.find((w) => markKey(w.text) === k)!.text.trim()).join(" ");
 }
 
+/** How far from an opening the mark it carries may be printed, mm, wherever
+    a read tag is checked (here and gap-marks.ts): one reach, so a tag one
+    keeps the other doesn't take off and hand the opening another's mark. */
+export const TAG_CHECK_MM = 2000;
+/** How far from an untagged opening's middle a free mark may be printed to be given to it, mm. */
+const GIVE_MM = 900;
+
 /** Each read tag checked against the marks the plan prints by it (checkedTag,
-    within `reach`), and an opening left untagged (most doors, and a misread)
-    given the mark the plan prints nearest its middle, within `reach`, in the
-    sheet's pixels: 3570's door marks, LD.01 and GD.10, sit in boxes beside
-    each door. Each mark goes to the opening nearest it. An opening set in
-    its wall's gap was put there by its printed mark, or checked against the
+    within TAG_CHECK_MM), and an opening left untagged (most doors, and a
+    misread) given the mark the plan prints nearest its middle, within
+    GIVE_MM: 3570's door marks, LD.01 and GD.10, sit in boxes beside each
+    door. Each mark goes to the opening nearest it. An opening set in its
+    wall's gap was put there by its printed mark, or checked against the
     marks then (gap-marks.ts), and keeps its tag. A plan that prints none of
-    the schedule's marks as words (drawn as lines) has nothing to check a tag
-    by, and is left as read. */
-export function taggedFromWords(sheet: SheetReading, words: readonly Word[], items: readonly ScheduleItem[], reach: number): SheetReading {
+    the schedule's marks as words (drawn as lines, or only its types, which
+    can be bare figures like "03" printed anywhere) has nothing to check a
+    tag by, and its tags are left as read. `mmPerPx` is the sheet's scale. */
+export function taggedFromWords(sheet: SheetReading, words: readonly Word[], items: readonly ScheduleItem[], mmPerPx: number): SheetReading {
+  if (!(mmPerPx > 0)) return sheet;
   const known = new Set(items.flatMap((i) => [markKey(i.mark), ...(i.type ? [markKey(i.type)] : [])]));
   const printed = words.filter((w) => known.has(markKey(w.text)));
   if (!printed.length) return sheet;
+  const marked = new Set(items.map((i) => markKey(i.mark)));
+  const checking = printed.some((w) => marked.has(markKey(w.text)));
   const read = (sheet.openings ?? []).map((o): ReadOpening => {
-    if (!o.tag || o.inGap) return o;
-    const tag = checkedTag(o, printed, known, reach);
+    if (!o.tag || o.inGap || !checking) return o;
+    const tag = checkedTag(o, printed, known, TAG_CHECK_MM / mmPerPx);
     return tag === o.tag ? o : { ...o, tag };
   });
   /* a mark an opening already carries isn't another's */
@@ -174,7 +185,7 @@ export function taggedFromWords(sheet: SheetReading, words: readonly Word[], ite
     const mid = { x: (o.a.x + o.b.x) / 2, y: (o.a.y + o.b.y) / 2 };
     marks.forEach((w, j) => {
       const d = Math.hypot(w.at.x - mid.x, w.at.y - mid.y);
-      if (d <= reach) pairs.push({ o: i, w: j, d });
+      if (d <= GIVE_MM / mmPerPx) pairs.push({ o: i, w: j, d });
     });
   });
   pairs.sort((a, b) => a.d - b.d);

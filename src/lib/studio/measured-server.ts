@@ -371,7 +371,13 @@ function drawn(base: Buffer, f: Frame, walls: Walls, spaces: readonly ReadSpace[
 function leftOut(before: { spaces: readonly ReadSpace[]; problems: readonly Problem[] }, after: { spaces: readonly ReadSpace[] }): boolean {
   const key = (s: string) => s.trim().toLowerCase();
   const names = new Set(after.spaces.flatMap((s) => [s.name, ...s.name.split(/[,/&]/)].map(key)));
-  const faulted = (name: string) => before.problems.some((p) => key(p.room) === key(name) || p.said.includes(name));
+  /* a problem names its room, and a second only as rooms.ts words it ("A and B overlap.", "which is B's name."):
+     whole names, so a problem on "Bed 2" doesn't count against "Bed" */
+  const faulted = (name: string) =>
+    before.problems.some((p) => {
+      const said = key(p.said);
+      return key(p.room) === key(name) || said.startsWith(`${key(p.room)} and ${key(name)} overlap.`) || said.includes(`which is ${key(name)}'s name.`);
+    });
   return agreement(after.spaces, before.spaces).onlyB.some((n) => !names.has(key(n)) && !faulted(n));
 }
 

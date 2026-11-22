@@ -343,7 +343,7 @@ function ShoppingList({
                         const it = item(l.key);
                         return it ? (
                           <Line key={l.key} n={l.qty} name={l.title} sub={`${l.code ? `${l.code}, ` : ""}${forOf(it, l.jobs.map((j) => j.uuid), d.today)}`} busy={busy} onOpen={() => onOpen(it)}>
-                            <Button kind="quiet" size={32} disabled={busy} onClick={() => onTick(it)}>
+                            <Button kind="second" size={32} disabled={busy} onClick={() => onTick(it)}>
                               Mark in stock
                             </Button>
                           </Line>
@@ -379,7 +379,7 @@ function ShoppingList({
                     ) : (
                       <StateWord tone="info">{dues.length ? `Arrives ${dayWord(dues[dues.length - 1]!, d.today)}` : "Ordered"}</StateWord>
                     )}
-                    <Button kind="quiet" size={32} disabled={busy} onClick={() => onTick(it)}>
+                    <Button kind="second" size={32} disabled={busy} onClick={() => onTick(it)}>
                       Mark in stock
                     </Button>
                   </Line>
@@ -401,7 +401,7 @@ function ShoppingList({
                 return (
                   <Line key={it.key} n={it.inStock + it.had} name={it.title} sub={`${it.code ? `${it.code}, ` : ""}${forOf(it, holders, d.today)}`} busy={busy} onOpen={() => onOpen(it)}>
                     <StateWord tone="good">{had && !it.inStock ? hadWord(had.hadWhere!, had.hadWho) : "In stock"}</StateWord>
-                    <Button kind="quiet" size={32} disabled={busy} onClick={() => onTakeOff(it)}>
+                    <Button kind="second" size={32} disabled={busy} onClick={() => onTakeOff(it)}>
                       Take off
                     </Button>
                   </Line>
@@ -419,7 +419,7 @@ function ShoppingList({
                 return (
                   <Line key={it.key} n={null} name={it.title} sub={it.detail} busy={busy}>
                     {done ? <StateWord tone="good">In stock</StateWord> : null}
-                    <Button kind="quiet" size={32} disabled={busy} onClick={() => (done ? onTakeOff(it) : onTick(it))}>
+                    <Button kind="second" size={32} disabled={busy} onClick={() => (done ? onTakeOff(it) : onTick(it))}>
                       {done ? "Take off" : "Mark in stock"}
                     </Button>
                   </Line>

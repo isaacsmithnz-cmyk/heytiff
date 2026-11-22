@@ -187,10 +187,15 @@ describe("Systems", () => {
     /* the zones on no system and a system's name are read whole, wrapping
        instead of fading (Isaac, 22 November 2026: "check the web Studio for
        cut off text") */
-    expect(free).toHaveClass("wrap");
+    expect(free).toHaveClass("ds-stack-row-wrap");
     for (const sys of doc.systems) {
-      expect(screen.getByText(sys.name).closest(".ds-stack-row")).toHaveClass("wrap");
+      expect(screen.getByText(sys.name).closest(".ds-stack-row")).toHaveClass("ds-stack-row-wrap");
     }
+    /* never the bare `wrap`, which is the page's own wrapper (.fg .wrap):
+       it gave the row the page's padding (bug 72); its list of zones stops
+       at two lines, Zones showing them all */
+    expect(free).not.toHaveClass("wrap");
+    expect(within(free).getByText(/Robe/)).toHaveClass("ds-stack-clamp");
   });
 });
 

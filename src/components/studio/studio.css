@@ -10190,7 +10190,16 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
    edge (Isaac, 22 November 2026: "collapse should be horizontal", then
    "Build it" to https://claude.ai/artifact/7tdUEA4NkXE52kYpGPHFqn). Its
    256 is VIEW_PANEL_PX in view-3d.tsx, which centres the house beside it */
-.dstudio .ds3-view { position: absolute; top: 0; right: 0; bottom: 0; z-index: 12; width: 256px; overflow-y: auto; background: var(--paper); border-left: 1px solid var(--line); }
+/* A CARD, NOT A STRIP (bug 72, Isaac, 22 November 2026: "view button does
+   not pop out nicely, look at messy right panel", then "build 72" to
+   https://claude.ai/artifact/GZ7uwCyjRzSTBneZHpmAxs): white, the 16 corner
+   and the one shadow, 16 in from the picture's top and right, as tall as its
+   switches and clear of Tiff's pill at the foot; it slides out of its tab
+   and back at the panel's 280 */
+.dstudio .ds3-view { position: absolute; top: 16px; right: 16px; z-index: 12; width: 256px; max-height: calc(100% - 92px); overflow-y: auto; background: var(--paper); border-radius: var(--r-card); box-shadow: var(--shadow-overlay); animation: ds3-view-in var(--t-slide) var(--ease); }
+.dstudio .ds3-view.closing { animation: ds3-view-out var(--t-slide) var(--ease) forwards; }
+@keyframes ds3-view-in { from { transform: translateX(calc(100% + 16px)); } }
+@keyframes ds3-view-out { to { transform: translateX(calc(100% + 16px)); } }
 .dstudio .ds3-view-head { display: flex; align-items: center; gap: 8px; width: 100%; height: 56px; padding: 0 16px; border: 0; border-bottom: 1px solid var(--line); background: transparent; font: 600 14px/20px var(--font); color: var(--ink); cursor: pointer; }
 /* the word takes the room, so the chevron sits at the head's end (the icons wear spans too) */
 .dstudio .ds3-view-head .ds3-view-word { flex: 1; text-align: left; }
@@ -10206,11 +10215,15 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
 .dstudio .ds3-view-sun { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 8px; }
 .dstudio .ds3-view-sun .ds3-hour { flex: 1; width: auto; min-width: 0; }
 .dstudio .ds3-view-sun .ds3-time { min-width: 0; text-align: right; }
-.dstudio .ds3-view-tab { position: absolute; top: 24px; right: 0; z-index: 12; display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 16px 0 12px; border: 0; border-radius: 16px 0 0 16px; background: var(--paper); box-shadow: var(--shadow-overlay); font: 600 14px/20px var(--font); color: var(--ink); cursor: pointer; }
+.dstudio .ds3-view-tab { position: absolute; top: 24px; right: 0; z-index: 12; display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 16px 0 12px; border: 0; border-radius: 16px 0 0 16px; background: var(--paper); box-shadow: var(--shadow-overlay); font: 600 14px/20px var(--font); color: var(--ink); cursor: pointer; animation: ds3-tab-in var(--t-slide) var(--ease); }
+@keyframes ds3-tab-in { from { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) {
+  .dstudio .ds3-view,
+  .dstudio .ds3-view.closing,
+  .dstudio .ds3-view-tab { animation: none; }
+}
 .dstudio .ds3-view-head:focus-visible,
 .dstudio .ds3-view-tab:focus-visible { outline: none; box-shadow: var(--ring); }
-/* Tiff's pill steps left of the open panel */
-.dstudio .ds-editor.clean .ds-canvas-col:has(.ds3-view) .tc-ask { right: 272px; }
 .dstudio .ds3-none,
 .dstudio .ds3-empty p { margin: 0; font-size: 14px; line-height: 20px; color: var(--gray500); text-align: center; max-width: 48ch; }
 .dstudio .ds3-none { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; }
@@ -10460,8 +10473,15 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
    and the zones on no system, every one named, wrap instead of fading at a
    column's width (Isaac, 22 November 2026: "check the web Studio for cut off
    text") */
-.dstudio .ds-stack-row.wrap .ds-stack-row-t,
-.dstudio .ds-stack-row.wrap .ds-stack-row-s { white-space: normal; overflow-wrap: anywhere; }
+/* a row read whole. Its modifier was `wrap` until bug 72 (22 November
+   2026): the page's own `.fg .wrap` (shell.css) gave such a row the page's
+   32 of padding and 96 at its foot, so the zones on no system stood in a
+   tall thin column */
+.dstudio .ds-stack-row.ds-stack-row-wrap .ds-stack-row-t,
+.dstudio .ds-stack-row.ds-stack-row-wrap .ds-stack-row-s { white-space: normal; overflow-wrap: anywhere; }
+/* two lines of it, the second fading (rule 50): the zones on no system,
+   which Zones lists whole (bug 72) */
+.dstudio .ds-stack-row-s.ds-stack-clamp { max-height: 2lh; overflow: hidden; -webkit-mask-image: linear-gradient(#000 1lh, transparent 2lh); mask-image: linear-gradient(#000 1lh, transparent 2lh); }
 .dstudio .ds-stack-row-v { flex: 0 1 auto; max-width: 60%; font: 400 14px/20px var(--font); color: var(--q); text-align: right; }
 .dstudio .ds-stack-row-v.ok { color: var(--ok-t); font-weight: 600; }
 .dstudio .ds-stack-row-v.look { color: var(--warn-t); font-weight: 600; }

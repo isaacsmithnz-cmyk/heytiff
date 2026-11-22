@@ -1844,8 +1844,8 @@ function Editor({
      picking, and the plan's corner says so (Isaac, 2026-09-23 — it had
      started on its own, and the card said Done over nothing). A claim still
      running for another system ends, so it never runs on out of sight. */
-  const onAddSystem = useCallback(() => {
-    const made = newSystem(docRef.current, packVersion);
+  const onAddSystem = useCallback((livedOnFloor?: string) => {
+    const made = newSystem(docRef.current, packVersion, "", typeof livedOnFloor === "string" ? livedOnFloor : undefined);
     mutate(() => made.doc);
     setTool((t) => (t === "claim" ? "select" : t));
     setActiveSystemId(made.systemId);
@@ -2791,7 +2791,8 @@ function Editor({
                 setSystemOpen(true);
               }}
               onAddSystem={() => {
-                const id = onAddSystem();
+                /* the lived-in rooms on the floor you're on, on no system yet, come switched on */
+                const id = onAddSystem(activeFloorId ?? undefined);
                 setSystemOpen(true);
                 /* its zones, picked with a switch each or on the plan */
                 startClaim(id);

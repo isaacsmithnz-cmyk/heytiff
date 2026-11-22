@@ -13,6 +13,7 @@ import { newId, type DesignObject, type Floor, type Point } from "./document";
 import { isAxisAlignedRect, polygonArea } from "./geometry";
 import type { GlazingLevel, Orientation } from "./loads";
 import type { ReadOpening, ReadSpace, SheetReading } from "./reading";
+import { livedIn } from "./lived-in";
 
 export type Suggestion = {
   key: string;
@@ -32,10 +33,8 @@ export type Suggestion = {
 };
 
 /* The spaces an air conditioner usually serves come ticked; wet rooms,
-   cupboards, halls, stairs and outside come unticked. */
-const SERVED = /\b(bed|bedroom|master|guest|nursery|living|lounge|family|dining|meals|kitchen|study|office|rumpus|media|theatre|games|retreat|sitting|gym|studio|activity|playroom)\b/i;
-
-export const servedByDefault = (s: Pick<ReadSpace, "kind" | "name">) => s.kind === "room" && SERVED.test(s.name);
+   cupboards, halls, stairs and outside come unticked (lived-in.ts). */
+export const servedByDefault = (s: Pick<ReadSpace, "kind" | "name">) => s.kind === "room" && livedIn(s.name);
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 

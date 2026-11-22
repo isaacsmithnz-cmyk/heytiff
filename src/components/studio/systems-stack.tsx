@@ -343,13 +343,16 @@ export function SystemZones({
 }) {
   const [allOpen, setAllOpen] = useState(false);
   const sys = doc.systems.find((s) => s.id === systemId);
+  /* the zones on as the screen opened stand first (a new system's lived-in
+     rooms), so switching one off doesn't send it down the list */
+  const [first] = useState(() => new Set(sys ? zoneIdsOf(sys) : []));
   if (!sys) return null;
   const mine = new Set(zoneIdsOf(sys));
   const ownerOf = (id: string) => doc.systems.find((s) => s.id !== sys.id && zoneIdsOf(s).includes(id)) ?? null;
   const all = doc.objects
     .filter((o): o is RoomObj => o.type === "room")
     .map((z) => ({ z, kw: roomLoadKw(doc, z) }))
-    .sort((a, b) => (b.kw ?? 0) - (a.kw ?? 0));
+    .sort((a, b) => Number(first.has(b.z.id)) - Number(first.has(a.z.id)) || (b.kw ?? 0) - (a.kw ?? 0));
   const shown = all.filter((x) => allOpen || mine.has(x.z.id) || (x.kw ?? 0) >= SMALL_KW);
   const small = all.filter((x) => !shown.includes(x));
   const on = all.filter((x) => mine.has(x.z.id));

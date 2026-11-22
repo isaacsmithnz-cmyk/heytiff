@@ -347,15 +347,24 @@ describe("the roof void over each room", () => {
 
 /* A roof read off the roof plan's own lines (lib/studio/vector/roof.ts) */
 describe("the roof's own faces", () => {
-  it("rise at their pitch from the top of the wall, their overhang's fall lower at the eave line, with no rafter's depth guessed", () => {
+  it("rise at their pitch from a rafter's seat over the top of the wall, their overhang's fall lower at the eave line", () => {
     const d = design([floor("gf", 0)], { gf: [read("s-gf", [space("Lounge", "room", [0, 0, 400, 300])])] });
     const face = { floorId: "gf", sheetId: "s-gf", outline: [{ x: 0, y: -60 }, { x: 400, y: -60 }, { x: 400, y: 300 }, { x: 0, y: 300 }], pitchDeg: 45, fall: { x: 0, y: 1 }, eaveMm: 2700, overhangMm: 600, existing: false, page: 4 };
     const s = sceneOf({ ...d, reading: { ...d.reading!, roof: { levels: [], parts: [], raked: [], material: "", roofSpace: "", faces: [face] } } });
     expect(s.roofs).toHaveLength(1);
     const ys = s.roofs[0].faces.verts.map(([, y]) => y);
-    /* the eave line 600 mm out past the wall, at 45°: 600 mm under the wall's top of 2.7 m; 3.6 m up the fall to its top */
-    expect(Math.min(...ys)).toBeCloseTo(2.1, 3);
-    expect(Math.max(...ys)).toBeCloseTo(5.7, 3);
+    /* the eave line 600 mm out past the wall, at 45°: 600 mm under the wall's top of 2.7 m and a 140 mm rafter's seat (0.218 m at 45°); 3.6 m up the fall to its top */
+    const seat = 0.14 / Math.cos(Math.PI / 4) + 0.02;
+    expect(Math.min(...ys)).toBeCloseTo(2.1 + seat, 3);
+    expect(Math.max(...ys)).toBeCloseTo(5.7 + seat, 3);
+  });
+
+  it("of one roof sit on one seat, at the pitch most of them have, so faces of two pitches meet without a step", () => {
+    const d = design([floor("gf", 0)], { gf: [read("s-gf", [space("Lounge", "room", [0, 0, 400, 300])])] });
+    const at = (pitchDeg: number, x0: number) => ({ floorId: "gf", sheetId: "s-gf", outline: [{ x: x0, y: 0 }, { x: x0 + 100, y: 0 }, { x: x0 + 100, y: 100 }, { x: x0, y: 100 }], pitchDeg, fall: { x: 0, y: 1 }, eaveMm: 2700, overhangMm: 0, existing: false, page: 4 });
+    const s = sceneOf({ ...d, reading: { ...d.reading!, roof: { levels: [], parts: [], raked: [], material: "", roofSpace: "", faces: [at(40, 0), at(40, 100), at(20, 200)] } } });
+    const eaves = s.roofs.map((r) => Math.min(...r.faces.verts.map(([, y]) => y)));
+    expect(eaves[2]).toBeCloseTo(eaves[0], 6);
   });
 });
 

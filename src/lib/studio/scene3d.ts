@@ -4,7 +4,7 @@ import { ductPaint } from "./duct-size";
 import type { GrilleMount, GrilleStyle } from "./grilles";
 import { inside, type ReadPoint, type ReadSpace, type SheetReading, type SiteSurfaceKind, type SpaceKind } from "./reading";
 import { finishInside, roofFinishFor, stairFinishOf, type RoofFinish, type SurfaceFinish } from "./finishes";
-import { faceMesh, framingOf, roofHeightAt, roofMesh, type Member, type Mesh, type RoofRect } from "./roof3d";
+import { faceMesh, framingOf, roofHeightAt, roofMesh, seatAt, type Member, type Mesh, type RoofRect } from "./roof3d";
 import { riseOf } from "./vector/roof";
 import { frameOf, furnish, within, type Piece3D, type ReadPiece } from "./furnish3d";
 import { snapOpenings, waysIn } from "./tidy3d";
@@ -794,10 +794,24 @@ export function sceneOf(doc: DesignDocument, unitRow?: (model: string) => UnitRo
     roofs.push({ floorId: f.id, existing: part.existing, faces, fills, finish: roofFinishFor(part, roofRead?.material ?? "") });
   }
   /* THE ROOF'S OWN FACES (lib/studio/vector/roof.ts): each at its pitch from
-     the top of the wall under it, its overhang's fall lower at the eave line
-     the plan draws. No rafter's seat is added: it would be a rafter's depth
-     guessed, and one that differs with the pitch steps two faces of one
-     roof apart where they meet, at heights roof-place.ts checked without it */
+     the top of the wall under it, a rafter's seat above it as the read's
+     parts sit (seatOf), and its overhang's fall lower at the eave line the
+     plan draws. One seat for one roof (the faces one floor carries at one
+     eave), at its pitch most faces have: a seat that differed with each
+     face's pitch would step two faces apart where they meet, at heights
+     roof-place.ts checked as one. Without it the roof stood a rafter's depth
+     low (3570: median 0.46 m under the outside study's against 0.18) */
+  const seatOfRoof = new Map<string, number>();
+  {
+    const counts = new Map<string, Map<number, number>>();
+    for (const face of roofRead?.faces ?? []) {
+      const key = `${face.floorId}|${face.eaveMm}`;
+      const m = counts.get(key) ?? new Map<number, number>();
+      m.set(face.pitchDeg, (m.get(face.pitchDeg) ?? 0) + 1);
+      counts.set(key, m);
+    }
+    for (const [key, m] of counts) seatOfRoof.set(key, seatAt([...m].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0]));
+  }
   for (const face of roofRead?.faces ?? []) {
     const f = floorById.get(face.floorId);
     const floor = doc.floors.find((x) => x.id === face.floorId);
@@ -807,7 +821,7 @@ export function sceneOf(doc: DesignDocument, unitRow?: (model: string) => UnitRo
     const mv = shift(moves.get(f.id)!);
     const rise = riseOf(face.outline.map((p) => [p.x, p.y] as [number, number]), [face.fall.x, face.fall.y], face.pitchDeg);
     const t = Math.tan((face.pitchDeg * Math.PI) / 180);
-    const eave = f.y0 + face.eaveMm / 1000 - (face.overhangMm / 1000) * t;
+    const eave = f.y0 + face.eaveMm / 1000 + (seatOfRoof.get(`${face.floorId}|${face.eaveMm}`) ?? 0) - (face.overhangMm / 1000) * t;
     const pts = face.outline.map((p, i): [number, number, number] => {
       const [x, z] = mv([((sheet.x + p.x) * k) / 1000, ((sheet.y + p.y) * k) / 1000]);
       return [x, eave + (rise[i] * k) / 1000, z];

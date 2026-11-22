@@ -434,15 +434,19 @@ async function measureFloor(bytes: Uint8Array, p: JobPlanPage, deadline: number,
 
 /** At most this many pages are read for the roof's faces: a set's roof plans are a page or two. */
 const ROOF_PAGES = 3;
+/** When a run's roof faces must be started by, from its start: they take a few seconds (a 25-page set's words, 1.8 s), and the route is killed at 300 s. */
+const FACES_BY_MS = 270_000;
 
 /* THE ROOF OFF THE ROOF PLAN'S OWN LINES (lib/studio/vector/roof.ts,
    roof-place.ts): the pages that print three or more roof pitches, each read
    for the faces its lines close round them and set over the floors read.
    Only a floor drawn on a page the same size as the roof plan's is set
-   under it: the sheets' shared origin is what puts the faces in place. Any
-   page that doesn't read cleanly gives nothing, and the read's own roof
-   parts stand. Never fails the read. */
-async function roofFacesOf(bytes: Uint8Array, pages: readonly JobPlanPage[], reading: PlanReading): Promise<{ faces: NonNullable<NonNullable<PlanReading["roof"]>["faces"]>; left: number } | null> {
+   under it: the sheets' shared origin is what puts the faces in place. The
+   faces are the one page's that places most of them: a set's existing and
+   proposed roof plans would otherwise stand two roofs on the floors, one
+   through the other. Any page that doesn't read cleanly gives nothing, and
+   the read's own roof parts stand. Never fails the read. */
+export async function roofFacesOf(bytes: Uint8Array, pages: readonly JobPlanPage[], reading: PlanReading): Promise<{ faces: NonNullable<NonNullable<PlanReading["roof"]>["faces"]>; left: number } | null> {
   const roof = reading.roof;
   if (!roof) return null;
   const read = pages.filter((p) => p.kind === "floor" && reading.floors[pageKey(p.n)]?.length);
@@ -454,8 +458,7 @@ async function roofFacesOf(bytes: Uint8Array, pages: readonly JobPlanPage[], rea
     .filter((t) => t.pitches >= 3)
     .sort((a, b) => b.pitches - a.pitches)
     .slice(0, ROOF_PAGES);
-  const faces: NonNullable<NonNullable<PlanReading["roof"]>["faces"]> = [];
-  let left = 0;
+  let best: { faces: NonNullable<NonNullable<PlanReading["roof"]>["faces"]>; left: number } | null = null;
   for (const { n } of found) {
     const v = await vectorsInNode(bytes, n);
     const lines = roofLines({ lines: v.lines, words: v.words.map((w) => ({ text: w.text, at: { x: w.at.x / K, y: w.at.y / K } })), width: v.width, height: v.height });
@@ -486,10 +489,9 @@ async function roofFacesOf(bytes: Uint8Array, pages: readonly JobPlanPage[], rea
       console.log(`[job-plans] p${n} roof faces: ${placed.none}`);
       continue;
     }
-    faces.push(...placed.faces);
-    left += placed.left + lines.left.length;
+    if (!best || placed.faces.length > best.faces.length) best = { faces: placed.faces, left: placed.left + lines.left.length };
   }
-  return faces.length ? { faces, left } : null;
+  return best;
 }
 
 /** At most this many schedule sheets are read: a set's schedules are a page or two. */
@@ -1230,13 +1232,15 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
       const [roof, site] = await Promise.all([byThen(roofP), byThen(siteP)]);
       if (roof !== LATE && roof !== undefined) reading.roof = roof;
       /* the roof's faces off the roof plan's own lines, where it draws them so they read */
-      /* only with the run's time to spare: a read cut off by the route's limit loses everything with it */
-      if (reading.roof && isPdf && vectorOn() && !reading.roof.faces && Date.now() < until) {
-        const got = await roofFacesOf(new Uint8Array((await bytesOf()).bytes), pages, reading).catch((e) => {
-          console.error(`[job-plans] ${planId}/roof faces: ${String(e)}`);
-          return null;
-        });
-        if (got) reading.roof = { ...reading.roof, faces: got.faces, facesLeft: got.left };
+      if (reading.roof && isPdf && vectorOn() && !reading.roof.faces) {
+        /* by a time of their own, not the readers': they take seconds, and a read cut off by the route's limit loses everything with it */
+        if (Date.now() < started + FACES_BY_MS) {
+          const got = await roofFacesOf(new Uint8Array((await bytesOf()).bytes), pages, reading).catch((e) => {
+            console.error(`[job-plans] ${planId}/roof faces: ${String(e)}`);
+            return null;
+          });
+          if (got) reading.roof = { ...reading.roof, faces: got.faces, facesLeft: got.left };
+        } else console.log(`[job-plans] ${planId}: the roof's faces weren't read off the roof plan, the run was out of time`);
       }
       if (site !== LATE) reading.site = site;
       if ((roof === LATE || site === LATE) && !kept) {

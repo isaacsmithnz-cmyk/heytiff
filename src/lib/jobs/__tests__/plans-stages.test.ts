@@ -69,10 +69,17 @@ const fullInNode = jest.fn(async (_b: Uint8Array, ns: readonly number[]) => ns.m
 const pixelsInNode = jest.fn(async (_b: Uint8Array, n: number, times: number) => ({ n, rgba: new Uint8ClampedArray(4), width: n, height: 1, scale: times, words: [] }));
 /* the drawing file's shapes: none drawn as walls, unless a test gives a floor some */
 const fileFloors = new Map<number, { fills: Fill[]; words: { text: string; at: { x: number; y: number } }[] }>();
-const vectorsInNode = jest.fn(async (_b: Uint8Array, n: number) => ({ n, width: 400, height: 300, rasterScale: 2, fills: fileFloors.get(n)?.fills ?? [], words: fileFloors.get(n)?.words ?? [] }));
+/* a roof plan's lines and words in its points, on the pages a test draws one */
+const roofPages = new Map<number, { lines: Line[]; words: { text: string; at: { x: number; y: number } }[] }>();
+const vectorsInNode = jest.fn(async (_b: Uint8Array, n: number) => {
+  const roof = roofPages.get(n);
+  /* its words on the walls' grid, two pixels a point */
+  if (roof) return { n, width: 400, height: 300, rasterScale: 2, fills: [], lines: roof.lines, words: roof.words.map((w) => ({ text: w.text, at: { x: w.at.x * 2, y: w.at.y * 2 } })) };
+  return { n, width: 400, height: 300, rasterScale: 2, fills: fileFloors.get(n)?.fills ?? [], words: fileFloors.get(n)?.words ?? [] };
+});
 /* the set's pages' words: none a schedule, unless a test makes page 6 one */
 const scheduleOn = { page: 0 };
-const textsInNode = jest.fn(async (_b: Uint8Array, ns: readonly number[]) => ns.map((n) => ({ n, words: n === scheduleOn.page ? [{ text: "WINDOW SCHEDULE" }] : [{ text: "SECTION A" }] })));
+const textsInNode = jest.fn(async (_b: Uint8Array, ns: readonly number[]) => ns.map((n) => ({ n, words: roofPages.get(n)?.words ?? (n === scheduleOn.page ? [{ text: "WINDOW SCHEDULE" }] : [{ text: "SECTION A" }]) })));
 jest.mock("../plan-draw-node", () => ({
   textsInNode: (...a: unknown[]) => textsInNode(...(a as [Uint8Array, number[]])),
   vectorsInNode: (...a: unknown[]) => vectorsInNode(...(a as [Uint8Array, number])),
@@ -118,9 +125,12 @@ jest.mock("@/lib/studio/reading-server", () => ({
 const fetchMock = jest.fn(async () => new Response("{}"));
 global.fetch = fetchMock as unknown as typeof fetch;
 
-import type { Fill } from "@/lib/studio/vector/fills";
+import type { Fill, Line } from "@/lib/studio/vector/fills";
+import type { PlanReading } from "@/lib/studio/reading";
 import { roomWords, threeRooms } from "@/lib/studio/vector/__fixtures__/three-rooms";
-import { readPlan } from "../plans-server";
+import { hipRoof } from "@/lib/studio/vector/__fixtures__/hip-roof";
+import type { JobPlanPage } from "../plans";
+import { readPlan, roofFacesOf } from "../plans-server";
 
 const client = { beta: { messages: { create: jest.fn() } } } as never;
 const plan = () => tables.job_plans![0]!;
@@ -141,6 +151,7 @@ beforeEach(() => {
   readRoof.mockClear();
   scheduleOn.page = 0;
   fileFloors.clear();
+  roofPages.clear();
   /* off unless asked for; its own tests turn it on */
   delete process.env.PLANS_MEASURED;
   fetchMock.mockClear();
@@ -408,5 +419,77 @@ describe("a roof read that runs long", () => {
     expect(read.partial).toBeUndefined();
     expect(read.roof).toBeDefined();
     expect(Object.keys(read.floors).sort()).toEqual(["p2", "p3", "p4"]);
+  });
+});
+
+describe("the roof's faces off the roof plan's lines", () => {
+  const box = (x0: number, y0: number, x1: number, y1: number) => [
+    { x: x0, y: y0 },
+    { x: x1, y: y0 },
+    { x: x1, y: y1 },
+    { x: x0, y: y1 },
+  ];
+  const roof = { levels: [{ floorId: "p3", ceilingMm: 2700, floorZoneMm: 0, source: "Sections" }], parts: [], raked: [], material: "", roofSpace: "" };
+  /* the read's floors as far as the floors go, the roof read, and its run's time taken by them */
+  const readTaking = async (ms: number) => {
+    readSheet.mockImplementationOnce(async (_o: string, sh: { floorId: string }) => {
+      clock += ms;
+      return { sheetId: sh.floorId, spaces: [{ name: "Living", points: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }] }, { name: "Kitchen", points: [{ x: 100, y: 0 }, { x: 200, y: 0 }, { x: 200, y: 100 }] }] };
+    });
+    readRoof.mockImplementationOnce(async () => ({ said: null, ...roof }));
+    for (let i = 0; i < 3; i++) {
+      clock += 1_000;
+      await readPlan("org-1", "jplan_1", "https://app.test", client);
+    }
+  };
+
+  it("are looked for by a time of their own when the floors took the readers' time", async () => {
+    /* the roof plan on page 5, its lines not yet drawn to read */
+    roofPages.set(5, { lines: [], words: hipRoof().words });
+    await readTaking(240_000);
+    expect(vectorsInNode.mock.calls.map((c) => c[1])).toContain(5);
+    expect(plan().state).not.toBe("reading");
+  });
+
+  it("aren't looked for once the run is nearly out of time, and it says so", async () => {
+    roofPages.set(5, { lines: [], words: hipRoof().words });
+    const log = jest.spyOn(console, "log").mockImplementation(() => {});
+    await readTaking(275_000);
+    expect(vectorsInNode.mock.calls.map((c) => c[1])).not.toContain(5);
+    expect(log).toHaveBeenCalledWith(expect.stringContaining("the roof's faces weren't read off the roof plan, the run was out of time"));
+  });
+
+  it("are the one roof plan's that places most of them, never two plans' stood one through the other", async () => {
+    /* two roof plans of the one house: the first's east face can't be read at the height it meets its hips, the second's all can */
+    roofPages.set(5, hipRoof([30, 30, 30, 60]));
+    roofPages.set(6, hipRoof());
+    /* the ground floor on a page the roof plans' size, two pixels a point: a room inside walls 12.5 pt in from the eaves */
+    const ground: JobPlanPage = { n: 3, kind: "floor", name: "Ground floor", level: 0, ref: "org/org-1/p3.png", preview: null, width: 800, height: 600, mmPerPx: 17.5, scale: "1:100" };
+    const other = (n: number): JobPlanPage => ({ n, kind: "other", name: "", level: null, ref: null, preview: null, width: 800, height: 600, mmPerPx: null, scale: null });
+    const reading: PlanReading = {
+      at: "2026-11-23T00:00:00Z",
+      model: "m",
+      failed: [],
+      floors: {
+        p3: [
+          {
+            sheetId: "p3",
+            spaces: [{ name: "Living", named: true, kind: "room", outline: box(240, 240, 560, 360), written: "", existing: false, openTo: "", stair: "" }],
+            openings: [],
+            marks: [],
+            furniture: [],
+            checklist: [],
+            flags: [],
+            planUp: "",
+            walled: { grid: { x: [], y: [] }, rounds: 0, look: [], walls: [[box(224.5, 224.5, 575.5, 375.5), box(240, 240, 560, 360)]] },
+          },
+        ],
+      },
+      roof,
+    };
+    const got = await roofFacesOf(new Uint8Array(), [ground, other(5), other(6)], reading);
+    expect(got?.faces.map((f) => f.page)).toEqual([6, 6, 6, 6]);
+    /* 25 px in at 17.5 mm a pixel */
+    expect(got?.faces.every((f) => f.overhangMm === 438)).toBe(true);
   });
 });

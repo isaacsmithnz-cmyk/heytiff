@@ -24,3 +24,16 @@ describe("the quote on paper runs on past one page", () => {
     expect(rule![0]).toMatch(/overflow:\s*visible/);
   });
 });
+
+describe("where the quote's pages break", () => {
+  const rule = (sel: string) => css.match(new RegExp(`${sel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[^{]*\\{[^}]*\\}`))?.[0] ?? "";
+  it("never leaves a heading alone at a page's foot", () => {
+    expect(rule(".qpdf h3")).toMatch(/break-after:\s*avoid/);
+  });
+  it("keeps an option's price with its option", () => {
+    expect(rule(".qpdf .lp-price")).toMatch(/break-before:\s*avoid/);
+  });
+  it("never cuts a row, an item, a photo or the signing lines in two", () => {
+    expect(rule(".qpdf tr")).toMatch(/break-inside:\s*avoid/);
+  });
+});

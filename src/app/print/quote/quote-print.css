@@ -10,3 +10,12 @@
 .qpdf .lp-paper { max-width: none; border: 0; border-radius: 0; padding: 0; }
 .qpdf .lp-edit,
 .qpdf .lp-box .wb2-jqacts { display: none; }
+/* Where the pages break (Isaac, 22 November 2026: "Yes, fix breaks"). A
+   heading goes over with what it heads, never alone at a page's foot
+   ("Payment" on one page, its stages on the next); an option's price stays
+   with the option it prices; a row, an item, a photo, a note or the
+   signing lines are never cut in two. */
+.qpdf h3, .qpdf h4, .qpdf .lp-opt > header { break-after: avoid; }
+.qpdf .lp-price { break-before: avoid; break-inside: avoid; }
+.qpdf .lp-eq, .qpdf .lp-table { break-before: avoid; }
+.qpdf tr, .qpdf li, .qpdf figure, .qpdf .lp-note, .qpdf .lp-sign, .qpdf .lp-inc { break-inside: avoid; }

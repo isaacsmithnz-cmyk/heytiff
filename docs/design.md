@@ -739,6 +739,17 @@ to edit it from there using TIFF").
   plan's own, a pill on the plan at its top left as the tools are a pill at
   its foot. Zones Tiff found isn't in the bar: the column's Zones opens the
   same. A design on no job keeps its name in the bar, typed where it sits.
+- **The 3D's View is a panel down the picture's right** (Isaac, 22 November
+  2026: "change the buttons to blue switches on 3d", "no it should be a
+  collapsable on right side of canvas", "collapse should be horizontal", then
+  "Build it" to https://claude.ai/artifact/7tdUEA4NkXE52kYpGPHFqn). It is 256
+  wide and folds sideways into a "View" tab on the picture's edge, kept as it
+  was left on that browser. It holds a switch a row: each floor (any set of
+  them, the last one on staying on), Lift apart while two or more are on, then
+  Plans, Outside, Airflow, Roof space, Measure, Sun with its hour and Winter,
+  and Labels. Roof, Framing and Inside stay in the plan's pill. While it is
+  open the house centres beside it and Tiff's pill steps left of it; Back out
+  stands at the picture's foot. The phone has the same switches in a View menu.
 - **The column on the right is a phone's screens** (`systems-stack.tsx`,
   `rooms-panel.tsx`, `stack.tsx`), as mocked on
   https://claude.ai/artifact/6bStBGUPe4zXDMjWbuQ52d and, in the real sheets

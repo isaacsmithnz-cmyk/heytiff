@@ -2,6 +2,7 @@ import { after } from "next/server";
 import { auth0 } from "@/lib/auth0";
 import { authorised } from "@/lib/integrations/cron-auth";
 import { can } from "@/lib/permissions-server";
+import { readPhotographedPages } from "@/lib/tiff/after-ready";
 import { describeDrawings } from "@/lib/tiff/drawings-run";
 import { claimDocument, releaseLease, renewLease } from "@/lib/tiff/lease";
 
@@ -36,6 +37,8 @@ export async function POST(request: Request) {
       return;
     }
     try {
+      /* a manual photographed on the phone has its pages read first, so its drawings are found in their words */
+      await readPhotographedPages(documentId, org, () => renewLease(documentId, org));
       const r = await describeDrawings(documentId, org, () => renewLease(documentId, org)).catch((err: unknown) => ({ ok: false as const, error: err instanceof Error ? err.message : String(err) }));
       if (!r.ok) console.error(`[kb-drawings] ${documentId}: ${r.error}`);
     } finally {

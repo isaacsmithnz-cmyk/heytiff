@@ -108,11 +108,14 @@ export function wallsOf(fills: readonly Fill[], mmPerPt: number | null): Walls |
   /* every piece of the chosen colours stays, but one on its own that isn't
      wall-like: a legend's box, a section arrow, a title block's swatch */
   const pieces = chosen.flatMap((c) => c.g.pieces);
+  /* each ring's piece, the first made of it, kept by its ring: looked for along every piece for every ring, it slowed with the square of a sheet's shapes */
+  const pieceOf = new Map<Ring, Piece>();
+  for (const p of pieces) if (!pieceOf.has(p.ring)) pieceOf.set(p.ring, p);
   const shapes: Ring[][] = [];
   for (const c of chosen)
     for (const f of c.g.fills) {
       const keep = f.rings.filter((ring) => {
-        const p = pieces.find((q) => q.ring === ring);
+        const p = pieceOf.get(ring);
         if (!p || p.wall) return true;
         return pieces.some((q) => q !== p && near(p.box, q.box, thick * 0.5));
       });

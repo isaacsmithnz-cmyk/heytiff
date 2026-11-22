@@ -39,7 +39,8 @@ export function facesOf(lines: readonly Line[], fills: readonly Fill[], shortest
     const sorted = [...runs].sort((a, b) => a.at - b.at);
     const out: Band[] = [];
     for (let i = 0; i < sorted.length; i++)
-      for (let j = i + 1; j < sorted.length; j++) {
+      /* from a little short of a wall's thickness on: the lines at the same place across are passed over */
+      for (let j = Math.max(i + 1, first(sorted, (r) => r.at, sorted[i].at + lo / 2)); j < sorted.length; j++) {
         const d = sorted[j].at - sorted[i].at;
         if (d < lo) continue;
         if (d > hi) break;
@@ -52,14 +53,29 @@ export function facesOf(lines: readonly Line[], fills: readonly Fill[], shortest
   return { h: bands(h), v: bands(v) };
 }
 
+/* the first of `sorted` whose `key` is `v` or more, found by halving */
+function first<T>(sorted: readonly T[], key: (t: T) => number, v: number): number {
+  let lo = 0;
+  let hi = sorted.length;
+  while (lo < hi) {
+    const m = (lo + hi) >> 1;
+    if (key(sorted[m]) < v) lo = m + 1;
+    else hi = m;
+  }
+  return lo;
+}
+
 /* the face a side stands on: of the walls along most of it within `tol`
    (a wall's pieces either side of its doors and windows counted together),
    the nearest; of that wall's two faces, the one on the room's side.
    `room`: the way across the side the room lies, 1 toward the larger
-   coordinate, -1 toward the smaller */
-function nearest(bands: readonly Band[], at: number, from: number, to: number, tol: number, room: 1 | -1): number | null {
+   coordinate, -1 toward the smaller. `span`: the thickest wall's thickness,
+   so the walls too far short of the side to reach it are passed over
+   (every wall looked at for every side took half a second on a big sheet) */
+function nearest(bands: readonly Band[], span: number, at: number, from: number, to: number, tol: number, room: 1 | -1): number | null {
   const along = new Map<string, { a: number; b: number; len: number }>();
-  for (const w of bands) {
+  for (let i = first(bands, (w) => w.a, at - tol - 2 * span); i < bands.length; i++) {
+    const w = bands[i];
     if (w.a > at + tol) break;
     if (w.b < at - tol) continue;
     const len = Math.min(w.to, to) - Math.max(w.from, from);
@@ -86,6 +102,8 @@ function nearest(bands: readonly Band[], at: number, from: number, to: number, t
 export function snapped(spaces: readonly ReadSpace[], faces: Faces, pxPerPt: number, tol: number): { spaces: ReadSpace[]; moved: number; sides: number } {
   let moved = 0;
   let sides = 0;
+  const span = (bs: readonly Band[]) => bs.reduce((m, w) => Math.max(m, w.b - w.a), 0);
+  const [spanH, spanV] = [span(faces.h), span(faces.v)];
   const out = spaces.map((s) => {
     const pts = s.outline ?? [];
     const n = pts.length;
@@ -108,13 +126,13 @@ export function snapped(spaces: readonly ReadSpace[], faces: Faces, pxPerPt: num
       if (len <= 0) return null;
       if (Math.abs(b.y - a.y) <= len * 0.03) {
         sides++;
-        const y = nearest(faces.h, (a.y + b.y) / 2, Math.min(a.x, b.x), Math.max(a.x, b.x), tol, cw * (b.x - a.x) > 0 ? 1 : -1);
+        const y = nearest(faces.h, spanH, (a.y + b.y) / 2, Math.min(a.x, b.x), Math.max(a.x, b.x), tol, cw * (b.x - a.x) > 0 ? 1 : -1);
         if (y !== null) moved++;
         return y === null ? null : { y };
       }
       if (Math.abs(b.x - a.x) <= len * 0.03) {
         sides++;
-        const x = nearest(faces.v, (a.x + b.x) / 2, Math.min(a.y, b.y), Math.max(a.y, b.y), tol, cw * (a.y - b.y) > 0 ? 1 : -1);
+        const x = nearest(faces.v, spanV, (a.x + b.x) / 2, Math.min(a.y, b.y), Math.max(a.y, b.y), tol, cw * (a.y - b.y) > 0 ? 1 : -1);
         if (x !== null) moved++;
         return x === null ? null : { x };
       }

@@ -6,6 +6,7 @@ import { lineWalls } from "../lines";
 import { facesOf, snapped } from "../snap";
 import type { Line } from "../fills";
 import { roomWords, threeRooms, WALLS } from "../__fixtures__/three-rooms";
+import { generatedPlan } from "../__fixtures__/generated-plan";
 
 /* pdf.js's OPS numbers, as many as are read */
 const O: FillOps = { save: 10, restore: 11, transform: 12, paintFormXObjectBegin: 74, paintFormXObjectEnd: 75, setFillRGBColor: 59, setFillGray: 57, eoClip: 39, clip: 38, constructPath: 91, endPath: 28, fill: 22, eoFill: 23, fillStroke: 24, eoFillStroke: 25 };
@@ -296,5 +297,47 @@ describe("the walls themselves, and the gaps in them", () => {
     const shut = new Uint8Array(wall);
     for (let x = 4; x < 8; x++) shut[5 * W + x] = shut[6 * W + x] = 1;
     expect(gapsOf(wall, shut, W, W)).toEqual([{ a: [4, 6], b: [8, 6], t: 2 }]);
+  });
+});
+
+describe("a big sheet's walls, found by looking only near where they can be", () => {
+  /* WHAT EACH STEP GAVE BEFORE ITS SCANS LOOKED ONLY NEARBY, fingerprinted
+     (23 November 2026): a stair's treads were looked for along every line
+     for every wall, a side's wall along every wall, a ring's piece along
+     every piece; 50,000 lines took lineWalls nearly three seconds, now a
+     tenth of one. The same made-up sheets must give the same, to the last
+     digit: a fingerprint that changes is a read that changed */
+  const print = (v: unknown) => {
+    const s = JSON.stringify(v);
+    let h = 0x811c9dc5;
+    for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 0x01000193) >>> 0;
+    return h.toString(16);
+  };
+  it.each([
+    [8, { lines: "734899d9", unscaled: "d36ca6e7", faces: "6a8ea5fd", snapped: "ef86c046", fills: "396c7eb4", fillsUnscaled: "396c7eb4" }],
+    [30, { lines: "573778b", unscaled: "60c099ff", faces: "c0ee5055", snapped: "a490fa6", fills: "9e90d404", fillsUnscaled: "9e90d404" }],
+  ])("a plan %i rooms square, as before", (n, want) => {
+    const p = generatedPlan(n);
+    const faces = facesOf(p.lines, p.fills, 300 / 35.28, 70 / 35.28, 650 / 35.28);
+    expect({
+      lines: print(lineWalls(p.lines, 35.28)),
+      unscaled: print(lineWalls(p.lines, null)),
+      faces: print(faces),
+      snapped: print(snapped(p.rooms, faces, 2, 450 / 35.28)),
+      fills: print(wallsOf(p.fills, 35.28)),
+      fillsUnscaled: print(wallsOf(p.fills, null)),
+    }).toEqual(want);
+  });
+  it.each([
+    [3000, "b6ef4575", "f5a423f"],
+    [5000, "7a6ba69b", "3bdaa9b4"],
+  ])("%i lines strewn at random, as before", (n, lines, faces) => {
+    let seed = 7;
+    const r = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+    const strewn: Line[] = Array.from({ length: n }, () => {
+      const [x, y, l] = [r() * 2000, r() * 2000, 10 + r() * 190];
+      return { colour: "#000000", width: 0.5, a: [x, y], b: r() < 0.5 ? [x + l, y] : [x, y + l] };
+    });
+    expect([print(lineWalls(strewn, 35.28)), print(facesOf(strewn, [], 300 / 35.28, 70 / 35.28, 650 / 35.28))]).toEqual([lines, faces]);
   });
 });

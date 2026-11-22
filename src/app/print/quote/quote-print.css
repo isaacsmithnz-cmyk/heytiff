@@ -2,6 +2,11 @@
    and nothing a person edits with on screen. */
 @page { size: A4; margin: 14mm 12mm; }
 .qpdf { background: var(--paper); }
+/* The paper wears `.fg` for the tokens and the type, and `.fg` is the app's
+   window: fixed to the screen, cut at its edges. On paper that is one A4
+   page with everything past it gone, so a quote with a photo printed with
+   no price (22 November 2026). It runs on, page after page, as a document. */
+.fg.qpdf { position: static; inset: auto; display: block; overflow: visible; }
 .qpdf .lp-paper { max-width: none; border: 0; border-radius: 0; padding: 0; }
 .qpdf .lp-edit,
 .qpdf .lp-box .wb2-jqacts { display: none; }

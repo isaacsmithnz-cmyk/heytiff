@@ -71,3 +71,76 @@ it("an untagged door takes the schedule mark printed nearest it, each mark once,
   const out = taggedFromWords(doors, words, items, 40);
   expect(out.openings.map((o) => o.tag)).toEqual(["GW.22", "FW.01", ""]);
 });
+
+describe("a mark or a type listed twice", () => {
+  const twice = itemsOf(
+    {
+      items: [
+        { mark: "W1", type: "", kind: "window", width_mm: 600, height_mm: 1200, sill_mm: 900 },
+        { mark: "W1", type: "", kind: "window", width_mm: 2400, height_mm: 1200, sill_mm: 900 },
+        /* on two pages, one showing its sill */
+        { mark: "W2", type: "", kind: "window", width_mm: 1500, height_mm: 1200, sill_mm: 0 },
+        { mark: "W2", type: "", kind: "window", width_mm: 1500, height_mm: 1200, sill_mm: 900 },
+        { mark: "GW.31", type: "W.08", kind: "window", width_mm: 750, height_mm: 1800, sill_mm: 0 },
+        { mark: "GW.32", type: "W.08", kind: "window", width_mm: 1200, height_mm: 1800, sill_mm: 0 },
+      ],
+    },
+    24,
+  );
+  it("at two sizes sizes nothing, and at one size stands", () => {
+    const { sheet: out, matched } = withSchedule(sheet(["W1", "W2", "W.08"]), twice);
+    expect(matched).toBe(1);
+    expect(out.openings.map((o) => [o.widthMm, o.heightMm, o.sillMm])).toEqual([
+      [900, undefined, undefined],
+      [1500, 1200, 900],
+      [900, undefined, undefined],
+    ]);
+  });
+});
+
+it("keeps a size only where its schedule page prints the figure, when the page's words came with it", () => {
+  const raw = {
+    items: [
+      { mark: "W1", type: "", kind: "window", width_mm: 1800, height_mm: 1200, sill_mm: 900 },
+      { mark: "W2", type: "", kind: "window", width_mm: 2100, height_mm: 1350, sill_mm: 0 },
+      /* worked out, not printed */
+      { mark: "W3", type: "", kind: "window", width_mm: 2700, height_mm: 1200, sill_mm: 0 },
+    ],
+  };
+  const words = [{ text: "W1" }, { text: "1,800" }, { text: "1200H" }, { text: "W2" }, { text: "2100" }, { text: "W3" }, { text: "2 x 1350" }];
+  expect(itemsOf(raw, 4, words).map((i) => [i.mark, i.widthMm, i.heightMm, i.sillMm])).toEqual([
+    ["W1", 1800, 1200, 0],
+    ["W2", 2100, 1350, 0],
+  ]);
+  /* a page read with no words of its own is taken as read */
+  expect(itemsOf(raw, 4)).toHaveLength(3);
+});
+
+describe("a tag the read gave", () => {
+  /* the sheet's openings sit 0–50, 100–150 and 200–250 along y 0 */
+  const words = [
+    { text: "GW.21", at: { x: 25, y: -30 } },
+    { text: "FW.01", at: { x: 125, y: -30 } },
+    { text: "GW.22", at: { x: 900, y: -30 } },
+  ];
+  it("stands where the plan prints it by the opening; a misread gives way to the mark printed there", () => {
+    const out = taggedFromWords(sheet(["GW.21", "GW.22", "X9"]), words, items, 40);
+    expect(out.openings.map((o) => o.tag)).toEqual(["GW.21", "FW.01", "X9"]);
+    expect(withSchedule(out, items).sheet.openings.map((o) => o.widthMm)).toEqual([750, 1000, 900]);
+  });
+  it("keeps only what of it is printed by the opening", () => {
+    expect(taggedFromWords(sheet(["GW 21 W.05"]), words, items, 40).openings[0].tag).toBe("GW.21");
+  });
+  it("is left as read in a wall's gap, and where the plan prints none of the schedule's marks", () => {
+    const inGap = { ...sheet(["GW.21"]), openings: [{ ...sheet(["GW.21"]).openings[0], inGap: true }] };
+    expect(taggedFromWords(inGap, [{ text: "GW.21", at: { x: 25, y: -60 } }], items, 40).openings[0].tag).toBe("GW.21");
+    const bare = sheet(["GW.22"]);
+    expect(taggedFromWords(bare, [{ text: "LOUNGE", at: { x: 0, y: 0 } }], items, 40)).toBe(bare);
+  });
+});
+
+it("a mark printed between two untagged doors goes to the nearer, whichever was read first", () => {
+  const doors = { ...sheet(["", ""]), openings: sheet(["", ""]).openings.map((o) => ({ ...o, kind: "door" as const })) };
+  const out = taggedFromWords(doors, [{ text: "GW.21", at: { x: 90, y: 0 } }], items, 70);
+  expect(out.openings.map((o) => o.tag)).toEqual(["", "GW.21"]);
+});

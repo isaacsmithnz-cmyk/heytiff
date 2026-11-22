@@ -108,4 +108,42 @@ describe("the marks in the gaps", () => {
     ]);
     expect(taggedFromWords(s, [word("GW.01", 70, 5)], items, 90).openings[1].tag).toBe("");
   });
+
+  /* a set that marks its windows by type: W1 printed at each of six */
+  const W1 = itemsOf({ items: [{ mark: "W1", type: "", kind: "window", width_mm: 900, height_mm: 1200, sill_mm: 900 }] }, 25);
+  const six: WallGap[] = Array.from({ length: 6 }, (_, i) => ({ a: { x: i * 200, y: 0 }, b: { x: i * 200 + 90, y: 0 }, t: 20 }));
+  const onSix = (openings: ReadOpening[]): SheetReading => ({ ...sheet(openings), walled: { ...sheet().walled!, gaps: six } });
+
+  it("puts a mark printed at each of several windows in each one's gap, each keeping its read room", () => {
+    const read = six.map((g): ReadOpening => ({ kind: "window", tag: "W1", a: g.a, b: g.b, widthMm: 900, room: "Bed 1", external: true, facing: "N" }));
+    const { sheet: s, placed } = marksInGaps(onSix(read), six.map((g) => word("W1", g.a.x + 45, -50)), W1, MM);
+    expect(placed).toBe(6);
+    expect(s.openings.map((o) => o.a.x)).toEqual([0, 200, 400, 600, 800, 1000]);
+    expect(s.openings.every((o) => o.tag === "W1" && o.widthMm === 900 && o.room === "Bed 1" && o.inGap)).toBe(true);
+  });
+
+  it("takes a mark printed twice over itself as one, and one listed under a type as one opening", () => {
+    const long: WallGap[] = [{ a: { x: 0, y: 0 }, b: { x: 240, y: 0 }, t: 20 }];
+    const s = { ...sheet(), walled: { ...sheet().walled!, gaps: long } };
+    expect(marksInGaps(s, [word("W1", 120, -50), word("W1", 121, -50)], W1, MM).placed).toBe(1);
+    /* and a read GW.01 gives way to it, whichever print it sits by */
+    const read: ReadOpening = { kind: "window", tag: "GW.01", a: { x: 20, y: 0 }, b: { x: 120, y: 0 }, widthMm: 1000, room: "Lounge", external: true, facing: "N" };
+    const twice = marksInGaps(sheet([read]), [word("GW.01", 70, -70), word("GW.01", 270, -60)], items, MM);
+    expect([twice.placed, twice.sheet.openings.length]).toEqual([1, 1]);
+  });
+
+  it("lends a misread's room to what went in its gap, not to the mark it was misread as", () => {
+    /* read as GW.14 in the first gap, where the plan prints GW.01; GW.14 is printed by the second */
+    const misread: ReadOpening = { kind: "window", tag: "GW.14", a: { x: 30, y: 0 }, b: { x: 110, y: 0 }, widthMm: 700, room: "Study", external: true, facing: "N" };
+    const { sheet: s } = marksInGaps(sheet([misread]), [word("GW.01", 70, -70), word("GW.14", 370, -60)], items, MM);
+    const byTag = new Map(s.openings.map((o) => [o.tag, o]));
+    expect(byTag.get("GW.01")).toMatchObject({ room: "Study", a: { x: 20, y: 0 } });
+    expect(byTag.get("GW.14")).toMatchObject({ room: "Lounge" });
+    expect(s.openings).toHaveLength(2);
+  });
+
+  it("puts nothing in a gap for a mark the schedule lists at two sizes", () => {
+    const twice = itemsOf({ items: [...W1.map((i) => ({ mark: i.mark, type: "", kind: "window", width_mm: 600, height_mm: 1200, sill_mm: 900 })), { mark: "W1", type: "", kind: "window", width_mm: 900, height_mm: 1200, sill_mm: 900 }] }, 25);
+    expect(marksInGaps(sheet(), [word("W1", 70, -70)], twice, MM).placed).toBe(0);
+  });
 });

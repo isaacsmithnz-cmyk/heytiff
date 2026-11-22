@@ -1,4 +1,4 @@
-import { markKey, type ScheduleItem } from "./schedule";
+import { byMarkOf, checkedTag, markKey, offOpening, partsOf, type ScheduleItem } from "./schedule";
 import type { ReadOpening, ReadPoint, ReadSpace, SheetReading, WallGap } from "./reading";
 
 /* THE MARKS IN THE GAPS. Where a floor's drawing file draws its walls, every
@@ -27,6 +27,8 @@ const ROOM_FOR = 1.3;
 const FILLS = 0.77;
 /** a sliver of wall under this left at a gap's end is taken into the opening */
 const SLIVER_MM = 250;
+/** one mark printed this close to another of itself is the same print: no two openings' marks sit so close */
+const SAME_MM = 100;
 
 const INDOOR = new Set(["room", "wet", "cupboard", "garage", "circulation"]);
 const FACES = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"] as const;
@@ -81,17 +83,30 @@ function sidesOf(g: WallGap, mid: Pt, spaces: readonly ReadSpace[], planUp: stri
 }
 
 /** Each schedule mark printed on a walled floor put in the gap it sits by,
-    as the door or the window the schedule lists for it. The picture read's
-    openings that one stands for (by its mark, or by being in the same gap)
-    give way to it and lend it their room; the rest stay as read. `mmPerPx`
-    is the sheet's scale. */
+    as the door or the window the schedule lists for it: each printed mark
+    one door or window, so a set that marks its windows by type (W1 at each
+    of six) gets six, while a mark listed under a type of its own (GW.14,
+    type W.04) is one opening and goes in once. The picture read's tags are
+    checked against the marks printed by them first (schedule.ts
+    checkedTag). The picture read's openings one stands for (tagged with its
+    mark, printed nearest them, or in the same gap) give way to it and lend
+    it their room; the rest stay as read. `mmPerPx` is the sheet's scale. */
 export function marksInGaps(sheet: SheetReading, words: readonly Word[], items: readonly ScheduleItem[], mmPerPx: number): { sheet: SheetReading; placed: number } {
   const gaps = sheet.walled?.gaps ?? [];
   if (!gaps.length || !(mmPerPx > 0)) return { sheet, placed: 0 };
-  const byMark = new Map(items.filter((i) => i.widthMm > 0 && i.mark).map((i) => [markKey(i.mark), i]));
-  const marks = words.filter((w) => byMark.has(markKey(w.text)));
-  if (!marks.length) return { sheet, placed: 0 };
   const px = (mm: number) => mm / mmPerPx;
+  const byMark = byMarkOf(items);
+  const known = new Set(items.flatMap((i) => [markKey(i.mark), ...(i.type ? [markKey(i.type)] : [])]));
+  /* a mark printed twice over itself (a bold drawn as two) is one */
+  const printed: Word[] = [];
+  for (const w of words)
+    if (known.has(markKey(w.text)) && !printed.some((p) => markKey(p.text) === markKey(w.text) && Math.hypot(p.at.x - w.at.x, p.at.y - w.at.y) < px(SAME_MM))) printed.push(w);
+  if (!printed.length) return { sheet, placed: 0 };
+  const picture = (sheet.openings ?? []).map((o): ReadOpening => {
+    const tag = o.tag ? checkedTag(o, printed, known, px(REACH_MM)) : o.tag;
+    return tag === o.tag ? o : { ...o, tag };
+  });
+  const marks = printed.filter((w) => byMark.has(markKey(w.text)));
 
   /* every mark against every gap it could be in, nearest first */
   const pairs: { m: number; g: number; cost: number; t: number }[] = [];
@@ -106,31 +121,36 @@ export function marksInGaps(sheet: SheetReading, words: readonly Word[], items: 
     });
   });
   pairs.sort((a, b) => a.cost - b.cost);
+  const once = (it: ScheduleItem) => !!it.type && markKey(it.type) !== markKey(it.mark);
   const placedMark = new Set<string>();
   const usedWord = new Set<number>();
-  const held = new Map<number, { it: ScheduleItem; t: number }[]>();
+  const held = new Map<number, { it: ScheduleItem; t: number; m: number }[]>();
   for (const p of pairs) {
     const it = byMark.get(markKey(marks[p.m].text))!;
     const k = markKey(it.mark);
-    if (usedWord.has(p.m) || placedMark.has(k)) continue;
+    if (usedWord.has(p.m) || (once(it) && placedMark.has(k))) continue;
     const g = gaps[p.g];
     const len = Math.hypot(g.b.x - g.a.x, g.b.y - g.a.y);
     const mine = held.get(p.g) ?? [];
     if (mine.reduce((t, h) => t + px(h.it.widthMm), 0) + px(it.widthMm) > ROOM_FOR * len) continue;
-    mine.push({ it, t: p.t });
+    mine.push({ it, t: p.t, m: p.m });
     held.set(p.g, mine);
     usedWord.add(p.m);
     placedMark.add(k);
   }
-  if (!held.size) return { sheet, placed: 0 };
+  if (!held.size) return { sheet: { ...sheet, openings: picture }, placed: 0 };
 
-  /* the picture read's openings these stand for */
-  const picture = sheet.openings ?? [];
-  const partsOf = (tag: string) => {
-    const w = tag.split(/[\s/,]+/).filter(Boolean);
-    return [...w.slice(0, -1).map((x, i) => markKey(x + w[i + 1])), ...w.map(markKey)];
-  };
+  /* the picture read's openings these stand for: one tagged with a mark
+     (its tag checked) stands for that mark printed nearest it, or for the
+     one it went in as when it is one opening */
   const markOf = (o: ReadOpening) => partsOf(o.tag).find((p) => byMark.has(p));
+  const wordOf = (o: ReadOpening): number | undefined => {
+    const k = markOf(o);
+    if (!k) return undefined;
+    const of = marks.map((w, m) => ({ m, d: offOpening(w.at, o) })).filter(({ m }) => markKey(marks[m].text) === k);
+    const placed = once(byMark.get(k)!) ? of.find(({ m }) => usedWord.has(m)) : undefined;
+    return (placed ?? of.sort((a, b) => a.d - b.d)[0])?.m;
+  };
   const inGapOf = (o: ReadOpening): number | undefined => {
     const mid = { x: (o.a.x + o.b.x) / 2, y: (o.a.y + o.b.y) / 2 };
     for (const j of held.keys()) {
@@ -140,16 +160,16 @@ export function marksInGaps(sheet: SheetReading, words: readonly Word[], items: 
     return undefined;
   };
   const gone = new Set<number>();
-  const lender = new Map<string, ReadOpening>();
+  const lender = new Map<number, ReadOpening>();
   const lenderIn = new Map<number, ReadOpening[]>();
   picture.forEach((o, i) => {
-    const k = markOf(o);
-    if (k && placedMark.has(k)) {
+    const m = wordOf(o);
+    if (m !== undefined) {
+      if (!usedWord.has(m)) return; /* its mark is printed but found no gap: it stays as read */
       gone.add(i);
-      if (!lender.has(k)) lender.set(k, o);
+      if (!lender.has(m)) lender.set(m, o);
       return;
     }
-    if (k && byMark.has(k) && !placedMark.has(k)) return; /* its mark is printed but found no gap: it stays as read */
     const j = inGapOf(o);
     if (j === undefined) return;
     gone.add(i);
@@ -185,7 +205,7 @@ export function marksInGaps(sheet: SheetReading, words: readonly Word[], items: 
       const b = { x: g.a.x + u.x * s1, y: g.a.y + u.y * s1 };
       const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
       const listed = h.it.kind === "door" ? "door" : "window";
-      const from = lender.get(markKey(h.it.mark)) ?? by.find((o) => o.kind === listed) ?? by[0];
+      const from = lender.get(h.m) ?? by.find((o) => o.kind === listed) ?? by[0];
       /* the read's own word for it where it read this mark: a schedule lists a
          full-height pane with no sill among its doors as often as its windows
          (3570's GW.26, 1000 by 3000), and the glass is the room's either way */

@@ -6168,8 +6168,19 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    over the card's `.wb2-sheet.jc.jcl` (0,3,0). */
 .fg .wrap.jp { padding:24px 32px 96px; }
 .fg .wb2-sheet.jc.jp-sheet { position:static; inset:auto; width:auto; height:auto; min-height:0; max-height:none;
-  margin:0; padding:0; overflow:visible; border:0; border-radius:0; box-shadow:none; animation:none; background:var(--paper); 
+  margin:0; padding:0; overflow:visible; border:0; border-radius:0; box-shadow:none; animation:none; background:transparent;
   display:flex; flex-direction:column; align-items:stretch; gap:0; }
+/* A JOB'S PAGE STANDS ON GREY, its cards lifted white off it with the card
+   shadow (Isaac, 22 November 2026, "white on white on job cards is a bit hard
+   on the eye", then "just go lifted grey background", Grey, lifted on
+   https://claude.ai/artifact/YJ5aPKUeREGMCvU1RbtvHQ). The grey is the Quote
+   tab's ground, ink at 5% on the paper, laid solid under the whole page, the
+   top bar and the head that sticks while a tab scrolls too (`--jp-ground`);
+   the quote and invoice tabs (`.jp-doc`) keep their own ground. */
+.fg .main:has(.jp-sheet:not(.jp-doc)) { --jp-ground:color-mix(in srgb, var(--ink) 5%, var(--paper)); }
+.fg .main:has(.jp-sheet:not(.jp-doc)),
+.fg .main:has(.jp-sheet:not(.jp-doc)) .outlet,
+.fg .main:has(.jp-sheet:not(.jp-doc)) .topbar.fr-head { background:var(--jp-ground); }
 /* the card's open items (On this job) sit under the head, in the page's one column */
 .fg .jp-sheet > .wb2-jcatt { margin:16px 0 0; }
 .fg .jp-head { display:flex; flex-direction:column; gap:16px; }
@@ -6259,7 +6270,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    Isaac, 14 November 2026, calls 19 and 22, mock B): plain text at 16, no
    mark, wrapping when it's long, never faded */
 .fg .jp-desc { margin:12px 0 0; font-size:16px; line-height:24px; font-weight:400; color:var(--ink); overflow-wrap:anywhere; }
-.fg .wb2-sheet.jc.jp-sheet .wb2-jcbody { overflow:visible; border-top:0; border-radius:0; padding:24px 0 0; scrollbar-gutter:auto; background:var(--paper); }
+.fg .wb2-sheet.jc.jp-sheet .wb2-jcbody { overflow:visible; border-top:0; border-radius:0; padding:24px 0 0; scrollbar-gutter:auto; background:transparent; }
 /* Overview: the stages line, the strip of facts, then its two columns (job-overview.tsx) */
 .fg .jp-over { display:flex; flex-direction:column; gap:16px; }
 .fg .jp-over[hidden] { display:none; }
@@ -6943,8 +6954,16 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    D): its head and tabs stay at the top, the box at the card's foot, and the
    feed between them scrolls, oldest at the top, opening at the newest */
 .fg .jov--fit > .jov-side > .jov-sec.jc-convo { display:flex; flex-direction:column; overflow:hidden; padding-bottom:16px; }
-.fg .jc-convo > .jc-feed { flex:1 1 auto; min-height:0; overflow:auto; border-top:0; }
-.fg .jc-convo > .jc-foot { flex:none; margin:0; padding-top:12px; border-top:1px solid var(--line); }
+/* the feed fades at both ends rather than stopping at a line: 24 fade out
+   under its head and over its box, and 24 over its oldest item and under
+   its newest keep each whole at the ends (Isaac, 22 November 2026: "take
+   hard line under activity feed so feed doesnt look cut off. let it fade
+   up", then "top and bottom yeah?") */
+.fg .jc-convo > .jc-feed { flex:1 1 auto; min-height:0; overflow:auto; border-top:0; padding:24px 0;
+  -webkit-mask-image:linear-gradient(to bottom, transparent, var(--ink) 24px, var(--ink) calc(100% - 24px), transparent);
+  mask-image:linear-gradient(to bottom, transparent, var(--ink) 24px, var(--ink) calc(100% - 24px), transparent); }
+.fg .jc-convo > .jc-foot { flex:none; margin:0; padding-top:0; border-top:0; }
+.fg .jc-convo > .jc-feed > .jc-day:last-child > .jc-entry:last-child { border-bottom:0; }
 /* a To do in the feed: its tick, its words, who it's for and when; red once overdue (calls 6 and 7) */
 /* the feed's box on one row, as the mock draws it: the +, the words, then
    the microphone, Save and Tiff's ↑; a photo's chip above them */
@@ -6964,7 +6983,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 /* on a fitted tab the job's head stays put while a short window scrolls the
    cards under it (call 11, mock C) */
 .fg .wrap.jp:has(.jp-fit:not([hidden])) { padding-top:0; }
-.fg .wrap.jp:has(.jp-fit:not([hidden])) .jp-head { position:sticky; top:0; z-index:10; padding-top:24px; background:var(--paper); }
+.fg .wrap.jp:has(.jp-fit:not([hidden])) .jp-head { position:sticky; top:0; z-index:10; padding-top:24px; background:var(--jp-ground, var(--paper)); }
 /* THE FACTS CARD (job-facts.tsx): one card, its parts under hairlines */
 .fg .jfc { flex:none; display:flex; flex-direction:column; min-width:0; overflow:hidden; border-radius:var(--r-card); background:var(--paper); box-shadow:var(--shadow-card); }
 .fg .jfc-part { position:relative; display:flex; flex-direction:column; align-items:flex-start; gap:4px; min-width:0; padding:12px 16px; transition:background-color var(--t-fast) var(--ease); }

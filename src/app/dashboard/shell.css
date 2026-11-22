@@ -6954,12 +6954,14 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    D): its head and tabs stay at the top, the box at the card's foot, and the
    feed between them scrolls, oldest at the top, opening at the newest */
 .fg .jov--fit > .jov-side > .jov-sec.jc-convo { display:flex; flex-direction:column; overflow:hidden; padding-bottom:16px; }
-/* the feed fades up into the box rather than stopping at a line: its last
-   24 fade out over the box's head, and 24 under its newest item keep that
-   one whole at the foot (Isaac, 22 November 2026: "take hard line under
-   activity feed so feed doesnt look cut off. let it fade up") */
-.fg .jc-convo > .jc-feed { flex:1 1 auto; min-height:0; overflow:auto; border-top:0; padding-bottom:24px;
-  -webkit-mask-image:linear-gradient(to top, transparent, var(--ink) 24px); mask-image:linear-gradient(to top, transparent, var(--ink) 24px); }
+/* the feed fades at both ends rather than stopping at a line: 24 fade out
+   under its head and over its box, and 24 over its oldest item and under
+   its newest keep each whole at the ends (Isaac, 22 November 2026: "take
+   hard line under activity feed so feed doesnt look cut off. let it fade
+   up", then "top and bottom yeah?") */
+.fg .jc-convo > .jc-feed { flex:1 1 auto; min-height:0; overflow:auto; border-top:0; padding:24px 0;
+  -webkit-mask-image:linear-gradient(to bottom, transparent, var(--ink) 24px, var(--ink) calc(100% - 24px), transparent);
+  mask-image:linear-gradient(to bottom, transparent, var(--ink) 24px, var(--ink) calc(100% - 24px), transparent); }
 .fg .jc-convo > .jc-foot { flex:none; margin:0; padding-top:0; border-top:0; }
 .fg .jc-convo > .jc-feed > .jc-day:last-child > .jc-entry:last-child { border-bottom:0; }
 /* a To do in the feed: its tick, its words, who it's for and when; red once overdue (calls 6 and 7) */

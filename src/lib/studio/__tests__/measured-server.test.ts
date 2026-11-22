@@ -81,6 +81,18 @@ describe("a floor read by measure", () => {
     expect(out.spaces).toHaveLength(2);
   });
 
+  it("keeps her first answer when a look again leaves out a room no check found fault with, and takes one that renames a room", async () => {
+    let n = 0;
+    /* the store's corners aren't corners: dropping it and the bed reads as fewer problems */
+    const dropped: AskMeasured = async () => (++n === 1 ? { rooms: [LOUNGE, BED, room("Store", "nowhere")] } : { right_as_drawn: false, rooms: [LOUNGE] });
+    const kept = (await readMeasured(page(), 1, { floorName: "g", mmPerPx: 20, ask: dropped }))!;
+    expect([kept.rounds, kept.spaces.map((s) => s.name)]).toEqual([1, ["Lounge", "Bed"]]);
+    n = 0;
+    const renamed: AskMeasured = async () => (++n === 1 ? { rooms: [room("Lounge", "x0,y0 x2,y0 x2,y1 x0,y1"), BED] } : { right_as_drawn: false, rooms: [room("Living", "x0,y0 x1,y0 x1,y1 x0,y1"), BED] });
+    const fixed = (await readMeasured(page(), 1, { floorName: "g", mmPerPx: 20, ask: renamed }))!;
+    expect([fixed.rounds, fixed.spaces.map((s) => s.name)]).toEqual([2, ["Living", "Bed"]]);
+  });
+
   it("looks a third time when the second answer still fails a check, and not when its time is spent", async () => {
     const OVER = room("Lounge", "x0,y0 x2,y0 x2,y1 x0,y1");
     const answers = [{ rooms: [OVER, BED, room("Robe", "x0,y0 x1,y0 x1,y1 x0,y1")] }, { right_as_drawn: false, rooms: [OVER, BED] }, { right_as_drawn: false, rooms: [LOUNGE, BED] }];

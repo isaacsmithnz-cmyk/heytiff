@@ -125,26 +125,26 @@ it("says why the measured rooms are doubted when there is no picture read to fal
   expect(out.walled!.look.at(-1)!.said).toBe("The measured rooms are doubtful (3 of its 2 rooms overlapped or sat on no wall), and the read by picture failed, so there was nothing to check them against.");
 });
 
-describe("rooms read from the drawing file", () => {
+describe("rooms read from the drawing file, the picture read leading", () => {
   const unnamed = (x: number, y: number, kind: ReadSpace["kind"] = "room"): ReadSpace => ({ ...sq("Unnamed space", x, y, kind), named: false });
-  it("an unnamed one takes the name the picture read gives the room standing there", () => {
-    const pic = picture([sq("Lounge", 5, 5), sq("WC", 205, 5, "wet")]);
-    const out = withMeasured(pic, { ...measured([sq("Lounge", 0, 0), unnamed(200, 0)]), from: "file" }, "p2");
-    expect(out.spaces.map((s) => [s.name, s.kind, s.named])).toEqual([
-      ["Lounge", "room", true],
-      ["WC", "wet", true],
+  const file = (spaces: ReadSpace[]) => ({ ...measured(spaces), from: "file" as const });
+  it("each picture room takes the outline of the file's space that is plainly the same room, keeping its name", () => {
+    /* the file's Lounge 4 px off the picture's: the same room; its Bed 120 px off: not */
+    const out = withMeasured(picture([sq("Lounge", 5, 5), sq("Bed 1", 300, 0)]), file([unnamed(1, 1), sq("Bed", 420, 0)]), "p2");
+    expect(out.spaces.map((s) => [s.name, s.outline[0]])).toEqual([
+      ["Lounge", { x: 1, y: 1 }],
+      ["Bed 1", { x: 300, y: 0 }],
+      ["Bed", { x: 420, y: 0 }],
     ]);
   });
-  it("one still unnamed is dropped, a yard or a porch, unless it is cupboard-sized", () => {
-    const out = withMeasured(picture([sq("Lounge", 5, 5)]), { ...measured([sq("Lounge", 0, 0), unnamed(500, 0), unnamed(700, 0, "cupboard")]), from: "file" }, "p2");
-    expect(out.spaces.map((s) => [s.name, s.kind])).toEqual([
-      ["Lounge", "room"],
-      ["Unnamed space", "cupboard"],
-    ]);
+  it("a space only the file found is added when it has a name, never when it hasn't", () => {
+    const out = withMeasured(picture([sq("Lounge", 5, 5)]), file([sq("Lounge", 0, 0), sq("WC", 600, 0, "wet"), unnamed(900, 0)]), "p2");
+    expect(out.spaces.map((s) => s.name)).toEqual(["Lounge", "WC"]);
   });
-  it("the terrace, the void and the stair walls don't close off are the picture's", () => {
-    const pic = picture([sq("Lounge", 5, 5), sq("Terrace", 0, 300, "outdoor"), sq("Stair", 10, 10, "stair")]);
-    const out = withMeasured(pic, { ...measured([sq("Lounge", 0, 0)]), from: "file" }, "p2");
-    expect(out.spaces.map((s) => s.name)).toEqual(["Lounge", "Terrace", "Stair"]);
+  it("the picture's terrace, stair and hall stay as it drew them", () => {
+    const pic = picture([sq("Lounge", 5, 5), sq("Terrace", 0, 300, "outdoor"), sq("Stair", 10, 10, "stair"), sq("Hall", 600, 0, "circulation")]);
+    const out = withMeasured(pic, file([sq("Lounge", 0, 0)]), "p2");
+    expect(out.spaces.map((s) => s.name)).toEqual(["Lounge", "Terrace", "Stair", "Hall"]);
+    expect(out.openings).toHaveLength(1);
   });
 });

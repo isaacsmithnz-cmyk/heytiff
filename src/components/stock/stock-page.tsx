@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { Button } from "@/components/parts/button";
 import { Chooser } from "@/components/parts/chooser";
 import { Dialog } from "@/components/parts/dialog";
 import { Field, TextInput } from "@/components/parts/field";
 import { Fade } from "@/components/parts/fade";
-import { StateWord, type Tone } from "@/components/parts/state";
+import { Dot, StateWord, type Tone } from "@/components/parts/state";
 import { Tray, ViewTabs } from "@/components/parts/tabs";
 import { Tick } from "@/components/parts/tick";
 import { ToastProvider, useToast } from "@/components/parts/toast";
@@ -17,11 +17,11 @@ import { jobPageHref } from "@/lib/shell/links";
 import {
   allocate,
   dayWord,
-  dropsOf,
+  hadWord,
+  lateOf,
   openOf,
   orderedAfter,
   needWordOf,
-  rowWord,
   type HadWhere,
   type Item,
   type JobState,
@@ -85,37 +85,11 @@ function arrivals(today: string): { value: string; label: string }[] {
   return out;
 }
 
-/** "for 2845 Mon and 3449 Fri" */
-function forJobs(it: Item, today: string): string {
-  const words = it.jobs.map((j) => `${j.number ?? "a job"}${j.at ? ` ${dayWord(j.at, today)}` : ""}`);
-  return `for ${words.length > 1 ? `${words.slice(0, -1).join(", ")} and ${words[words.length - 1]}` : words[0]}`;
-}
-
 /** What to put back on Undo: each job's marks on these items as they are now. */
 const snapOf = (items: readonly Item[]) =>
   items.flatMap((it) =>
     it.jobs.map((j) => ({ uuid: j.uuid, key: it.group === "duct" ? "duct" : it.key, inStock: j.inStock, ordered: j.ordered, had: j.had, orderedTo: j.orderedTo, orderedDue: j.orderedDue, orderRef: j.orderRef, hadWhere: j.hadWhere, hadWho: j.hadWho })),
   );
-
-function TickButton({ state, label, onPress, busy }: { state: "on" | "part" | "off"; label: string; onPress: () => void; busy: boolean }) {
-  return (
-    <button
-      type="button"
-      role="checkbox"
-      aria-checked={state === "on" ? true : state === "part" ? "mixed" : false}
-      aria-label={label}
-      className={`stk-tick stk-tick--${state}`}
-      onClick={onPress}
-      disabled={busy}
-    >
-      {state === "on" ? (
-        <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M5 12l5 5 9-10" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      ) : null}
-    </button>
-  );
-}
 
 /** The phone's chevron at a row's end: the row opens something */
 function Chev() {
@@ -150,9 +124,6 @@ function Stock({ initial }: { initial: StockView }) {
   const [view, setView] = useState<StockView>(initial);
   const [busy, start] = useTransition();
   const [sheet, setSheet] = useState<Sheet | null>(null);
-  /* the jobs in each supplier's lot sent straight to site, and each drop's day */
-  const [sites, setSites] = useState<Set<string>>(new Set());
-  const [due, setDue] = useState<Record<string, string>>({});
   const p = params.get("week");
   const week: Week = p === "after" ? "after" : p === "later" ? "later" : "next";
   const tab: View = params.get("view") === "jobs" ? "jobs" : "list";
@@ -224,17 +195,16 @@ function Stock({ initial }: { initial: StockView }) {
         <ShoppingList
           d={d}
           busy={busy}
-          sites={sites}
-          due={due}
-          onSite={(job, on) => setSites((s) => new Set(on ? [...s, job] : [...s].filter((x) => x !== job)))}
-          onDue={(k, v) => setDue((x) => ({ ...x, [k]: v }))}
-          onTick={(it) => {
-            const all = it.covered >= it.need && it.inStock >= it.need;
-            send({ do: "instock", key: it.key, total: all ? 0 : null }, all ? `${it.title} back to order` : `${it.title} in stock`, snapOf([it]));
-          }}
+          onTick={(it) => send({ do: "instock", key: it.key, total: null }, `${it.title} in stock`, snapOf([it]))}
+          onTakeOff={(it) =>
+            send(
+              { do: "back", rows: snapOf([it]).map((r) => ({ ...r, inStock: 0, had: 0, hadWhere: null, hadWho: null })) },
+              `${it.title} taken off`,
+              snapOf([it]),
+            )
+          }
           onOpen={(it) => setSheet({ kind: "item", key: it.key })}
-          onMark={(s) => setSheet({ kind: "mark", supplier: s })}
-          onAddSite={(s, name) => setSheet({ kind: "site", supplier: s, name })}
+          onOrder={(s) => setSheet({ kind: "mark", supplier: s })}
           onTake={(j, i, name) => send({ do: "option", job: j, option: i }, `${name} accepted`)}
         />
       ) : (
@@ -261,21 +231,13 @@ function Stock({ initial }: { initial: StockView }) {
         <HadDialog it={item(sheet.key)!} busy={busy} onClose={() => setSheet(null)} onSave={(it, where, who) => send({ do: "had", key: it.key, where, who }, "Saved", snapOf([it]))} />
       ) : null}
       {d && sheet?.kind === "mark" ? (
-        <MarkDialog
+        <OrderFromDialog
           d={d}
           supplier={sheet.supplier}
-          sites={sites}
-          due={due}
           busy={busy}
           onClose={() => setSheet(null)}
-          onSave={(supplier, name, ref, n) => {
-            const o = d.orders.find((x) => x.supplierKey === supplier);
-            const its = d.items.filter((i) => o?.lines.some((l) => l.key === i.key));
-            const jobs = [...new Set((o?.lines ?? []).flatMap((l) => l.jobs.map((j) => j.uuid)))];
-            const siteDue: Record<string, string | null> = {};
-            for (const j of jobs.filter((x) => sites.has(x))) siteDue[j] = due[`${supplier}|${j}`] || null;
-            send({ do: "ordered", supplier, sites: jobs.filter((x) => sites.has(x)), due: { factory: due[`${supplier}|factory`] || null, sites: siteDue }, ref }, `${n} ordered from ${name}`, snapOf(its));
-          }}
+          onAddSite={(s, name) => setSheet({ kind: "site", supplier: s, name })}
+          onSave={(body, text, its) => send(body, text, snapOf(its))}
         />
       ) : null}
       {d && sheet?.kind === "bulk" ? (
@@ -296,154 +258,56 @@ function Stock({ initial }: { initial: StockView }) {
   );
 }
 
+/* THE SHOPPING LIST AS THE OFFICE READS IT (Isaac, 22 November 2026: "an
+   office person would look at this page and be very confused", then "Build
+   it" to https://claude.ai/artifact/UXdFUjx4mcwNsY3CSzh5Jc). Every unit and
+   control is in one place by what's left to do with it: To order, a lot for
+   each supplier with its one button; Ordered; In stock. A row's words open
+   its count; its one button says what it does. The panel beside it says
+   where the week is up to, and each job's word. */
+const and = (xs: string[]) => (xs.length > 1 ? `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}` : (xs[0] ?? ""));
+const uniq = <T,>(xs: T[]) => [...new Set(xs)];
+const plural = (n: number, one: string) => `${n} ${n === 1 ? one : `${one}s`}`;
+/** "for 2798 Tue and 3517 Wed", the jobs given, by when each wants it */
+function forOf(it: Item, uuids: readonly string[], today: string): string {
+  const words = it.jobs.filter((j) => uuids.includes(j.uuid)).map((j) => `${j.number ?? "a job"}${j.at ? ` ${dayWord(j.at, today)}` : ""}`);
+  return `for ${and(words)}`;
+}
+
 function ShoppingList({
   d,
   busy,
-  sites,
-  due,
-  onSite,
-  onDue,
   onTick,
+  onTakeOff,
   onOpen,
-  onMark,
-  onAddSite,
+  onOrder,
   onTake,
 }: {
   d: Ready;
   busy: boolean;
-  sites: ReadonlySet<string>;
-  due: Record<string, string>;
-  onSite: (job: string, on: boolean) => void;
-  onDue: (key: string, day: string) => void;
   onTick: (it: Item) => void;
+  onTakeOff: (it: Item) => void;
   onOpen: (it: Item) => void;
-  onMark: (supplier: string | null) => void;
-  onAddSite: (supplier: string, name: string) => void;
+  onOrder: (supplier: string | null) => void;
   onTake: (job: string, option: number, name: string) => void;
 }) {
-  const groups: [string, Item[]][] = [
-    ["Units", d.items.filter((i) => i.group === "unit")],
-    ["Controls and zoning", d.items.filter((i) => i.group === "control")],
-    ["Ductwork, suggested", d.items.filter((i) => i.group === "duct")],
-  ];
+  const firm = d.items.filter((i) => i.group !== "duct");
+  const ducts = d.items.filter((i) => i.group === "duct");
+  const ordered = firm.filter((i) => i.ordered > 0);
+  const got = firm.filter((i) => i.inStock + i.had > 0);
   const choose = d.jobs.filter((j) => j.choose);
-  const jobOf = new Map(d.jobs.map((j) => [j.job.uuid, j.job]));
-  const days = arrivals(d.today);
+  const item = (key: string) => d.items.find((i) => i.key === key);
   const nothing = !d.items.length && !choose.length && !d.noQuote.length && !d.noUnits.length;
   if (nothing) return <p className="stk-note">{d.jobs.length ? "Nothing’s needed that week: what’s booked needs it at a later visit." : "Nothing’s booked that week."}</p>;
+  const toOrder = d.orders.reduce((s, o) => s + o.lines.reduce((t, l) => t + l.qty, 0), 0);
+  const onOrderCount = ordered.reduce((s, i) => s + i.ordered, 0);
+  const inCount = got.reduce((s, i) => s + i.inStock + i.had, 0);
   return (
     <div className="stk-cols">
       <div className="stk-col">
-        {groups.map(([name, items]) =>
-          items.length ? (
-            <section key={name} className="stk-sec">
-              <h2>{name}</h2>
-              <ul className="stk-card">
-                {items.map((it) => {
-                  const all = it.inStock >= it.need;
-                  const part = !all && it.inStock + it.had > 0;
-                  const word = rowWord(it, d.today);
-                  return (
-                    <li key={it.key} className="stk-row">
-                      <TickButton state={all ? "on" : part ? "part" : "off"} label={`${it.title}: ${all ? "in stock" : "mark all in stock"}`} onPress={() => onTick(it)} busy={busy} />
-                      <button type="button" className="stk-mid stk-open" onClick={() => onOpen(it)} disabled={busy}>
-                        <span className="stk-w">
-                          <Fade className="stk-t">{it.title}</Fade>
-                          <Fade className="stk-s">{it.group === "duct" ? it.detail : `${it.code ?? it.detail}${part && it.open > 0 ? `, ${it.inStock + it.had} in` : ""}, ${forJobs(it, d.today)}`}</Fade>
-                        </span>
-                        {word ? <StateWord tone={word.tone}>{word.word}</StateWord> : <span className="stk-n">{it.need}</span>}
-                        <Chev />
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          ) : null,
-        )}
-      </div>
-      <div className="stk-col stk-col--side">
-        {d.orders.length ? (
-          <>
-            {d.orders.map((o) => {
-              const jobs = [...new Set(o.lines.flatMap((l) => l.jobs.map((j) => j.uuid)))];
-              const sk = o.supplierKey ?? "none";
-              const n = o.lines.reduce((s, l) => s + l.qty, 0);
-              return (
-                <section key={sk} className="stk-sec">
-                  <h2 className="stk-h2">
-                    <Fade>{`To order from ${o.supplierName}`}</Fade>
-                    <span>{`${n} ${n === 1 ? "item" : "items"}`}</span>
-                  </h2>
-                  <div className="stk-card">
-                    {dropsOf(o, sites).map((drop) => {
-                      const job = drop.site ? jobOf.get(drop.site) : null;
-                      const dk = `${o.supplierKey}|${drop.site ?? "factory"}`;
-                      return (
-                        <div key={dk} className="stk-drop">
-                          <div className="stk-droph">
-                            <span className="stk-w">
-                              <span className="stk-t">{job ? `To site, ${job.number ?? "a job"}` : "To the factory"}</span>
-                              {job?.address ? <Fade className="stk-s">{job.address}</Fade> : null}
-                            </span>
-                            <Chooser size={32} aria-label="Arrives" options={days} value={due[dk] ?? ""} onChange={(v) => onDue(dk, v)} placeholder="Arrives" />
-                          </div>
-                          <ul className="stk-lines">
-                            {drop.lines.map((l) => (
-                              <li key={l.key}>
-                                <span className="stk-n stk-n--s">{l.qty}</span>
-                                <Fade className="stk-li">
-                                  {l.code ?? l.title} {drop.site ? null : <span className="stk-q">for {l.jobs.map((j) => j.number ?? "a job").join(", ")}</span>}
-                                </Fade>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <h2 className="stk-h2 stk-h2--sub">Deliver to</h2>
-                  <ul className="stk-card stk-where">
-                    {jobs.map((u) => {
-                      const job = jobOf.get(u);
-                      return (
-                        <li key={u}>
-                          <Fade className="stk-t stk-t--plain">{job ? `${job.number ?? "A job"}, ${job.suburb ?? "its site"}` : "A job"}</Fade>
-                          <Tray<OrderedTo>
-                            ariaLabel={`Where ${job?.number ?? "this job"}'s part goes`}
-                            value={sites.has(u) ? "site" : "factory"}
-                            onChange={(v) => onSite(u, v === "site")}
-                            options={[
-                              { value: "factory", label: "Factory" },
-                              { value: "site", label: "Site" },
-                            ]}
-                          />
-                        </li>
-                      );
-                    })}
-                  </ul>
-                  <div className="stk-foot">
-                    {o.orderUrl ? (
-                      <Button kind="second" size={44} href={o.orderUrl} target="_blank" rel="noreferrer">
-                        Open their site
-                      </Button>
-                    ) : o.supplierKey ? (
-                      <Button kind="second" size={44} onClick={() => onAddSite(o.supplierKey!, o.supplierName)}>
-                        Add their site
-                      </Button>
-                    ) : null}
-                    <Button kind="second" size={44} disabled={busy} onClick={() => onMark(o.supplierKey)}>
-                      Mark ordered
-                    </Button>
-                  </div>
-                </section>
-              );
-            })}
-          </>
-        ) : null}
         {choose.length || d.noUnits.length || d.noQuote.length ? (
           <section className="stk-sec">
-            <h2 className="stk-h2 stk-h--look">To check before it’s on the list</h2>
+            <h2 className="stk-h--look">To check before it’s on the list</h2>
             <div className="stk-card">
               {choose.map((j) => (
                 <Choose key={j.job.uuid} j={j} busy={busy} onTake={onTake} />
@@ -453,8 +317,189 @@ function ShoppingList({
             </div>
           </section>
         ) : null}
+        {firm.length ? (
+          <section className="stk-sec">
+            <h2 className="stk-h--look">
+              <Dot hue="orange" />
+              To order
+            </h2>
+            {d.orders.length ? (
+              d.orders.map((o) => {
+                const n = o.lines.reduce((s, l) => s + l.qty, 0);
+                const jobs = uniq(o.lines.flatMap((l) => l.jobs.map((j) => j.number ?? "a job")));
+                return (
+                  <div key={o.supplierKey ?? "none"} className="stk-card">
+                    <div className="stk-sup">
+                      <span className="stk-w">
+                        <Fade className="stk-t">{o.supplierKey ? o.supplierName : "No supplier in the price book"}</Fade>
+                        <span className="stk-s">{`${plural(n, "item")} for ${and(jobs)}`}</span>
+                      </span>
+                      <Button kind="main" size={44} disabled={busy} onClick={() => onOrder(o.supplierKey)}>
+                        {o.supplierKey ? `Order from ${o.supplierName}` : "Order them"}
+                      </Button>
+                    </div>
+                    <ul>
+                      {o.lines.map((l) => {
+                        const it = item(l.key);
+                        return it ? (
+                          <Line key={l.key} n={l.qty} name={l.title} sub={`${l.code ? `${l.code}, ` : ""}${forOf(it, l.jobs.map((j) => j.uuid), d.today)}`} busy={busy} onOpen={() => onOpen(it)}>
+                            <Button kind="quiet" size={32} disabled={busy} onClick={() => onTick(it)}>
+                              Mark in stock
+                            </Button>
+                          </Line>
+                        ) : null;
+                      })}
+                    </ul>
+                  </div>
+                );
+              })
+            ) : (
+              <p className="stk-card stk-done">Nothing left to order for that week.</p>
+            )}
+          </section>
+        ) : null}
+        {ordered.length ? (
+          <section className="stk-sec">
+            <h2>
+              <Dot hue="grey" />
+              Ordered
+            </h2>
+            <ul className="stk-card">
+              {ordered.map((it) => {
+                const on = it.jobs.filter((j) => orderedAfter(j.need, j.inStock, j.ordered, j.had) > 0);
+                const late = it.jobs.find((j) => lateOf(j));
+                const dues = uniq(on.map((j) => j.orderedDue).filter((x): x is string => !!x)).sort();
+                const refs = uniq(on.map((j) => j.orderRef).filter((x): x is string => !!x));
+                const site = on.some((j) => j.orderedTo === "site");
+                const sub = [it.code, forOf(it, on.map((j) => j.uuid), d.today), refs.length ? `no. ${refs.join(", ")}` : null, site ? "to the site" : "to the factory"].filter(Boolean).join(", ");
+                return (
+                  <Line key={it.key} n={it.ordered} name={it.title} sub={sub} busy={busy} onOpen={() => onOpen(it)}>
+                    {late?.at ? (
+                      <StateWord tone="wrong">{`Due after ${dayWord(late.at, d.today)}`}</StateWord>
+                    ) : (
+                      <StateWord tone="info">{dues.length ? `Arrives ${dayWord(dues[dues.length - 1]!, d.today)}` : "Ordered"}</StateWord>
+                    )}
+                    <Button kind="quiet" size={32} disabled={busy} onClick={() => onTick(it)}>
+                      Mark in stock
+                    </Button>
+                  </Line>
+                );
+              })}
+            </ul>
+          </section>
+        ) : null}
+        {got.length ? (
+          <section className="stk-sec">
+            <h2 className="stk-h--good">
+              <Dot hue="green" />
+              In stock
+            </h2>
+            <ul className="stk-card">
+              {got.map((it) => {
+                const had = it.jobs.find((j) => j.had > 0 && j.hadWhere);
+                const holders = it.jobs.filter((j) => j.inStock + j.had > 0).map((j) => j.uuid);
+                return (
+                  <Line key={it.key} n={it.inStock + it.had} name={it.title} sub={`${it.code ? `${it.code}, ` : ""}${forOf(it, holders, d.today)}`} busy={busy} onOpen={() => onOpen(it)}>
+                    <StateWord tone="good">{had && !it.inStock ? hadWord(had.hadWhere!, had.hadWho) : "In stock"}</StateWord>
+                    <Button kind="quiet" size={32} disabled={busy} onClick={() => onTakeOff(it)}>
+                      Take off
+                    </Button>
+                  </Line>
+                );
+              })}
+            </ul>
+          </section>
+        ) : null}
+        {ducts.length ? (
+          <section className="stk-sec">
+            <h2>Ductwork, suggested</h2>
+            <ul className="stk-card">
+              {ducts.map((it) => {
+                const done = it.inStock >= it.need;
+                return (
+                  <Line key={it.key} n={null} name={it.title} sub={it.detail} busy={busy}>
+                    {done ? <StateWord tone="good">In stock</StateWord> : null}
+                    <Button kind="quiet" size={32} disabled={busy} onClick={() => (done ? onTakeOff(it) : onTick(it))}>
+                      {done ? "Take off" : "Mark in stock"}
+                    </Button>
+                  </Line>
+                );
+              })}
+            </ul>
+          </section>
+        ) : null}
+      </div>
+      <div className="stk-col stk-col--side">
+        <section className="stk-sec">
+          <h2>{d.week === "after" ? "The week after" : "Next week"}</h2>
+          <ul className="stk-card">
+            <li className="stk-state">
+              <Dot hue="orange" />
+              <b>To order</b>
+              <strong>{toOrder}</strong>
+            </li>
+            <li className="stk-state">
+              <Dot hue="grey" />
+              <b>Ordered</b>
+              <strong>{onOrderCount}</strong>
+            </li>
+            <li className="stk-state">
+              <Dot hue="green" />
+              <b>In stock</b>
+              <strong>{inCount}</strong>
+            </li>
+          </ul>
+        </section>
+        {d.jobs.length ? (
+          <section className="stk-sec">
+            <h2>The jobs</h2>
+            <ul className="stk-card">
+              {d.jobs.map((j) => {
+                const short = j.needs.find((n) => n.group !== "duct" && n.inStock < n.need);
+                const state = j.state === "in" && short ? needWordOf(short, d.today) : STATE[j.state];
+                return (
+                  <li key={j.job.uuid}>
+                    <Link className="stk-jobrow" href={jobPageHref(j.job.uuid)}>
+                      <JobNumber job={j.job} />
+                      <span className="stk-w">
+                        <Fade className="stk-t">{j.job.client ?? j.job.suburb ?? "A job"}</Fade>
+                        <Fade className="stk-s">{[j.job.kind, j.job.firstAt ? whenOf(j.job.firstAt) : "not booked"].filter(Boolean).join(", ")}</Fade>
+                      </span>
+                      {state ? <StateWord tone={state.tone}>{state.word}</StateWord> : null}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        ) : null}
       </div>
     </div>
+  );
+}
+
+/** A row on the list: how many, its name and line (which open its count), then its word and one button. */
+function Line({ n, name, sub, busy, onOpen, children }: { n: number | null; name: string; sub: string; busy: boolean; onOpen?: () => void; children: ReactNode }) {
+  const words = (
+    <>
+      {n === null ? null : <span className="stk-n">{n}</span>}
+      <span className="stk-w">
+        <Fade className="stk-t">{name}</Fade>
+        <Fade className="stk-s">{sub}</Fade>
+      </span>
+    </>
+  );
+  return (
+    <li className="stk-row stk-line">
+      {onOpen ? (
+        <button type="button" className="stk-mid stk-open" onClick={onOpen} disabled={busy}>
+          {words}
+        </button>
+      ) : (
+        <span className="stk-mid stk-mid--static stk-open">{words}</span>
+      )}
+      {children}
+    </li>
   );
 }
 
@@ -817,64 +862,145 @@ function HadDialog({ it, busy, onClose, onSave }: { it: Item; busy: boolean; onC
   );
 }
 
-function MarkDialog({
+/** Order from a supplier: one sheet for its whole lot. What's ordered (all
+    ticked to begin with), where each job's part goes, the day it lands and
+    their order number, then Mark ordered. A lot with no supplier in the price
+    book asks who it's from first. */
+function OrderFromDialog({
   d,
   supplier,
-  sites,
-  due,
   busy,
   onClose,
+  onAddSite,
   onSave,
 }: {
   d: Ready;
   supplier: string | null;
-  sites: ReadonlySet<string>;
-  due: Record<string, string>;
   busy: boolean;
   onClose: () => void;
-  onSave: (supplier: string | null, name: string, ref: string | null, n: number) => void;
+  onAddSite: (supplier: string, name: string) => void;
+  onSave: (body: Record<string, unknown>, text: string, undo: Item[]) => void;
 }) {
-  const [ref, setRef] = useState("");
   const o = d.orders.find((x) => x.supplierKey === supplier);
+  const [pick, setPick] = useState<Set<string>>(() => new Set(o?.lines.map((l) => l.key) ?? []));
+  const [sites, setSites] = useState<Set<string>>(new Set());
+  const [due, setDue] = useState("");
+  const [ref, setRef] = useState("");
+  const [from, setFrom] = useState("");
   if (!o) return null;
   const jobOf = new Map(d.jobs.map((j) => [j.job.uuid, j.job]));
-  const drops = dropsOf(o, sites);
-  const n = o.lines.reduce((s, l) => s + l.qty, 0);
+  const lines = o.lines.filter((l) => pick.has(l.key));
+  const n = lines.reduce((s, l) => s + l.qty, 0);
+  const jobs = uniq(lines.flatMap((l) => l.jobs.map((j) => j.uuid)));
+  const all = uniq(o.lines.flatMap((l) => l.jobs.map((j) => j.number ?? "a job")));
+  /* who it could be from: every supplier the week's price book and lots name */
+  const known = new Map<string, string>();
+  for (const x of d.orders) if (x.supplierKey) known.set(x.supplierKey, x.supplierName);
+  for (const ps of Object.values(d.prices)) for (const p of ps) known.set(p.supplierKey, p.name);
+  const fromName = supplier ? o.supplierName : known.get(from) ?? null;
   return (
     <Dialog
-      heading={`Mark ordered from ${o.supplierName}`}
+      heading={supplier ? `Order from ${o.supplierName}` : "Order them"}
       onClose={onClose}
-      width={400}
+      width={560}
       foot={
         <>
           <Button kind="second" size={36} onClick={onClose}>
             Cancel
           </Button>
-          <Button kind="main" size={36} disabled={busy} onClick={() => onSave(supplier, o.supplierName, ref || null, n)}>
+          <Button
+            kind="main"
+            size={36}
+            disabled={busy || n === 0}
+            onClick={() => {
+              const toSite = jobs.filter((u) => sites.has(u));
+              const siteDue: Record<string, string | null> = {};
+              for (const u of toSite) siteDue[u] = due || null;
+              onSave(
+                { do: "ordered", supplier, keys: lines.map((l) => l.key), from: supplier ? null : from || null, sites: toSite, due: { factory: due || null, sites: siteDue }, ref: ref || null },
+                `${n} ordered${fromName ? ` from ${fromName}` : ""}`,
+                d.items.filter((i) => pick.has(i.key)),
+              );
+            }}
+          >
             {`Mark ${n} ordered`}
           </Button>
         </>
       }
     >
-      <ul className="stk-share">
-        {drops.map((drop) => {
-          const job = drop.site ? jobOf.get(drop.site) : null;
-          const day = due[`${supplier}|${drop.site ?? "factory"}`];
-          const count = drop.lines.reduce((s, l) => s + l.qty, 0);
-          return (
-            <li key={drop.site ?? "factory"} className="stk-share--2">
-              <span className="stk-mid stk-mid--static">
-                <span className="stk-t">{job ? `To site, ${job.address ?? job.suburb ?? "its address"}` : "To the factory"}</span>
-                <span className="stk-s">{`${count} for ${[...new Set(drop.lines.flatMap((l) => l.jobs.map((j) => j.number ?? "a job")))].join(", ")}`}</span>
-              </span>
-              <StateWord tone="info">{day ? dayWord(day, d.today) : "Not said"}</StateWord>
+      <div className="stk-ofd">
+      <p className="stk-dsub">{`${plural(o.lines.reduce((s, l) => s + l.qty, 0), "item")} for ${and(all)}`}</p>
+      {supplier ? null : (
+        <Field label="From">
+          <Chooser options={[{ value: "", label: "Not said" }, ...[...known].map(([value, label]) => ({ value, label }))]} value={from} onChange={setFrom} />
+        </Field>
+      )}
+      <div className="stk-fld">
+        <span className="stk-lbl">What you’re ordering</span>
+        <ul className="stk-share">
+          {o.lines.map((l) => (
+            <li key={l.key} className="stk-share--2">
+              <Tick
+                checked={pick.has(l.key)}
+                onChange={(on) => setPick((p) => new Set(on ? [...p, l.key] : [...p].filter((x) => x !== l.key)))}
+                label={
+                  <span className="stk-mid stk-mid--static">
+                    <span className="stk-t">{`${l.qty} x ${l.code ?? l.title}`}</span>
+                    <span className="stk-s">{`${l.code ? `${l.title}, ` : ""}for ${and(l.jobs.map((j) => j.number ?? "a job"))}`}</span>
+                  </span>
+                }
+              />
             </li>
-          );
-        })}
-      </ul>
-      <Field label="Their order number">
-        <TextInput value={ref} onChange={(e) => setRef(e.currentTarget.value.slice(0, 60))} autoFocus />
+          ))}
+        </ul>
+      </div>
+      {jobs.length ? (
+        <div className="stk-fld">
+          <span className="stk-lbl">Deliver to</span>
+          <ul className="stk-share">
+            {jobs.map((u) => {
+              const job = jobOf.get(u);
+              return (
+                <li key={u} className="stk-share--2">
+                  <span className="stk-mid stk-mid--static">
+                    <span className="stk-t">{job?.number ?? "A job"}</span>
+                    <span className="stk-s">{job?.address ?? job?.suburb ?? ""}</span>
+                  </span>
+                  <Tray<OrderedTo>
+                    ariaLabel={`Where ${job?.number ?? "this job"}'s part goes`}
+                    value={sites.has(u) ? "site" : "factory"}
+                    onChange={(v) => setSites((s) => new Set(v === "site" ? [...s, u] : [...s].filter((x) => x !== u)))}
+                    options={[
+                      { value: "factory", label: "Factory" },
+                      { value: "site", label: "Site" },
+                    ]}
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : null}
+      <Field label="Arrives">
+        <Chooser options={arrivals(d.today)} value={due} onChange={setDue} />
       </Field>
+      <Field label="Their order number">
+        <TextInput value={ref} onChange={(e) => setRef(e.currentTarget.value.slice(0, 60))} />
+      </Field>
+      {o.orderUrl ? (
+        <div className="stk-askrow stk-site">
+          <Button kind="second" size={36} href={o.orderUrl} target="_blank" rel="noreferrer">
+            {`Open ${o.supplierName}’s site`}
+          </Button>
+        </div>
+      ) : supplier ? (
+        <div className="stk-askrow stk-site">
+          <Button kind="second" size={36} onClick={() => onAddSite(supplier, o.supplierName)}>
+            Add their site
+          </Button>
+        </div>
+      ) : null}
+      </div>
     </Dialog>
   );
 }

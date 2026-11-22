@@ -707,7 +707,8 @@ async function measurePages(orgId: string, pages: readonly JobPlanPage[], photo:
       /* a page somebody set the scale on has nothing left to look for */
       if (p.kind !== "floor" || !p.ref || p.mmPerPx || p.set || p.measured !== undefined) return p;
       try {
-        const dims = await readDimensions(orgId, { floorId: pageKey(p.n), floorName: p.name || `Page ${p.n}`, sheetId: pageKey(p.n), ref: p.ref, ...(p.trim ? { crop: p.trim } : {}), mmPerPx: null, photo });
+        /* with its own words where the file has them: a figure is kept only where it is printed */
+        const dims = await readDimensions(orgId, { floorId: pageKey(p.n), floorName: p.name || `Page ${p.n}`, sheetId: pageKey(p.n), ref: p.ref, ...(p.trim ? { crop: p.trim } : {}), mmPerPx: null, photo, ...(p.words?.length ? { words: p.words } : {}) });
         return { ...p, measured: scaleFromDimensions(dims, p) };
       } catch (e) {
         console.error(`[job-plans] page ${p.n} dimensions: ${String(e)}`);
@@ -1128,6 +1129,8 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
         ...(p.trim ? { crop: p.trim } : {}),
         mmPerPx: p.mmPerPx,
         photo,
+        /* its names, sizes and marks are what its own words print (a photo has none) */
+        ...(p.words?.length ? { words: p.words } : {}),
       }));
       const pdf = plan.sourceKind === "pdf" ? sourceRef : null;
       const first = Math.max(0, floors[0].n - 1);

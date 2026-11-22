@@ -12,6 +12,7 @@ import { StateWord, type Tone } from "@/components/parts/state";
 import { Tray, ViewTabs } from "@/components/parts/tabs";
 import { Tick } from "@/components/parts/tick";
 import { ToastProvider, useToast } from "@/components/parts/toast";
+import { Icon } from "@/components/shell/icon";
 import { jobPageHref } from "@/lib/shell/links";
 import {
   allocate,
@@ -116,6 +117,15 @@ function TickButton({ state, label, onPress, busy }: { state: "on" | "part" | "o
   );
 }
 
+/** The phone's chevron at a row's end: the row opens something */
+function Chev() {
+  return (
+    <span className="stk-ch" aria-hidden="true">
+      <Icon name="chevR" size={16} />
+    </span>
+  );
+}
+
 function JobNumber({ job }: { job: Pick<StockJob, "hue" | "number"> }) {
   return <span className={`stk-num sc-card--${job.hue}`}>{job.number ?? "Job"}</span>;
 }
@@ -176,29 +186,34 @@ function Stock({ initial }: { initial: StockView }) {
     <div className="stk">
       <header className="stk-head">
         <h1>Stock</h1>
-        <Tray
-          ariaLabel="Which weeks"
-          value={week}
-          onChange={(w) => go({ week: w })}
-          options={[
-            { value: "next", label: "Next week" },
-            { value: "after", label: "Week after" },
-            { value: "later", label: "Later" },
-          ]}
-        />
+        <div className="stk-bar">
+          {week !== "later" ? (
+            <ViewTabs
+              ariaLabel="Views of stock"
+              idPrefix="stk-view"
+              current={tab}
+              onGo={(k) => go({ view: k as View })}
+              items={[
+                { key: "list", label: "Shopping list" },
+                { key: "jobs", label: "By job" },
+              ]}
+            />
+          ) : null}
+          <span className="stk-weeks">
+            <Tray
+              ariaLabel="Which weeks"
+              value={week}
+              onChange={(w) => go({ week: w })}
+              options={[
+                { value: "next", label: "Next week" },
+                { value: "after", label: "Week after" },
+                { value: "later", label: "Later" },
+              ]}
+            />
+          </span>
+        </div>
       </header>
-      {week !== "later" ? (
-        <ViewTabs
-          ariaLabel="Views of stock"
-          idPrefix="stk-view"
-          current={tab}
-          onGo={(k) => go({ view: k as View })}
-          items={[
-            { key: "list", label: "Shopping list" },
-            { key: "jobs", label: "By job" },
-          ]}
-        />
-      ) : null}
+      <div className="stk-ground">
       {!view.ready ? (
         <p className="stk-note">Stock goes live once its table is on the database.</p>
       ) : !d ? (
@@ -225,6 +240,7 @@ function Stock({ initial }: { initial: StockView }) {
       ) : (
         <ByJob d={d} busy={busy} onTake={(j, i, name) => send({ do: "option", job: j, option: i }, `${name} accepted`)} />
       )}
+      </div>
 
       {d && sheet?.kind === "item" && item(sheet.key) ? (
         <ItemDialog
@@ -330,11 +346,14 @@ function ShoppingList({
                   return (
                     <li key={it.key} className="stk-row">
                       <TickButton state={all ? "on" : part ? "part" : "off"} label={`${it.title}: ${all ? "in stock" : "mark all in stock"}`} onPress={() => onTick(it)} busy={busy} />
-                      <button type="button" className="stk-mid" onClick={() => onOpen(it)} disabled={busy}>
-                        <Fade className="stk-t">{it.title}</Fade>
-                        <Fade className="stk-s">{it.group === "duct" ? it.detail : `${it.code ?? it.detail}${part && it.open > 0 ? `, ${it.inStock + it.had} in` : ""}, ${forJobs(it, d.today)}`}</Fade>
+                      <button type="button" className="stk-mid stk-open" onClick={() => onOpen(it)} disabled={busy}>
+                        <span className="stk-w">
+                          <Fade className="stk-t">{it.title}</Fade>
+                          <Fade className="stk-s">{it.group === "duct" ? it.detail : `${it.code ?? it.detail}${part && it.open > 0 ? `, ${it.inStock + it.had} in` : ""}, ${forJobs(it, d.today)}`}</Fade>
+                        </span>
+                        {word ? <StateWord tone={word.tone}>{word.word}</StateWord> : <span className="stk-n">{it.need}</span>}
+                        <Chev />
                       </button>
-                      {word ? <StateWord tone={word.tone}>{word.word}</StateWord> : <span className="stk-n">{it.need}</span>}
                     </li>
                   );
                 })}
@@ -345,43 +364,51 @@ function ShoppingList({
       </div>
       <div className="stk-col stk-col--side">
         {d.orders.length ? (
-          <section className="stk-sec">
-            <h2>To order</h2>
+          <>
             {d.orders.map((o) => {
               const jobs = [...new Set(o.lines.flatMap((l) => l.jobs.map((j) => j.uuid)))];
               const sk = o.supplierKey ?? "none";
+              const n = o.lines.reduce((s, l) => s + l.qty, 0);
               return (
-                <div key={sk} className="stk-card stk-order">
-                  <div className="stk-sup">{o.supplierName}</div>
-                  {dropsOf(o, sites).map((drop) => {
-                    const job = drop.site ? jobOf.get(drop.site) : null;
-                    const dk = `${o.supplierKey}|${drop.site ?? "factory"}`;
-                    return (
-                      <div key={dk} className="stk-drop">
-                        <div className="stk-droph">
-                          <span className="stk-t">{job ? `To site, ${job.number ?? "a job"}` : "To the factory"}</span>
-                          <Chooser size={32} aria-label="Arrives" options={days} value={due[dk] ?? ""} onChange={(v) => onDue(dk, v)} placeholder="Arrives" />
+                <section key={sk} className="stk-sec">
+                  <h2 className="stk-h2">
+                    <Fade>{`To order from ${o.supplierName}`}</Fade>
+                    <span>{`${n} ${n === 1 ? "item" : "items"}`}</span>
+                  </h2>
+                  <div className="stk-card">
+                    {dropsOf(o, sites).map((drop) => {
+                      const job = drop.site ? jobOf.get(drop.site) : null;
+                      const dk = `${o.supplierKey}|${drop.site ?? "factory"}`;
+                      return (
+                        <div key={dk} className="stk-drop">
+                          <div className="stk-droph">
+                            <span className="stk-w">
+                              <span className="stk-t">{job ? `To site, ${job.number ?? "a job"}` : "To the factory"}</span>
+                              {job?.address ? <Fade className="stk-s">{job.address}</Fade> : null}
+                            </span>
+                            <Chooser size={32} aria-label="Arrives" options={days} value={due[dk] ?? ""} onChange={(v) => onDue(dk, v)} placeholder="Arrives" />
+                          </div>
+                          <ul className="stk-lines">
+                            {drop.lines.map((l) => (
+                              <li key={l.key}>
+                                <span className="stk-n stk-n--s">{l.qty}</span>
+                                <Fade className="stk-li">
+                                  {l.code ?? l.title} {drop.site ? null : <span className="stk-q">for {l.jobs.map((j) => j.number ?? "a job").join(", ")}</span>}
+                                </Fade>
+                              </li>
+                            ))}
+                          </ul>
                         </div>
-                        {job?.address ? <div className="stk-s stk-dropa">{job.address}</div> : null}
-                        <ul className="stk-lines">
-                          {drop.lines.map((l) => (
-                            <li key={l.key}>
-                              <span className="stk-n stk-n--s">{l.qty}</span>
-                              <Fade className="stk-li">
-                                {l.code ?? l.title} {drop.site ? null : <span className="stk-q">for {l.jobs.map((j) => j.number ?? "a job").join(", ")}</span>}
-                              </Fade>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    );
-                  })}
-                  <ul className="stk-where">
+                      );
+                    })}
+                  </div>
+                  <h2 className="stk-h2 stk-h2--sub">Deliver to</h2>
+                  <ul className="stk-card stk-where">
                     {jobs.map((u) => {
                       const job = jobOf.get(u);
                       return (
                         <li key={u}>
-                          <span className="stk-s">{job ? `${job.number ?? "A job"}, ${job.suburb ?? "its site"}` : "A job"}</span>
+                          <Fade className="stk-t stk-t--plain">{job ? `${job.number ?? "A job"}, ${job.suburb ?? "its site"}` : "A job"}</Fade>
                           <Tray<OrderedTo>
                             ariaLabel={`Where ${job?.number ?? "this job"}'s part goes`}
                             value={sites.has(u) ? "site" : "factory"}
@@ -397,26 +424,26 @@ function ShoppingList({
                   </ul>
                   <div className="stk-foot">
                     {o.orderUrl ? (
-                      <Button kind="second" size={32} href={o.orderUrl} target="_blank" rel="noreferrer">
+                      <Button kind="second" size={44} href={o.orderUrl} target="_blank" rel="noreferrer">
                         Open their site
                       </Button>
                     ) : o.supplierKey ? (
-                      <Button kind="second" size={32} onClick={() => onAddSite(o.supplierKey!, o.supplierName)}>
+                      <Button kind="second" size={44} onClick={() => onAddSite(o.supplierKey!, o.supplierName)}>
                         Add their site
                       </Button>
                     ) : null}
-                    <Button kind="second" size={32} disabled={busy} onClick={() => onMark(o.supplierKey)}>
+                    <Button kind="second" size={44} disabled={busy} onClick={() => onMark(o.supplierKey)}>
                       Mark ordered
                     </Button>
                   </div>
-                </div>
+                </section>
               );
             })}
-          </section>
+          </>
         ) : null}
         {choose.length || d.noUnits.length || d.noQuote.length ? (
           <section className="stk-sec">
-            <h2 className="stk-h--look">To check before it’s on the list</h2>
+            <h2 className="stk-h2 stk-h--look">To check before it’s on the list</h2>
             <div className="stk-card">
               {choose.map((j) => (
                 <Choose key={j.job.uuid} j={j} busy={busy} onTake={onTake} />
@@ -488,13 +515,27 @@ function needSub(n: NeedView, today: string): string {
 function ByJob({ d, busy, onTake }: { d: Ready; busy: boolean; onTake: (job: string, option: number, name: string) => void }) {
   const [open, setOpen] = useState<Set<string>>(new Set());
   if (!d.jobs.length && !d.noQuote.length) return <p className="stk-note">Nothing’s booked that week.</p>;
+  /* the jobs under their day, as the phone has them */
+  const days: { day: string; jobs: StockJobView[] }[] = [];
+  for (const j of d.jobs) {
+    const day = j.job.firstAt ? j.job.firstAt.slice(0, 10) : "";
+    const last = days[days.length - 1];
+    if (last && last.day === day) last.jobs.push(j);
+    else days.push({ day, jobs: [j] });
+  }
   return (
-    <div className="stk-masonry">
-      {d.jobs.map((j) => {
+    <div className="stk-days">
+      {days.map(({ day, jobs }) => (
+        <section key={day || "none"} className="stk-sec">
+          <h2>{day ? longDay(day) : "Not booked"}</h2>
+          <div className="stk-jobs">
+      {jobs.map((j) => {
         /* a covered job says how: In stock, or the first that isn't, To site, Thu or In Luke's van */
         const short = j.needs.find((n) => n.group !== "duct" && n.inStock < n.need);
         const state = j.state === "in" && short ? needWordOf(short, d.today) : STATE[j.state];
         const folded = j.state === "in" && !open.has(j.job.uuid);
+        /* the visit on that day, where the quote plans them: "Rough-in, ground floor" */
+        const stage = j.visits.find((v) => v.at && j.job.firstAt && v.at.slice(0, 10) === j.job.firstAt.slice(0, 10))?.stage ?? j.job.kind;
         return (
           <section key={j.job.uuid} className="stk-card stk-job">
             <button
@@ -508,7 +549,7 @@ function ByJob({ d, busy, onTake }: { d: Ready; busy: boolean; onTake: (job: str
                 <Fade className="stk-t">{j.job.client ?? "A job"}</Fade>
                 {j.job.suburb ? <Fade className="stk-s">{j.job.suburb}</Fade> : null}
                 <span className="stk-s">
-                  {[j.job.kind, j.job.firstAt ? whenOf(j.job.firstAt) : null].filter(Boolean).join(", ")}, {j.job.crew} booked
+                  {[stage, j.job.firstAt ? whenOf(j.job.firstAt).split(" ").slice(1).join(" ") : null].filter(Boolean).join(", ")}, {j.job.crew} booked
                 </span>
               </span>
               {state ? <StateWord tone={state.tone}>{state.word}</StateWord> : null}
@@ -535,25 +576,27 @@ function ByJob({ d, busy, onTake }: { d: Ready; busy: boolean; onTake: (job: str
                   </ul>
                 ) : null}
                 {j.later.length ? <LaterFoot later={j.later} /> : null}
-                <div className="stk-jf">
-                  <span>{j.from ? FROM[j.from] : ""}</span>
-                  <Link className="stk-jl" href={jobPageHref(j.job.uuid)}>
-                    Open job
-                  </Link>
-                </div>
+                <Link className="stk-jf" href={jobPageHref(j.job.uuid)}>
+                  <span className="stk-w">
+                    <span className="stk-t stk-t--plain">Open job</span>
+                    {j.from ? <span className="stk-s">{FROM[j.from]}</span> : null}
+                  </span>
+                  <Chev />
+                </Link>
               </>
             )}
           </section>
         );
       })}
-      {d.noUnits.length ? (
-        <section className="stk-card stk-job">
-          <JobsLine what="No units on its quote" jobs={d.noUnits} />
+          </div>
         </section>
-      ) : null}
-      {d.noQuote.length ? (
-        <section className="stk-card stk-job">
-          <JobsLine what="No quote in HeyTiff" jobs={d.noQuote} />
+      ))}
+      {d.noUnits.length || d.noQuote.length ? (
+        <section className="stk-sec">
+          <div className="stk-card stk-checks">
+            {d.noUnits.length ? <JobsLine what="No units on its quote" jobs={d.noUnits} /> : null}
+            {d.noQuote.length ? <JobsLine what="No quote in HeyTiff" jobs={d.noQuote} /> : null}
+          </div>
         </section>
       ) : null}
     </div>
@@ -838,71 +881,47 @@ function MarkDialog({
 
 function Later({ d, busy, onBulk, onSite }: { d: Ready; busy: boolean; onBulk: (supplier: string | null) => void; onSite: (supplier: string, name: string) => void }) {
   if (!d.later.length) return <p className="stk-note">Nothing accepted is waiting past the next two weeks.</p>;
-  const jobOf = new Map(d.jobs.map((j) => [j.job.uuid, j.job]));
+  const and = (xs: string[]) => (xs.length > 1 ? `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}` : (xs[0] ?? ""));
   return (
-    <div className="stk-col">
-      {d.later.map((s) => {
-        const jobs = [...new Set(s.lines.flatMap((l) => l.jobs.map((j) => j.uuid)))].map((u) => jobOf.get(u)!).filter(Boolean);
-        return (
-          <section key={s.supplierKey ?? "none"} className="stk-card stk-lat">
-            <div className="stk-lath">
-              <span className="stk-sup">{s.supplierName}</span>
-              <span className="stk-s">{`${s.units} ${s.units === 1 ? "unit" : "units"}, ${s.jobs} ${s.jobs === 1 ? "job" : "jobs"}, ${money(s.cents)} at the price book${s.unpriced ? `, ${s.unpriced} not in it` : ""}`}</span>
-              <span className="stk-lata">
+    <div className="stk-lats">
+      {d.later.map((s) => (
+        <section key={s.supplierKey ?? "none"} className="stk-sec">
+          <h2 className="stk-h2">
+            <Fade>{s.supplierName}</Fade>
+            <span>{`${s.units} ${s.units === 1 ? "unit" : "units"}, ${s.jobs} ${s.jobs === 1 ? "job" : "jobs"}`}</span>
+          </h2>
+          <div className="stk-card">
+            <ul>
+              {s.lines.map((l) => (
+                <li key={l.key} className="stk-row stk-row--plain">
+                  <span className="stk-w">
+                    <Fade className="stk-t">{l.title}</Fade>
+                    <Fade className="stk-s">{`${l.code ? `${l.code}, ` : ""}for ${and(l.jobs.map((j) => j.number ?? "a job"))}`}</Fade>
+                  </span>
+                  <span className="stk-n">{l.qty}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="stk-latf">
+              <span className="stk-s">{`${money(s.cents)} at the price book${s.unpriced ? `, and ${s.unpriced} not in it` : ""}`}</span>
+              <div className="stk-foot stk-foot--in">
                 {s.orderUrl ? (
-                  <Button kind="second" size={32} href={s.orderUrl} target="_blank" rel="noreferrer">
+                  <Button kind="second" size={44} href={s.orderUrl} target="_blank" rel="noreferrer">
                     Open their site
                   </Button>
                 ) : s.supplierKey ? (
-                  <Button kind="second" size={32} onClick={() => onSite(s.supplierKey!, s.supplierName)}>
+                  <Button kind="second" size={44} onClick={() => onSite(s.supplierKey!, s.supplierName)}>
                     Add their site
                   </Button>
                 ) : null}
-                <Button kind="second" size={32} disabled={busy} onClick={() => onBulk(s.supplierKey)}>
+                <Button kind="second" size={44} disabled={busy} onClick={() => onBulk(s.supplierKey)}>
                   Order for these jobs
                 </Button>
-              </span>
+              </div>
             </div>
-            <div className="stk-grid-wrap">
-              <table className="stk-grid">
-                <thead>
-                  <tr>
-                    <th scope="col">Model</th>
-                    {jobs.map((j) => (
-                      <th key={j.uuid} scope="col">
-                        <Link className="stk-jl" href={jobPageHref(j.uuid)}>
-                          {j.number ?? "A job"}
-                        </Link>
-                        <span className="stk-s">{j.suburb ?? ""}</span>
-                        <span className="stk-s">{laterWhen(d, j.uuid, s.lines)}</span>
-                      </th>
-                    ))}
-                    <th scope="col" className="stk-num-c">
-                      All
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {s.lines.map((l) => (
-                    <tr key={l.key}>
-                      <th scope="row">
-                        <span className="stk-t">{l.code ?? l.title}</span>
-                        <span className="stk-s">{l.code ? l.title : ""}</span>
-                      </th>
-                      {jobs.map((j) => (
-                        <td key={j.uuid} className="stk-num-c">
-                          {l.jobs.find((x) => x.uuid === j.uuid)?.qty ?? ""}
-                        </td>
-                      ))}
-                      <td className="stk-num-c stk-num-c--all">{l.qty}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        );
-      })}
+          </div>
+        </section>
+      ))}
     </div>
   );
 }

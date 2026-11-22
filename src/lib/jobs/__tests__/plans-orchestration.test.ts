@@ -18,14 +18,16 @@ jest.mock("server-only", () => ({}));
 jest.mock("@/lib/supabase-server", () => {
   const query = (table: string) => {
     const filters: [string, unknown][] = [];
+    /* a read's claim, "claimed_at.is.null,claimed_at.lt.<when>": none, or one from before then */
+    let claimedBefore: string | null = null;
     let update: Row | null = null;
     let insert: Row | null = null;
-    const rows = () => (tables[table] ?? []).filter((r) => filters.every(([c, v]) => r[c] === v));
+    const rows = () => (tables[table] ?? []).filter((r) => filters.every(([c, v]) => r[c] === v) && (claimedBefore == null || r.claimed_at == null || String(r.claimed_at) < claimedBefore));
     const q: Record<string, unknown> = {
       select: () => q,
       eq: (c: string, v: unknown) => (filters.push([c, v]), q),
       neq: () => q,
-      or: () => q,
+      or: (expr: string) => ((claimedBefore = /^claimed_at\.is\.null,claimed_at\.lt\.(.+)$/.exec(expr)?.[1] ?? null), q),
       in: () => q,
       not: () => q,
       order: () => q,
@@ -94,6 +96,12 @@ jest.mock("../plan-draw-node", () => ({
   },
 }));
 jest.mock("@/lib/studio/measured-server", () => ({ prepareMeasured: async () => null, nameRooms: async () => null }));
+/* a floor's sides put on the drawing's walls: each call kept, so a test can see the scale it was done at */
+const snapped = jest.fn();
+jest.mock("@/lib/studio/vector/snap", () => {
+  const real = jest.requireActual<typeof import("@/lib/studio/vector/snap")>("@/lib/studio/vector/snap");
+  return { ...real, snapped: (...a: Parameters<typeof real.snapped>) => (snapped(...a), real.snapped(...a)) };
+});
 
 const room = (name: string, x: number) => ({ name, named: true, kind: "room", outline: [{ x, y: 0 }, { x: x + 100, y: 0 }, { x: x + 100, y: 100 }, { x, y: 100 }], written: "", existing: false, openTo: "", stair: "" });
 const door = { kind: "door", tag: "", a: { x: 0, y: 100 }, b: { x: 100, y: 100 }, widthMm: 900, room: "Living", external: false, facing: "" };
@@ -105,7 +113,8 @@ const hang = (floorId: string) => new Promise<ReturnType<typeof sheetOf>>((r) =>
 const readRoof = jest.fn(async (..._a: unknown[]): Promise<Record<string, unknown>> => ({ said: null, levels: [], parts: [], raked: [], material: "", roofSpace: "" }));
 const readSite = jest.fn(async (..._a: unknown[]): Promise<unknown> => null);
 const readDimensions = jest.fn(async (..._a: unknown[]): Promise<unknown[]> => []);
-const readSchedule = jest.fn(async () => ({ items: [{ mark: "GD.10", type: "", kind: "door", width_mm: 820, height_mm: 2040, sill_mm: 0 }] }));
+const scheduleRead = async () => ({ items: [{ mark: "GD.10", type: "", kind: "door", width_mm: 820, height_mm: 2040, sill_mm: 0 }] });
+const readSchedule = jest.fn(scheduleRead);
 jest.mock("@/lib/studio/reading-server", () => ({
   READING_MODEL: "claude-opus-5-5",
   readSheet: (...a: unknown[]) => readSheet(...(a as [string, { floorId: string }])),
@@ -121,17 +130,29 @@ jest.mock("@/lib/studio/reading-server", () => ({
 const fetchMock = jest.fn(async (..._a: unknown[]): Promise<Response> => new Response("{}"));
 global.fetch = fetchMock as unknown as typeof fetch;
 
-import { addJobPlans, jobPlanRooms, readPlan, readPlanAgain } from "../plans-server";
+import { addJobPlans, choosePlanFloors, jobPlanRooms, readJobPlan, readPlan, readPlanAgain } from "../plans-server";
 import { plansToAskAgain } from "../plans-client";
+import { planLine } from "../plans";
 
 /* Tiff's look at the pages the words leave undecided: each said to be "other", unless a test says otherwise */
-const look = jest.fn(async (o: { messages: { content: { type: string; text?: string }[] }[] }) => {
-  const pages = o.messages[0].content.flatMap((b) => (b.type === "text" && /^Page \d+:$/.test(b.text ?? "") ? [Number(b.text!.slice(5, -1))] : []));
-  return { content: [{ type: "text", text: JSON.stringify({ pages: pages.map((page) => ({ page, kind: "other", level_name: "", level: 0 })) }) }] };
-});
+type Look = { messages: { content: { type: string; text?: string }[] }[] };
+/* the pages a look was shown */
+const shownIn = (o: Look) => o.messages[0].content.flatMap((b) => (b.type === "text" && /^Page \d+:$/.test(b.text ?? "") ? [Number(b.text!.slice(5, -1))] : []));
+const look = jest.fn(async (o: Look) => ({ content: [{ type: "text", text: JSON.stringify({ pages: shownIn(o).map((page) => ({ page, kind: "other", level_name: "", level: 0 })) }) }] }));
 const client = { beta: { messages: { create: (o: never) => look(o) } } } as never;
 const plan = () => tables.job_plans![0]!;
 const run = () => readPlan("org-1", "jplan_1", "https://app.test", client);
+/* a run, and each run it hands on to, as the read route would: what the last one says */
+const runAll = async () => {
+  for (let i = 0; i < 6; i++) {
+    const out = await run();
+    if (!(out.ok && out.state === "reading")) return out;
+    clock += 1_000;
+  }
+  throw new Error("the read never finished");
+};
+/* the plan's row line as the job's Plans shows it */
+const rowLine = async () => planLine({ ...(await readJobPlan("org-1", "jplan_1"))!, thumbs: {}, usedBy: 0 });
 
 /* a set drawn already, its floors found and drawn in full: the next run is the read */
 const floorPage = (n: number, level: number, name: string, extra: Row = {}) => ({ n, kind: "floor", name, level, ref: `org/org-1/p${n}.png`, preview: null, width: 2400, height: 1695, mmPerPx: null, scale: null, walled: { none: "Its walls aren't drawn in the file, filled or in lines" }, ...extra });
@@ -143,11 +164,12 @@ beforeEach(() => {
   for (const k of Object.keys(tables)) delete tables[k];
   clock = 1_000_000;
   jest.spyOn(Date, "now").mockImplementation(() => clock);
-  for (const f of [previewsInNode, fullInNode, vectorsInNode, textsInNode, readSheet, readRoof, readSite, readDimensions, readSchedule, fetchMock, look]) f.mockClear();
+  for (const f of [previewsInNode, fullInNode, vectorsInNode, textsInNode, readSheet, readRoof, readSite, readDimensions, readSchedule, fetchMock, look, snapped]) f.mockClear();
   readSheet.mockImplementation(async (_o: string, s: { floorId: string }) => sheetOf(s.floorId));
   readSite.mockImplementation(async () => null);
   readRoof.mockImplementation(async () => ({ said: null, levels: [], parts: [], raked: [], material: "", roofSpace: "" }));
   readDimensions.mockImplementation(async () => []);
+  readSchedule.mockImplementation(scheduleRead);
   fetchMock.mockImplementation(async () => new Response("{}"));
   Object.assign(opening, { now: 0, most: 0 });
   Object.assign(refuse, { update: null, insert: null });
@@ -174,25 +196,30 @@ describe("a floor read that runs past the run's time", () => {
       if (s.floorId === "p4") return hang(s.floorId);
       return sheetOf(s.floorId);
     });
+    readRoof.mockImplementation(async () => ({ said: null, levels: [], parts: [], raked: [], material: "metal", roofSpace: "" }));
     expect(await run()).toEqual({ ok: true, state: "reading" });
-    const kept = plan().reading as { partial?: boolean; late?: number; floors: Record<string, unknown[]>; failed: unknown[] };
+    const kept = plan().reading as { partial?: boolean; late?: number; floors: Record<string, unknown[]>; failed: unknown[]; roof?: { material: string } };
     expect(kept.partial).toBe(true);
     expect(kept.late).toBe(1);
     expect(Object.keys(kept.floors).sort()).toEqual(["p2", "p3"]);
     expect(kept.failed).toEqual([]);
+    /* the roof came back in time, so it is kept with the floors */
+    expect(kept.roof?.material).toBe("metal");
     expect(plan().state).toBe("reading");
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    /* the next run reads only the floor that didn't come back */
+    /* the next run reads only the floor that didn't come back, and not the roof again */
     readSheet.mockClear();
     readSheet.mockImplementation(async (_o: string, s: { floorId: string }) => sheetOf(s.floorId));
     clock += 1_000;
     const out = await run();
     expect(out).toMatchObject({ ok: true, finished: { jobUuid: "job-1" } });
     expect(readSheet.mock.calls.map((c) => c[1].floorId)).toEqual(["p4"]);
-    const read = plan().reading as { partial?: boolean; late?: number; floors: Record<string, unknown[]> };
+    expect(readRoof).toHaveBeenCalledTimes(1);
+    const read = plan().reading as { partial?: boolean; late?: number; floors: Record<string, unknown[]>; roof?: { material: string } };
     expect(read.partial).toBeUndefined();
     expect(read.late).toBeUndefined();
     expect(Object.keys(read.floors).sort()).toEqual(["p2", "p3", "p4"]);
+    expect(read.roof?.material).toBe("metal");
   });
 
   it("fails the plan, saying which floor, when it runs out twice, and Read again goes on from there", async () => {
@@ -224,16 +251,28 @@ describe("a floor read that runs past the run's time", () => {
 });
 
 describe("a roof or a site that couldn't be read", () => {
-  it("is left unread rather than kept as none, and said on the row", async () => {
+  it("is left unread rather than kept as none, and said on the row, which asks to be checked", async () => {
     threeFloors();
     readSite.mockImplementation(async () => {
       throw new Error("Tiff's answer was too long to finish");
     });
-    expect(await run()).toMatchObject({ ok: true, state: "read" });
+    expect(await run()).toMatchObject({ ok: true, state: "check" });
     const read = plan().reading as Row;
     expect("site" in read).toBe(false);
     expect(read.roof).toBeDefined();
-    expect(plan().said).toBe("The site couldn't be read: Tiff's answer was too long to finish");
+    expect(read.missed).toEqual(["The site couldn't be read: Tiff's answer was too long to finish"]);
+    expect(plan()).toMatchObject({ state: "check", said: "The site couldn't be read: Tiff's answer was too long to finish" });
+    expect(await rowLine()).toBe("Pages 2, 3 and 4 read: Ground floor, Level 1 and Level 2 and the roof. The site couldn't be read: Tiff's answer was too long to finish. No scale on the plan, so the rooms have no sizes");
+  });
+
+  it("is still said after somebody chooses the floors", async () => {
+    threeFloors();
+    readSite.mockImplementation(async () => {
+      throw new Error("Overloaded");
+    });
+    await run();
+    expect(await choosePlanFloors("org-1", "jplan_1", { 4: "none" }, null)).toBeNull();
+    expect(plan()).toMatchObject({ state: "check", said: "The site couldn't be read: Overloaded" });
   });
 
   it("is read again by a run handed on", async () => {
@@ -271,6 +310,23 @@ describe("a run with only the roof and the site left", () => {
     expect(readSheet).not.toHaveBeenCalled();
     expect((plan().reading as { roof?: { material: string } }).roof?.material).toBe("tiles");
   });
+
+  it("finishes without a roof that isn't back by 260 s, and says so", async () => {
+    threeFloors();
+    const floors = Object.fromEntries(["p2", "p3", "p4"].map((id) => [id, [sheetOf(id)]]));
+    plan().reading = { at: "2026-11-22T00:00:00Z", model: "claude-opus-5-5", floors, failed: [], site: null, partial: true };
+    readRoof.mockImplementation(() => {
+      clock += 270_000;
+      return new Promise<Record<string, unknown>>(() => {});
+    });
+    expect(await run()).toMatchObject({ ok: true, state: "check", finished: { jobUuid: "job-1" } });
+    expect(plan()).toMatchObject({ state: "check", said: "The roof took too long to read" });
+    const read = plan().reading as Row;
+    expect("roof" in read).toBe(false);
+    expect(read.partial).toBeUndefined();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(await rowLine()).toContain("The roof took too long to read");
+  });
 });
 
 describe("the roof's and the site's first page", () => {
@@ -288,6 +344,22 @@ describe("each floor put on the drawing's walls", () => {
     await run();
     expect(vectorsInNode).toHaveBeenCalledTimes(3);
     expect(opening.most).toBe(1);
+  });
+
+  it("goes by the scale its dimensions gave it in the same read", async () => {
+    /* 3000 mm over 300 px: 10 mm a pixel; the file's 2 pixels a point make 20 mm a point, so a side moves at most 450 / 20 points */
+    readDimensions.mockImplementation(async () => [{ a: { x: 0, y: 0 }, b: { x: 300, y: 0 }, mm: 3000 }]);
+    drawn([otherPage(1), floorPage(2, 0, "Ground floor")]);
+    await run();
+    expect(snapped).toHaveBeenCalledTimes(1);
+    expect(snapped.mock.calls[0]![3]).toBeCloseTo(22.5);
+  });
+
+  it("leaves the rooms where the read put them on a floor with no scale, rather than at a guessed 1:100", async () => {
+    drawn([otherPage(1), floorPage(2, 0, "Ground floor")]);
+    await run();
+    expect(vectorsInNode).toHaveBeenCalledTimes(1);
+    expect(snapped).not.toHaveBeenCalled();
   });
 });
 
@@ -310,6 +382,56 @@ describe("the schedule's marks on a floor that prints no scale", () => {
     await run();
     expect(theDoor()).toMatchObject({ tag: "", widthMm: 900 });
   });
+
+  it("are found by the scale its rooms' written sizes give it, as the Studio takes it", async () => {
+    /* each room 100 px a side, written 1 m by 1 m: 10 mm a pixel */
+    readSheet.mockImplementation(async (_o: string, s: { floorId: string }) => ({ ...sheetOf(s.floorId), spaces: [{ ...room("Living", 0), written: "1.0m x 1.0m" }, { ...room("Kitchen", 100), written: "1.0m x 1.0m" }] }));
+    withSchedule({ x: 130, y: 100 });
+    await run();
+    expect(theDoor()).toMatchObject({ tag: "GD.10", widthMm: 820 });
+  });
+
+  it("not read in time is said for the floors read without it, and kept on the reading", async () => {
+    readDimensions.mockImplementation(async () => [{ a: { x: 0, y: 0 }, b: { x: 300, y: 0 }, mm: 3000 }]);
+    readSheet.mockImplementation(async (_o: string, s: { floorId: string }) => {
+      clock += 240_000;
+      return sheetOf(s.floorId);
+    });
+    readSchedule.mockImplementation(() => new Promise<never>(() => {}));
+    withSchedule({ x: 130, y: 100 });
+    expect(await run()).toMatchObject({ ok: true, state: "check" });
+    const said = "The door and window schedule on page 9 wasn't read in time, so the openings on page 2 aren't sized by it";
+    expect(plan()).toMatchObject({ state: "check", said });
+    expect((plan().reading as Row).missed).toEqual([said]);
+    expect(theDoor()).toMatchObject({ tag: "", widthMm: 900 });
+  });
+
+  it("not looked for in time says so, rather than that the set has one", async () => {
+    readSheet.mockImplementation(async (_o: string, s: { floorId: string }) => {
+      clock += 240_000;
+      return sheetOf(s.floorId);
+    });
+    textsInNode.mockImplementationOnce(() => new Promise<never>(() => {}));
+    withSchedule({ x: 130, y: 100 });
+    await run();
+    expect(plan().said).toBe("The set wasn't looked through for a door and window schedule in time, so the openings on page 2 aren't sized by it");
+  });
+});
+
+describe("a page's dimensions not back in time", () => {
+  it("keeps the pages that came back, and leaves the rest unmeasured for the quote's rooms to look for again", async () => {
+    drawn([otherPage(1), floorPage(2, 0, "Ground floor"), floorPage(3, 1, "Level 1")]);
+    readSheet.mockImplementation(async (_o: string, s: { floorId: string }) => {
+      if (s.floorId === "p2") clock += 240_000;
+      return sheetOf(s.floorId);
+    });
+    readDimensions.mockImplementation(async (_o: unknown, s: unknown) => ((s as { floorId: string }).floorId === "p3" ? new Promise<never>(() => {}) : [{ a: { x: 0, y: 0 }, b: { x: 300, y: 0 }, mm: 3000 }]));
+    await run();
+    const pages = plan().pages as { n: number; measured?: { mmPerPx: number } | null }[];
+    expect(pages.find((p) => p.n === 2)!.measured?.mmPerPx).toBeCloseTo(10);
+    expect("measured" in pages.find((p) => p.n === 3)!).toBe(false);
+    expect(await rowLine()).toContain("No scale on page 3, so its rooms have no sizes");
+  });
 });
 
 describe("which pages are floors, when Tiff couldn't look", () => {
@@ -325,6 +447,39 @@ describe("which pages are floors, when Tiff couldn't look", () => {
     titles.now = ["A101", "A102"];
     look.mockImplementationOnce(async () => ({ content: [{ type: "text", text: JSON.stringify({ pages: [{ page: 1, kind: "other", level_name: "", level: 0 }] }) }] }));
     expect(await run()).toEqual({ ok: false, error: "No floor plan was found, and Tiff didn't get to look at page 2" });
+  });
+});
+
+describe("which pages are floors, in a set bigger than one look", () => {
+  it("looks at every page its words leave undecided, so a ground floor near the end of the set is read", async () => {
+    /* 27 sheets drawn from the top down: level 1 named by its words, the ground floor on page 26 not */
+    titles.now = ["LEVEL 1 PLAN", ...Array.from({ length: 26 }, (_, i) => `A${102 + i}`)];
+    const answer = async (o: Look) => ({
+      content: [{ type: "text", text: JSON.stringify({ pages: shownIn(o).map((page) => (page === 26 ? { page, kind: "floor", level_name: "Ground floor", level: 0 } : { page, kind: "other", level_name: "", level: 0 })) }) }],
+    });
+    look.mockImplementationOnce(answer).mockImplementationOnce(answer);
+    expect(await runAll()).toMatchObject({ ok: true, finished: { jobUuid: "job-1" } });
+    expect(look).toHaveBeenCalledTimes(2);
+    expect(shownIn(look.mock.calls[0]![0])).toHaveLength(24);
+    expect(shownIn(look.mock.calls[1]![0])).toEqual([26, 27]);
+    expect(readSheet.mock.calls.map((c) => c[1].floorId).sort()).toEqual(["p1", "p26"]);
+    expect((plan().pages as { n: number; kind: string }[]).find((p) => p.n === 26)!.kind).toBe("floor");
+  });
+
+  it("reads the floors found, and says the pages Tiff's answer left out, asking to be checked", async () => {
+    titles.now = ["GF PLAN", "A101", "A102"];
+    look.mockImplementationOnce(async () => ({ content: [{ type: "text", text: JSON.stringify({ pages: [{ page: 2, kind: "other", level_name: "", level: 0 }] }) }] }));
+    expect(await runAll()).toMatchObject({ ok: true, state: "check" });
+    expect(plan().said).toBe("Tiff didn't get to look at page 3, which may be a floor plan");
+    expect(await rowLine()).toContain("Tiff didn't get to look at page 3, which may be a floor plan");
+  });
+
+  it("takes no answer for a page its look wasn't shown", async () => {
+    /* page 1 is a garage's ground floor plan, which its words say isn't the house's */
+    titles.now = ["GARAGE GROUND FLOOR PLAN", "A101"];
+    look.mockImplementationOnce(async () => ({ content: [{ type: "text", text: JSON.stringify({ pages: [{ page: 1, kind: "floor", level_name: "Ground floor", level: 0 }, { page: 2, kind: "floor", level_name: "Level 1", level: 1 }] }) }] }));
+    await runAll();
+    expect((plan().pages as { n: number; kind: string }[]).map((p) => p.kind)).toEqual(["other", "floor"]);
   });
 });
 
@@ -387,6 +542,30 @@ describe("the rooms for a quote (jobPlanRooms)", () => {
     expect(String(fetchMock.mock.calls[0]![0])).toBe("https://app.test/api/jobs/plans/read");
     expect(previewsInNode).not.toHaveBeenCalled();
     expect(readSheet).not.toHaveBeenCalled();
+  });
+
+  it("fails and says a plan the route turns away, without waiting on it", async () => {
+    tables.job_plans = [];
+    fetchMock.mockImplementation(async () => new Response("", { status: 500 }));
+    const timers = jest.spyOn(global, "setTimeout");
+    const out = await jobPlanRooms("org-1", "job-1", { add: { documentId: "d-1" }, origin: "https://app.test" });
+    /* the route asked once, with four seconds to take it, and the row not watched after */
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(timers.mock.calls.map((c) => c[1])).toEqual([4_000]);
+    expect(plan()).toMatchObject({ state: "failed", said: "The read couldn't be started" });
+    expect(out).toMatchObject({ plans: [{ state: "failed", said: "The read couldn't be started" }] });
+    expect(typeof out === "object" && out.said).toContain("A plan that couldn't be read is said so");
+    expect(typeof out === "object" && out.said).not.toContain("still being read");
+  });
+
+  it("leaves a plan another run holds the claim on to that run, when the route can't be reached", async () => {
+    Object.assign(plan(), { added_at: new Date(clock - 7 * 60_000).toISOString(), claimed_at: new Date(clock - 60_000).toISOString() });
+    fetchMock.mockImplementation(async () => {
+      throw new TypeError("fetch failed");
+    });
+    await jobPlanRooms("org-1", "job-1", { origin: "https://app.test" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(plan().state).toBe("reading");
   });
 
   const readPlanWithUnscaledFloor = () =>

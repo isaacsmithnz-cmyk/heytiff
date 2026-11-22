@@ -18,8 +18,9 @@ export function kickPlanReads(planIds: readonly string[]): void {
 export const PLAN_POLL_MS = 4_000;
 
 /** A plan still "reading" this long after it was added was dropped on the
-    way: a screen asks for its read once more. Past the read route's five
-    minutes, so a read still going isn't asked for again. */
+    way: a screen asks for its read, and again each PLAN_ASK_AGAIN_MS while
+    it stays reading. Past the read route's five minutes, so a read still
+    going isn't asked for again. */
 export const PLAN_STUCK_MS = 6 * 60_000;
 
 /** A stuck plan is asked for again at most this often while its job stays

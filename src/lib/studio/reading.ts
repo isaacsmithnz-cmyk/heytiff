@@ -234,8 +234,12 @@ export type PlanReading = {
   site?: SiteReading | null;
   /** a sheet she couldn't read, and why, said rather than dropped */
   failed: { floorId: string; sheetId: string; reason: string }[];
-  /** its floors are read and saved while its roof and site, which ran long, are read in a run of their own (plans-server.ts); gone once the plan is read */
+  /** read part-way and saved, the rest left to a run of its own (plans-server.ts): floors that weren't back in time, or a roof and a site that ran long; gone once the plan is read */
   partial?: boolean;
+  /** how many of a part-way read's runs ran out of time before its floors were all read: two, and the plan is failed */
+  late?: number;
+  /** what the read left out and why ("The site couldn't be read: …"): said on the plan's row, which asks to be checked while there is any */
+  missed?: string[];
   /** the door and window schedule read off the set: its pages, how many marks it sized, how many openings on the plans it gave a size */
   schedule?: { pages: number[]; marks: number; matched: number };
 };

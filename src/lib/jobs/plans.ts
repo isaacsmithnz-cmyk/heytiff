@@ -73,6 +73,9 @@ export type JobPlanPage = {
       the Plans dialog: from then on what it is is theirs, not a guess to
       check (Isaac, 14 November 2026, on the mock's "Changing a floor") */
   picked?: { by: string | null; at: string } | null;
+  /** neither its words nor Tiff's look said what it is: filed "other", and
+      said on the row, since it may be a floor plan that wasn't read */
+  unlooked?: true;
 };
 
 /** A scale set by hand: the length between two points pressed on the page
@@ -416,8 +419,10 @@ export function pagesWordOf(ns: readonly number[]): string {
 /** The state a read plan is in, and what to say about it. Read, when every
     floor page read as a floor; Check the read when a page she read has no
     rooms on it, a page couldn't be read, two floor pages read at one level,
-    or the set had no floor plan in it. What's said goes in the row's grey
-    line after the facts. */
+    a page wasn't looked at, the read left something out (its `missed`: the
+    roof, the site, the schedule), or the set had no floor plan in it. What's
+    said goes in the row's grey line after the facts, and is worked out again
+    here each time, so it stands after Choose floors. */
 export function stateOfRead(pages: readonly JobPlanPage[], reading: PlanReading | null): { state: JobPlanState; said: string | null } {
   if (!reading) return { state: "failed", said: "The plans couldn't be read" };
   const floors = pages.filter((p) => p.kind === "floor" && p.ref);
@@ -447,6 +452,9 @@ export function stateOfRead(pages: readonly JobPlanPage[], reading: PlanReading 
     if (on.length < 2) continue;
     said.push(`${pagesWordOf(on.map((p) => p.n))} ${on.length === 2 ? "both" : "all"} read as ${on[0].name || defaultFloorName(level)}: choose which floor each is`);
   }
+  const unlooked = pages.filter((p) => p.unlooked).map((p) => p.n);
+  if (unlooked.length) said.push(`Tiff didn't get to look at ${pagesWords(unlooked)}, which ${unlooked.length === 1 ? "may be a floor plan" : "may be floor plans"}`);
+  said.push(...(reading.missed ?? []));
   return said.length ? { state: "check", said: said.join(". ") } : { state: "read", said: null };
 }
 

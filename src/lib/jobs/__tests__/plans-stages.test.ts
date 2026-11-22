@@ -348,7 +348,9 @@ describe("a roof read that runs long", () => {
       clock += 240_000;
       return { sheetId: sh.floorId, spaces: [{ name: "Living", points: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }] }, { name: "Kitchen", points: [{ x: 100, y: 0 }, { x: 200, y: 0 }, { x: 200, y: 100 }] }] };
     });
-    readRoof.mockImplementationOnce(() => new Promise((r) => setTimeout(() => r({ said: null, levels: [], parts: [], raked: [], material: "", roofSpace: "" }), 60)));
+    /* back only once the run has moved on: a real delay lost the race on a slow runner, where the floors took longer than it (CI, #1676) */
+    let roofBack = () => {};
+    readRoof.mockImplementationOnce(() => new Promise((r) => (roofBack = () => r({ said: null, levels: [], parts: [], raked: [], material: "", roofSpace: "" }))));
     await readPlan("org-1", "jplan_1", "https://app.test", client);
     clock += 1_000;
     await readPlan("org-1", "jplan_1", "https://app.test", client);
@@ -359,6 +361,7 @@ describe("a roof read that runs long", () => {
     expect(Object.keys(kept.floors).sort()).toEqual(["p2", "p3", "p4"]);
     expect(kept.roof).toBeUndefined();
     expect(plan().state).toBe("reading");
+    roofBack();
     /* the next run reads the roof alone, and the plan is read */
     readSheet.mockClear();
     clock += 1_000;

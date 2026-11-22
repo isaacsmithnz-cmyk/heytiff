@@ -90,7 +90,12 @@ export function itemsOf(raw: unknown, page: number): ScheduleItem[] {
     3570's door marks, LD.01 and GD.10, sit in boxes beside each door. */
 export function taggedFromWords(sheet: SheetReading, words: readonly { text: string; at: { x: number; y: number } }[], items: readonly ScheduleItem[], reach: number): SheetReading {
   const known = new Set(items.flatMap((i) => [markKey(i.mark), ...(i.type ? [markKey(i.type)] : [])]));
-  const marks = words.filter((w) => known.has(markKey(w.text)));
+  /* a mark an opening already carries isn't another's */
+  const carried = new Set((sheet.openings ?? []).flatMap((o) => {
+    const w = o.tag.split(/[\s/,]+/).filter(Boolean);
+    return [...w.slice(0, -1).map((x, i) => markKey(x + w[i + 1])), ...w.map(markKey)];
+  }));
+  const marks = words.filter((w) => known.has(markKey(w.text)) && !carried.has(markKey(w.text)));
   if (!marks.length) return sheet;
   const used = new Set<(typeof marks)[number]>();
   const openings = (sheet.openings ?? []).map((o): ReadOpening => {

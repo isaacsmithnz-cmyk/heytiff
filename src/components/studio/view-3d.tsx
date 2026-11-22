@@ -36,8 +36,11 @@ import { airMaker } from "./view-3d-air";
 export type Layer3D = "roof" | "framing" | "inside";
 /** `plans`: each floor's drawing on it (the default), or the grid and the floors' finish */
 /** `outside`: the lawn round the house, its trees and the sky; `air`: the air leaving each head and grille */
+/** `hide`: with every floor showing, the ones switched off (the phone's View menu, a switch a floor: Isaac,
+    22 November 2026, "blue switches on 3d for labels and floors", on https://claude.ai/artifact/RVNaS6AkBF9GhUV66ytVVA) */
 export type Look3D = {
   floor: string;
+  hide?: string[];
   apart: boolean;
   labels: boolean;
   layer: Layer3D;
@@ -50,6 +53,9 @@ export type Look3D = {
   winter?: boolean;
 };
 export const ALL_FLOORS = "all";
+
+/** Whether a floor is drawn: every floor but the ones switched off, or the one picked */
+export const shows = (l: Look3D, floorId: string) => (l.floor === ALL_FLOORS ? !l.hide?.includes(floorId) : l.floor === floorId);
 
 /** What was tapped in the 3D: a unit, or a point on a floor's plan (plan units) */
 export type Pick3D = { unitId: string } | { floorId: string; at: { x: number; y: number } };
@@ -1717,10 +1723,12 @@ async function build(
     ceilMat.opacity = walk ? 1 : 0.85;
     ceilMat.transparent = !walk;
     ceilMat.needsUpdate = true;
-    scene3.floors.forEach((f, i) => {
+    /* the floors lift apart by their place among the ones showing, so a floor switched off leaves no gap */
+    let lifted = 0;
+    scene3.floors.forEach((f) => {
       const g = groups.get(f.id)!;
-      g.visible = l.floor === ALL_FLOORS || l.floor === f.id;
-      g.position.y = l.apart && l.floor === ALL_FLOORS ? i * LIFT_M : 0;
+      g.visible = shows(l, f.id);
+      g.position.y = l.apart && l.floor === ALL_FLOORS && g.visible ? lifted++ * LIFT_M : 0;
       /* standing in a room the roof stays over it, so a raked ceiling meets its gables */
       /* the roof space shows with the roof off and its timber on */
       roofG.get(f.id)!.visible = (l.layer === "roof" && !l.space) || !!walk;
@@ -1939,7 +1947,7 @@ async function build(
     /* a floor's names hide under the roof, and under the floor above
        unless the floors are lifted apart */
     const covered = (i: number) =>
-      (current.layer !== "inside" && scene3.roofs.length > 0) || (!current.apart && current.floor === ALL_FLOORS && scene3.floors.some((_, j) => j > i));
+      (current.layer !== "inside" && scene3.roofs.length > 0) || (!current.apart && current.floor === ALL_FLOORS && scene3.floors.some((f, j) => j > i && shows(current, f.id)));
     for (const m of roomNames) {
       m.visible = !!current.labels && !walk && !covered(m.userData.floorIndex as number);
       const turn = m.userData.turn as number;

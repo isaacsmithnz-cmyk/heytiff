@@ -1074,25 +1074,12 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
             })
           : { pages: [] as number[], items: [] as ScheduleItem[] },
       ]);
-      /* a floor not read from the file has its picture-read rooms put on the drawing's own walls, where it has them */
-      const bytes = isPdf && vectorOn() ? new Uint8Array((await bytesOf()).bytes) : null;
-      const lined = await Promise.all(
-        results.map(async (r, i) => {
-          const w = floors[i].walled;
-          if (!bytes || r.status !== "fulfilled" || (w && "spaces" in w && w.spaces.length)) return null;
-          return onTheLines(bytes, floors[i], r.value).catch((e) => {
-            console.error(`[job-plans] ${planId}/p${floors[i].n} lines: ${String(e)}`);
-            return null;
-          });
-        }),
-      );
-      results.forEach((r, i) => {
+      /* each floor's rooms: a measured floor's merged with the picture read's, the rest as the picture read them */
+      const merged = results.map((r, i) => {
         const s = sheets[i];
-        /* a floor's measured rooms are its rooms; the picture read gives the rest, and is their second reader */
         const walled = floors[i].walled;
         const m = walled && "spaces" in walled && walled.spaces.length ? walled : null;
         if (m) {
-          (reading.floors[s.floorId] ??= []).push(withMeasured(r.status === "fulfilled" ? r.value : null, m, s.sheetId));
           /* its rooms stand, but its doors, windows and notes were the picture
              read's to find: said, so the plan asks to be checked and isn't
              shown as Read (the engine's review, 21 November 2026) */
@@ -1100,11 +1087,34 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
             console.error(`[job-plans] ${planId}/${s.sheetId}: ${String(r.reason)}`);
             reading.failed.push({ floorId: s.floorId, sheetId: s.sheetId, reason: `its rooms were measured, but its doors, windows and notes weren't read (${r.reason instanceof Error ? r.reason.message : "it couldn't be read"})` });
           }
-        } else if (r.status === "fulfilled") (reading.floors[s.floorId] ??= []).push(lined[i] ?? r.value);
-        else {
-          console.error(`[job-plans] ${planId}/${s.sheetId}: ${String(r.reason)}`);
-          reading.failed.push({ floorId: s.floorId, sheetId: s.sheetId, reason: r.reason instanceof Error ? r.reason.message : "It couldn't be read" });
+          return withMeasured(r.status === "fulfilled" ? r.value : null, m, s.sheetId);
         }
+        if (r.status === "fulfilled") return r.value;
+        console.error(`[job-plans] ${planId}/${s.sheetId}: ${String(r.reason)}`);
+        reading.failed.push({ floorId: s.floorId, sheetId: s.sheetId, reason: r.reason instanceof Error ? r.reason.message : "It couldn't be read" });
+        return null;
+      });
+      /* a floor not read from the file has its picture-read rooms put on the
+         drawing's own walls, where it has them. One read from the file isn't
+         moved again: on 3570 that moved the file's own outlines off their
+         walls and cost its ground floor's rooms a tenth of their area */
+      const bytes = isPdf && vectorOn() ? new Uint8Array((await bytesOf()).bytes) : null;
+      const fromFile = (i: number) => {
+        const w = floors[i].walled;
+        return !!(w && "spaces" in w && w.spaces.length);
+      };
+      const lined = await Promise.all(
+        merged.map(async (sh, i) =>
+          !bytes || !sh || fromFile(i)
+            ? sh
+            : onTheLines(bytes, floors[i], sh).catch((e) => {
+                console.error(`[job-plans] ${planId}/p${floors[i].n} lines: ${String(e)}`);
+                return sh;
+              }),
+        ),
+      );
+      lined.forEach((sh, i) => {
+        if (sh) (reading.floors[sheets[i].floorId] ??= []).push(sh);
       });
       /* each opening its schedule's width, height and sill, by its mark */
       if (schedule.items.length) {

@@ -296,7 +296,8 @@ describe("with a floor's rooms read from the drawing file", () => {
     expect(walled[2]).toEqual({ none: "Its walls aren't drawn in the file, filled or in lines" });
     expect(walled[3]).toMatchObject({ from: "file", rounds: 0, look: [] });
     const floors = (plan().reading as { floors: Record<string, { spaces: { name: string }[] }[]> }).floors;
-    expect(floors.p3[0].spaces.map((s) => s.name)).toEqual(["Bed 1", "Living", "Ensuite"]);
+    /* the picture read leads (this fake's rooms have no outlines, so none takes the file's), and the file's named rooms are added */
+    expect(floors.p3[0].spaces.map((s) => s.name)).toEqual(["Living", "Kitchen", "Bed 1", "Living", "Ensuite"]);
     expect(floors.p2[0].spaces.map((s) => s.name)).toEqual(["Living", "Kitchen"]);
   });
 

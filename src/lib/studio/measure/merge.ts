@@ -31,6 +31,11 @@ export function setAside(picture: SheetReading | null, m: MeasuredRooms): string
 /** A sheet's reading with its rooms measured. `picture` is the read by
     picture, or null when that one failed: the rooms then stand alone. */
 export function withMeasured(picture: SheetReading | null, m: MeasuredRooms, sheetId: string): SheetReading {
+  /* rooms read from the drawing file, with a picture read to lead */
+  if (m.from === "file" && picture) {
+    const spaces = pictureLed(picture.spaces, m.spaces);
+    return { ...picture, ...rehomed(picture, spaces), spaces, walled: { grid: m.grid, rounds: m.rounds, look: [...m.look] } };
+  }
   const why = setAside(picture, m);
   if (why && picture) return { ...picture, walled: { grid: m.grid, rounds: m.rounds, look: [{ kind: "readers", room: "", said: `The rooms were also measured off the walls, and that read was set aside: ${why}.` }] } };
   const look = [...m.look];
@@ -51,16 +56,32 @@ export function withMeasured(picture: SheetReading | null, m: MeasuredRooms, she
   const beyond = picture ? picture.spaces.filter(out) : [];
   if (beyond.length) look.push({ kind: "readers", room: "", said: `${[...new Set(beyond.map((s) => s.name))].join(", ")}: outside the part of the sheet that was measured, so ${beyond.length === 1 ? "it is" : "they are"} as the read by picture drew ${beyond.length === 1 ? "it" : "them"}.` });
   /* A ROOM THE FILE GAVE NO NAME takes the name the picture read gives the
-     room standing there: a plan whose names aren't text (Frogmore draws
-     them), a robe or a WC the plan leaves unlabelled (22 November 2026) */
+     room standing there, one inside the other either way round: a plan whose
+     names aren't text (Frogmore draws them), a hall, a robe or a WC the plan
+     leaves unlabelled (22 November 2026: 3570's entry hall and hall were
+     dropped, unnamed, where the picture read had them) */
+  const NAMES = new Set([...WALLED, "circulation"]);
+  const has = (s: ReadSpace) => (s.outline?.length ?? 0) >= 3;
   const taken = new Set<ReadSpace>();
-  const measured = m.spaces.map((s) => {
-    if (s.named || !picture || (s.outline?.length ?? 0) < 3) return s;
-    const hit = picture.spaces.find((p) => !taken.has(p) && WALLED.has(p.kind) && (p.outline?.length ?? 0) >= 3 && inside(mean(p.outline)!, s.outline));
-    if (!hit) return s;
-    taken.add(hit);
-    return { ...s, name: hit.name, named: hit.named, kind: hit.kind };
-  }).filter((s) => s.named || s.kind === "cupboard" || !m.from);
+  const measured = m.spaces
+    .map((s) => {
+      if (s.named || !picture || !has(s)) return s;
+      const hit = picture.spaces.find((p) => !taken.has(p) && NAMES.has(p.kind) && has(p) && (inside(mean(p.outline)!, s.outline) || inside(mean(s.outline)!, p.outline)));
+      if (!hit) return s;
+      taken.add(hit);
+      return { ...s, name: hit.name, named: hit.named, kind: hit.kind };
+    })
+    .filter((s) => s.named || s.kind === "cupboard" || !m.from);
+  /* A ROOM THE FILE DIDN'T CLOSE OFF (a garage open to the drive, a hall
+     whose walls weren't found) is kept as the picture read drew it, where no
+     measured room stands: dropped, 3570's south garage went from the floor
+     (22 November 2026) */
+  const missed =
+    picture && m.from
+      ? picture.spaces.filter(
+          (p) => NAMES.has(p.kind) && has(p) && !taken.has(p) && !beyond.includes(p) && !measured.some((s) => has(s) && (inside(mean(p.outline)!, s.outline) || inside(mean(s.outline)!, p.outline))),
+        )
+      : [];
   /* what walls don't close off is the picture's to give: a terrace, a void,
      a stair in a hall, where the measured rooms have none of their own there */
   const OPEN = new Set(["outdoor", "void", "notch", "stair"]);
@@ -69,7 +90,7 @@ export function withMeasured(picture: SheetReading | null, m: MeasuredRooms, she
         (p) => OPEN.has(p.kind) && !beyond.includes(p) && (p.outline?.length ?? 0) >= 3 && !measured.some((s) => s.kind === p.kind && (s.outline?.length ?? 0) >= 3 && inside(mean(s.outline)!, p.outline)),
       )
     : [];
-  const spaces = [...measured, ...beyond, ...open];
+  const spaces = [...measured, ...beyond, ...missed, ...open];
   if (picture) {
     const a = agreement(spaces, picture.spaces);
     const missed = walledIn(picture.spaces).filter((s) => a.onlyB.includes(s.name) && !beyond.includes(s));
@@ -156,3 +177,68 @@ export function rehomed(picture: SheetReading, spaces: readonly ReadSpace[]): Pi
   };
 }
 
+
+/* ── the picture read leads, the file gives the outlines ── */
+
+/** How much two outlines are one room: their shared area over the area of
+    either, sampled on a grid of about 40 by 40 across them both. */
+export function overlapOf(a: readonly Pt[], b: readonly Pt[]): number {
+  const xs = [...a, ...b].map((p) => p.x);
+  const ys = [...a, ...b].map((p) => p.y);
+  const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  const step = Math.max(1, Math.max(x1 - x0, y1 - y0) / 40);
+  let both = 0;
+  let either = 0;
+  for (let y = y0 + step / 2; y < y1; y += step)
+    for (let x = x0 + step / 2; x < x1; x += step) {
+      const p = { x, y };
+      const ia = inside(p, a);
+      const ib = inside(p, b);
+      if (ia && ib) both++;
+      if (ia || ib) either++;
+    }
+  return either ? both / either : 0;
+}
+
+const boxed = (a: readonly Pt[], b: readonly Pt[]) => {
+  const ax = a.map((p) => p.x), ay = a.map((p) => p.y), bx = b.map((p) => p.x), by = b.map((p) => p.y);
+  return Math.min(...ax) <= Math.max(...bx) && Math.min(...bx) <= Math.max(...ax) && Math.min(...ay) <= Math.max(...by) && Math.min(...by) <= Math.max(...ay);
+};
+
+/** THE PICTURE READ'S ROOMS, ON THE FILE'S WALLS WHERE THEY AGREE (the
+    outside review, 22 November 2026: "a merge that starts with
+    picture-discovered rooms and accepts measured boundaries per matched
+    room"). The picture read splits a floor into rooms as a person does (a
+    hall, a stair, an open kitchen and family room); the file's spaces sit
+    exactly on the walls but part a floor by where its walls close, which a
+    hall or a stair doesn't. So each room the picture read found takes the
+    outline of the file's space that is plainly the same room (they share
+    most of their area), keeping the picture's name where the file has
+    none; a room with no such space stays as the picture drew it (it is put
+    on the walls after, plans-server's onTheLines). A named space only the
+    file found is added. On 3570, scored against the key brought in to the
+    walls' faces, the ground floor's median room overlap went from 80% to
+    84% (19 rooms at 80% or more, from 17), where the file's rooms leading
+    had made it 68%. Pure. */
+/* plainly one room: the file's space and the picture's room share this much of their area */
+const SAME_ROOM = 0.8;
+
+export function pictureLed(picture: readonly ReadSpace[], file: readonly ReadSpace[]): ReadSpace[] {
+  const NAMES = new Set([...WALLED, "circulation", "other"]);
+  const has = (s: ReadSpace) => (s.outline?.length ?? 0) >= 3;
+  const used = new Set<ReadSpace>();
+  const out: ReadSpace[] = picture.map((p) => {
+    if (!NAMES.has(p.kind) || !has(p)) return p;
+    let best: { s: ReadSpace; o: number } | null = null;
+    for (const f of file) {
+      if (used.has(f) || !has(f) || !boxed(p.outline, f.outline)) continue;
+      const o = overlapOf(p.outline, f.outline);
+      if (o >= SAME_ROOM && (!best || o > best.o)) best = { s: f, o };
+    }
+    if (!best) return p;
+    used.add(best.s);
+    return { ...p, outline: best.s.outline };
+  });
+  for (const f of file) if (!used.has(f) && f.named && has(f) && !out.some((p) => has(p) && overlapOf(p.outline, f.outline) >= 0.3)) out.push(f);
+  return out;
+}

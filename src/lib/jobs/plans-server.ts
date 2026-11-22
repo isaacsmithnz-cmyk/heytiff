@@ -15,7 +15,7 @@ import { withMeasured } from "@/lib/studio/measure/merge";
 import { K, vectorRooms } from "@/lib/studio/vector/read";
 import { facesOf, snapped } from "@/lib/studio/vector/snap";
 import { pitchOf, roofLines } from "@/lib/studio/vector/roof";
-import { placeFaces, type FloorUnder } from "@/lib/studio/vector/roof-place";
+import { placeFaces, readAgain, type FloorUnder } from "@/lib/studio/vector/roof-place";
 import { SONNET_FALLBACK } from "@/lib/tiff/sonnet-fallback";
 import { openPdf } from "@/lib/tiff/extract";
 import { fullInNode, pixelsInNode, previewsInNode, textsInNode, vectorsInNode } from "./plan-draw-node";
@@ -434,19 +434,24 @@ async function measureFloor(bytes: Uint8Array, p: JobPlanPage, deadline: number,
 
 /** At most this many pages are read for the roof's faces: a set's roof plans are a page or two. */
 const ROOF_PAGES = 3;
-/** When a run's roof faces must be started by, from its start: they take a few seconds (a 25-page set's words, 1.8 s), and the route is killed at 300 s. */
+/** By when, from a run's start, the roof's faces are started, and each roof plan page read for them: the words take a couple of seconds (a 25-page set's, 1.8 s) and a page about one (3570's A104, 0.6 s on a laptop), and the route is killed at 300 s. */
 const FACES_BY_MS = 270_000;
 
 /* THE ROOF OFF THE ROOF PLAN'S OWN LINES (lib/studio/vector/roof.ts,
    roof-place.ts): the pages that print three or more roof pitches, each read
    for the faces its lines close round them and set over the floors read.
    Only a floor drawn on a page the same size as the roof plan's is set
-   under it: the sheets' shared origin is what puts the faces in place. The
-   faces are the one page's that places most of them: a set's existing and
-   proposed roof plans would otherwise stand two roofs on the floors, one
-   through the other. Any page that doesn't read cleanly gives nothing, and
-   the read's own roof parts stand. Never fails the read. */
-export async function roofFacesOf(bytes: Uint8Array, pages: readonly JobPlanPage[], reading: PlanReading): Promise<{ faces: NonNullable<NonNullable<PlanReading["roof"]>["faces"]>; left: number } | null> {
+   under it: the sheets' shared origin is what puts the faces in place. ONE
+   ROOF: the faces are the one page's that places most of them, when every
+   other page's are its own read again (a roof plan and its drainage plan).
+   Two pages that place different roofs (a set's existing and proposed roof
+   plans) leave which is the roof unknown, and give none: stood together
+   they would stand one roof through the other. A page not started by `by`
+   is left unread, so one started late can't run the route past its limit,
+   and the faces are the pages' read before it. Any page that doesn't read
+   cleanly gives nothing, and the read's own roof parts stand. Never fails
+   the read. */
+export async function roofFacesOf(bytes: Uint8Array, pages: readonly JobPlanPage[], reading: PlanReading, by: number): Promise<{ faces: NonNullable<NonNullable<PlanReading["roof"]>["faces"]>; left: number } | null> {
   const roof = reading.roof;
   if (!roof) return null;
   const read = pages.filter((p) => p.kind === "floor" && reading.floors[pageKey(p.n)]?.length);
@@ -458,8 +463,12 @@ export async function roofFacesOf(bytes: Uint8Array, pages: readonly JobPlanPage
     .filter((t) => t.pitches >= 3)
     .sort((a, b) => b.pitches - a.pitches)
     .slice(0, ROOF_PAGES);
-  let best: { faces: NonNullable<NonNullable<PlanReading["roof"]>["faces"]>; left: number } | null = null;
-  for (const { n } of found) {
+  const got: { n: number; faces: NonNullable<NonNullable<PlanReading["roof"]>["faces"]>; left: number; under: FloorUnder[] }[] = [];
+  for (const [i, { n }] of found.entries()) {
+    if (Date.now() >= by) {
+      console.log(`[job-plans] the roof's faces were read off ${i} of ${found.length} pages, the run was out of time`);
+      break;
+    }
     const v = await vectorsInNode(bytes, n);
     const lines = roofLines({ lines: v.lines, words: v.words.map((w) => ({ text: w.text, at: { x: w.at.x / K, y: w.at.y / K } })), width: v.width, height: v.height });
     if ("none" in lines) {
@@ -489,9 +498,19 @@ export async function roofFacesOf(bytes: Uint8Array, pages: readonly JobPlanPage
       console.log(`[job-plans] p${n} roof faces: ${placed.none}`);
       continue;
     }
-    if (!best || placed.faces.length > best.faces.length) best = { faces: placed.faces, left: placed.left + lines.left.length };
+    got.push({ n, faces: placed.faces, left: placed.left + lines.left.length, under });
   }
-  return best;
+  if (!got.length) return null;
+  const best = got.reduce((a, b) => (b.faces.length > a.faces.length ? b : a));
+  for (const o of got) {
+    if (o === best) continue;
+    if (!readAgain(o.faces, best.faces, best.under)) {
+      console.log(`[job-plans] p${best.n} and p${o.n} place different roofs: which is the roof isn't known`);
+      return null;
+    }
+    console.log(`[job-plans] p${o.n}'s roof faces are p${best.n}'s read again, and are left out`);
+  }
+  return { faces: best.faces, left: best.left };
 }
 
 /** At most this many schedule sheets are read: a set's schedules are a page or two. */
@@ -1235,7 +1254,7 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
       if (reading.roof && isPdf && vectorOn() && !reading.roof.faces) {
         /* by a time of their own, not the readers': they take seconds, and a read cut off by the route's limit loses everything with it */
         if (Date.now() < started + FACES_BY_MS) {
-          const got = await roofFacesOf(new Uint8Array((await bytesOf()).bytes), pages, reading).catch((e) => {
+          const got = await roofFacesOf(new Uint8Array((await bytesOf()).bytes), pages, reading, started + FACES_BY_MS).catch((e) => {
             console.error(`[job-plans] ${planId}/roof faces: ${String(e)}`);
             return null;
           });

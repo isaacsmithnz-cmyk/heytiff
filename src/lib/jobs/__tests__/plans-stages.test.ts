@@ -459,37 +459,72 @@ describe("the roof's faces off the roof plan's lines", () => {
     expect(log).toHaveBeenCalledWith(expect.stringContaining("the roof's faces weren't read off the roof plan, the run was out of time"));
   });
 
-  it("are the one roof plan's that places most of them, never two plans' stood one through the other", async () => {
-    /* two roof plans of the one house: the first's east face can't be read at the height it meets its hips, the second's all can */
-    roofPages.set(5, hipRoof([30, 30, 30, 60]));
+  /* the ground floor on a page the roof plans' size, two pixels a point: a room inside walls 12.5 pt in from the eaves */
+  const ground: JobPlanPage = { n: 3, kind: "floor", name: "Ground floor", level: 0, ref: "org/org-1/p3.png", preview: null, width: 800, height: 600, mmPerPx: 17.5, scale: "1:100" };
+  const other = (n: number): JobPlanPage => ({ n, kind: "other", name: "", level: null, ref: null, preview: null, width: 800, height: 600, mmPerPx: null, scale: null });
+  const reading: PlanReading = {
+    at: "2026-11-23T00:00:00Z",
+    model: "m",
+    failed: [],
+    floors: {
+      p3: [
+        {
+          sheetId: "p3",
+          spaces: [{ name: "Living", named: true, kind: "room", outline: box(240, 240, 560, 360), written: "", existing: false, openTo: "", stair: "" }],
+          openings: [],
+          marks: [],
+          furniture: [],
+          checklist: [],
+          flags: [],
+          planUp: "",
+          walled: { grid: { x: [], y: [] }, rounds: 0, look: [], walls: [[box(224.5, 224.5, 575.5, 375.5), box(240, 240, 560, 360)]] },
+        },
+      ],
+    },
+    roof,
+  };
+  const set = [ground, other(5), other(6)];
+
+  it("are the one roof plan's when another page draws the same roof again, which is said to be left out", async () => {
+    roofPages.set(5, hipRoof());
     roofPages.set(6, hipRoof());
-    /* the ground floor on a page the roof plans' size, two pixels a point: a room inside walls 12.5 pt in from the eaves */
-    const ground: JobPlanPage = { n: 3, kind: "floor", name: "Ground floor", level: 0, ref: "org/org-1/p3.png", preview: null, width: 800, height: 600, mmPerPx: 17.5, scale: "1:100" };
-    const other = (n: number): JobPlanPage => ({ n, kind: "other", name: "", level: null, ref: null, preview: null, width: 800, height: 600, mmPerPx: null, scale: null });
-    const reading: PlanReading = {
-      at: "2026-11-23T00:00:00Z",
-      model: "m",
-      failed: [],
-      floors: {
-        p3: [
-          {
-            sheetId: "p3",
-            spaces: [{ name: "Living", named: true, kind: "room", outline: box(240, 240, 560, 360), written: "", existing: false, openTo: "", stair: "" }],
-            openings: [],
-            marks: [],
-            furniture: [],
-            checklist: [],
-            flags: [],
-            planUp: "",
-            walled: { grid: { x: [], y: [] }, rounds: 0, look: [], walls: [[box(224.5, 224.5, 575.5, 375.5), box(240, 240, 560, 360)]] },
-          },
-        ],
-      },
-      roof,
-    };
-    const got = await roofFacesOf(new Uint8Array(), [ground, other(5), other(6)], reading);
-    expect(got?.faces.map((f) => f.page)).toEqual([6, 6, 6, 6]);
+    const log = jest.spyOn(console, "log").mockImplementation(() => {});
+    const got = await roofFacesOf(new Uint8Array(), set, reading, Infinity);
+    expect(got?.faces.map((f) => f.page)).toEqual([5, 5, 5, 5]);
     /* 25 px in at 17.5 mm a pixel */
     expect(got?.faces.every((f) => f.overhangMm === 438)).toBe(true);
+    expect(log).toHaveBeenCalledWith("[job-plans] p6's roof faces are p5's read again, and are left out");
+  });
+
+  it("are none when two pages place different roofs, never the one that places most of them: which is the roof isn't known", async () => {
+    /* the existing roof a tenth bigger all round than the proposed one, its eaves still alike on opposite sides */
+    const r = hipRoof();
+    const grown = ([x, y]: readonly [number, number]): [number, number] => [200 + (x - 200) * 1.1, 150 + (y - 150) * 1.1];
+    roofPages.set(5, {
+      lines: r.lines.map((l) => ({ ...l, a: grown(l.a), b: grown(l.b) })),
+      words: r.words.map((w) => {
+        const [x, y] = grown([w.at.x, w.at.y]);
+        return { ...w, at: { x, y } };
+      }),
+    });
+    roofPages.set(6, hipRoof());
+    const log = jest.spyOn(console, "log").mockImplementation(() => {});
+    expect(await roofFacesOf(new Uint8Array(), set, reading, Infinity)).toBeNull();
+    expect(log).toHaveBeenCalledWith("[job-plans] p5 and p6 place different roofs: which is the roof isn't known");
+  });
+
+  it("stop at the run's time for them between two roof plan pages, with the pages' read before it, and say so", async () => {
+    roofPages.set(5, hipRoof());
+    roofPages.set(6, hipRoof());
+    const drawn = vectorsInNode.getMockImplementation()!;
+    vectorsInNode.mockImplementationOnce(async (b: Uint8Array, n: number) => {
+      clock += 5_000;
+      return drawn(b, n);
+    });
+    const log = jest.spyOn(console, "log").mockImplementation(() => {});
+    const got = await roofFacesOf(new Uint8Array(), set, reading, clock + 2_000);
+    expect(vectorsInNode.mock.calls.map((c) => c[1])).toEqual([5]);
+    expect(got?.faces.map((f) => f.page)).toEqual([5, 5, 5, 5]);
+    expect(log).toHaveBeenCalledWith("[job-plans] the roof's faces were read off 1 of 2 pages, the run was out of time");
   });
 });

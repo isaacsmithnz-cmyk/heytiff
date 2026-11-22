@@ -175,11 +175,25 @@ describe("the roof plan's faces set over the floors", () => {
     /* the floor 10 px (350 mm) east of the roof plan: its west eave 805 mm out past the wall, its east one 105 */
     expect(placeFaces(facesOf(), 4, [{ ...ground, ...walled(10) }], [part])).toEqual({ none: expect.stringContaining("didn't measure alike on opposite sides") });
   });
+  it("a roof plan set off along a floor whose eaves measured one way across only isn't put over it", () => {
+    /* walls along the north and south alone, so the east and west eaves meet none in an eave's reach; the floor 10 px east, which the north and south eaves can't tell */
+    const ns: FloorUnder = { ...ground, spaces: [room("Living", 130, 120, 290, 180)], walls: [[box(122.5, 112.5, 297.5, 120)], [box(122.5, 180, 297.5, 187.5)]] };
+    expect(placeFaces(facesOf(), 4, [ns], [part])).toEqual({ none: expect.stringContaining("didn't measure alike on opposite sides both ways across") });
+  });
   it("a face that doesn't meet its neighbours at one height is left out", () => {
-    /* the east face printed at 60°: its hips stand far above the faces it meets */
-    const placed = placeFaces(facesOf([30, 30, 30, 60]), 4, [ground], [part]);
+    /* two hip roofs over the ground floor, the first's east face printed at 60°: its hips stand far above the faces it meets.
+       The second's eaves measure the floor east and west, where the first's own west eave has none opposite it */
+    const two: FloorUnder = {
+      ...ground,
+      spaces: [room("Living", 120, 120, 280, 180), room("Dining", 420, 120, 580, 180)],
+      walls: [
+        [box(112.5, 112.5, 287.5, 187.5), box(120, 120, 280, 180)],
+        [box(412.5, 112.5, 587.5, 187.5), box(420, 120, 580, 180)],
+      ],
+    };
+    const placed = placeFaces([...facesOf([30, 30, 30, 60]), ...moved(facesOf(), 300)], 4, [two], [part]);
     if ("none" in placed) throw new Error(placed.none);
-    expect(placed.faces).toHaveLength(3);
+    expect(placed.faces).toHaveLength(7);
     expect(placed.faces.some((f) => f.pitchDeg === 60)).toBe(false);
     expect(placed.left).toBe(1);
   });

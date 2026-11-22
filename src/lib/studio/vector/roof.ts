@@ -244,13 +244,18 @@ export function roofLines(input: { lines: readonly Line[]; words: readonly RoofW
     byShape.set(id, [...(byShape.get(id) ?? []), { deg: p.deg, at: p.at, dir: arrow.dir }]);
   });
 
-  /* the outlines' corners as drawn: a face is traced inside its lines, so each corner is put back on the line end it stands by */
+  /* the outlines' corners as drawn: a face is traced inside its lines, so
+     each corner is put back on the line end it stands by; and the lines
+     whose ends are in each cell, to find the ends that meet */
   const ends = new Map<string, [number, number][]>();
-  for (const l of outlines)
+  const lineAt = new Map<string, number[]>();
+  outlines.forEach((l, i) => {
     for (const e of [l.a, l.b]) {
       const k = `${Math.round(e[0] / SNAP)},${Math.round(e[1] / SNAP)}`;
       ends.set(k, [...(ends.get(k) ?? []), e]);
+      lineAt.set(k, [...(lineAt.get(k) ?? []), i]);
     }
+  });
   /* A LINE THAT STOPS SHORT IN A SHAPE: a hip or a valley drawn with a gap
      lets two faces run into one shape, and with the other's pitch left out
      (no arrow of its own) this one's would be built over both, rising twice
@@ -259,13 +264,6 @@ export function roofLines(input: { lines: readonly Line[]; words: readonly RoofW
      lines round the faces: a piece of the roof's lines that stops short. A
      dimension (its ends on its ticks), a tick, or a leader joined to no
      line's end splits nothing. */
-  const lineAt = new Map<string, number[]>();
-  outlines.forEach((l, i) => {
-    for (const e of [l.a, l.b]) {
-      const k = `${Math.round(e[0] / SNAP)},${Math.round(e[1] / SNAP)}`;
-      lineAt.set(k, [...(lineAt.get(k) ?? []), i]);
-    }
-  });
   const run = outlines.map((_, i) => i);
   const root = (i: number) => {
     while (run[i] !== i) i = run[i] = run[run[i]];

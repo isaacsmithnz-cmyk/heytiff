@@ -372,8 +372,9 @@ const CLEARLY_BETTER = 1.1;
     stair above, since an outdoor stair or an old one kept is a stair too,
     and as drawn: whichever stands most of the floor on the one below. With
     no stair to go by the floor stays as drawn: its middle put over the
-    ground's would be a guess, and the floor can be moved by hand. */
-export function lineUp(ground: Raw, other: Raw): XZ {
+    ground's would be a guess, and the floor can be moved by hand. With
+    `near` off, only a stair that stands the floor clearly better moves it. */
+export function lineUp(ground: Raw, other: Raw, { near: nearOn = true }: { near?: boolean } = {}): XZ {
   if (!solid(ground).length || !solid(other).length) return [0, 0];
   const below = walledBoxes(ground);
   const above = walledBoxes(other);
@@ -397,7 +398,7 @@ export function lineUp(ground: Raw, other: Raw): XZ {
         most = n;
         best = d;
       }
-      if (overlap(ba, bb) < 0.7 && n >= near) {
+      if (nearOn && overlap(ba, bb) < 0.7 && n >= near) {
         near = n;
         nearBest = d;
       }
@@ -407,15 +408,15 @@ export function lineUp(ground: Raw, other: Raw): XZ {
 }
 
 /** A floor's sheets as pages of the one PDF the design's plans came from,
-    all at one size; null when they aren't, or that can't be told (files
-    dropped in together, a photo). */
-function pagesOf(doc: DesignDocument, f: Floor): { size: string; refs: string[] } | null {
+    all at one size, with the floor's scale; null when they aren't, or that
+    can't be told (files dropped in together, a photo). */
+function pagesOf(doc: DesignDocument, f: Floor): { size: string; scale: number | null; refs: string[] } | null {
   const imp = doc.planImport;
   if (imp?.sources.length !== 1 || imp.sources[0].kind !== "pdf" || !f.plans.length) return null;
   const placed = new Set(Object.values(imp.placed));
   if (!f.plans.every((s) => placed.has(s.imageRef))) return null;
   const sizes = new Set(f.plans.map((s) => `${s.width}x${s.height}`));
-  return sizes.size === 1 ? { size: [...sizes][0], refs: f.plans.map((s) => s.imageRef) } : null;
+  return sizes.size === 1 ? { size: [...sizes][0], scale: f.scaleMmPerUnit, refs: f.plans.map((s) => s.imageRef) } : null;
 }
 
 const shift = ([dx, dz]: XZ) => (p: XZ): XZ => [p[0] + dx, p[1] + dz];
@@ -512,16 +513,19 @@ export function sceneOf(doc: DesignDocument, unitRow?: (model: string) => UnitRo
   }
   const groundRaw = groundFloor ? raws.get(groundFloor.id) : undefined;
   /* PAGES OF ONE FILE SHARE AN ORIGIN: an architect's sheets at one size
-     draw every floor in the same place on its page (3570's), so a floor on
-     another page of the one PDF stands as drawn, and a stair read a little
-     off can't walk it out of register. Only a floor from a file of its own,
-     or drawn on the ground floor's own page, is lined up over the ground. */
+     and scale draw every floor in the same place on its page (3570's), so a
+     stair read a little off can't walk a floor on another page of the one
+     PDF out of register: only a stair that stands it clearly better on the
+     ground moves it (6 Nostrud Ave's first floor, drawn 4.4 m higher up its
+     page). A floor from a file of its own, drawn on the ground floor's own
+     page, or at another scale (its point on paper lands elsewhere in the
+     world) is lined up by its stairs as before. */
   const groundPages = groundFloor ? pagesOf(doc, groundFloor) : null;
   const moves = new Map<string, XZ>();
   for (const [id, r] of raws) {
     const pages = pagesOf(doc, r.floor);
-    const oneFile = !!pages && !!groundPages && pages.size === groundPages.size && !pages.refs.some((ref) => groundPages.refs.includes(ref));
-    moves.set(id, groundRaw && r !== groundRaw && !oneFile ? lineUp(groundRaw, r) : [0, 0]);
+    const oneFile = !!pages && !!groundPages && pages.size === groundPages.size && pages.scale === groundPages.scale && !pages.refs.some((ref) => groundPages.refs.includes(ref));
+    moves.set(id, groundRaw && r !== groundRaw ? lineUp(groundRaw, r, { near: !oneFile }) : [0, 0]);
   }
 
   /* A SUBFLOOR (floor-spaces.ts): the house stands on it, so every floor goes

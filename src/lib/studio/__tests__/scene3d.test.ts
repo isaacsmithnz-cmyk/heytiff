@@ -129,19 +129,25 @@ describe("floors stack", () => {
   });
 
   /* the first floor narrower than the ground, its stair a metre off the one below (as 90 Dreamer St's) */
-  const dreamer = (planImport: DesignDocument["planImport"]) => ({
-    ...design([floor("gf", 0), floor("l1", 1)], {
+  const dreamer = (planImport: DesignDocument["planImport"], l1 = 10) => ({
+    ...design([floor("gf", 0), floor("l1", 1, { scaleMmPerUnit: l1 })], {
       gf: [read("s-gf", [space("Long", "room", [0, 0, 2000, 500]), space("Stair", "stair", [1000, 0, 1200, 400])])],
       l1: [read("s-l1", [space("Short", "room", [0, 0, 1500, 500]), space("Stair", "stair", [900, 0, 1100, 400])])],
     }),
     planImport,
   });
-  it("as drawn when they are pages of one PDF at one size: the sheets share an origin, and a stair read off doesn't move a floor", () => {
-    const one = { sources: [{ ref: "r/set.pdf", kind: "pdf" as const }], placed: { 2: "r/s-gf.png", 3: "r/s-l1.png" }, chosen: [2, 3], names: {} };
+  const one = { sources: [{ ref: "r/set.pdf", kind: "pdf" as const }], placed: { 2: "r/s-gf.png", 3: "r/s-l1.png" }, chosen: [2, 3], names: {} };
+  it("as drawn when they are pages of one PDF at one size and scale: the sheets share an origin, and a stair read off doesn't move a floor", () => {
     expect(sceneOf(dreamer(one)).floors.map((f) => [f.id, f.shift])).toEqual([
       ["gf", [0, 0]],
       ["l1", [0, 0]],
     ]);
+  });
+  it("lined up stair over stair when one PDF's pages are at different scales: a point on paper lands elsewhere in the world", () => {
+    const [, l1] = sceneOf(dreamer(one, 10.1)).floors;
+    /* the stairs' middles 11 m and 10.1 m along, 2 m and 2.02 m down */
+    expect(l1.shift![0]).toBeCloseTo(0.9, 5);
+    expect(l1.shift![1]).toBeCloseTo(-0.02, 5);
   });
   it("lined up stair over stair when each floor is a file of its own", () => {
     expect(sceneOf(dreamer(null)).floors.map((f) => [f.id, f.shift])).toEqual([
@@ -171,8 +177,49 @@ describe("floors stack", () => {
      two still overlapped by more than half, so it stood where it was drawn.
      Its stairs, its old stair kept and an outdoor one among them, put it
      over the ground. */
+  type Row = [string, ReadSpace["kind"], number, number, number, number, boolean?];
+  const nostrudGround: Row[] = [
+    ["Ex. Entry", "circulation", 1365, 1495, 822, 890, true],
+    ["Hall", "circulation", 1365, 1425, 677, 819, true],
+    ["Bags", "cupboard", 1322, 1365, 712, 734],
+    ["Pantry", "cupboard", 1167, 1205, 604, 667],
+    ["Under Stairs Storage", "cupboard", 1290, 1370, 604, 647],
+    ["Ex. Garage", "garage", 560, 718, 755, 910, true],
+    ["Ex. Verandah", "outdoor", 1498, 1612, 604, 890, true],
+    ["Outdoor Entertaining", "outdoor", 560, 718, 575, 752],
+    ["Ex. Guest Bed", "room", 1428, 1555, 719, 819, true],
+    ["Ex. Kids Play", "room", 1428, 1555, 604, 712, true],
+    ["Kitchen / Living / Dining", "room", 1018, 1365, 604, 890],
+    ["Outdoor stair over pool equip", "stair", 585, 636, 685, 727],
+    ["Stairs", "stair", 1270, 1320, 652, 737],
+    ["Ex. Bath", "wet", 1375, 1422, 604, 675, true],
+    ["Laundry", "wet", 1208, 1265, 604, 667],
+    ["P'WD RM", "wet", 1167, 1255, 672, 737],
+  ];
+  const nostrudFirst: Row[] = [
+    ["Hall", "circulation", 1175, 1460, 486, 656],
+    ["Ex. WIR", "cupboard", 1368, 1440, 554, 609, true],
+    ["Storage", "cupboard", 563, 580, 619, 734, true],
+    ["WIR", "cupboard", 1060, 1170, 557, 624],
+    ["Front Verandah", "outdoor", 1495, 1612, 489, 775, true],
+    ["Ex. Bed 2", "room", 1440, 1552, 489, 607, true],
+    ["Ex. Bed 3", "room", 1348, 1495, 664, 775, true],
+    ["Ex. Bed 4", "room", 1175, 1265, 486, 624, true],
+    ["Ex. Bedroom", "room", 580, 700, 619, 734, true],
+    ["Ex. Gym", "room", 1462, 1552, 612, 707, true],
+    ["Ex. Living", "room", 580, 700, 514, 594, true],
+    ["Kitchenette", "room", 565, 720, 489, 514, true],
+    ["Master Bed", "room", 1060, 1172, 629, 775],
+    ["Study", "room", 1175, 1270, 659, 775],
+    ["Ex. Stairs Retained", "stair", 565, 665, 594, 619, true],
+    ["Stair", "stair", 1280, 1325, 524, 624],
+    ["Bath", "wet", 1273, 1345, 659, 775],
+    ["Ens/Ldry", "wet", 563, 712, 734, 784],
+    ["Ex. Ensuite", "wet", 1368, 1430, 489, 552, true],
+    ["Master Ensuite", "wet", 1060, 1170, 486, 557],
+  ];
   it("stair over stair even where the plans overlap (6 Nostrud Ave)", () => {
-    const at = (k: number, rows: [string, ReadSpace["kind"], number, number, number, number, boolean?][]) => ({
+    const at = (k: number, rows: Row[]) => ({
       floor: floor("x", 0),
       openings: [],
       read: true,
@@ -183,50 +230,19 @@ describe("floors stack", () => {
         pts: [[x0, y0], [x1, y0], [x1, y1], [x0, y1]].map(([x, y]) => [(x * k) / 1000, (y * k) / 1000] as [number, number]),
       })),
     });
-    const ground = at(35.14388760928441, [
-      ["Ex. Entry", "circulation", 1365, 1495, 822, 890, true],
-      ["Hall", "circulation", 1365, 1425, 677, 819, true],
-      ["Bags", "cupboard", 1322, 1365, 712, 734],
-      ["Pantry", "cupboard", 1167, 1205, 604, 667],
-      ["Under Stairs Storage", "cupboard", 1290, 1370, 604, 647],
-      ["Ex. Garage", "garage", 560, 718, 755, 910, true],
-      ["Ex. Verandah", "outdoor", 1498, 1612, 604, 890, true],
-      ["Outdoor Entertaining", "outdoor", 560, 718, 575, 752],
-      ["Ex. Guest Bed", "room", 1428, 1555, 719, 819, true],
-      ["Ex. Kids Play", "room", 1428, 1555, 604, 712, true],
-      ["Kitchen / Living / Dining", "room", 1018, 1365, 604, 890],
-      ["Outdoor stair over pool equip", "stair", 585, 636, 685, 727],
-      ["Stairs", "stair", 1270, 1320, 652, 737],
-      ["Ex. Bath", "wet", 1375, 1422, 604, 675, true],
-      ["Laundry", "wet", 1208, 1265, 604, 667],
-      ["P'WD RM", "wet", 1167, 1255, 672, 737],
-    ]);
-    const first = at(34.803996484313124, [
-      ["Hall", "circulation", 1175, 1460, 486, 656],
-      ["Ex. WIR", "cupboard", 1368, 1440, 554, 609, true],
-      ["Storage", "cupboard", 563, 580, 619, 734, true],
-      ["WIR", "cupboard", 1060, 1170, 557, 624],
-      ["Front Verandah", "outdoor", 1495, 1612, 489, 775, true],
-      ["Ex. Bed 2", "room", 1440, 1552, 489, 607, true],
-      ["Ex. Bed 3", "room", 1348, 1495, 664, 775, true],
-      ["Ex. Bed 4", "room", 1175, 1265, 486, 624, true],
-      ["Ex. Bedroom", "room", 580, 700, 619, 734, true],
-      ["Ex. Gym", "room", 1462, 1552, 612, 707, true],
-      ["Ex. Living", "room", 580, 700, 514, 594, true],
-      ["Kitchenette", "room", 565, 720, 489, 514, true],
-      ["Master Bed", "room", 1060, 1172, 629, 775],
-      ["Study", "room", 1175, 1270, 659, 775],
-      ["Ex. Stairs Retained", "stair", 565, 665, 594, 619, true],
-      ["Stair", "stair", 1280, 1325, 524, 624],
-      ["Bath", "wet", 1273, 1345, 659, 775],
-      ["Ens/Ldry", "wet", 563, 712, 734, 784],
-      ["Ex. Ensuite", "wet", 1368, 1430, 489, 552, true],
-      ["Master Ensuite", "wet", 1060, 1170, 486, 557],
-    ]);
-    const [dx, dz] = lineUp(ground, first);
+    const [dx, dz] = lineUp(at(35.14388760928441, nostrudGround), at(34.803996484313124, nostrudFirst));
     /* the new stair over the new stair */
     expect(dx).toBeCloseTo(0.18, 2);
     expect(dz).toBeCloseTo(4.43, 2);
+  });
+  it("stair over stair on two pages of one PDF at one size and scale, where the stair stands the floor clearly better (6 Nostrud Ave's, drawn out of register)", () => {
+    const k = 35.14388760928441;
+    const sheetOf = (rows: Row[], id: string) => read(id, rows.map(([name, kind, x0, x1, y0, y1, existing = false]) => space(name, kind, [x0, y0, x1, y1], existing)));
+    const d = design([floor("gf", 0, { scaleMmPerUnit: k }), floor("l1", 1, { scaleMmPerUnit: k })], { gf: [sheetOf(nostrudGround, "s-gf")], l1: [sheetOf(nostrudFirst, "s-l1")] });
+    const [, l1] = sceneOf({ ...d, planImport: one }).floors;
+    /* the new stair's middle over the new stair's: 7.5 px west and 120.5 px down the page */
+    expect(l1.shift![0]).toBeCloseTo((-7.5 * k) / 1000, 5);
+    expect(l1.shift![1]).toBeCloseTo((120.5 * k) / 1000, 5);
   });
 });
 

@@ -95,19 +95,31 @@ export function arrowsOf(dark: readonly Line[]): Arrow[] {
     const len = Math.hypot(l.b[0] - l.a[0], l.b[1] - l.a[1]);
     return len > 0.5 && len < ARROW_LONGEST;
   });
-  /* the strokes by where they end, on a coarse grid, so a page of 40,000 lines is met in one pass */
+  /* the strokes by where they end, on a grid of 1 pt cells, so a page of 40,000 lines is met in one pass;
+     an end is looked for in its own cell and the eight round it, so two ends either side of a cell's edge still meet */
   const at = new Map<string, Line[]>();
-  const key = (p: readonly [number, number]) => `${Math.round(p[0] * 2)},${Math.round(p[1] * 2)}`;
-  for (const l of short) for (const e of [l.a, l.b]) at.set(key(e), [...(at.get(key(e)) ?? []), l]);
+  const cell = (p: readonly [number, number]) => [Math.floor(p[0]), Math.floor(p[1])];
+  for (const l of short)
+    for (const e of [l.a, l.b]) {
+      const k = cell(e).join(",");
+      at.set(k, [...(at.get(k) ?? []), l]);
+    }
+  const meeting = (e: readonly [number, number]) => {
+    const [cx, cy] = cell(e);
+    const found = new Set<Line>();
+    for (let x = cx - 1; x <= cx + 1; x++) for (let y = cy - 1; y <= cy + 1; y++) for (const l of at.get(`${x},${y}`) ?? []) if (near(l.a, e, 0.05) || near(l.b, e, 0.05)) found.add(l);
+    return [...found];
+  };
   const out: Arrow[] = [];
-  for (const list of at.values()) {
-    if (list.length < 3) continue;
-    /* the tip as drawn, not as gridded: a tip off by half a point turns a 14 pt shaft by two degrees */
-    const end = list.flatMap((l) => [l.a, l.b]).find((e) => list.filter((l) => near(l.a, e, 0.05) || near(l.b, e, 0.05)).length >= 3);
-    if (!end || out.some((a) => near(a.tip, end, 0.5))) continue;
-    const arrow = arrowOf([end[0], end[1]], list.filter((l) => near(l.a, end, 0.05) || near(l.b, end, 0.05)));
-    if (arrow) out.push(arrow);
-  }
+  for (const l of short)
+    for (const end of [l.a, l.b]) {
+      /* the tip as drawn, not as gridded: a tip off by half a point turns a 14 pt shaft by two degrees */
+      if (out.some((a) => near(a.tip, end, 0.5))) continue;
+      const meet = meeting(end);
+      if (meet.length < 3) continue;
+      const arrow = arrowOf([end[0], end[1]], meet);
+      if (arrow) out.push(arrow);
+    }
   return out;
 }
 

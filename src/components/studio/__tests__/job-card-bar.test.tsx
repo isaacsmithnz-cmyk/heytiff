@@ -21,7 +21,8 @@ jest.mock("@/app/actions/studio", () => ({
       jobNumber: "9001",
       clientName: "Rivers, Sam",
       status: "Work Order",
-      address: "4 Example Street\nSampleton NSW 2000",
+      // one line, its suburb, state and postcode after commas
+      address: "4 Example Street, Sampleton, NSW 2000",
       suburb: "Sampleton",
       description: null,
       kind: "Install ",
@@ -83,7 +84,7 @@ describe("the Studio's bar, as an iPad's", () => {
     await user.click(job);
     const card = screen.getByRole("dialog", { name: "Job 9001" });
     expect(within(card).getByText("4 Example Street").tagName).toBe("B");
-    expect(card).toHaveTextContent("4 Example Street, Sampleton NSW 2000");
+    expect(card).toHaveTextContent("4 Example Street, Sampleton, NSW 2000");
     expect(within(card).getByText("Work Order")).toBeInTheDocument();
     // the kind as ServiceM8 has it, trimmed
     expect(within(card).getByText("Install")).toBeInTheDocument();

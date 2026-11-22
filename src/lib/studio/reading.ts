@@ -204,6 +204,8 @@ export type PlanReading = {
   site?: SiteReading | null;
   /** a sheet she couldn't read, and why, said rather than dropped */
   failed: { floorId: string; sheetId: string; reason: string }[];
+  /** its floors are read and saved while its roof and site, which ran long, are read in a run of their own (plans-server.ts); gone once the plan is read */
+  partial?: boolean;
   /** the door and window schedule read off the set: its pages, how many marks it sized, how many openings on the plans it gave a size */
   schedule?: { pages: number[]; marks: number; matched: number };
 };

@@ -99,12 +99,13 @@ jest.mock("@/lib/studio/measured-server", () => ({
   },
   nameRooms: (_m: unknown, o: { floorName: string; deadline?: number }) => readMeasured(null, 1, o),
 }));
+const readRoof = jest.fn(async (..._a: unknown[]): Promise<Record<string, unknown>> => ({ said: null }));
 const readSchedule = jest.fn(async (_png: Buffer, _words: unknown[]) => ({ items: [{ mark: "GW.21", type: "W.05", kind: "window", width_mm: 750, height_mm: 1800, sill_mm: 300 }] }));
 const readSheet = jest.fn(async (_o: string, s: { floorId: string }) => ({ sheetId: s.floorId, spaces: [{ name: "Living", points: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }] }, { name: "Kitchen", points: [{ x: 100, y: 0 }, { x: 200, y: 0 }, { x: 200, y: 100 }] }] }));
 jest.mock("@/lib/studio/reading-server", () => ({
   READING_MODEL: "claude-opus-5-5",
   readSheet: (...a: unknown[]) => readSheet(...(a as [string, { floorId: string }])),
-  readRoof: async () => ({ said: null }),
+  readRoof: (...a: unknown[]) => readRoof(...a),
   readSite: async () => null,
   readDimensions: async () => [],
   readSchedule: (...a: unknown[]) => readSchedule(...(a as [Buffer, unknown[]])),
@@ -135,6 +136,7 @@ beforeEach(() => {
   pixelsInNode.mockClear();
   vectorsInNode.mockClear();
   readSchedule.mockClear();
+  readRoof.mockClear();
   scheduleOn.page = 0;
   fileFloors.clear();
   /* off unless asked for; its own tests turn it on */
@@ -336,5 +338,37 @@ describe("the set's door and window schedule", () => {
     const reading = plan().reading as { schedule?: unknown; floors: Record<string, { openings: { widthMm: number; heightMm?: number; sillMm?: number }[] }[]> };
     expect(reading.schedule).toEqual({ pages: [6], marks: 1, matched: 3 });
     expect(reading.floors.p3[0].openings[0]).toMatchObject({ widthMm: 750, heightMm: 1800, sillMm: 300 });
+  });
+});
+
+describe("a roof read that runs long", () => {
+  it("doesn't lose the floors: they are saved, and the roof and the site get a run of their own", async () => {
+    /* the floors take most of the run, and the roof isn't back when the time is up */
+    readSheet.mockImplementationOnce(async (_o: string, sh: { floorId: string }) => {
+      clock += 240_000;
+      return { sheetId: sh.floorId, spaces: [{ name: "Living", points: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }] }, { name: "Kitchen", points: [{ x: 100, y: 0 }, { x: 200, y: 0 }, { x: 200, y: 100 }] }] };
+    });
+    readRoof.mockImplementationOnce(() => new Promise((r) => setTimeout(() => r({ said: null, levels: [], parts: [], raked: [], material: "", roofSpace: "" }), 60)));
+    await readPlan("org-1", "jplan_1", "https://app.test", client);
+    clock += 1_000;
+    await readPlan("org-1", "jplan_1", "https://app.test", client);
+    clock += 1_000;
+    expect(await readPlan("org-1", "jplan_1", "https://app.test", client)).toEqual({ ok: true, state: "reading" });
+    const kept = plan().reading as { partial?: boolean; floors: Record<string, unknown[]>; roof?: unknown };
+    expect(kept.partial).toBe(true);
+    expect(Object.keys(kept.floors).sort()).toEqual(["p2", "p3", "p4"]);
+    expect(kept.roof).toBeUndefined();
+    expect(plan().state).toBe("reading");
+    /* the next run reads the roof alone, and the plan is read */
+    readSheet.mockClear();
+    clock += 1_000;
+    const out = await readPlan("org-1", "jplan_1", "https://app.test", client);
+    expect(out).toMatchObject({ ok: true, finished: { jobUuid: "job-3570" } });
+    expect(readSheet).not.toHaveBeenCalled();
+    expect(readRoof).toHaveBeenCalledTimes(2);
+    const read = plan().reading as { partial?: boolean; roof?: unknown; floors: Record<string, unknown[]> };
+    expect(read.partial).toBeUndefined();
+    expect(read.roof).toBeDefined();
+    expect(Object.keys(read.floors).sort()).toEqual(["p2", "p3", "p4"]);
   });
 });

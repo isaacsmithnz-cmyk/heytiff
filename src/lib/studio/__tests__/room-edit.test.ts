@@ -1,6 +1,6 @@
 import { createDesign, type DesignDocument, type DesignObject } from "../document";
 import type { ReadOpening, SheetReading } from "../reading";
-import { canJoin, foundOn, insertCorner, joinRooms, keepFound, markOnScale, readyFromPlans, removeCorner, shapeAfterEdit, wallsAfterInsert, wallsAfterRemove, wallsWithOpenings } from "../room-edit";
+import { canJoin, foundOn, storeysFromSections, insertCorner, joinRooms, keepFound, markOnScale, readyFromPlans, removeCorner, shapeAfterEdit, wallsAfterInsert, wallsAfterRemove, wallsWithOpenings } from "../room-edit";
 import { glassM2, suggestionsFor } from "../rooms-from-reading";
 
 const rect = (x: number, y: number, w: number, h: number) => [
@@ -297,5 +297,21 @@ describe("join", () => {
 describe("walls with openings", () => {
   test("an opening further off than the reach marks nothing", () => {
     expect(wallsWithOpenings(rect(0, 0, 100, 100), [{ a: { x: 50, y: -50 }, b: { x: 50, y: -50 }, external: true }], 10)).toEqual([]);
+  });
+});
+
+describe("a floor's height from the sections", () => {
+  it("is its ceiling and the floor zone above it, where its plan prints no levels; a set height stays", () => {
+    const base = createDesign({ name: "x", mode: "blank" });
+    const doc: DesignDocument = {
+      ...base,
+      floors: [
+        { ...base.floors[0], id: "gf", level: 0 },
+        { ...base.floors[0], id: "l1", level: 1 },
+        { ...base.floors[0], id: "l2", level: 2, heightM: 3.4 },
+      ],
+      reading: { at: "", model: "", floors: {}, failed: [], roof: { levels: [{ floorId: "gf", ceilingMm: 3200, floorZoneMm: 500, source: "A503" }, { floorId: "l1", ceilingMm: 2700, floorZoneMm: 0, source: "A503" }, { floorId: "l2", ceilingMm: 2700, floorZoneMm: 400, source: "A503" }], parts: [], raked: [], material: "", roofSpace: "" } },
+    };
+    expect(storeysFromSections(doc).floors.map((f) => f.heightM)).toEqual([3.7, undefined, 3.4]);
   });
 });

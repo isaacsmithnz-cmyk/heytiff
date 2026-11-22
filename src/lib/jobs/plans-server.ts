@@ -7,14 +7,15 @@ import { launchHeadless, printBase } from "@/lib/studio/pdf-render";
 import { signPlanPagesTicket, signPlanReadTicket, type PlanPagesTicket } from "@/lib/studio/pdf-request";
 import { mmPerPointOf, mmPerPxFor, printedScaleOf } from "@/lib/studio/plan-set";
 import { scaleFromDimensions, type PlanReading, type PlanWord, type SheetReading } from "@/lib/studio/reading";
-import { READING_MODEL, readDimensions, readRoof, readSheet, readSite, type SheetToRead, askWith, pngBlock } from "@/lib/studio/reading-server";
+import { READING_MODEL, readDimensions, readRoof, readSchedule, readSheet, readSite, type SheetToRead, askWith, pngBlock } from "@/lib/studio/reading-server";
+import { isSchedulePage, itemsOf, taggedFromWords, withSchedule, type ScheduleItem } from "@/lib/studio/schedule";
 import { nameRooms, prepareMeasured } from "@/lib/studio/measured-server";
 import { withMeasured } from "@/lib/studio/measure/merge";
 import { K, vectorRooms } from "@/lib/studio/vector/read";
 import { facesOf, snapped } from "@/lib/studio/vector/snap";
 import { SONNET_FALLBACK } from "@/lib/tiff/sonnet-fallback";
 import { openPdf } from "@/lib/tiff/extract";
-import { fullInNode, pixelsInNode, previewsInNode, vectorsInNode } from "./plan-draw-node";
+import { fullInNode, pixelsInNode, previewsInNode, textsInNode, vectorsInNode } from "./plan-draw-node";
 import { airPages, plainWords } from "./take-in";
 import { staffDisplayNames } from "@/lib/workboard/job-notes-query";
 import type { DrawnFull, DrawnPreview, PlanPagesAnswer } from "@/app/print/plan-pages/plan-pages";
@@ -425,6 +426,31 @@ async function measureFloor(bytes: Uint8Array, p: JobPlanPage, deadline: number,
   return { spaces: read.spaces, look: read.problems, grid: read.walls.grid, rounds: read.rounds, frame: read.frame };
 }
 
+
+/** At most this many schedule sheets are read: a set's schedules are a page or two. */
+const SCHEDULE_PAGES = 3;
+
+/* THE SET'S DOOR AND WINDOW SCHEDULE (lib/studio/schedule.ts): the pages
+   that schedule them found by their words, each drawn and read once, every
+   mark with its size. */
+async function schedulesOf(bytes: Uint8Array, pages: readonly JobPlanPage[]): Promise<{ pages: number[]; items: ScheduleItem[] }> {
+  const others = pages.filter((p) => p.kind !== "floor").map((p) => p.n);
+  if (!others.length) return { pages: [], items: [] };
+  const found = (await textsInNode(bytes, others)).filter((t) => isSchedulePage(t.words)).map((t) => t.n).slice(0, SCHEDULE_PAGES);
+  if (!found.length) return { pages: [], items: [] };
+  const drawn = await fullInNode(bytes, found);
+  const per = await Promise.all(
+    drawn.map((d) =>
+      readSchedule(d.png, d.words ?? [])
+        .then((raw) => itemsOf(raw, d.n))
+        .catch((e) => {
+          console.error(`[job-plans] schedule p${d.n}: ${String(e)}`);
+          return [] as ScheduleItem[];
+        }),
+    ),
+  );
+  return { pages: found, items: per.flat() };
+}
 
 /** How far a side read by picture may move onto the drawing's wall face. */
 const SNAP_MM = 450;
@@ -1023,7 +1049,7 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
           done++;
           tell({ step: "reading", done, total });
         });
-      const [results, measured, roof, site] = await Promise.all([
+      const [results, measured, roof, site, schedule] = await Promise.all([
         Promise.allSettled(sheets.map((s) => counted(readSheet(orgId, s)))),
         measurePages(orgId, pages, photo),
         photo
@@ -1038,6 +1064,12 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
           console.error(`[job-plans] ${planId}/site: ${String(e)}`);
           return null;
         }),
+        isPdf
+          ? schedulesOf(new Uint8Array((await bytesOf()).bytes), pages).catch((e) => {
+              console.error(`[job-plans] ${planId}/schedule: ${String(e)}`);
+              return { pages: [] as number[], items: [] as ScheduleItem[] };
+            })
+          : { pages: [] as number[], items: [] as ScheduleItem[] },
       ]);
       /* a floor not read from the file has its picture-read rooms put on the drawing's own walls, where it has them */
       const bytes = isPdf && vectorOn() ? new Uint8Array((await bytesOf()).bytes) : null;
@@ -1071,6 +1103,20 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
           reading.failed.push({ floorId: s.floorId, sheetId: s.sheetId, reason: r.reason instanceof Error ? r.reason.message : "It couldn't be read" });
         }
       });
+      /* each opening its schedule's width, height and sill, by its mark */
+      if (schedule.items.length) {
+        let matched = 0;
+        for (const id of Object.keys(reading.floors))
+          reading.floors[id] = reading.floors[id].map((sh) => {
+            /* a door the read left untagged takes the mark printed beside it, within 900 mm */
+            const p = floors.find((f) => pageKey(f.n) === sh.sheetId);
+            const reach = 900 / (p?.mmPerPx && p.mmPerPx > 0 ? p.mmPerPx : 35);
+            const w = withSchedule(taggedFromWords(sh, (p?.words ?? []) as { text: string; at: { x: number; y: number } }[], schedule.items, reach), schedule.items);
+            matched += w.matched;
+            return w.sheet;
+          });
+        reading.schedule = { pages: schedule.pages, marks: schedule.items.length, matched };
+      }
       if (roof !== undefined) reading.roof = roof;
       reading.site = site;
       pages = measured;

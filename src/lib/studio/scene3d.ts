@@ -271,13 +271,16 @@ function rawFloor(doc: DesignDocument, floor: Floor, ceiling: number): Raw | nul
     for (const j of r.marks ?? []) if (j.item === "joinery" && j.outline.length >= 3) joinery.push({ kind: j.text, room: j.room, pts: j.outline.map(on) });
     for (const o of r.openings) {
       if (o.kind === "skylight") continue;
-      const head = Math.min(HEAD_M, ceiling);
+      /* its schedule's sill and height where the set gives them (schedule.ts), else a usual window or door */
+      const sill = o.kind === "window" ? (o.sillMm && o.sillMm > 0 ? o.sillMm / 1000 : null) : 0;
+      const tall = o.heightMm && o.heightMm > 0 ? o.heightMm / 1000 : null;
+      const head = Math.min(ceiling, tall !== null ? (sill ?? (o.kind === "window" ? Math.max(0, HEAD_M - tall) : 0)) + tall : HEAD_M);
       openings.push({
         kind: o.kind,
         a: on(o.a),
         b: on(o.b),
         external: o.external,
-        sill: o.kind === "window" ? Math.min(SILL_M, head - 0.3) : 0,
+        sill: o.kind === "window" ? Math.min(sill ?? (tall !== null ? Math.max(0, HEAD_M - tall) : SILL_M), head - 0.3) : 0,
         head,
       });
     }

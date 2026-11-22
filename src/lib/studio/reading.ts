@@ -43,6 +43,9 @@ export type ReadOpening = {
   external: boolean;
   /** N, NE, E... for an external opening, else "" */
   facing: string;
+  /** from the set's door and window schedule, by its mark (schedule.ts): its height, and its sill above the floor */
+  heightMm?: number;
+  sillMm?: number;
 };
 
 /** Built-ins, bulkheads, fans and what's written about the air conditioning. */
@@ -188,6 +191,8 @@ export type PlanReading = {
   site?: SiteReading | null;
   /** a sheet she couldn't read, and why, said rather than dropped */
   failed: { floorId: string; sheetId: string; reason: string }[];
+  /** the door and window schedule read off the set: its pages, how many marks it sized, how many openings on the plans it gave a size */
+  schedule?: { pages: number[]; marks: number; matched: number };
 };
 
 /* ── the checks ─────────────────────────────────────────────────────────── */

@@ -168,3 +168,20 @@ describe("a room read by picture, put on the drawing's walls", () => {
     expect(snapped([odd], faces, 1, 6).spaces[0].outline).toEqual(odd.outline);
   });
 });
+
+describe("two rooms' names in one space", () => {
+  it("are parted where a wall end faces a wall across it: a WC off the living room", () => {
+    /* a wall up from the living room's floor, stopping short of the wall across: the WC's open side */
+    const fills = [...threeRooms(), { colour: "#808080", rings: [[[200, 100], [204, 100], [204, 146], [200, 146]] as [number, number][]] }];
+    const words = [...roomWords.filter((w) => w.text !== "LIVING"), { text: "LIVING", at: { x: 340, y: 160 } }, { text: "WC", at: { x: 450, y: 250 } }];
+    const r = vectorRooms({ fills, width: 400, height: 300, words, mmPerPt: null, rasterScale: 2 });
+    if ("none" in r) throw new Error(r.none);
+    expect(r.spaces.map((s) => [s.name, s.kind])).toEqual([
+      ["Bed 1", "room"],
+      ["Living", "room"],
+      ["WC", "wet"],
+      ["Ensuite", "wet"],
+    ]);
+    expect(r.look).toEqual([]);
+  });
+});

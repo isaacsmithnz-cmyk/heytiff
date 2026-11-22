@@ -297,6 +297,46 @@ export async function readSheet(orgId: string, sheet: SheetToRead): Promise<Shee
   return toSheet(floor, furniture, sheet.sheetId, k, left, top);
 }
 
+/* ── the door and window schedule (schedule.ts) ── */
+
+export const SCHEDULE_SCHEMA = S({
+  items: arr(
+    S({
+      mark: str("exactly as printed: GW.21, W1.3, D04"),
+      type: str('the type it is listed under (W.05), else ""'),
+      kind: en(["window", "door", "skylight"]),
+      width_mm: num("overall, across the opening"),
+      height_mm: num("overall, up the opening; 0 if not shown"),
+      sill_mm: num("its sill above the floor, when shown; else 0"),
+    }),
+    "every mark the sheet gives a size for",
+  ),
+});
+
+export const schedulePrompt = (w: number, h: number, words: string) =>
+  `This is a sheet from a building's drawing set that schedules its windows and doors, ${w}×${h} pixels. The words printed on it follow, each with where it sits in the picture (x,y).
+
+List every window, door and skylight mark the sheet gives a size for. For each: its mark exactly as printed (GW.21, W1.3, D04); the type it is listed under when the sheet groups marks by type (W.05), else ""; whether it is a window, a door or a skylight; its overall width and height in millimetres; and its sill's height above the floor in millimetres when the sheet shows one, else 0.
+
+A legend of types gives each type's size once and lists the marks of that type under it: give every listed mark, each with its type's size. A width is measured across the opening and a height up it; on an elevation the width is the dimension along it and the height the one up it. Take the figures from the words where they are printed, and leave out a mark whose size you can't read for certain. Not a room's size, a level or a note.
+
+Words:
+${words}`;
+
+/** A schedule sheet read: its picture shrunk as a floor's is, and its words where they sit on it. */
+export async function readSchedule(png: Buffer, words: readonly { text: string; at: { x: number; y: number } }[]): Promise<unknown> {
+  const meta = await sharp(png).metadata();
+  const W = meta.width ?? 1;
+  const H = meta.height ?? 1;
+  const k = readScale(W, H);
+  const image = await sharp(png).resize(Math.round(W * k), Math.round(H * k)).flatten({ background: "#ffffff" }).png().toBuffer();
+  const listed = words
+    .map((w) => `${w.text} @${Math.round(w.at.x * k)},${Math.round(w.at.y * k)}`)
+    .join("\n")
+    .slice(0, 80_000);
+  return askWith([pngBlock(image)], schedulePrompt(Math.round(W * k), Math.round(H * k), listed), SCHEDULE_SCHEMA, 16000);
+}
+
 /* ── the dimensions printed on a sheet, for one with no printed scale ── */
 
 export const DIMENSIONS_SCHEMA = S({

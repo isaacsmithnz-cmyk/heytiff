@@ -148,7 +148,28 @@ export function keepFound(doc: DesignDocument, floorId: string, keys: string[], 
     3465 opens with its twelve rooms marked and the carport left found). */
 export function readyFromPlans(doc: DesignDocument): DesignDocument {
   /* and the subfloor she read, under its lowest floor (floor-spaces.ts) */
-  return subfloorFromReading(doc.floors.reduce((d, { id }) => readyFloor(d, id), doc));
+  return subfloorFromReading(storeysFromSections(doc.floors.reduce((d, { id }) => readyFloor(d, id), doc)));
+}
+
+/** A floor whose plan prints no levels (designFromPlan sets those) is as tall
+    as the sections make it: its ceiling height and the floor zone above it
+    (3570's level 1 and lower ground print none; the outside study of 22
+    November 2026 took them off section A503, and so does her roof read). The
+    top floor's zone is none, so it keeps its own. */
+export function storeysFromSections(doc: DesignDocument): DesignDocument {
+  const levels = doc.reading?.roof?.levels ?? [];
+  if (!levels.length) return doc;
+  let changed = false;
+  const floors = doc.floors.map((f) => {
+    if (typeof f.heightM === "number" && f.heightM > 0) return f;
+    const l = levels.find((x) => x.floorId === f.id);
+    if (!l || !(l.ceilingMm > 0) || !(l.floorZoneMm > 0)) return f;
+    const h = Math.round(l.ceilingMm + l.floorZoneMm) / 1000;
+    if (h < 2.2 || h > 8) return f;
+    changed = true;
+    return { ...f, heightM: h };
+  });
+  return changed ? { ...doc, floors } : doc;
 }
 
 /** One floor as a design from a job's plans opens: its scale off the plan

@@ -2,7 +2,7 @@ import type { ReadLook, ReadSpace, SpaceKind } from "../reading";
 import type { Fill, Line } from "./fills";
 import { wallsOf, type Walls } from "./walls";
 import { lineWalls } from "./lines";
-import { enclose, outlined, rasterise, type Space } from "./enclose";
+import { enclose, outlined, parted, rasterise } from "./enclose";
 
 /* A FLOOR'S ROOMS READ FROM THE DRAWING FILE ITSELF (Isaac, 22 November 2026:
    "I need the plans accurate to design it"; "build the new way"). The walls
@@ -192,7 +192,8 @@ function roomsBetween(walls: Walls, input: VectorInput): VectorRooms | { none: s
     inSpace.set(id, l);
   }
 
-  const keep: { s: Space; names: string[]; strong: number }[] = [];
+  type Kept = { n: number; outline: () => [number, number][]; names: string[]; strong: number };
+  const keep: Kept[] = [];
   for (const s of e.spaces) {
     if (s.open) continue;
     if (s.n > buildingArea * 0.35) continue;
@@ -206,7 +207,20 @@ function roomsBetween(walls: Walls, input: VectorInput): VectorRooms | { none: s
     const strong = room.length;
     /* an unnamed sliver between two walls (a cavity, a bridged reveal) is no room */
     if (!names.length && (Math.min(w, h) < 450 / mmPerPx || s.n < sq(1000, mmPerPx))) continue;
-    keep.push({ s, names, strong });
+    /* TWO ROOMS' NAMES IN ONE SPACE (a bedroom open to its robe): parted
+       where a wall end faces a wall across it, up to 2.5 m, inside this space
+       only; each part with a name is its own room */
+    if (names.length > 1 && room.length > 1) {
+      const parts = parted(e, grid, s, room.map((x) => x.at), Math.round(widest), Math.round(thin), Math.round(input.mmPerPt ? 2500 / mmPerPx : thick * 14));
+      if (parts) {
+        for (const p of parts) {
+          const held = p.holds.map((k) => room[k]);
+          keep.push({ n: p.n, outline: () => p.outline, names: labelsOf(held, 14 * K), strong: held.length });
+        }
+        continue;
+      }
+    }
+    keep.push({ n: s.n, outline: () => outlined(e, s), names, strong });
   }
   const landed = keep.reduce((n, k) => n + k.strong, 0);
   const named = keep.filter((k) => k.names.length).length;
@@ -214,7 +228,7 @@ function roomsBetween(walls: Walls, input: VectorInput): VectorRooms | { none: s
   /* a plan whose room names aren't text in the file (drawn as lines, as
      Frogmore's are) gives rooms the read by picture names in the merge;
      one whose names are text must have most of them land in a room */
-  const big = keep.filter((k) => k.s.n >= sq(2000, mmPerPx)).length;
+  const big = keep.filter((k) => k.n >= sq(2000, mmPerPx)).length;
   if (labels === 0 && big < 4) return { none: `Only ${big} room${big === 1 ? "" : "s"} closed off between its walls, and it writes no room names as text` };
   if (labels > 0 && named < 3) return { none: `Only ${named} named room${named === 1 ? "" : "s"} closed off between its walls` };
   if (labels >= 4 && landed < labels * 0.6) return { none: `Only ${landed} of the ${labels} room names it writes fell in a room closed off between its walls` };
@@ -222,16 +236,16 @@ function roomsBetween(walls: Walls, input: VectorInput): VectorRooms | { none: s
   /* into the sheet's own raster pixels */
   const to = input.rasterScale / K;
   const look: ReadLook[] = [];
-  const spaces: ReadSpace[] = keep.map(({ s, names }) => {
+  const spaces: ReadSpace[] = keep.map(({ n, outline, names }) => {
     const name = names.length ? names.join(", ") : "Unnamed space";
     if (names.length > 1)
       look.push({ kind: "label", room: name, said: `${name}: the plan writes ${names.length} names in one space with no wall between them. It may be ${names.length} rooms.` });
-    const small = s.n < sq(1600, mmPerPx) * 1.5;
+    const small = n < sq(1600, mmPerPx) * 1.5;
     return {
       name,
       named: names.length > 0,
       kind: names.length ? kindOf(name) : small ? "cupboard" : "room",
-      outline: outlined(e, s).map(([x, y]) => ({ x: Math.round(x * to), y: Math.round(y * to) })),
+      outline: outline().map(([x, y]) => ({ x: Math.round(x * to), y: Math.round(y * to) })),
       written: "",
       existing: false,
       openTo: "",

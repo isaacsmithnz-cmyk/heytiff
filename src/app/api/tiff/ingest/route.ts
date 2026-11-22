@@ -2,6 +2,7 @@ import { after } from "next/server";
 import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
 import { claimDocument, releaseLease } from "@/lib/tiff/lease";
+import { askForDrawings as askFor } from "@/lib/tiff/ask-drawings";
 import { DRIVE_BUDGET_MS, driveDocument, processBatch, readProgress } from "@/lib/tiff/ingest";
 
 /* Ingestion, driven from here rather than from the tab.
@@ -96,16 +97,5 @@ export async function POST(request: Request) {
   return Response.json({ ...first, continuing: true });
 }
 
-/* ITS DRAWINGS NEXT, in an invocation of their own (api/tiff/drawings), so
-   reading them never runs out of the time this one has left. Best effort: a
-   document whose drawings weren't asked for is as readable as it was. */
-async function askForDrawings(request: Request, documentId: string, orgId: string): Promise<void> {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return;
-  const base = process.env.APP_BASE_URL ?? new URL(request.url).origin;
-  await fetch(`${base}/api/tiff/drawings`, {
-    method: "POST",
-    headers: { authorization: `Bearer ${secret}`, "content-type": "application/json" },
-    body: JSON.stringify({ documentId, orgId }),
-  }).catch((err: unknown) => console.error(`[kb-drawings] couldn't ask for ${documentId}'s drawings: ${err instanceof Error ? err.message : String(err)}`));
-}
+/* its drawings next, in an invocation of their own (lib/tiff/ask-drawings) */
+const askForDrawings = (request: Request, documentId: string, orgId: string) => askFor(new URL(request.url).origin, documentId, orgId);

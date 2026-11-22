@@ -10,7 +10,7 @@
 
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { KB_BUCKET, kbRefIsOrgs } from "./files";
-import { openPdf } from "./extract";
+import { isScannedPage, openPdf } from "./extract";
 import { DRAWING_HEADING_PREFIX, drawingHeading, isDrawingCandidate, readDrawings } from "./drawings";
 import { embedTexts } from "./embeddings";
 import { tagChunks } from "./keywords";
@@ -29,6 +29,21 @@ export function pagesToRead(texts: readonly string[], described: ReadonlySet<num
     if (!described.has(page) && isDrawingCandidate(t)) out.push(page);
   });
   return out.slice(0, Math.max(0, cap));
+}
+
+/** The words read off each page, from the document's chunks (its drawings' own left out), by page. */
+async function readOffScans(documentId: string, orgId: string): Promise<Map<number, string>> {
+  const { data } = await supabaseAdmin
+    .from("kb_chunks")
+    .select("content, page_from, page_to, heading")
+    .eq("org_id", orgId)
+    .eq("document_id", documentId);
+  const out = new Map<number, string>();
+  for (const c of (data ?? []) as { content: string | null; page_from: number; page_to: number | null; heading: string | null }[]) {
+    if (c.heading?.startsWith(DRAWING_HEADING_PREFIX)) continue;
+    for (let p = c.page_from; p <= (c.page_to ?? c.page_from); p++) out.set(p, `${out.get(p) ?? ""} ${c.content ?? ""}`.trim());
+  }
+  return out;
 }
 
 /** `renew` keeps the document's lease while the pages are read, when the caller holds one. */
@@ -65,8 +80,14 @@ export async function describeDrawings(documentId: string, orgId: string, renew?
   if (!pdf) return { ok: false, error: "That PDF couldn't be opened." };
   let pages: number[];
   try {
+    /* a scanned page has no words in the file; once its pages are read, what was read off it
+       says whether it holds a drawing (a manual photographed on the phone is all such pages) */
+    const recovered = await readOffScans(documentId, orgId);
     const texts: string[] = [];
-    for (let n = 1; n <= pdf.numPages; n++) texts.push(await pdf.pageText(n));
+    for (let n = 1; n <= pdf.numPages; n++) {
+      const text = await pdf.pageText(n);
+      texts.push(isScannedPage(text) ? (recovered.get(n) ?? text) : text);
+    }
     pages = pagesToRead(texts, described, Math.min(DRAWINGS_RUN_CAP, quota.pagesRemaining));
   } finally {
     await pdf.destroy().catch(() => {});

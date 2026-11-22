@@ -63,7 +63,7 @@ export function rasterise(shapes: readonly Ring[][], width: number, height: numb
     pixels in a row (or a column) at most `widest` long, where the wall at each
     end is at most `thin` thick across the run and the two ends are one wall's
     band (they overlap by most of their thickness). */
-export function bridged(wall: Uint8Array, W: number, H: number, widest: number, thin: number): Uint8Array {
+export function bridged(wall: Uint8Array, W: number, H: number, widest: number, thin: number, tee = 0): Uint8Array {
   const out = new Uint8Array(wall);
   const along = (n: number, len: number, at: (i: number, j: number) => number, across: (i: number, j: number) => [number, number]) => {
     for (let i = 0; i < n; i++) {
@@ -79,7 +79,12 @@ export function bridged(wall: Uint8Array, W: number, H: number, widest: number, 
              A wall end facing a wall that runs across it is left open: on a
              real plan that is more often a yard or a porch than a window hard
              against an inside wall (Frogmore, 3570, 22 November 2026) */
-          const shut = a1 - a0 <= thin && b1 - b0 <= thin && overlap >= 0.6 * Math.min(a1 - a0, b1 - b0);
+          const aThin = a1 - a0 <= thin;
+          const bThin = b1 - b0 <= thin;
+          const shut =
+            (aThin && bThin && overlap >= 0.6 * Math.min(a1 - a0, b1 - b0)) ||
+            /* asked for (`tee`), inside one space only: a wall end facing a wall across it, a robe's or an ensuite's opening */
+            (gap <= tee && ((aThin && !bThin && overlap >= 0.9 * (a1 - a0)) || (bThin && !aThin && overlap >= 0.9 * (b1 - b0))));
           if (shut) for (let g = last + 1; g < j; g++) out[at(i, g)] = 1;
         }
         last = j;
@@ -253,3 +258,87 @@ export function enclose(wall: Uint8Array, W: number, H: number, widest: number, 
 
 /** A space's outline, worked out when it is wanted (most spaces on a sheet are dropped first). */
 export const outlined = (e: Enclosed, s: Space): [number, number][] => outlineOf(e.label, e.width, s.id, s.box);
+
+/** One space that holds two rooms' names, parted where a wall end faces a
+    wall across it (a bedroom open to its robe, a bathroom to its WC): its
+    walls' gaps closed again with that allowed, up to `tee` across. Each part
+    that holds a name comes back with its outline; null when the names still
+    share one part. `wall` is the grid's walls before any gap was closed. */
+export function parted(
+  e: Enclosed,
+  wall: Uint8Array,
+  s: Space,
+  at: readonly { x: number; y: number }[],
+  widest: number,
+  thin: number,
+  tee: number,
+): { n: number; box: [number, number, number, number]; outline: [number, number][]; holds: number[] }[] | null {
+  const W = e.width;
+  const pad = Math.ceil(thin * 2);
+  const x0 = Math.max(0, s.box[0] - pad);
+  const y0 = Math.max(0, s.box[1] - pad);
+  const x1 = Math.min(W - 1, s.box[2] + pad);
+  const y1 = Math.min(e.height - 1, s.box[3] + pad);
+  const w = x1 - x0 + 1;
+  const h = y1 - y0 + 1;
+  const local = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) local[y * w + x] = wall[(y + y0) * W + x + x0];
+  const shut = bridged(local, w, h, widest, thin, tee);
+  const label = new Int32Array(w * h).fill(-1);
+  const mine = (i: number) => !shut[i] && e.label[(Math.floor(i / w) + y0) * W + (i % w) + x0] === s.id;
+  const parts: { n: number; box: [number, number, number, number]; holds: number[] }[] = [];
+  const queue = new Int32Array(w * h);
+  for (let start = 0; start < w * h; start++) {
+    if (label[start] >= 0 || !mine(start)) continue;
+    const id = parts.length;
+    let head = 0;
+    let tail = 0;
+    let n = 0;
+    let [bx0, by0, bx1, by1] = [w, h, 0, 0];
+    queue[tail++] = start;
+    label[start] = id;
+    while (head < tail) {
+      const i = queue[head++];
+      n++;
+      const x = i % w;
+      const y = (i / w) | 0;
+      bx0 = Math.min(bx0, x);
+      bx1 = Math.max(bx1, x);
+      by0 = Math.min(by0, y);
+      by1 = Math.max(by1, y);
+      for (const j of [x > 0 ? i - 1 : -1, x < w - 1 ? i + 1 : -1, y > 0 ? i - w : -1, y < h - 1 ? i + w : -1])
+        if (j >= 0 && label[j] < 0 && mine(j)) {
+          label[j] = id;
+          queue[tail++] = j;
+        }
+    }
+    parts.push({ n, box: [bx0, by0, bx1, by1], holds: [] });
+  }
+  at.forEach((p, k) => {
+    const x = Math.round(p.x) - x0;
+    const y = Math.round(p.y) - y0;
+    /* a name on a closed gap: the nearest floor a few pixels round it */
+    for (let r = 0; r <= 8; r += 2)
+      for (const [dx, dy] of [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]]) {
+        const xx = x + dx;
+        const yy = y + dy;
+        if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
+        const id = label[yy * w + xx];
+        if (id >= 0) {
+          if (!parts[id].holds.includes(k)) parts[id].holds.push(k);
+          return;
+        }
+      }
+  });
+  const named = parts.filter((p) => p.holds.length);
+  if (named.length < 2) return null;
+  return named.map((p) => {
+    const id = parts.indexOf(p);
+    return {
+      n: p.n,
+      box: [p.box[0] + x0, p.box[1] + y0, p.box[2] + x0, p.box[3] + y0],
+      outline: outlineOf(label, w, id, p.box).map(([x, y]) => [x + x0, y + y0]),
+      holds: p.holds,
+    };
+  });
+}

@@ -37,3 +37,7 @@ describe("where the quote's pages break", () => {
     expect(rule(".qpdf tr")).toMatch(/break-inside:\s*avoid/);
   });
 });
+
+it("keeps an option's units together, one table on one page", () => {
+  expect(css).toMatch(/\.qpdf \.lp-eq[^{]*\{[^}]*break-inside:\s*avoid/);
+});

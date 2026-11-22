@@ -1,4 +1,4 @@
-import { glazingFor, joinOutlines, orientationFor, roomFrom, servedByDefault, suggestionsFor, type Suggestion } from "../rooms-from-reading";
+import { glassM2, glazingFor, joinOutlines, orientationFor, roomFrom, servedByDefault, suggestionsFor, type Suggestion } from "../rooms-from-reading";
 import type { ReadOpening, SheetReading } from "../reading";
 
 const rect = (x: number, y: number, w: number, h: number) => [
@@ -89,5 +89,31 @@ describe("what the Rooms page offers", () => {
     const room = roomFrom(s, "f1", 14, true);
     expect(room).toMatchObject({ type: "room", floorId: "f1", systemId: null, plane: "room" });
     expect(room.props).toMatchObject({ name: "Bed 4", glazing: "moderate", orientation: "N", roomAbove: true, hasExternalWalls: true, shape: "rect", fromReading: true });
+  });
+
+  /* a width is read only where the plan or its schedule writes one: 0 is none read, not none there */
+  it("gives a room no glazing where a window's width isn't read, rather than low", () => {
+    const s: Suggestion = { key: "k", name: "Bed 4", kind: "room", points: rect(0, 0, 300, 250), keep: true, notes: [], windows: [win("Bed 4", "N", 0), win("Bed 4", "N", 0)] };
+    const room = roomFrom(s, "f1", 14, false);
+    expect(room.props.glazing).toBeUndefined();
+    expect(glassM2(s)).toBeNull();
+    /* both face north, so it faces north whatever their widths */
+    expect(room.props.orientation).toBe("N");
+  });
+
+  it("gives a room no glazing where an outside door's width isn't read: it may be a slider", () => {
+    const door = { ...win("Living", "W", 0), kind: "door" as const };
+    const s: Suggestion = { key: "k", name: "Living", kind: "room", points: rect(0, 0, 300, 250), keep: true, notes: [], windows: [win("Living", "N", 1200)], openings: [win("Living", "N", 1200), door] };
+    expect(glassM2(s)).toBeNull();
+    expect(roomFrom(s, "f1", 14, false).props.glazing).toBeUndefined();
+    /* the door may be the most glass, and it faces another way */
+    expect(orientationFor(s)).toBeUndefined();
+    /* a garage's is a roller door, never glass */
+    expect(glassM2({ ...s, kind: "garage" })).toBeCloseTo(1.44);
+  });
+
+  it("faces no way where its glass faces two ways and a width isn't read", () => {
+    expect(orientationFor({ windows: [win("x", "N", 2400), win("x", "W", 0)] })).toBeUndefined();
+    expect(orientationFor({ windows: [win("x", "N", 0), win("x", "N", 900)] })).toBe("N");
   });
 });

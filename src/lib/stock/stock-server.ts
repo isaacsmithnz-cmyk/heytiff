@@ -449,18 +449,24 @@ export async function orderItem(orgId: string, by: string, week: Week, key: stri
   return upsert(orgId, rows);
 }
 
-/** A supplier's lot sent: everything still to order from it, each job's part
-    to the factory or, for the jobs in `sites`, straight to its site, with the
-    day each drop lands. */
-export async function markOrdered(orgId: string, by: string, week: Week, supplierKey: string | null, drops: { sites: readonly string[]; due: { factory: string | null; sites: Record<string, string | null> }; ref: string | null }): Promise<Done> {
+/** A supplier's lot sent: everything still to order from it, or the items in
+    `keys` when the order sheet had some unticked, each job's part to the
+    factory or, for the jobs in `sites`, straight to its site, with the day
+    each drop lands. `from` is who it went to: the lot's supplier unless the
+    order sheet's From sent it elsewhere, or the one chosen for a lot with no
+    supplier in the price book. */
+export async function markOrdered(orgId: string, by: string, week: Week, supplierKey: string | null, drops: { sites: readonly string[]; due: { factory: string | null; sites: Record<string, string | null> }; ref: string | null; keys?: readonly string[] | null; from?: string | null }): Promise<Done> {
   const v = await readStock(orgId, week);
   if (!v.ready) return NOT_READY;
   const o = v.orders.find((x) => x.supplierKey === supplierKey);
   if (!o) return { ok: false, reason: "Nothing's left to order from them." };
+  const pick = drops.keys?.length ? new Set(drops.keys) : null;
+  const lines = pick ? o.lines.filter((l) => pick.has(l.key)) : o.lines;
+  if (!lines.length) return { ok: false, reason: "Tick something to order first." };
   const at = new Date().toISOString();
   const sites = new Set(drops.sites);
   const rows: Record<string, unknown>[] = [];
-  for (const line of o.lines) {
+  for (const line of lines) {
     const it = v.items.find((i) => i.key === line.key);
     for (const j of line.jobs) {
       const had = it?.jobs.find((x) => x.uuid === j.uuid);
@@ -469,7 +475,7 @@ export async function markOrdered(orgId: string, by: string, week: Week, supplie
         sm8_job_uuid: j.uuid,
         item_key: line.key,
         ordered: (had ? orderedAfter(had.need, had.inStock, had.ordered, had.had) : 0) + j.qty,
-        ordered_from: supplierKey,
+        ordered_from: drops.from ?? supplierKey,
         ordered_to: site ? "site" : "factory",
         ordered_due: dayOk(site ? drops.due.sites[j.uuid] : drops.due.factory),
         order_ref: refOk(drops.ref),

@@ -9168,12 +9168,10 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .stk-head h1 { margin:0; font-size:24px; line-height:32px; font-weight:600; }
 .fg .stk-bar { display:flex; align-items:center; gap:16px; min-height:36px; }
 .fg .stk-weeks { margin-left:auto; }
-/* the weeks, and a job's Factory or Site: the phone's slider */
+/* the weeks: the phone's slider */
 .fg .stk .pt-tray { height:36px; gap:0; padding:2px; border:0; border-radius:var(--r-button); background:var(--tint-2); }
 .fg .stk .pt-tray .pt-tray-opt { min-width:88px; justify-content:center; padding:0 16px; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
 .fg .stk .pt-tray .pt-tray-opt[aria-checked="true"] { background:var(--paper); }
-.fg .stk-where .pt-tray { align-self:center; height:32px; }
-.fg .stk-where .pt-tray .pt-tray-opt { min-width:64px; padding:0 12px; font-size:13px; line-height:18px; }
 .fg .stk-ground { display:flex; flex-direction:column; min-width:0; padding:24px; border-radius:var(--r-card); background:var(--soft); }
 .fg .stk-ground:has(> .stk-cols) { padding:0; }
 .fg .stk-note { margin:0; font-size:16px; line-height:24px; color:var(--q); }
@@ -9207,22 +9205,27 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .stk-n { flex:none; min-width:24px; text-align:right; font-size:16px; line-height:24px; font-weight:700; font-variant-numeric:tabular-nums; }
 .fg .stk-n--s { font-size:14px; line-height:20px; font-weight:600; min-width:20px; color:var(--q); }
 .fg .stk .pt-state { flex:none; font-size:14px; line-height:20px; font-weight:600; }
-.fg .stk-tick { flex:none; display:grid; place-items:center; width:28px; height:28px; padding:0; border-radius:50%; border:2px solid var(--edge); background:var(--white); color:var(--white); cursor:pointer; transition:background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg .stk-tick--part { border-color:var(--press); }
-.fg .stk-tick--on { border-color:var(--press); background:var(--press); }
-.fg .stk-tick:focus-visible { outline:none; box-shadow:var(--ring); }
-/* To order: each supplier's drops, where each job's part goes, then its two buttons */
-.fg .stk-drop + .stk-drop { border-top:1px solid var(--line); }
-.fg .stk-droph { display:flex; align-items:center; gap:12px; min-height:56px; padding:8px 16px; }
-.fg .stk-droph > :last-child { flex:none; width:168px; }
-.fg .stk-lines { padding:0 0 8px; }
-.fg .stk-lines li { display:flex; gap:12px; align-items:baseline; padding:4px 16px; font-size:14px; line-height:20px; }
-.fg .stk-li { flex:1; min-width:0; }
+/* To order: a lot for each supplier, its one button at its head */
+.fg .stk-sup { display:flex; align-items:center; gap:16px; min-height:72px; padding:12px 16px; border-bottom:1px solid var(--line); }
+.fg .stk-sup > .pt-btn { flex:none; }
+.fg .stk-line { gap:8px; padding-right:12px; }
+.fg .stk-line > .stk-open { padding-right:8px; }
+.fg .stk-line > .pt-state { margin-right:4px; }
+.fg .stk-done { padding:16px; font-size:16px; line-height:24px; }
+.fg .stk-sec > h2 { display:flex; align-items:center; gap:8px; }
+.fg .stk-sec > h2.stk-h--good { color:var(--green-w); }
+/* the panel: where the week is up to, then each job and its word */
+.fg .stk-state { display:flex; align-items:center; gap:12px; min-height:52px; padding:8px 16px; }
+.fg .stk-state + .stk-state { border-top:1px solid var(--line); }
+.fg .stk-state b { flex:1; font-size:16px; line-height:24px; font-weight:400; }
+.fg .stk-state strong { font-size:16px; line-height:24px; font-weight:600; font-variant-numeric:tabular-nums; }
+.fg .stk-card > li + li { border-top:1px solid var(--line); }
+.fg .stk-jobrow { display:flex; align-items:center; gap:12px; min-height:64px; padding:8px 16px; color:var(--ink); text-decoration:none; }
+.fg .stk-jobrow:hover { background:var(--hov); }
+.fg .stk-jobrow:focus-visible { outline:2px solid var(--ink); outline-offset:-2px; }
+.fg .stk-jobrow .stk-num { min-width:48px; min-height:40px; font-size:13px; }
 .fg .stk-q { color:var(--q); }
 .fg .stk-q--look { color:var(--orange-w); font-weight:600; }
-.fg .stk-where li { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:52px; padding:0 8px 0 16px; }
-.fg .stk-where li + li { border-top:1px solid var(--line); }
-.fg .stk-where .stk-t { flex:1 1 auto; min-width:0; }
 .fg .stk-foot { display:flex; gap:8px; margin-top:4px; }
 .fg .stk-foot > .pt-btn { flex:1 1 0; min-width:0; }
 .fg .stk-ask { display:flex; flex-direction:column; gap:4px; padding:12px 16px 16px; border-top:1px solid var(--line); }
@@ -9260,6 +9263,9 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .pt-dialog .stk-share .stk-s { color:var(--q); font-size:13px; }
 .pt-dialog .stk-share li .stk-need { grid-column:1 / -1; }
 .pt-dialog .stk-share li.stk-share--2 { grid-template-columns:minmax(0,1fr) auto; }
+.pt-dialog .stk-ofd { display:flex; flex-direction:column; gap:16px; }
+.pt-dialog .stk-ofd > .stk-dsub, .pt-dialog .stk-ofd > .stk-fld { margin:0; }
+.pt-dialog .stk-ofd .stk-share { margin:0; }
 .pt-dialog .stk-mid { display:flex; flex-direction:column; min-width:0; }
 .pt-dialog .stk-left { display:flex; flex-direction:column; gap:8px; margin-top:16px; padding-top:12px; border-top:1px solid var(--line); }
 .pt-dialog .stk-left .stk-t { font-size:14px; line-height:20px; font-weight:600; }

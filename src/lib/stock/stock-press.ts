@@ -46,7 +46,7 @@ export async function stockPress(orgId: string, userId: string, b: Record<string
       const due = (b.due ?? {}) as Record<string, unknown>;
       const sites: Record<string, string | null> = {};
       for (const [k, v] of Object.entries((due.sites ?? {}) as Record<string, unknown>).slice(0, 200)) sites[k] = day(v);
-      return markOrdered(orgId, userId, week, supplier, { sites: ids(b.sites), due: { factory: day(due.factory), sites }, ref: str(b.ref, 60) });
+      return markOrdered(orgId, userId, week, supplier, { sites: ids(b.sites), due: { factory: day(due.factory), sites }, ref: str(b.ref, 60), keys: Array.isArray(b.keys) ? ids(b.keys) : null, from: str(b.from, 40) });
     }
     case "bulk":
       return orderForJobs(orgId, userId, supplier, ids(b.jobs), { to: to(b.to), due: day(b.due), ref: str(b.ref, 60) });

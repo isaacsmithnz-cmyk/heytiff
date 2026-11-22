@@ -128,7 +128,7 @@ import { RoomModal } from "./room-modal";
 import { ReferenceViewer } from "./reference-viewer";
 import { SimPresentMode } from "./sim-present";
 import { SimRuntime } from "@/lib/studio/sim-runtime";
-import { flatAddress, streetLine, type JobPrefill, type StudioJobHit } from "@/lib/studio/job-link";
+import { flatAddress, type JobPrefill, type StudioJobHit } from "@/lib/studio/job-link";
 import { Fade } from "@/components/parts/fade";
 import { suggestedRooms, withChecks, type PlanReading } from "@/lib/studio/reading";
 import { designFromPlans, type JobPlanRead } from "@/lib/jobs/plans";
@@ -1268,9 +1268,10 @@ function JobTitle({ jobUuid, jobNumber, client }: { jobUuid: string; jobNumber: 
   }, [open]);
   const number = ((read ? read.jobNumber : null) ?? jobNumber ?? "").trim();
   const name = ((read ? read.clientName : null) ?? client).trim() || "Job";
-  const street = read?.address ? streetLine(read.address) : "";
-  const flat = read?.address ? flatAddress(read.address) : "";
-  const rest = street && flat.startsWith(street) ? flat.slice(street.length).replace(/^[,\s]+/, "") : "";
+  /* the street in bold, then the rest, as the phone's job head splits it:
+     "4 Example Street" then ", Sampleton, NSW 2000" */
+  const [street = "", ...after] = read?.address ? flatAddress(read.address).split(", ") : [];
+  const rest = after.join(", ");
   const kind = (read?.kind ?? "").trim();
   const status = (read?.status ?? "").trim();
   return (

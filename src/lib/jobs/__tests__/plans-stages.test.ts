@@ -133,7 +133,8 @@ import { hipRoof } from "@/lib/studio/vector/__fixtures__/hip-roof";
 import type { JobPlanPage } from "../plans";
 import { readPlan, roofFacesOf } from "../plans-server";
 
-const client = { beta: { messages: { create: jest.fn() } } } as never;
+/* Tiff's look at the page the words leave undecided, the cover: not a floor */
+const client = { beta: { messages: { create: jest.fn(async () => ({ content: [{ type: "text", text: JSON.stringify({ pages: [{ page: 1, kind: "other", level_name: "", level: 0 }] }) }] })) } } } as never;
 const plan = () => tables.job_plans![0]!;
 
 beforeEach(() => {

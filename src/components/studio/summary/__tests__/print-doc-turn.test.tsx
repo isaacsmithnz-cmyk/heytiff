@@ -17,7 +17,7 @@ jest.mock("@/lib/studio/plans", () => ({
 }));
 
 function modelWith(sections: SheetSections): PrintModel {
-  const doc = createDesign({ name: "4/3 Reed Street", mode: "plan", now: "2026-10-07T00:00:00.000Z" });
+  const doc = createDesign({ name: "4/3 Mirage Street", mode: "plan", now: "2026-10-07T00:00:00.000Z" });
   const sheet = (id: string, width: number, height: number) => ({
     id, imageRef: id, pageNumber: 1, name: id, width, height, x: 0, y: 0,
   });

@@ -45,8 +45,8 @@ export function withMeasured(picture: SheetReading | null, m: MeasuredRooms, she
      the found walls stand on, so where only some of a building's walls were
      found (new walls in colour, a garage in outline across the yard) the
      rest lay outside it, and those rooms dropped off the floor with nothing
-     said (the engine's review, 21 November 2026: Frogmore's Bed 4 and
-     Lounge, Albion's garage). A room the picture read drew outside her
+     said (the engine's review, 21 November 2026: Pariatur's Bed 4 and
+     Lounge, Mythos's garage). A room the picture read drew outside her
      picture is kept as it drew it. */
   const fr = m.frame;
   const out = (s: ReadSpace) => {
@@ -57,7 +57,7 @@ export function withMeasured(picture: SheetReading | null, m: MeasuredRooms, she
   if (beyond.length) look.push({ kind: "readers", room: "", said: `${[...new Set(beyond.map((s) => s.name))].join(", ")}: outside the part of the sheet that was measured, so ${beyond.length === 1 ? "it is" : "they are"} as the read by picture drew ${beyond.length === 1 ? "it" : "them"}.` });
   /* A ROOM THE FILE GAVE NO NAME takes the name the picture read gives the
      room standing there, one inside the other either way round: a plan whose
-     names aren't text (Frogmore draws them), a hall, a robe or a WC the plan
+     names aren't text (Pariatur draws them), a hall, a robe or a WC the plan
      leaves unlabelled (22 November 2026: 3570's entry hall and hall were
      dropped, unnamed, where the picture read had them) */
   const NAMES = new Set([...WALLED, "circulation"]);

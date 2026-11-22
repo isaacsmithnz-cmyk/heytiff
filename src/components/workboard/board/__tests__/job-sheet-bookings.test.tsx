@@ -128,7 +128,7 @@ function Job({ section: first = "on-site", ...p }: JobProps) {
 /** The Visit form, open over the page on this job. */
 const visitForm = async () => {
   const form = await screen.findByRole("dialog", { name: "Book a visit" });
-  expect(within(form).getByText("Job 3342, Sample Client Pty Ltd, Rose Bay")).toBeInTheDocument();
+  expect(within(form).getByText("Job 3342, Sample Client Pty Ltd, Example Bay")).toBeInTheDocument();
   return form;
 };
 
@@ -148,7 +148,7 @@ const row = (): AllJobRow => ({
   numberSystem: "sm8",
   clientName: "Sample Client Pty Ltd",
   title: "Service the units",
-  suburb: "Rose Bay",
+  suburb: "Example Bay",
   categoryName: "Service",
   categoryColour: "#e7b5ff",
   statusLabel: "Work Order",
@@ -181,8 +181,8 @@ const detail = (over: Partial<MirrorJobDetail> = {}): MirrorJobDetail => ({
   description: "Service the units",
   workDone: null,
   address: null,
-  suburb: "Rose Bay",
-  geoLine: "Rose Bay NSW 2029",
+  suburb: "Example Bay",
+  geoLine: "Example Bay NSW 2029",
   categoryName: "Service",
   categoryColour: "#e7b5ff",
   purchaseOrder: null,

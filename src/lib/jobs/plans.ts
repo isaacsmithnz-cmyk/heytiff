@@ -581,7 +581,7 @@ export type DesignFromPlan = {
 export function floorLevelOf(words: readonly { text: string }[] | null | undefined): number | null {
   if (!words?.length) return null;
   const count = new Map<number, number>();
-  /* "194.000", "+60,240", "63, 315": metres, the comma Cutler's way of writing the point */
+  /* "194.000", "+60,240", "63, 315": metres, the comma Ipsum's way of writing the point */
   const NUM = /[+±]?\s*(\d{1,3})[.,]\s?(\d{2,3})\b/;
   for (let i = 0; i < words.length; i++) {
     const t = words[i].text.trim();

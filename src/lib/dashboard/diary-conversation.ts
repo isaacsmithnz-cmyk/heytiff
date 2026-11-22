@@ -17,7 +17,7 @@
    words where it stands with ServiceM8 (./diary-reply).
 
    UNDER IT, the doors. The job, by its number and suburb ("2041
-   Wollstonecraft"), which opens the desk's one card; Reply, which opens
+   Testcraft"), which opens the desk's one card; Reply, which opens
    the job in ServiceM8, in a new tab, where an answer reaches the one who
    asked (Isaac, 2026-09-25: until HeyTiff writes notes into ServiceM8, a
    reply is made there, and threads back here on the next sync); then

@@ -2,10 +2,10 @@ import { PIN_MAX, pinKey, pinOf, refOf } from "../pins";
 
 describe("a pin from untrusted input", () => {
   it("takes a record, its title and its second line", () => {
-    expect(pinOf({ ref: { kind: "job", id: " abc " }, title: " Job 3209 ", sub: "Richards" })).toEqual({
+    expect(pinOf({ ref: { kind: "job", id: " abc " }, title: " Job 3209 ", sub: "Rowland" })).toEqual({
       ref: { kind: "job", id: "abc" },
       title: "Job 3209",
-      sub: "Richards",
+      sub: "Rowland",
     });
   });
 

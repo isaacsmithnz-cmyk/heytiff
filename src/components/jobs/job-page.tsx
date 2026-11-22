@@ -29,7 +29,7 @@ export type JobDoc = "quote" | "invoice";
    code and can't drift. What the page adds is the page's: which section is
    open, kept in the address as `?tab=` (replaced, not pushed, the way a
    browser's own tabs don't stack); Pin and Copy the link under Actions; the
-   name its open tab wears ("3209 Richards", page-names.ts); and a row in
+   name its open tab wears ("3209 Rowland", page-names.ts); and a row in
    the sidebar's Recents. */
 
 export function JobPage({

@@ -10,8 +10,8 @@
 -- (sm8_jobs.job_address). A note is kept on a BUILDING KEY worked out from it
 -- (lib/sites/site-key.ts): the street number, the street's name and type in
 -- Australia Post's short form, and the suburb, all lower case, with the unit,
--- the state and the postcode left off, so "2/106 Kirribilli Avenue\nKirribilli
--- NSW 2061" and "106 Kirribilli Ave, Kirribilli" share one key. `unit` is null
+-- the state and the postcode left off, so "2/106 Exampleton Avenue\nExampleton
+-- NSW 2061" and "106 Exampleton Ave, Exampleton" share one key. `unit` is null
 -- for a note on the whole building, and the unit's own words ("2", "1a",
 -- "shop 3") for a note that shows only on that unit's jobs.
 --

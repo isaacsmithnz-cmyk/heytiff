@@ -163,7 +163,7 @@ describe("the shaper", () => {
     expect(thing.visits).toEqual([]);
     expect(thing.moves).toEqual([]);
     expect(thing.say).toContain("I can't move a booking yet: open it on Schedule and change its time there.");
-    expect(isMoveWork("Reschedule the Mosman job")).toBe(true);
+    expect(isMoveWork("Reschedule the Sampleton job")).toBe(true);
     expect(isMoveWork("Moving the outdoor unit")).toBe(true);
     expect(isMoveWork("Commission the system")).toBe(false);
   });

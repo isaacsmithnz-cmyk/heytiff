@@ -54,9 +54,9 @@ describe("what was quoted, from the lines", () => {
 
 describe("what was quoted, from the brief", () => {
   it("takes the forward, the greeting and the contact details off, and keeps a line", () => {
-    expect(cleanBrief("Fw: Mitsubishi Electric Australia - Lead accepted: Andrew Kealy 2 story need to discuss")).toBe("2 story need to discuss");
-    expect(cleanBrief("Hi Luke (0457 301 636), Hope you're well. We'd like a quote")).toBe("We'd like a quote");
-    expect(cleanBrief("Jessica Louise Hardy and 0419 143 037. OPTION 1")).toBe("Jessica Louise Hardy");
+    expect(cleanBrief("Fw: Mitsubishi Electric Australia - Lead accepted: Andrew Zephyr 2 story need to discuss")).toBe("2 story need to discuss");
+    expect(cleanBrief("Hi Luke (0491 570 158), Hope you're well. We'd like a quote")).toBe("We'd like a quote");
+    expect(cleanBrief("Jessie Lou Harper and 0491 570 313. OPTION 1")).toBe("Jessie Lou Harper");
     expect(cleanBrief("Supply and Install: 4.2KW high wall split")).toBe("4.2KW high wall split");
     expect(cleanBrief(null)).toBeNull();
     expect(cleanBrief("x".repeat(200))!.length).toBeLessThanOrEqual(91);
@@ -100,6 +100,6 @@ describe("the groups", () => {
 
   it("reads what was quoted off the lines, else the brief", () => {
     expect(of("2").what).toBe("Mitsubishi ducted 12.5 kW");
-    expect(quoteWorklist([row({ title: "Fw: RFQ - 27 Milroy Avenue" })], today).groups.price[0]!.what).toBe("RFQ - 27 Milroy Avenue");
+    expect(quoteWorklist([row({ title: "Fw: RFQ - 27 Proident Avenue" })], today).groups.price[0]!.what).toBe("RFQ - 27 Proident Avenue");
   });
 });

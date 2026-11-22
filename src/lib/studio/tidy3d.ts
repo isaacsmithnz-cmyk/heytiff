@@ -90,7 +90,7 @@ export function snapOpenings(spaces: Space3D[], openings: Opening3D[]): Opening3
   };
   for (const o of openings) {
     let hits = walled.flatMap((s) => sideFor(o, s, 0.5) ?? []).sort((p, q) => p.off - q.off);
-    /* one in an outside wall, read further in (6 Bishops Ave's living windows, 0.6 m in): onto the outside wall it faces */
+    /* one in an outside wall, read further in (6 Nostrud Ave's living windows, 0.6 m in): onto the outside wall it faces */
     if (!hits.length && o.external)
       hits = walled.flatMap((s) => {
         const h = sideFor(o, s, 0.9);
@@ -233,7 +233,7 @@ export function waysIn(f: Floor3D): string[] {
   if (!f.read) return did;
   const nodes = f.spaces.filter((s) => INDOOR.has(s.kind) && s.pts.length >= 3);
   const open = (f.open ??= []);
-  /* a stair's open end through the facing room's wall too, when it stands a wall's thickness off (48 Thorne St: its foot faced the dining's wall) */
+  /* a stair's open end through the facing room's wall too, when it stands a wall's thickness off (48 Laborum St: its foot faced the dining's wall) */
   for (const [a, b] of [...open]) {
     const l = line(a, b);
     if (l.L < 0.3) continue;
@@ -267,7 +267,7 @@ export function waysIn(f: Floor3D): string[] {
   const all = nodes.flatMap((x) => runsOf(x, nodes));
 
   /* edge to edge: where two outlines meet with no wall's thickness between them, the plan has no wall;
-     unless a door joins them, which it would only do through a wall (27 Milroy Ave: the old hall drawn
+     unless a door joins them, which it would only do through a wall (27 Proident Ave: the old hall drawn
      right up to the old bedroom it has a door into) */
   const doored = new Set<string>();
   for (const o of f.openings) {

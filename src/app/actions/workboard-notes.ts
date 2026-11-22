@@ -1025,7 +1025,7 @@ async function applyConfirmed(
         group_id: groupId,
         /* THE JOB THE NOTE WAS SAID ON. Left off, the task form went looking
            for a job in the task's own words and found "140" in "140
-           single-phase outdoor": job #140, a 2024 job in Bellevue Hill, on a
+           single-phase outdoor": job #140, a 2024 job in Fakehill, on a
            task about #2845 (Isaac, 28 October 2026). */
         sm8_job_uuid: target.kind === "job" ? (target.id ?? null) : null,
       };
@@ -1636,7 +1636,7 @@ export async function fileNote(
   const variationLines: string[] = [];
   for (const [index, v] of draft.variations.entries()) {
     if (!v.on) continue;
-    /* WITH ITS LINES (Isaac, 17 November 2026, Dan Brad's job: "Allow 1
+    /* WITH ITS LINES (Isaac, 17 November 2026, Dan Moorcroft's job: "Allow 1
        hour for the tap and 2 hours for the ceiling fans as a variation"):
        on a quote nothing's accepted on yet, they go on the quote itself;
        on a variation started, onto its draft. Still to price either way. */

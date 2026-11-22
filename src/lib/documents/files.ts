@@ -160,7 +160,7 @@ export const ALLOWED_TYPES: Readonly<Record<string, string>> = {
 };
 
 /** 50 MB. A phone photo is 2–5; an architect's tender set is the outlier
-    this is sized for (Isaac, 21 October 2026: 7 Cutler Rd's set is 16 and
+    this is sized for (Isaac, 21 October 2026: 7 Ipsum Rd's set is 16 and
     couldn't go on its job). The bucket enforces the same number
     (docs/migrations/documents_50mb.sql). */
 export const MAX_BYTES = 50 * 1024 * 1024;

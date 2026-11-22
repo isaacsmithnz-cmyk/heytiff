@@ -418,7 +418,7 @@ describe("buildJobStory — our own contributions", () => {
     const story = buildJobStory(
       inputs({
         detail: detail({
-          designs: [{ id: "d1", name: "Peterson", updatedAt: "2026-06-12T20:30:00Z" }],
+          designs: [{ id: "d1", name: "Hollowell", updatedAt: "2026-06-12T20:30:00Z" }],
         }),
       })
     );

@@ -52,8 +52,8 @@ def menu(band_html, groups, style=""):
     return f'<div class="nmf"{style}>{band_html}<div class="in">{inner}</div></div>'
 
 
-JOB_BAND = band("For job 3342, Rifkin, Bellevue Hill")
-OWNER = [[("jobs", "Job for Julian Rifkin", False), ("dollar", "Quote", False), ("task", "Task", False), ("cal", "Visit", False), ("receipt", "Expense", False)],
+JOB_BAND = band("For job 3342, Fairweather, Bellevue Hill")
+OWNER = [[("jobs", "Job for Jules Fairweather", False), ("dollar", "Quote", False), ("task", "Task", False), ("cal", "Visit", False), ("receipt", "Expense", False)],
          [("doc", "Document", True), ("dots", "More", True)],
          [("cap", "Not for a job"), ("sun", "Leave", False)]]
 TECH = [[("task", "Task", False), ("receipt", "Expense", False)],
@@ -74,7 +74,7 @@ def field(label, inner, cls="", style=""):
 
 
 def job_field(open_menu=""):
-    inner = f'{v3.dot("Blue")}<span class="fade" style="font-weight:500">3342 Rifkin, Bellevue Hill</span>{ico("down")}'
+    inner = f'{v3.dot("Blue")}<span class="fade" style="font-weight:500">3342 Fairweather, Bellevue Hill</span>{ico("down")}'
     st = "gap:8px" + (";border-color:var(--ink)" if open_menu else "")
     return f'<label class="fl" style="position:relative"><span class="lb">Job</span><span class="fi" style="{st}">{inner}</span>{open_menu}</label>'
 
@@ -99,7 +99,7 @@ def wf_after():
 
 def wf_expense():
     opts = (f'<div class="ov mn" style="top:62px;left:0;right:0">'
-            f'<a class="mi cur" href="#">{v3.dot("Blue")}<span class="fade">3342 Rifkin, Bellevue Hill</span>{OK}</a>'
+            f'<a class="mi cur" href="#">{v3.dot("Blue")}<span class="fade">3342 Fairweather, Bellevue Hill</span>{OK}</a>'
             f'<a class="mi" href="#"><span style="width:8px"></span>Not for a job</a><div class="mdv"></div>'
             f'<div class="mfi">{ico("search")}Find a job</div></div>')
     body = ('<div class="two">' + field("What", "Fuel, Hilux XQG 41B") + field("Amount", "$82.40") + '</div>'
@@ -134,17 +134,17 @@ def tech(h):
 def spec():
     steps = [
         ("Press New.", "It reads the page you're on: a job, a project, a client, or nothing. Never a selection."),
-        ("The first line says what it's for.", "With the kind: 'For job 3342', 'For project Heuvel', 'For client Rifkin'. The cross clears it."),
-        ("Pick.", "What belongs to a job takes the line; Leave never does. On a job, Job becomes 'Job for Julian Rifkin' and Event becomes Visit. You only see what you're allowed to make."),
+        ("The first line says what it's for.", "With the kind: 'For job 3342', 'For project Testa', 'For client Fairweather'. The cross clears it."),
+        ("Pick.", "What belongs to a job takes the line; Leave never does. On a job, Job becomes 'Job for Jules Fairweather' and Event becomes Visit. You only see what you're allowed to make."),
         ("The form opens over the page.", "The job is a field in it, filled in, which you can change or clear. You confirm it where you type."),
         ("Save, and stay put.", "A toast says what happened, with Undo. A document opens in its own tab, so the job stays where it was."),
         ("Other doors, the same form.", "A section's own button, like Book a visit, opens the same form with the job in it. Tiff reads the same page."),
         ("Tabs keep things open.", "The dock of set-aside cards goes; New reads the tab in front."),
     ]
     st = "".join(f'<div class="st"><span class="n">{i + 1}</span><div><b>{a}</b><p>{b}</p></div></div>' for i, (a, b) in enumerate(steps))
-    ex = [band("For job 3342, Rifkin, Bellevue Hill"), band("For project 3302, Heuvel Construction, Chatswood", "Purple"), band("For client Julian Rifkin", None), band("For a job or client", None, False, True)]
+    ex = [band("For job 3342, Fairweather, Bellevue Hill"), band("For project 3302, Testa Construction, Fablewood", "Purple"), band("For client Jules Fairweather", None), band("For a job or client", None, False, True)]
     exs = "".join(f'<div class="nmf" style="position:relative;left:auto;top:auto;width:470px;box-shadow:none;border-radius:16px;padding:6px;margin-bottom:8px">{b}</div>' for b in ex)
-    takes = [("Job for Julian Rifkin", "Same client and site"), ("Quote", "Takes it"), ("Task", "Takes it"), ("Visit", "Takes it"), ("Expense", "Takes it; check in the form"), ("Document", "Takes it"), ("Leave", "Never")]
+    takes = [("Job for Jules Fairweather", "Same client and site"), ("Quote", "Takes it"), ("Task", "Takes it"), ("Visit", "Takes it"), ("Expense", "Takes it; check in the form"), ("Document", "Takes it"), ("Leave", "Never")]
     tk = "".join(f'<div class="tk2"><span>{a}</span><span>{b}</span></div>' for a, b in takes)
     return f'''<div class="v3" style="display:block;background:#fff"><div class="wfs">
 <div><h1>New, the whole way through</h1><p class="ld">Making something while you're on a job, with the fixes.</p><div style="margin-top:20px">{st}</div></div>

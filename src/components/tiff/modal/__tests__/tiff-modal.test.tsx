@@ -444,7 +444,7 @@ describe("talking", () => {
     routeNote.mockResolvedValue(
       routed({
         say: "Lyle has the head on the ute. Who books 3323 in?",
-        tasks: [task("Put the head on the ute", LYLE.id), task("Book 3323 Randwick in", null)],
+        tasks: [task("Put the head on the ute", LYLE.id), task("Book 3323 Madeupton in", null)],
         clarify: { question: "Who books 3323 in?", options: ["Lyle", "Me"] },
       })
     );
@@ -458,7 +458,7 @@ describe("talking", () => {
     expect(within(convo()).getByText("Lyle has the head on the ute. Who books 3323 in?")).toBeInTheDocument();
     const rows = [...d.querySelectorAll(".tm-row-plan")];
     expect(rows[0]).toHaveTextContent("Lyle, Put the head on the ute");
-    expect(rows[1]).toHaveTextContent("Who Book 3323 Randwick in");
+    expect(rows[1]).toHaveTextContent("Who Book 3323 Madeupton in");
     expect(rows[1]).toHaveTextContent("Needs an answer");
 
     await user.click(within(d).getByRole("button", { name: "Lyle" }));
@@ -471,20 +471,20 @@ describe("talking", () => {
       .mockResolvedValueOnce({
         ok: false,
         error: WHICH_JOB,
-        ask: { question: WHICH_JOB, options: [{ label: "#3323 Randwick", target: { kind: "job", id: "j1" } }] },
+        ask: { question: WHICH_JOB, options: [{ label: "#3323 Madeupton", target: { kind: "job", id: "j1" } }] },
         turns: [turn("you", "x"), turn("tiff", "A flag on the job."), turn("tiff", WHICH_JOB)],
       })
       .mockResolvedValueOnce(filedOk);
     const user = await openModal();
     await say(user, "the isolator is loose");
     await flush();
-    await user.click(within(dialog()).getByRole("button", { name: "#3323 Randwick" }));
+    await user.click(within(dialog()).getByRole("button", { name: "#3323 Madeupton" }));
     await flush();
     // with the words you picked, which the note keeps as your turn
     expect(fileNote).toHaveBeenLastCalledWith("n1", {
       leaveOut: [],
       retarget: { kind: "job", id: "j1" },
-      answer: "#3323 Randwick",
+      answer: "#3323 Madeupton",
     });
     expect(continueNote).not.toHaveBeenCalled();
   });
@@ -825,7 +825,7 @@ describe("a price", () => {
 
 describe("with a design open", () => {
   function OnDesign() {
-    useNoteScopeScreen({ screenDetail: 'the design "23 Hope Street" (id dsn_1)' });
+    useNoteScopeScreen({ screenDetail: 'the design "23 Rumour Street" (id dsn_1)' });
     return null;
   }
 
@@ -945,13 +945,13 @@ describe("leaving", () => {
       .mockResolvedValueOnce({
         ok: false,
         error: WHICH_JOB,
-        ask: { question: WHICH_JOB, options: [{ label: "#3323 Randwick", target: { kind: "job", id: "j1" } }] },
+        ask: { question: WHICH_JOB, options: [{ label: "#3323 Madeupton", target: { kind: "job", id: "j1" } }] },
       })
       .mockReturnValueOnce(new Promise((r) => (filedLate = r)));
     const user = await openModal();
     await say(user, "the isolator is loose");
     await flush();
-    await user.click(within(dialog()).getByRole("button", { name: "#3323 Randwick" }));
+    await user.click(within(dialog()).getByRole("button", { name: "#3323 Madeupton" }));
     await user.keyboard("{Escape}");
     await flush();
     expect(dismissNote).not.toHaveBeenCalled();
@@ -966,13 +966,13 @@ describe("leaving", () => {
       .mockResolvedValueOnce({
         ok: false,
         error: WHICH_JOB,
-        ask: { question: WHICH_JOB, options: [{ label: "#3323 Randwick", target: { kind: "job", id: "j1" } }] },
+        ask: { question: WHICH_JOB, options: [{ label: "#3323 Madeupton", target: { kind: "job", id: "j1" } }] },
       })
       .mockReturnValueOnce(new Promise((r) => (filedLate = r)));
     const user = await openModal();
     await say(user, "the isolator is loose");
     await flush();
-    await user.click(within(dialog()).getByRole("button", { name: "#3323 Randwick" }));
+    await user.click(within(dialog()).getByRole("button", { name: "#3323 Madeupton" }));
     await user.keyboard("{Escape}");
     await flush();
     await act(async () => filedLate({ ok: false, error: "That job isn't on this workspace's board any more." }));
@@ -1193,7 +1193,7 @@ describe("docked", () => {
      written, with no Tiff; anywhere else it has only her button */
   it("Save files the words on the job the chat is about, as written, and nothing goes to Tiff", async () => {
     saveJobNote.mockClear();
-    const user = await openModal({ voice: false, extra: <NoteScopeScreen target={{ kind: "job", id: "job-3465" }} targetLabel="2 Neridah St" /> });
+    const user = await openModal({ voice: false, extra: <NoteScopeScreen target={{ kind: "job", id: "job-3465" }} targetLabel="2 Irure St" /> });
     await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "Rough-in done upstairs");
     await user.click(within(dialog()).getByRole("button", { name: "Save" }));
     expect(saveJobNote).toHaveBeenCalledWith("job-3465", "Rough-in done upstairs");
@@ -1273,13 +1273,13 @@ describe("a filing whose answer was lost", () => {
       .mockResolvedValueOnce({
         ok: false,
         error: WHICH_JOB,
-        ask: { question: WHICH_JOB, options: [{ label: "#3323 Randwick", target: { kind: "job", id: "j1" } }] },
+        ask: { question: WHICH_JOB, options: [{ label: "#3323 Madeupton", target: { kind: "job", id: "j1" } }] },
       })
       .mockRejectedValueOnce(new Error("the answer never came back"));
     const user = await openModal();
     await say(user, "the isolator is loose");
     await flush();
-    await user.click(within(dialog()).getByRole("button", { name: "#3323 Randwick" }));
+    await user.click(within(dialog()).getByRole("button", { name: "#3323 Madeupton" }));
     await flush();
     expect(within(convo()).getByText(NOT_REACHED)).toBeInTheDocument();
     await user.click(within(dialog()).getByRole("button", { name: "Close" }));

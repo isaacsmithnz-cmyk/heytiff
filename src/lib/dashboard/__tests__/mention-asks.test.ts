@@ -34,8 +34,8 @@ const talk = (notes: MentionNote[]) =>
     me: { uuid: ISAAC.uuid, handle: ISAAC.handle },
     people: [ISAAC, LYLE],
     jobs: new Map([
-      ["j-2041", { label: "2041 Wollstonecraft", live: true }],
-      ["j-3294", { label: "3294 Rozelle", live: true }],
+      ["j-2041", { label: "2041 Testcraft", live: true }],
+      ["j-3294", { label: "3294 Mockzelle", live: true }],
     ]),
     today: TODAY,
   });

@@ -167,7 +167,7 @@ def type_board():
         ("24", "400", '<span style="font-size:24px;line-height:32px;font-weight:400">A split in the main bedroom, back to back with the study.</span>', "The one thing being read: a brief, a task, a notice", ""),
         ("20", "600", '<span style="font-size:20px;line-height:28px;font-weight:600">Pay and holidays</span>', "A section's title", ""),
         ("16", "600", '<span style="font-size:16px;line-height:24px;font-weight:600">Where it\'s up to</span>', "A heading in a card or a list", ""),
-        ("16", "400", '<span style="font-size:16px;line-height:24px">Just been to Riverview. They want a split in the main bedroom.</span>', "Anything you read or write: notes, the box, Tiff's answers", "was 14"),
+        ("16", "400", '<span style="font-size:16px;line-height:24px">Just been to Fakeview. They want a split in the main bedroom.</span>', "Anything you read or write: notes, the box, Tiff's answers", "was 14"),
         ("14", "400", '<span style="font-size:14px;line-height:20px">Two Daikin splits, Lyle and Callum. Day 1 of 1.</span>', "Body: lists, details, descriptions", ""),
         ("14", "600", '<span style="font-size:14px;line-height:20px;font-weight:600">Bellevue Hill, Job 3342</span>', "A row's name, a regular button", ""),
         ("14", "500", '<span style="font-size:14px;line-height:20px;font-weight:500;color:#196B2D">On now</span>', "A state word, in its colour", ""),
@@ -281,13 +281,13 @@ def colour():
         fill, chip, bar = paint(hx)
         blocks += (f'<div class="sw"><div style="height:64px;border-radius:10px;background:{rgbs(fill)};display:flex;overflow:hidden">'
                    f'<span style="width:4px;background:{rgbs(bar)}"></span><span style="padding:8px 10px;display:flex;flex-direction:column;gap:4px;min-width:0">'
-                   f'<b style="font-size:13px;line-height:18px">Randwick Dental</b><span style="align-self:flex-start;font-size:12px;line-height:16px;font-weight:600;padding:0 6px;border-radius:6px;background:{rgbs(chip)}">3271</span></span></div>'
+                   f'<b style="font-size:13px;line-height:18px">Madeupton Dental</b><span style="align-self:flex-start;font-size:12px;line-height:16px;font-weight:600;padding:0 6px;border-radius:6px;background:{rgbs(chip)}">3271</span></span></div>'
                    f'<div><div class="nm">{name}</div><div class="vl">ServiceM8 {hx.lower()}</div><div class="vl">cap {rgbs(bar)}</div></div></div>')
     fixed = [("No category", (244, 245, 247), (226, 228, 233), (122, 129, 140)), ("Project or maintenance", (231, 244, 248), (201, 228, 237), (0, 106, 140))]
     for name, fill, chip, bar in fixed:
         blocks += (f'<div class="sw"><div style="height:64px;border-radius:10px;background:{rgbs(fill)};display:flex;overflow:hidden">'
                    f'<span style="width:4px;background:{rgbs(bar)}"></span><span style="padding:8px 10px;display:flex;flex-direction:column;gap:4px;min-width:0">'
-                   f'<b style="font-size:13px;line-height:18px">Heuvel, Chatswood</b><span style="align-self:flex-start;font-size:12px;line-height:16px;font-weight:600;padding:0 6px;border-radius:6px;background:{rgbs(chip)}">3302</span></span></div>'
+                   f'<b style="font-size:13px;line-height:18px">Testa, Fablewood</b><span style="align-self:flex-start;font-size:12px;line-height:16px;font-weight:600;padding:0 6px;border-radius:6px;background:{rgbs(chip)}">3302</span></span></div>'
                    f'<div><div class="nm">{name}</div><div class="vl">Fixed in HeyTiff</div><div class="vl">cap {rgbs(bar)}</div></div></div>')
 
     kinds = [("Split", "#2a78d6", "4.4"), ("Multi", "#eb6834", "3.2"), ("Ducted", "#1baf7a", "2.8"), ("VRF", "#4a3aa7", "8.6"), ("Service", "#e87ba4", "2.7"), ("Maintenance", "#eda100", "2.2"), ("Ventilation", "#008300", "5.0")]

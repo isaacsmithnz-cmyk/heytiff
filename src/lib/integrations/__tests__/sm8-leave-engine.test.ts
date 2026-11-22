@@ -258,12 +258,12 @@ describe("a block out goes as its own part of the day", () => {
       kind: null,
       from: "2026-11-09",
       to: "2026-11-09",
-      block: { start: "2026-11-09 14:15:00", end: "2026-11-09 14:45:00", name: "Dentist, Bondi" },
+      block: { start: "2026-11-09 14:15:00", end: "2026-11-09 14:45:00", name: "Dentist, Fictonia" },
     });
     expect(q.note).toBeNull();
-    expect(creates()[0]).toMatchObject({ leave_start: "2026-11-09 14:15:00", leave_end: "2026-11-09 14:45:00", payload: { name: "Dentist, Bondi" } });
+    expect(creates()[0]).toMatchObject({ leave_start: "2026-11-09 14:15:00", leave_end: "2026-11-09 14:45:00", payload: { name: "Dentist, Fictonia" } });
     expect(await run()).toMatchObject({ sent: 1, failed: 0 });
-    expect([...board.values()][0]).toMatchObject({ name: "Dentist, Bondi", start: "2026-11-09 14:15:00", end: "2026-11-09 14:45:00" });
+    expect([...board.values()][0]).toMatchObject({ name: "Dentist, Fictonia", start: "2026-11-09 14:15:00", end: "2026-11-09 14:45:00" });
   });
 });
 

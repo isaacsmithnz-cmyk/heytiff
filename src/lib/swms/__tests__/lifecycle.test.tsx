@@ -67,7 +67,7 @@ beforeEach(() => {
       { org_id: ORG, uuid: JOB, generated_job_id: "2601", company_uuid: null, category_uuid: null, status: "Work Order", job_address: "14 Attunga Road, Miranda NSW 2228", geo_state: "NSW", job_description: "Supply and install a 5.0 kW split system", active: 1 },
     ],
     staff_profiles: [
-      staff("troy", "Troy", "Porter", "Supervisor"),
+      staff("troy", "Troy", "Northam", "Supervisor"),
       staff("dane", "Dane", "Whitmore", "Installer"),
       staff("sam", "Sam", "Ikpeba", "Apprentice"),
       staff("isaac", "Isaac", "Smith", "Owner"),
@@ -185,7 +185,7 @@ it("keeps every screen telling the same true story from issue to a finished job"
   expect(await bell("dane")).toEqual(["Sign on to the SWMS"]);
   expect(await bell("troy")).toEqual(["Sign on to the SWMS"]);
   expect(await card(null)).toEqual({
-    lines: [expect.stringMatching(/^Issued .*, Troy Porter in charge, 0 of 4 signed on, waiting on Dane Whitmore, Sam Ikpeba, Troy Porter and Kai Lindqvist$/)],
+    lines: [expect.stringMatching(/^Issued .*, Troy Northam in charge, 0 of 4 signed on, waiting on Dane Whitmore, Sam Ikpeba, Troy Northam and Kai Lindqvist$/)],
     doors: [],
   });
   expect((await card("dane")).doors).toEqual(["Sign on"]);
@@ -200,8 +200,8 @@ it("keeps every screen telling the same true story from issue to a finished job"
   expect((await card("troy")).doors).toEqual(["Sign them on"]);
   const troyReads = await page("troy", v1.versionId);
   expect(troyReads.text).toMatch(/You signed on /);
-  expect(troyReads.rows["Kai Lindqvist"]).toMatch(/On Troy Porter's phone/);
-  expect(troyReads.rows["Troy Porter"]).toMatch(/^TPTroy PorterSupervisor, in charge/);
+  expect(troyReads.rows["Kai Lindqvist"]).toMatch(/On Troy Northam's phone/);
+  expect(troyReads.rows["Troy Northam"]).toMatch(/^TNTroy NorthamSupervisor, in charge/);
 
   /* 3. DANE SIGNS ON AND RAISES SOMETHING — it reaches the person in charge. */
   as("dane");
@@ -235,8 +235,8 @@ it("keeps every screen telling the same true story from issue to a finished job"
   ]);
   expect((await page("dane", v2.versionId)).text).toMatch(/You signed on .*, before a correction\./);
   const correctedPaper = await paper(v2.versionId);
-  expect(correctedPaper.text).toMatch(/Checked against the site by Troy Porter/);
-  expect(correctedPaper.register["Dane WhitmoreInstaller"]).toEqual(["Troy Porter", expect.stringMatching(/, on version 1$/), "", "No anchor on the rear ridge"]);
+  expect(correctedPaper.text).toMatch(/Checked against the site by Troy Northam/);
+  expect(correctedPaper.register["Dane WhitmoreInstaller"]).toEqual(["Troy Northam", expect.stringMatching(/, on version 1$/), "", "No anchor on the rear ridge"]);
 
   /* 5. TROY SORTS IT ON SITE — on the corrected version, where the sign-on
         that stands belongs to the version before. Round 4's version of this
@@ -245,8 +245,8 @@ it("keeps every screen telling the same true story from issue to a finished job"
   expect(await clearSwmsIssue(personOn(v2.versionId, "dane"))).toEqual({ ok: true });
   expect(await bell("troy")).toEqual([]);
   expect((await card(null)).lines).toEqual([expect.stringMatching(/waiting on Sam Ikpeba$/)]);
-  expect((await page("dane", v2.versionId)).rows["Dane Whitmore"]).toMatch(/Raised: No anchor on the rear ridge — sorted by Troy Porter/);
-  expect((await paper(v2.versionId)).register["Dane WhitmoreInstaller"][3]).toMatch(/^No anchor on the rear ridgeSorted on site by Troy Porter, /);
+  expect((await page("dane", v2.versionId)).rows["Dane Whitmore"]).toMatch(/Raised: No anchor on the rear ridge — sorted by Troy Northam/);
+  expect((await paper(v2.versionId)).register["Dane WhitmoreInstaller"][3]).toMatch(/^No anchor on the rear ridgeSorted on site by Troy Northam, /);
 
   /* 6. SAM IS SIGNED ON TROY'S PHONE, then finds something on the roof —
         his sign-on is his own to add to, whoever held the phone. */
@@ -292,7 +292,7 @@ it("keeps every screen telling the same true story from issue to a finished job"
   mockDb.tables.sm8_jobs = [];
   const orphan = await paper(v3.versionId);
   expect(orphan.licences["Dane WhitmoreInstaller"]).toBe("ARC licence");
-  expect(orphan.licences["Troy PorterSupervisor"]).toBe("None on file");
+  expect(orphan.licences["Troy NorthamSupervisor"]).toBe("None on file");
   expect(orphan.licences["Kai LindqvistLindqvist Plumbing"]).toBe("From outside the business, so none on file");
 });
 

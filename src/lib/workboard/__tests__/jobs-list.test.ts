@@ -45,7 +45,7 @@ const visit = (over: Partial<JobsListVisit> & { id: string }): JobsListVisit => 
   remoteId: null,
   clientName: "Meridian Data",
   label: "Quarterly service",
-  siteLabel: "Alexandria",
+  siteLabel: "Exampleria",
   category: { name: "Maintenance", accent: "#facc15" },
   dueDate: "2026-10-20",
   bookedDate: null,
@@ -59,7 +59,7 @@ const visit = (over: Partial<JobsListVisit> & { id: string }): JobsListVisit => 
 const agreement = (over: Partial<JobsListAgreement> & { id: string }): JobsListAgreement => ({
   label: "Quarterly service",
   clientName: "Meridian Data",
-  siteLabel: "Alexandria",
+  siteLabel: "Exampleria",
   intervalMonths: 3,
   status: "active",
   category: null,
@@ -69,9 +69,9 @@ const agreement = (over: Partial<JobsListAgreement> & { id: string }): JobsListA
 });
 
 const project = (over: Partial<JobsListProject> & { id: string }): JobsListProject => ({
-  name: "Heuvel roof plant",
-  clientName: "Heuvel Construction",
-  siteLabel: "Chatswood",
+  name: "Testa roof plant",
+  clientName: "Testa Construction",
+  siteLabel: "Fablewood",
   stage: "Rough-in",
   status: "active",
   updatedAt: "2026-10-10T00:00:00Z",
@@ -103,14 +103,14 @@ const row = (rows: JobsListRow[], key: string) => rows.find((r) => r.key === key
 /* one of everything the seven views read */
 const BOOK = input({
   jobs: [
-    job({ remoteId: "wo-booked", jobNumber: "3342", clientName: "Rifkin, Julian", suburb: "Bellevue Hill", nextBooking: `${TODAY} 09:00:00`, money: money("9840") }),
+    job({ remoteId: "wo-booked", jobNumber: "3342", clientName: "Fairweather, Jules", suburb: "Bellevue Hill", nextBooking: `${TODAY} 09:00:00`, money: money("9840") }),
     job({ remoteId: "wo-waiting", jobNumber: "3323", description: "Ducted install, two zones", suburb: "Ryde", money: money("24600") }),
-    job({ remoteId: "q-new", jobNumber: "3361", status: "Quote", clientName: "Okafor, Ada", suburb: "Riverview", categoryName: null, categoryColour: null, date: `${TODAY} 08:00:00`, quote: { lines: 0, priced: false, headline: null } }),
+    job({ remoteId: "q-new", jobNumber: "3361", status: "Quote", clientName: "Okafor, Ada", suburb: "Fakeview", categoryName: null, categoryColour: null, date: `${TODAY} 08:00:00`, quote: { lines: 0, priced: false, headline: null } }),
     job({ remoteId: "q-sent", jobNumber: "3294", status: "Quote", clientName: "Belmont Holdings", date: "2026-10-02 08:00:00", quote: { lines: 2, priced: true, headline: null } }),
     job({ remoteId: "done-owed", jobNumber: "2380", status: "Completed", clientName: "Kingsford Bakery", completionDate: "2026-10-01 08:30:00", money: money("420") }),
     job({ remoteId: "done-paid", jobNumber: "2381", status: "Completed", completionDate: "2026-10-01 08:30:00", money: money("500"), paidCents: 50000 }),
     job({ remoteId: "lost", jobNumber: "2390", status: "Unsuccessful", completionDate: "2026-10-01 08:30:00" }),
-    job({ remoteId: "proj-install", jobNumber: "3302", clientName: "Heuvel Construction", categoryName: "Project", categoryColour: "#a855f7", nextBooking: `${TODAY} 07:00:00`, money: money("188000") }),
+    job({ remoteId: "proj-install", jobNumber: "3302", clientName: "Testa Construction", categoryName: "Project", categoryColour: "#a855f7", nextBooking: `${TODAY} 07:00:00`, money: money("188000") }),
   ],
   projectLinks: [{ remoteId: "proj-install", projectId: "p-linked" }],
   projects: [
@@ -216,7 +216,7 @@ describe("a row", () => {
   it("says where a job is up to and what's next", () => {
     expect(row(rows, "sm8:wo-booked")).toMatchObject({
       number: "3342",
-      client: "Rifkin, Julian",
+      client: "Fairweather, Jules",
       site: "Bellevue Hill",
       kind: "Installation",
       hue: "blue",
@@ -260,11 +260,11 @@ describe("the money gate", () => {
 describe("the address", () => {
   it("reads the view, who, sort and search, and defaults the rest", () => {
     expect(readListState({}, true)).toEqual({ view: "all", who: ANYONE, sort: "next", q: "" });
-    expect(readListState({ view: "quotes", who: "Lyle Irving", sort: "oldest", q: "  rifkin " }, true)).toEqual({
+    expect(readListState({ view: "quotes", who: "Lyle Irving", sort: "oldest", q: "  fairweather " }, true)).toEqual({
       view: "quotes",
       who: "lyle irving",
       sort: "oldest",
-      q: "rifkin",
+      q: "fairweather",
     });
     expect(readListState({ view: "nonsense", sort: ["next", "value"] }, true)).toMatchObject({ view: "all", sort: "next" });
   });
@@ -284,7 +284,7 @@ describe("the address", () => {
   });
 
   it("round-trips through the address", () => {
-    const s = { view: "projects" as const, who: NOBODY, sort: "oldest" as const, q: "heuvel" };
+    const s = { view: "projects" as const, who: NOBODY, sort: "oldest" as const, q: "testa" };
     const params = Object.fromEntries(new URL(listHref(s), "https://x.test").searchParams);
     expect(readListState(params, true)).toEqual(s);
   });
@@ -295,9 +295,9 @@ describe("search and who", () => {
 
   it("matches every typed word, against the number, client, site and description", () => {
     expect(keys(rowsFor(rows, { view: "all", who: ANYONE, q: "3342" }))).toEqual(["sm8:wo-booked"]);
-    expect(keys(rowsFor(rows, { view: "all", who: ANYONE, q: "bellevue rifkin" }))).toEqual(["sm8:wo-booked"]);
+    expect(keys(rowsFor(rows, { view: "all", who: ANYONE, q: "bellevue fairweather" }))).toEqual(["sm8:wo-booked"]);
     expect(keys(rowsFor(rows, { view: "all", who: ANYONE, q: "two zones ryde" }))).toEqual(["sm8:wo-waiting"]);
-    expect(rowsFor(rows, { view: "all", who: ANYONE, q: "rifkin zzz" })).toEqual([]);
+    expect(rowsFor(rows, { view: "all", who: ANYONE, q: "fairweather zzz" })).toEqual([]);
   });
 
   it("narrows to a person, or to nobody yet", () => {

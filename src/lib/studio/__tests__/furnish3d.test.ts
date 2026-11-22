@@ -162,7 +162,7 @@ describe("the stairs as steps", () => {
     expect(ground.stairs[0].risers).toBe(16);
   });
 
-  /* 90 O'Brien St and 27 Milroy Ave (9 November 2026): the hall at the stair's
+  /* 90 Dreamer St and 27 Proident Ave (9 November 2026): the hall at the stair's
      foot below and the landing at its head above are at the same end. Drawn
      straight, it rose into the outside wall. */
   it("turns back on itself when its foot and its head are at the same end: up one half, a landing, back along the other", () => {
@@ -218,7 +218,7 @@ describe("the stairs as steps", () => {
       return { f, s };
     };
 
-    it("is a stairwell down from the room at its top, when the floor below isn't in the design (125 Homer St)", () => {
+    it("is a stairwell down from the room at its top, when the floor below isn't in the design (125 Exemplar St)", () => {
       const { f, s } = lone("risers 20, treads 19, bottom ground floor (below), top Living", [room("Living", rect(0, -3, 4, 0))]);
       expect(s.well).toBe(true);
       const [flight] = f.stairs;
@@ -235,7 +235,7 @@ describe("the stairs as steps", () => {
       ]);
     });
 
-    it("is a flight going up out of its room, standing free, when the floor above isn't (14 Rosemont Ave)", () => {
+    it("is a flight going up out of its room, standing free, when the floor above isn't (14 Fictus Ave)", () => {
       const { f, s } = lone("risers not numbered, bottom Living, top First floor hallway", [room("Living", rect(-4, 3, 4, 6))]);
       expect(s.bare).toBe(true);
       const [flight] = f.stairs;
@@ -244,7 +244,7 @@ describe("the stairs as steps", () => {
       expect(flight.rise).toBeCloseTo(3);
     });
 
-    it("is its steps between two places on the floor, down from a room's floor to the garden (7 Cutler Rd)", () => {
+    it("is its steps between two places on the floor, down from a room's floor to the garden (7 Ipsum Rd)", () => {
       const { f, s } = lone("risers 10, treads 9, bottom Garden, top Family Room", [room("Family Room", rect(-4, 3, 4, 6)), room("Garden", rect(-4, -3, 4, 0), "outdoor")]);
       expect(s.bare).toBe(true);
       const [flight] = f.stairs;

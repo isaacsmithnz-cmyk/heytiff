@@ -32,7 +32,7 @@ describe("arriving on ?design=<id>", () => {
 
   it("does not show the Home index while the design is loading", async () => {
     const store = new HeldStore(window.localStorage);
-    const doc = createDesign({ name: "Farran St", mode: "blank" });
+    const doc = createDesign({ name: "Cillum St", mode: "blank" });
     render(<Studio store={store} openDesignId={doc.id} />);
 
     // mid-arrival: the index must not be what a reload paints
@@ -40,7 +40,7 @@ describe("arriving on ?design=<id>", () => {
     expect(screen.queryByText("Recent designs")).not.toBeInTheDocument();
 
     store.release(doc);
-    expect(await screen.findByLabelText("Design name")).toHaveValue("Farran St");
+    expect(await screen.findByLabelText("Design name")).toHaveValue("Cillum St");
   });
 
   /* and the id that could not be opened still lands on Home saying so — the

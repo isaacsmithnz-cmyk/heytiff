@@ -18,7 +18,7 @@ CSS = v3.CSS + """
 
 
 def body():
-    rows = "".join(f'<div class="rw" style="gap:10px"><span class="l13 qq nm" style="width:72px">{tm}</span>{v3.dot(c)}<div class="m"><div class="t">{t}</div><div class="s">{s}</div></div>{r}</div>' for tm, c, t, s, r in [("7:30", "Green", "Kingsford Bakery", "Service, you", '<span class="st good l13">Done</span>'), ("9:00", "Blue", "Bellevue Hill", "Installation, Lyle", '<span class="st good l13">On now</span>'), ("12:45", "Orange", "Riverview", "Quote, Dan", ""), ("2:45", "Green", "Randwick Dental", "Service, you", "")])
+    rows = "".join(f'<div class="rw" style="gap:10px"><span class="l13 qq nm" style="width:72px">{tm}</span>{v3.dot(c)}<div class="m"><div class="t">{t}</div><div class="s">{s}</div></div>{r}</div>' for tm, c, t, s, r in [("7:30", "Green", "Kingsford Bakery", "Service, you", '<span class="st good l13">Done</span>'), ("9:00", "Blue", "Bellevue Hill", "Installation, Lyle", '<span class="st good l13">On now</span>'), ("12:45", "Orange", "Fakeview", "Quote, Dan", ""), ("2:45", "Green", "Madeupton Dental", "Service, you", "")])
     return f'''<div style="height:48px;flex:none;display:flex;align-items:flex-end;padding:0 16px 4px 24px;font-weight:500">Tuesday 13 October<span class="qq" style="margin-left:8px">10:05 am</span></div>
     <div style="flex:1;min-height:0;padding:0 16px;overflow:hidden"><div style="display:flex;align-items:baseline;gap:12px;margin:12px 0 4px"><h2 class="t16">Today</h2><span style="flex:1"></span><a class="lk l13" href="#">Schedule</a></div>{rows}</div>
     <div class="box" style="margin:8px 12px 12px;border-radius:20px;padding:12px">

@@ -28,15 +28,15 @@ jest.mock("@/lib/jobs/plans-client", () => ({
 const HIT = {
   remoteId: "job-uuid-1",
   jobNumber: "1234",
-  clientName: "JT Construct",
+  clientName: "QX Construct",
   status: "Completed",
-  address: "23 West Street\nNorth Sydney NSW 2060",
-  suburb: "North Sydney",
+  address: "23 Placeholder Street\nNorth Fakeville NSW 2060",
+  suburb: "North Fakeville",
   description: "Install VRF System",
 };
 
 function doc(over: Partial<DesignDocument["meta"]> = {}): DesignDocument {
-  const d = createDesign({ name: "85 West St", mode: "blank", now: "2026-08-16T00:00:00.000Z" });
+  const d = createDesign({ name: "85 Placeholder St", mode: "blank", now: "2026-08-16T00:00:00.000Z" });
   d.meta = { ...d.meta, ...over };
   return d;
 }
@@ -55,7 +55,7 @@ function withPlan(): DesignDocument {
       plans: [{ id: "sht_1", imageRef: "org/o/page1.png", pageNumber: null, name: "Ground floor", width: 2000, height: 1400, x: 0, y: 0 }],
     },
   ];
-  d.planImport = { sources: [{ ref: "org/o/src.jpeg", kind: "image", name: "Neridah.jpeg" }], placed: { 0: "org/o/page1.png" }, chosen: [0], names: {} };
+  d.planImport = { sources: [{ ref: "org/o/src.jpeg", kind: "image", name: "Irure.jpeg" }], placed: { 0: "org/o/page1.png" }, chosen: [0], names: {} };
   return d;
 }
 
@@ -76,7 +76,7 @@ const confirm = () => fireEvent.click(within(screen.getByRole("dialog")).getByRo
 async function pick() {
   fireEvent.click(screen.getByRole("button", { name: /^link job$/i }));
   await screen.findByRole("dialog");
-  fireEvent.click(await screen.findByRole("button", { name: /1234, JT Construct/ }));
+  fireEvent.click(await screen.findByRole("button", { name: /1234, QX Construct/ }));
 }
 
 beforeEach(() => {
@@ -109,9 +109,9 @@ describe("linking", () => {
     const { state } = harness(doc());
     await pick();
     confirm();
-    await waitFor(() => expect(state.doc.meta.client).toBe("JT Construct"));
+    await waitFor(() => expect(state.doc.meta.client).toBe("QX Construct"));
     expect(state.doc.meta.jobNumber).toBe("1234");
-    expect(state.doc.meta.site).toContain("North Sydney");
+    expect(state.doc.meta.site).toContain("North Fakeville");
   });
 
   it("NEVER overwrites an addressee somebody already typed", async () => {
@@ -146,7 +146,7 @@ describe("its plans go onto the job", () => {
     };
     harness(d);
     await pick();
-    expect(screen.getByText("Neridah.jpeg")).toBeInTheDocument();
+    expect(screen.getByText("Irure.jpeg")).toBeInTheDocument();
     expect(screen.getByText("Ground floor, 2 rooms, as read in this design. Not read again")).toBeInTheDocument();
     expect(screen.getByText("Ground floor, page 1")).toBeInTheDocument();
   });
@@ -178,7 +178,7 @@ describe("a linked design", () => {
   const linked = () => {
     /* filled in, so "unlinking touches nothing else" is actually testable —
        an empty fixture would pass even if detach blanked the sheet */
-    const d = doc({ client: "JT Construct", site: "23 West Street, North Sydney" });
+    const d = doc({ client: "QX Construct", site: "23 Placeholder Street, North Fakeville" });
     d.jobLink = {
       provider: "servicem8",
       remoteId: "job-uuid-1",
@@ -200,9 +200,9 @@ describe("a linked design", () => {
     expect(state.doc.jobLink).toBeNull();
     /* the meta the job filled in STAYS: it is the sheet's own content now,
        and blanking a client because a link was removed would lose work */
-    expect(state.doc.meta.name).toBe("85 West St");
-    expect(state.doc.meta.client).toBe("JT Construct");
-    expect(state.doc.meta.site).toBe("23 West Street, North Sydney");
+    expect(state.doc.meta.name).toBe("85 Placeholder St");
+    expect(state.doc.meta.client).toBe("QX Construct");
+    expect(state.doc.meta.site).toBe("23 Placeholder Street, North Fakeville");
   });
 
   it("says plainly that what's on the job stays there, its plans too", () => {

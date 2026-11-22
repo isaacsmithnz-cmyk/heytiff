@@ -112,7 +112,7 @@ def board():
              f'<div class="tcs"><span>{mk(44)}Resting</span><span>{mk(44, ra="blue")}Listening</span><span>{mk(44, ra="cyc", rb="cyc2", working=True)}Working</span><span>{mk(44, ra="green")}Done</span><span>{mk(44, ra="red")}Stuck</span></div>',
              ctx(working, ra="cyc", rb="cyc2", working=True)),
         card("G. The job's colour", "In a job's conversation, the rings take that job's colour, so you can tell at a glance which job Tiff is on.",
-             f'<div class="tcl"><span>{mk(28, ra="blue")}<b style="font-weight:600">Bellevue Hill, 3342</b></span><span>{mk(28, ra="purple")}<b style="font-weight:600">Heuvel, Chatswood</b></span><span>{mk(28, ra="green")}<b style="font-weight:600">Kingsford Bakery, 2380</b></span></div>',
+             f'<div class="tcl"><span>{mk(28, ra="blue")}<b style="font-weight:600">Bellevue Hill, 3342</b></span><span>{mk(28, ra="purple")}<b style="font-weight:600">Testa, Fablewood</b></span><span>{mk(28, ra="green")}<b style="font-weight:600">Kingsford Bakery, 2380</b></span></div>',
              ctx("Drafting the variation for 3342", ra="blue", working=True)),
         card("H. A flat colour face", "The chevron itself in solid blue, no gradient, rings plain. The most 'brand'; colour on every screen Tiff appears on.",
              pair(face="blue", ra="ink"), ctx(working, face="blue", ra="ink", working=True)),

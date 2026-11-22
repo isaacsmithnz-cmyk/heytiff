@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { IconButton } from "@/components/parts/button";
 import { Field, TextInput } from "@/components/parts/field";
 
-/** A job as a form's record field names it: "Job 3209, Richards Building,
-    North Narrabeen". */
+/** A job as a form's record field names it: "Job 3209, Rowland Building,
+    North Pretendale". */
 export type FormJob = { uuid: string; label: string };
 
 /** Search's own reader, fetched when a search is typed: the forms that

@@ -31,6 +31,6 @@ describe("where a job was opened from", () => {
     expect(backLabel("/dashboard")).toBe("Home");
     expect(backLabel("/dashboard/jobs?status=won")).toBe("Jobs");
     expect(backLabel("/dashboard/schedule")).toBe("Schedule");
-    expect(backLabel("/dashboard/jobs/j-2", { "/dashboard/jobs/j-2": { label: "3209 Richards" } })).toBe("3209 Richards");
+    expect(backLabel("/dashboard/jobs/j-2", { "/dashboard/jobs/j-2": { label: "3209 Rowland" } })).toBe("3209 Rowland");
   });
 });

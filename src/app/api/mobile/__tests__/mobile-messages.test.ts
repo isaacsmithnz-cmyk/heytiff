@@ -53,7 +53,7 @@ const items: CustomerItem[] = [
     at: "2026-10-08 14:32:37",
     icon: "mail",
     title: "Email and text with Jay",
-    subject: "Request for Air Conditioning Quote – 29 Wemyss St Enmore NSW 2042",
+    subject: "Request for Air Conditioning Quote – 29 Velit St Testmore NSW 2042",
     lines: [
       bubble("m1", "them", "Jay", "Hi still have not seen your estimate", "10:21 am"),
       bubble("m2", "us", "Luke", "Dear Jay,\nThank you for the opportunity", "12:14 pm", [quoteFile]),
@@ -230,7 +230,7 @@ describe("a job's messages as one conversation", () => {
 
   it("calls a business by its short name", () => {
     expect(shortBusinessName("Diamond Air Solutions Pty LTD")).toBe("Diamond Air");
-    expect(shortBusinessName("JT Construct Pty. Ltd.")).toBe("JT Construct");
+    expect(shortBusinessName("QX Construct Pty. Ltd.")).toBe("QX Construct");
     expect(shortBusinessName("Acme Air")).toBe("Acme Air");
     expect(shortBusinessName("Plumbing Services")).toBe("Plumbing Services");
     expect(shortBusinessName("  ")).toBeNull();

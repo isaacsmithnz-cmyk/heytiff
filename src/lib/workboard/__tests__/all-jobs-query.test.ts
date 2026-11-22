@@ -687,8 +687,8 @@ describe("readJobTracked", () => {
       { id: "v-done", agreement_id: "a-1", status: "done" },
       { id: "v-open", agreement_id: "a-1", status: "booked" },
     ];
-    singleBy["maintenance_agreements"] = { client_name: "Mosman Marina" };
-    expect(await readJobTracked("org-1", "j-1")).toEqual({ kind: "visit", label: "Mosman Marina", id: "v-open" });
+    singleBy["maintenance_agreements"] = { client_name: "Sampleton Marina" };
+    expect(await readJobTracked("org-1", "j-1")).toEqual({ kind: "visit", label: "Sampleton Marina", id: "v-open" });
   });
 
   it("answers null for a job nothing tracks", async () => {

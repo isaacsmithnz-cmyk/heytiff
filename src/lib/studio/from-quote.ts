@@ -1,6 +1,6 @@
 /* FROM THE QUOTE (Isaac, 17 November 2026: "i want to draw up a system in
    design from an accepted quote, is there a feature to suggest units you
-   quoted to appear? its for normans in waitara", then the mock
+   quoted to appear? its for sams in mockville", then the mock
    https://claude.ai/artifact/Vx4V9fQPq3VRYwej49aico, picked to build).
 
    A design on a job whose quote names its units offers each option's units

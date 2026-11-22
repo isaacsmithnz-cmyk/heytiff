@@ -43,9 +43,9 @@ const job = (over: Partial<AllJobsMirrorJob> & { remoteId: string }): AllJobsMir
 function dataFor(over: Partial<JobsListInput> = {}, moneyVisible = true, rest: Partial<JobsListData> = {}): JobsListData {
   const input: JobsListInput = {
     jobs: [
-      job({ remoteId: "wo-booked", jobNumber: "3342", clientName: "Rifkin, Julian", suburb: "Bellevue Hill", nextBooking: `${TODAY} 09:00:00` }),
+      job({ remoteId: "wo-booked", jobNumber: "3342", clientName: "Fairweather, Jules", suburb: "Bellevue Hill", nextBooking: `${TODAY} 09:00:00` }),
       job({ remoteId: "wo-waiting" }),
-      job({ remoteId: "q-1", jobNumber: "3361", status: "Quote", clientName: "Okafor, Ada", suburb: "Riverview", money: null, quote: { lines: 0, priced: false, headline: null } }),
+      job({ remoteId: "q-1", jobNumber: "3361", status: "Quote", clientName: "Okafor, Ada", suburb: "Fakeview", money: null, quote: { lines: 0, priced: false, headline: null } }),
     ],
     projectLinks: [],
     visits: [],
@@ -139,7 +139,7 @@ describe("the screen", () => {
     const card = booked.querySelector(".jl-card");
     expect(card).toHaveClass("jl-card--blue");
     expect(card?.querySelector(".jl-cn")).toHaveTextContent("3342");
-    expect(card).toHaveTextContent("Rifkin, Julian");
+    expect(card).toHaveTextContent("Fairweather, Jules");
     expect(card?.querySelector(".jl-sub")).toHaveTextContent("Installation, Bellevue Hill");
     expect(screen.getByRole("link", { name: /3361/ }).querySelector(".jl-card")).toHaveClass("jl-card--orange");
   });

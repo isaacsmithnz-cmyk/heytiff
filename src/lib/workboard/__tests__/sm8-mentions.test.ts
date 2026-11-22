@@ -50,7 +50,7 @@ describe("mentionedHandles", () => {
   it("ignores an @ that is not one of ours", () => {
     /* An email address in a note is full of "@" and none of it is a mention
        — which is why this matches against the roster instead of the regex. */
-    expect(mentionedHandles("email susie@peterson.com about it", roster)).toEqual([]);
+    expect(mentionedHandles("email susie@hollowell.com about it", roster)).toEqual([]);
     expect(mentionedHandles("@nobodyhere", roster)).toEqual([]);
   });
 
@@ -114,7 +114,7 @@ describe("withoutHandles", () => {
 describe("withoutKnownHandles", () => {
 
   it("keeps an email address whole, where withoutHandles cut it in half", () => {
-    const note = "@isaacsmith email susie@peterson.com about it";
+    const note = "@isaacsmith email susie@hollowell.com about it";
     expect(withoutHandles(note)).toBe("email susie about it");
   });
 });
@@ -160,7 +160,7 @@ describe("quotedNote", () => {
   });
 
   it("leaves an address, an unknown @word and a possessive as written", () => {
-    expect(toIsaac("@isaacsmith email susie@peterson.com about it")).toBe("email susie@peterson.com about it");
+    expect(toIsaac("@isaacsmith email susie@hollowell.com about it")).toBe("email susie@hollowell.com about it");
     expect(toIsaac("@isaacsmith ask @nobodyhere first")).toBe("ask @nobodyhere first");
     expect(toIsaac("@isaacsmith @michaeldixon's van is at the yard")).toBe("@michaeldixon's van is at the yard");
   });
@@ -172,7 +172,7 @@ describe("quotedNote", () => {
 
 describe("namedNote", () => {
   /* What Tiff reads: nothing taken out, so a note written to two people
-     keeps who each part is to. The real one, Alex's on 2778 Queenscliff,
+     keeps who each part is to. The real one, Alex's on 2778 Mockcliff,
      was read without its addressing as one task for Isaac with Lyle's
      half in it. */
   const names = new Map([
@@ -198,7 +198,7 @@ describe("namedNote", () => {
   });
 
   it("leaves an address, an unknown @word and a possessive as written, and a handle's full stop the sentence's", () => {
-    expect(named("@isaacsmith email susie@peterson.com about it")).toBe("Isaac email susie@peterson.com about it");
+    expect(named("@isaacsmith email susie@hollowell.com about it")).toBe("Isaac email susie@hollowell.com about it");
     expect(named("@isaacsmith ask @nobodyhere first")).toBe("Isaac ask @nobodyhere first");
     expect(named("@michaeldixon's van is at the yard")).toBe("@michaeldixon's van is at the yard");
     expect(named("ask @ross. about it")).toBe("ask Ross about it");

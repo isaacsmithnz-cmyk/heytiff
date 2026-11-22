@@ -4,9 +4,9 @@ const J = "0b1e0b1e-0000-4000-8000-000000000001";
 const C = "c0c0c0c0-0000-4000-8000-000000000001";
 const P1 = "9e9e9e9e-0000-4000-8000-000000000001";
 const P2 = "9e9e9e9e-0000-4000-8000-000000000002";
-const jeff = { uuid: P1, first: "Jeff", last: "Fletcher", mobile: "0411 111 111", phone: "", email: "jeff@fletchbuilt.com.au", type: "JOB" };
+const jeff = { uuid: P1, first: "Jeff", last: "Ashby", mobile: "0411 111 111", phone: "", email: "jeff@ashbybuilt.example", type: "JOB" };
 const kim = { uuid: P2, first: "Kim", last: "Lee", mobile: "", phone: "", email: "", type: "BILLING" };
-const base: CustomerForm = { jobUuid: J, company: { uuid: C, name: "Pagewood Hotel", address: "1 Pagewood Rd" }, billingAddress: "Cliff Rd, Watsons Bay", contacts: [jeff, kim] };
+const base: CustomerForm = { jobUuid: J, company: { uuid: C, name: "Placewood Hotel", address: "1 Placewood Rd" }, billingAddress: "Cliff Rd, Watsons Bay", contacts: [jeff, kim] };
 
 describe("a customer save's changes", () => {
   it("is nothing when nothing changed", () => {
@@ -16,13 +16,13 @@ describe("a customer save's changes", () => {
   it("names only the fields that changed, each to its own record", () => {
     const r = customerChanges(base, {
       ...base,
-      company: { uuid: C, name: "Pagewood Hotel", address: "2 Pagewood Rd" },
-      billingAddress: "1 Pagewood Rd",
+      company: { uuid: C, name: "Placewood Hotel", address: "2 Placewood Rd" },
+      billingAddress: "1 Placewood Rd",
       contacts: [{ ...jeff, type: "Site Contact" }, kim],
     });
     expect(r.ok && r.changes.map((c) => [c.object, c.op, c.uuid, c.fields])).toEqual([
-      ["company", "update", C, { address: "2 Pagewood Rd" }],
-      ["job", "update", J, { billing_address: "1 Pagewood Rd" }],
+      ["company", "update", C, { address: "2 Placewood Rd" }],
+      ["job", "update", J, { billing_address: "1 Placewood Rd" }],
       ["jobcontact", "update", P1, { type: "Site Contact" }],
     ]);
   });
@@ -36,7 +36,7 @@ describe("a customer save's changes", () => {
   });
 
   it("refuses a bad email and a nameless customer, in words", () => {
-    expect(customerChanges(base, { ...base, contacts: [{ ...jeff, email: "nope" }, kim] })).toEqual({ ok: false, error: "Jeff Fletcher's email address doesn't look right." });
+    expect(customerChanges(base, { ...base, contacts: [{ ...jeff, email: "nope" }, kim] })).toEqual({ ok: false, error: "Jeff Ashby's email address doesn't look right." });
     expect(customerChanges(base, { ...base, company: { uuid: C, name: " ", address: "" } })).toMatchObject({ ok: false });
   });
 
@@ -55,19 +55,19 @@ describe("the job's site address (bug 26)", () => {
   const sited: CustomerForm = { ...base, siteAddress: "Cliff Rd, Watsons Bay" };
 
   it("goes as job_address, on the job's one row", () => {
-    const r = customerChanges(sited, { ...sited, siteAddress: "6/40 Raglan St, Mosman NSW 2088" });
-    expect(r.ok && r.changes.map((c) => [c.object, c.op, c.uuid, c.fields, c.label])).toEqual([["job", "update", J, { job_address: "6/40 Raglan St, Mosman NSW 2088" }, "Site address changed"]]);
+    const r = customerChanges(sited, { ...sited, siteAddress: "6/40 Lorem St, Sampleton NSW 2088" });
+    expect(r.ok && r.changes.map((c) => [c.object, c.op, c.uuid, c.fields, c.label])).toEqual([["job", "update", J, { job_address: "6/40 Lorem St, Sampleton NSW 2088" }, "Site address changed"]]);
   });
 
   it("goes with the billing address as one change to the job, when both move", () => {
-    const r = customerChanges(sited, { ...sited, siteAddress: "6/40 Raglan St, Mosman", billingAddress: "6/40 Raglan St, Mosman" });
-    expect(r.ok && r.changes.map((c) => [c.object, c.fields, c.label])).toEqual([["job", { billing_address: "6/40 Raglan St, Mosman", job_address: "6/40 Raglan St, Mosman" }, "Site and billing addresses changed"]]);
+    const r = customerChanges(sited, { ...sited, siteAddress: "6/40 Lorem St, Sampleton", billingAddress: "6/40 Lorem St, Sampleton" });
+    expect(r.ok && r.changes.map((c) => [c.object, c.fields, c.label])).toEqual([["job", { billing_address: "6/40 Lorem St, Sampleton", job_address: "6/40 Lorem St, Sampleton" }, "Site and billing addresses changed"]]);
   });
 
   it("is left alone when the form doesn't carry it, or the job's couldn't be known", () => {
     expect(customerChanges(sited, { ...sited, siteAddress: undefined })).toEqual({ ok: true, changes: [] });
-    expect(customerChanges(base, { ...base, siteAddress: "6/40 Raglan St" })).toEqual({ ok: true, changes: [] });
-    expect(customerChanges({ ...sited, siteAddress: null }, { ...sited, siteAddress: "6/40 Raglan St" })).toEqual({ ok: true, changes: [] });
+    expect(customerChanges(base, { ...base, siteAddress: "6/40 Lorem St" })).toEqual({ ok: true, changes: [] });
+    expect(customerChanges({ ...sited, siteAddress: null }, { ...sited, siteAddress: "6/40 Lorem St" })).toEqual({ ok: true, changes: [] });
   });
 
   it("can't be emptied, and spaces round it are no change", () => {

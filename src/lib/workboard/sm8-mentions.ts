@@ -72,7 +72,7 @@ const SPACED_TOKEN = /([ \t]*)@([a-z0-9.'-]+)([ \t]*)/gi;
 const CLOSES = /^$|^[\r\n,.;:!?)\]]/;
 
 /* A character that makes the "@" part of an address rather than a mention:
-   "susie@peterson.com" and "info@isaacsmith" name nobody. */
+   "susie@hollowell.com" and "info@isaacsmith" name nobody. */
 const IN_ADDRESS = /[a-z0-9._%+-]/i;
 
 /** A note as the diary QUOTES it to one reader: only the ADDRESSING taken

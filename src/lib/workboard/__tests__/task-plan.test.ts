@@ -54,8 +54,8 @@ describe("the visits the quote plans", () => {
 
 describe("what Tiff is handed", () => {
   it("names the option's scope, its units numbered, the site's facts and the visits", () => {
-    const p = tasksPrompt({ site: "44 Leinster Street\nPaddington NSW 2021", options: option, facts: ["Outdoor unit location: Garage, on a slab"], visits: plannedVisits(labour) });
-    expect(p).toContain("Site: 44 Leinster Street, Paddington NSW 2021");
+    const p = tasksPrompt({ site: "44 Minim Street\nFauxington NSW 2021", options: option, facts: ["Outdoor unit location: Garage, on a slab"], visits: plannedVisits(labour) });
+    expect(p).toContain("Site: 44 Minim Street, Fauxington NSW 2021");
     expect(p).toContain("- Outdoor unit in the garage.");
     expect(p).toContain("3. indoor: Level 2 Bedroom 3, 2.8 kW, Ducted, PEFY-P25VMX-A");
     expect(p).toContain("4. Install, 2 people");

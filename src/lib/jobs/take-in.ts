@@ -67,7 +67,7 @@ export type SortContext = { own: readonly string[]; site?: string; pageCount?: n
 
 /** A PDF's words with its ligatures undone: "ﬁ" hides "specification",
     and a font that lost its "ti" prints "ven?la?on" or "Ven6la6on" (the 7
-    Cutler Rd tender specification), so a ? or a 6 between two letters is
+    Ipsum Rd tender specification), so a ? or a 6 between two letters is
     put back as "ti". */
 export const plainWords = (t: string): string =>
   t

@@ -29,7 +29,7 @@ const FACTS: LetterheadFacts = {
   },
   legalName: "DAS PTY LTD",
   acn: null,
-  address: ["12 Example Street", "Paddington NSW 2021"],
+  address: ["12 Example Street", "Fauxington NSW 2021"],
   licences: ["Contractor licence 315890C"],
 };
 const SIGNER = { name: "Isaac Smith", title: "Director", signatureSvg: "<svg/>" };
@@ -47,7 +47,7 @@ it("draws a letter on the business's paper, signed by whoever is looking", () =>
   const p = paper();
   expect(p.getByText("Diamond Air Solutions", { selector: ".ltr-name" })).toBeInTheDocument();
   expect(p.getByText("ABN 14 603 285 409")).toBeInTheDocument();
-  expect(p.getByText("Paddington NSW 2021")).toBeInTheDocument();
+  expect(p.getByText("Fauxington NSW 2021")).toBeInTheDocument();
   expect(p.getByText("Contractor licence 315890C")).toBeInTheDocument();
   expect(p.getByText("8 October 2026")).toBeInTheDocument();
   expect(p.getByText("Re: Employment confirmation")).toBeInTheDocument();

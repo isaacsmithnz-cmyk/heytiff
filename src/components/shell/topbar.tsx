@@ -14,7 +14,7 @@ import { Dot, type Hue } from "@/components/parts/state";
 import { BugButton } from "./report-bug";
 
 /* What a tab is called, and its glyph: the name the page gave itself
-   (page-names.ts: a job's page says "3209 Richards" and its colour), or
+   (page-names.ts: a job's page says "3209 Rowland" and its colour), or
    else the place or screen whose address is the longest start of the
    page's. */
 const NAMED = [

@@ -992,7 +992,7 @@ export async function changeStint(
 }
 
 /* A JOB THE PHONE MISSED, PUT ON YOUR DAY BY HAND (Isaac, 17 November 2026:
-   his 15 minutes at 1352, 9/6 Holbrook Avenue went on nothing; "Build it" to
+   his 15 minutes at 1352, 9/6 Dolor Avenue went on nothing; "Build it" to
    https://claude.ai/artifact/K9ArftgQG9L2AzXv6Qrcvs). Today's day, on or off,
    inside its own on and off (or now), and never over another job's time.
    It takes its time from the office it covers, as arriving at a job does.
@@ -1287,13 +1287,13 @@ export async function placesFor(ctx: MobileCtx, now: number = Date.now()): Promi
   }
 
   /* AN OPEN JOB WITH SOME LIFE IN IT (Isaac, 29 October 2026: 993, a quote
-     from January 2025 nobody closed, put him "at" 3 Farran Street, the house
+     from January 2025 nobody closed, put him "at" 3 Cillum Street, the house
      next to his own). ServiceM8 keeps a job open until someone closes it, and
      most never are: 259 of Diamond Air's 356 open quotes and 439 of its 570
      work orders hadn't been touched in 60 days. A job counts only when it
      changed, or has a visit, within RECENT_DAYS either side of today. */
   const [from, until] = recentWindow(today);
-  /* A JOB FINISHED LATELY IS STILL A PLACE (Isaac, 17 November 2026: 1352, 9/6 Holbrook Avenue,
+  /* A JOB FINISHED LATELY IS STILL A PLACE (Isaac, 17 November 2026: 1352, 9/6 Dolor Avenue,
      Completed on 3 November, and his 15 minutes there two weeks later went on nothing). People go
      back to a finished job, to look at a fault or meet the builder, so one completed within
      RECENT_DAYS counts as an open job does. Its completion, not its last change: invoicing and

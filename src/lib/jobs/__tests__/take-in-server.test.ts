@@ -51,8 +51,8 @@ jest.mock("@/lib/supabase-server", () => {
 /* each file's pages, by its bytes */
 const PAGES: Record<string, { w: number; h: number; text: string }[]> = {
   "set-g": Array.from({ length: 25 }, () => ({ w: 2384, h: 1684, text: "GROUND FLOOR SCALE 1:50 @ A1" })),
-  spec: [{ w: 595, h: 842, text: "Tender project specification, 7 Cutler Road. Mechanical ventilation and air conditioning" }],
-  invoice: [{ w: 595, h: 842, text: "Diamond Air Solutions Tax Invoice 2845A, JT Construct, 7 Cutler Rd, progress claim" }],
+  spec: [{ w: 595, h: 842, text: "Tender project specification, 7 Ipsum Road. Mechanical ventilation and air conditioning" }],
+  invoice: [{ w: 595, h: 842, text: "Diamond Air Solutions Tax Invoice 2845A, QX Construct, 7 Ipsum Rd, progress claim" }],
   cert: [{ w: 595, h: 842, text: "Certificate of currency, public liability" }],
 };
 jest.mock("@/lib/tiff/extract", () => ({
@@ -87,7 +87,7 @@ const reads = () => (tables.job_file_reads ?? []).map((r) => [r.document_id, r.s
 beforeEach(() => {
   for (const k of Object.keys(tables)) delete tables[k];
   tables.organizations = [{ id: "org-1", trading_name: "Diamond Air Solutions", name: "Diamond Air Solutions Pty Ltd" }];
-  tables.sm8_jobs = [{ org_id: "org-1", uuid: "job-2845", job_address: "7 Cutler Rd\nClontarf NSW 2093" }];
+  tables.sm8_jobs = [{ org_id: "org-1", uuid: "job-2845", job_address: "7 Ipsum Rd\nTestbury NSW 2093" }];
   added.length = 0;
   Object.assign(bytesOf, { "d-set": "set-g", "d-spec": "spec", "d-inv": "invoice", "d-cert": "cert", "d-set-again": "set-g", "d-broken": "broken" });
 });

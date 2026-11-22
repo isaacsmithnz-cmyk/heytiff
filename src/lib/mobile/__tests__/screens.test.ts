@@ -9,7 +9,7 @@ it("opens a job on its phone screen", () => {
 });
 
 it("carries Jobs' search", () => {
-  expect(phonePath("/dashboard/jobs?q=Railway%20Avenue")).toBe("/jobs?q=Railway%20Avenue");
+  expect(phonePath("/dashboard/jobs?q=Trial%20Avenue")).toBe("/jobs?q=Trial%20Avenue");
 });
 
 it("maps the pages the phone has", () => {

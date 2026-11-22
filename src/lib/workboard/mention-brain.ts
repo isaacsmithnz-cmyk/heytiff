@@ -23,7 +23,7 @@
    be fit off"), and the re-check filed that report as a task on all three
    reads, so the prompt says a name in front never makes a report an ask.
    Materials a report says are still to be bought, with nobody named to buy
-   them, stay yours to order (2543 Kirribilli's access panels, a task on
+   them, stay yours to order (2543 Exampleton's access panels, a task on
    both real reads).
 
    NOTHING HERE WRITES. It returns a reading, shaped and checked
@@ -135,7 +135,7 @@ export type AskInput = {
   /** What the note calls them: the roster's first name, as `text` says
       them. The first word of `person` when not given. */
   first?: string;
-  /** "2041 Wollstonecraft", or null when the job has no number or suburb. */
+  /** "2041 Testcraft", or null when the job has no number or suburb. */
   job: string | null;
   /** When it was written: a naive stamp on the account's clock. */
   at: string;
@@ -269,7 +269,7 @@ export function askSystemPrompt(first: string): string {
     "title: for do and question, the task in a few words, as the person would",
     "write it on their own list: start with a verb, name who to call or tell",
     "where the note does, and end with the job ('Call Mary about 2041",
-    "Wollstonecraft', 'Tell Lyle how many fans for 3294 Rozelle'). Sentence",
+    "Testcraft', 'Tell Lyle how many fans for 3294 Mockzelle'). Sentence",
     `case, no full stop, under ${TITLE_MAX} characters, in ${RECORD_LANGUAGE}. Empty for none.`,
     "",
     "due_date: YYYY-MM-DD when the note says when it wants it ('today', 'by",

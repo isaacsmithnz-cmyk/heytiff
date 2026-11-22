@@ -11,7 +11,7 @@ jest.mock("server-only", () => ({}));
 import { createDesign } from "@/lib/studio/document";
 
 const doc = (() => {
-  const d = createDesign({ name: "Railway Avenue", mode: "blank", jobNumber: "2935", client: "Ferris", site: "72 Railway Ave", job: { remoteId: "j-2935", jobNumber: "2935" } });
+  const d = createDesign({ name: "Trial Avenue", mode: "blank", jobNumber: "2935", client: "Ferris", site: "72 Trial Ave", job: { remoteId: "j-2935", jobNumber: "2935" } });
   const floor = d.floors[0]!;
   floor.plans.push({ id: "pl1", imageRef: "org/o1/plan_a.png", pageNumber: 1, name: "Ground", width: 2000, height: 1400, x: 0, y: 0 });
   d.systems.push({ id: "sys1", type: "multi-split", brand: "mitsubishi-electric", colour: "#2563EB", name: "Multi 1", settings: {} });
@@ -52,8 +52,8 @@ import { listDesigns, readDesign, readScene } from "../designs";
 beforeEach(() => {
   signed.length = 0;
   rows = [
-    { id: "d1", org_id: "o1", name: "Railway Avenue", floor_count: 1, system_count: 1, updated_at: "2026-10-26T01:00:00Z", job_number: "2935", client: "Ferris", thumb_ref: "org/o1/plan_a.png", doc },
-    { id: "d2", org_id: "o1", name: "Rosemont", floor_count: 1, system_count: 2, updated_at: "2026-10-24T01:00:00Z", job_number: "543", client: "Laing", thumb_ref: null, doc },
+    { id: "d1", org_id: "o1", name: "Trial Avenue", floor_count: 1, system_count: 1, updated_at: "2026-10-26T01:00:00Z", job_number: "2935", client: "Ferris", thumb_ref: "org/o1/plan_a.png", doc },
+    { id: "d2", org_id: "o1", name: "Fictus", floor_count: 1, system_count: 2, updated_at: "2026-10-24T01:00:00Z", job_number: "543", client: "Keyes", thumb_ref: null, doc },
     { id: "x1", org_id: "o2", name: "Someone else's", floor_count: 1, system_count: 1, updated_at: "2026-10-26T02:00:00Z", job_number: "1", client: "Other", thumb_ref: null, doc },
   ];
 });
@@ -61,18 +61,18 @@ beforeEach(() => {
 it("lists only the workspace's designs, each with its plan signed", async () => {
   const list = await listDesigns("o1");
   expect(list.map((d) => d.id)).toEqual(["d1", "d2"]);
-  expect(list[0]).toMatchObject({ name: "Railway Avenue", jobNumber: "2935", client: "Ferris", floors: 1, systems: 1, thumbUrl: "https://signed/org/o1/plan_a.png" });
+  expect(list[0]).toMatchObject({ name: "Trial Avenue", jobNumber: "2935", client: "Ferris", floors: 1, systems: 1, thumbUrl: "https://signed/org/o1/plan_a.png" });
   expect(list[1]!.thumbUrl).toBeNull();
 });
 
 it("narrows by name, job number or client", async () => {
-  expect((await listDesigns("o1", "laing")).map((d) => d.id)).toEqual(["d2"]);
+  expect((await listDesigns("o1", "keyes")).map((d) => d.id)).toEqual(["d2"]);
   expect((await listDesigns("o1", "2935")).map((d) => d.id)).toEqual(["d1"]);
 });
 
 it("reads one design as the phone draws it: plan, rooms with area and load, units sized off the scale", async () => {
   const d = (await readDesign("o1", "d1"))!;
-  expect(d).toMatchObject({ name: "Railway Avenue", jobNumber: "2935", client: "Ferris", site: "72 Railway Ave", jobUuid: "j-2935" });
+  expect(d).toMatchObject({ name: "Trial Avenue", jobNumber: "2935", client: "Ferris", site: "72 Trial Ave", jobUuid: "j-2935" });
   const floor = d.floors[0]!;
   expect(floor.sheets).toEqual([{ url: "https://signed/org/o1/plan_a.png", x: 0, y: 0, width: 2000, height: 1400, crop: null }]);
   // 400 × 300 units at 10 mm a unit is 4 m × 3 m

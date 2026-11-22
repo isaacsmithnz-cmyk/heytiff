@@ -64,12 +64,12 @@ afterAll(() => {
 });
 
 it("lists and reads in the verified workspace", async () => {
-  expect(await (await list(req("designs?q=Railway", "auth0|lyle"))).json()).toEqual({ designs: [{ id: "d1" }] });
+  expect(await (await list(req("designs?q=Trial", "auth0|lyle"))).json()).toEqual({ designs: [{ id: "d1" }] });
   expect((await one(req("designs/d1", "auth0|lyle"), params("d1"))).status).toBe(200);
   expect((await one(req("designs/zz", "auth0|lyle"), params("zz"))).status).toBe(404);
   expect((await scene(req("designs/d1/scene", "auth0|lyle"), params("d1"))).status).toBe(200);
   expect((await scene(req("designs/zz/scene", "auth0|lyle"), params("zz"))).status).toBe(404);
-  expect(asked).toEqual(['list org-diamond "Railway"', "read org-diamond d1", "read org-diamond zz", "scene org-diamond d1", "scene org-diamond zz"]);
+  expect(asked).toEqual(['list org-diamond "Trial"', "read org-diamond d1", "read org-diamond zz", "scene org-diamond d1", "scene org-diamond zz"]);
 });
 
 it("refuses without a token check, and without the studio", async () => {

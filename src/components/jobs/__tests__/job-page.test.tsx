@@ -55,9 +55,9 @@ const row = (): AllJobRow => ({
   id: "j-3209",
   number: "3209",
   numberSystem: "sm8",
-  clientName: "Richards Building",
+  clientName: "Rowland Building",
   title: "VRF",
-  suburb: "North Narrabeen",
+  suburb: "North Pretendale",
   categoryName: "Install",
   categoryColour: "#2E68FF",
   statusLabel: "Work Order",
@@ -108,19 +108,19 @@ it("keeps the section in the address as ?tab=, replaced rather than stacked, and
 
 it("names its open tab with the job's number, short name and colour", () => {
   draw();
-  expect(pageNamesSnapshot()["/dashboard/jobs/j-3209"]).toEqual({ label: "3209 Richards", hue: "blue" });
+  expect(pageNamesSnapshot()["/dashboard/jobs/j-3209"]).toEqual({ label: "3209 Rowland", hue: "blue" });
 });
 
 it("joins the sidebar's Recents as the job", () => {
   draw();
-  expect(remember).toHaveBeenCalledWith({ key: "job.j-3209", ref: { kind: "job", id: "j-3209" }, title: "Job 3209", sub: "Richards Building" });
+  expect(remember).toHaveBeenCalledWith({ key: "job.j-3209", ref: { kind: "job", id: "j-3209" }, title: "Job 3209", sub: "Rowland Building" });
 });
 
 it("hands Actions Pin the job and Copy the link, and pins the job by its number and client", async () => {
   draw();
   expect(handed!.page.actions.map((a) => a.label)).toEqual(["Pin the job", "Copy the link"]);
   await act(async () => handed!.page.onAction("pin"));
-  expect(pin).toHaveBeenCalledWith({ ref: { kind: "job", id: "j-3209" }, title: "Job 3209", sub: "Richards Building" });
+  expect(pin).toHaveBeenCalledWith({ ref: { kind: "job", id: "j-3209" }, title: "Job 3209", sub: "Rowland Building" });
 });
 
 it("copies the link to the job's page", async () => {
@@ -137,8 +137,8 @@ it("opens New agreement over the page from Create a maintenance agreement, the j
   await act(async () => handed!.onCreateAgreement(row()));
   const form = screen.getByRole("dialog", { name: "New agreement" });
   expect(push).not.toHaveBeenCalled();
-  expect(form).toHaveTextContent("Job 3209, Richards Building, North Narrabeen");
-  expect(screen.getByLabelText("Client")).toHaveValue("Richards Building");
+  expect(form).toHaveTextContent("Job 3209, Rowland Building, North Pretendale");
+  expect(screen.getByLabelText("Client")).toHaveValue("Rowland Building");
   // what the board would have handed over, read by the form itself
   expect(agreementFormContext).toHaveBeenCalled();
 });

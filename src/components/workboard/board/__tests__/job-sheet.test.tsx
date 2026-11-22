@@ -301,9 +301,9 @@ const row = (over: Partial<AllJobRow> = {}): AllJobRow => ({
   id: "j-1",
   number: "3137",
   numberSystem: "sm8",
-  clientName: "Laing + Simmons Double Bay",
+  clientName: "Keyes + Partners Sample Bay",
   title: "Daikin multi change-over",
-  suburb: "Rose Bay",
+  suburb: "Example Bay",
   categoryName: "Install",
   categoryColour: "#e7b5ff",
   statusLabel: "Work Order",
@@ -322,12 +322,12 @@ const detail = (over: Partial<MirrorJobDetail> = {}): MirrorJobDetail => ({
   remoteId: "j-1",
   jobNumber: "3137",
   status: "Work Order",
-  clientName: "Laing + Simmons Double Bay",
+  clientName: "Keyes + Partners Sample Bay",
   description: "Supply and install Daikin multi system",
   workDone: null,
   address: null,
-  suburb: "Rose Bay",
-  geoLine: "Rose Bay NSW 2029",
+  suburb: "Example Bay",
+  geoLine: "Example Bay NSW 2029",
   categoryName: "Install",
   categoryColour: "#e7b5ff",
   purchaseOrder: null,
@@ -368,9 +368,9 @@ const detail = (over: Partial<MirrorJobDetail> = {}): MirrorJobDetail => ({
       id: "9e9e9e9e-0000-4000-8000-000000000001",
       name: "Josh",
       type: "Property Manager",
-      phone: "0426 719 412",
+      phone: "0491 570 157",
       altPhone: null,
-      email: "josh@lsdb.com.au",
+      email: "josh@kpsb.example",
     },
   ],
   money: null,
@@ -580,7 +580,7 @@ describe("the head (Isaac's mock, 25 October 2026)", () => {
     render(<Job row={row()} {...props} />);
     await detailLanded();
     const h1 = screen.getByRole("heading", { level: 1 });
-    expect(h1).toHaveTextContent(/^Laing \+ Simmons Double Bay$/);
+    expect(h1).toHaveTextContent(/^Keyes \+ Partners Sample Bay$/);
     expect(document.querySelector(".jp-num")).toHaveTextContent(/^3137$/);
     expect(document.querySelector(".jp-line, .jp-facts")).toBeNull();
     /* the stages are the facts card's, and the site is under the name (Isaac, 16 November 2026) */
@@ -593,7 +593,7 @@ describe("the head (Isaac's mock, 25 October 2026)", () => {
     readMirrorJob.mockResolvedValueOnce(card(detail({ clientName: null, address: null })));
     render(<Job row={row({ clientName: null })} {...props} />);
     await detailLanded();
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Rose Bay NSW 2029");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Example Bay NSW 2029");
   });
 });
 
@@ -611,11 +611,11 @@ describe("the customer, on Overview", () => {
     customerEditOffered.mockResolvedValueOnce(true);
     const form = {
       jobUuid: "j-1",
-      company: { uuid: "c-1", name: "Laing + Simmons Double Bay", address: "1 Bay St" },
-      billingAddress: "1 Bay St",
-      contacts: [{ uuid: "p-1", first: "Josh", last: "", mobile: "0426 719 412", phone: "", email: "josh@lsdb.com.au", type: "Property Manager" }],
+      company: { uuid: "c-1", name: "Keyes + Partners Sample Bay", address: "1 Dummy St" },
+      billingAddress: "1 Dummy St",
+      contacts: [{ uuid: "p-1", first: "Josh", last: "", mobile: "0491 570 157", phone: "", email: "josh@kpsb.example", type: "Property Manager" }],
     };
-    readCustomerForEdit.mockResolvedValueOnce({ ok: true, form, siteAddress: "Rose Bay NSW 2029", billingRead: true });
+    readCustomerForEdit.mockResolvedValueOnce({ ok: true, form, siteAddress: "Example Bay NSW 2029", billingRead: true });
     saveCustomer.mockResolvedValueOnce({ ok: true, saved: 2, waiting: 0, failed: [] });
     const onToast = jest.fn();
     readMirrorJob.mockResolvedValueOnce(card(detail()));
@@ -630,7 +630,7 @@ describe("the customer, on Overview", () => {
     await waitFor(() => expect(saveCustomer).toHaveBeenCalled());
     const sent = saveCustomer.mock.calls[0]![1] as typeof form;
     expect(sent.contacts[0]!.type).toBe("Site Contact");
-    expect(sent.billingAddress).toBe("Rose Bay NSW 2029");
+    expect(sent.billingAddress).toBe("Example Bay NSW 2029");
     await waitFor(() => expect(onToast).toHaveBeenCalledWith("Saved to ServiceM8. The card catches up within a minute."));
   });
 
@@ -649,7 +649,7 @@ describe("the customer, on Overview", () => {
     await userEvent.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Edit customer" })).toBeNull());
     /* the page is still there under it */
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Laing + Simmons Double Bay");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Keyes + Partners Sample Bay");
   });
 
   it("puts the customer in the strip's Contact: a contact's email as a mailto link, and their role", async () => {
@@ -657,8 +657,8 @@ describe("the customer, on Overview", () => {
     render(<Job row={row()} {...props} />);
 
     const cust = within(await screen.findByRole("region", { name: /^Contacts?$/ }));
-    const link = (await cust.findByText("josh@lsdb.com.au")) as HTMLAnchorElement;
-    expect(link.getAttribute("href")).toBe("mailto:josh@lsdb.com.au");
+    const link = (await cust.findByText("josh@kpsb.example")) as HTMLAnchorElement;
+    expect(link.getAttribute("href")).toBe("mailto:josh@kpsb.example");
     expect(cust.getByText("Josh")).toBeInTheDocument();
     expect(cust.getByText("Property manager")).toBeInTheDocument();
   });
@@ -668,7 +668,7 @@ describe("the customer, on Overview", () => {
       card(
         detail({
           contacts: [
-            { id: "9e9e9e9e-0000-4000-8000-000000000002", name: "Josh", type: "JOB", phone: "0426 719 412", altPhone: null, email: null },
+            { id: "9e9e9e9e-0000-4000-8000-000000000002", name: "Josh", type: "JOB", phone: "0491 570 157", altPhone: null, email: null },
             {
               id: "9e9e9e9e-0000-4000-8000-000000000003",
               name: "Karen",
@@ -683,8 +683,8 @@ describe("the customer, on Overview", () => {
     );
     render(<Job row={row()} {...props} />);
 
-    const dialable = await screen.findByText("0426 719 412");
-    expect(dialable.closest("a")).toHaveAttribute("href", "tel:0426719412");
+    const dialable = await screen.findByText("0491 570 157");
+    expect(dialable.closest("a")).toHaveAttribute("href", "tel:0491570157");
     expect(document.body.textContent).toContain("0412 345 678 / 9999 a/h");
     expect(document.querySelector('a[href="tel:04123456789999"]')).toBeNull();
   });
@@ -1575,11 +1575,11 @@ const familyMoney = (over: Partial<FamilyInput> = {}): FamilyMoney =>
     ...over,
   });
 
-/** #3237, Chandra Jayasinghe, as the live mirror holds it: $19,700 ex GST
+/** #3237, Kiran Blackwood, as the live mirror holds it: $19,700 ex GST
     billed 30% deposit (paid Fri 11 Sept), 30% progress (raised Tue 15 Sept)
     and 40% final still to bill. Every member's lines carry ServiceM8's
     ex-GST price; the parent's are the quote less the two partials. */
-const chandra = (over: Partial<FamilyInput> = {}): FamilyMoney =>
+const kiran = (over: Partial<FamilyInput> = {}): FamilyMoney =>
   deriveFamilyMoney({
     members: [
       { remoteId: "j-3237", jobNumber: "3237", totalCents: 866800, paidCents: 0, lastPaidOn: null, lines: { cents: 788000, taxInclusive: false }, exCents: 788000, raisedOn: null },
@@ -1619,7 +1619,7 @@ const payRow = (name: string) =>
 describe("Billing, ex GST", () => {
   it("draws Payments: the job value on the heading's right, one bar a part a claim in its colour, and what's paid and invoiced under it", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    readJobRecord.mockResolvedValueOnce(record({ family: chandra() }));
+    readJobRecord.mockResolvedValueOnce(record({ family: kiran() }));
     render(<Job row={row()} {...props} moneyVisible />);
     await openMoney();
 
@@ -1643,7 +1643,7 @@ describe("Billing, ex GST", () => {
 
   it("lists a row a claim, its figure ex GST and one word on the right", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    readJobRecord.mockResolvedValueOnce(record({ family: chandra() }));
+    readJobRecord.mockResolvedValueOnce(record({ family: kiran() }));
     render(<Job row={row()} {...props} moneyVisible />);
     await openMoney();
 
@@ -1665,11 +1665,11 @@ describe("Billing, ex GST", () => {
 
   it("drops what moved elsewhere: bill to, the lines, what's been paid, the terms key and the captions", async () => {
     readMirrorJob.mockResolvedValueOnce(
-      card(detail({ contacts: [{ id: "9e9e9e9e-0000-4000-8000-000000000004", name: "Accounts", type: "BILLING", phone: null, altPhone: null, email: "accounts@lsdb.com.au" }] }))
+      card(detail({ contacts: [{ id: "9e9e9e9e-0000-4000-8000-000000000004", name: "Accounts", type: "BILLING", phone: null, altPhone: null, email: "accounts@kpsb.example" }] }))
     );
     readJobRecord.mockResolvedValueOnce(
       record({
-        family: chandra(),
+        family: kiran(),
         ledger: {
           materials: [line("m-1", "Ac multi and bulkhead", 1970000)],
           payments: [
@@ -1683,14 +1683,14 @@ describe("Billing, ex GST", () => {
 
     const f = face("money");
     await f.findByText("Payments");
-    for (const gone of ["Bill to", "accounts@lsdb.com.au", "What went on the job", "Ac multi and bulkhead", /What's been paid/, "Payment terms", "Balance due", /invoiced so far/])
+    for (const gone of ["Bill to", "accounts@kpsb.example", "What went on the job", "Ac multi and bulkhead", /What's been paid/, "Payment terms", "Balance due", /invoiced so far/])
       expect(f.queryByText(gone)).toBeNull();
     expect(document.querySelector(".wb2-chip")).toBeNull();
   });
 
   it("says only when a claim was raised while the terms are unset", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    readJobRecord.mockResolvedValueOnce(record({ family: chandra({ termsDays: null }) }));
+    readJobRecord.mockResolvedValueOnce(record({ family: kiran({ termsDays: null }) }));
     render(<Job row={row()} {...props} moneyVisible />);
     await openMoney();
 
@@ -1704,7 +1704,7 @@ describe("Billing, ex GST", () => {
 
   it("puts a claim due on receipt at its raise date: 0 is an answer", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    readJobRecord.mockResolvedValueOnce(record({ family: chandra({ termsDays: 0 }) }));
+    readJobRecord.mockResolvedValueOnce(record({ family: kiran({ termsDays: 0 }) }));
     render(<Job row={row()} {...props} moneyVisible />);
     await openMoney();
 
@@ -1718,7 +1718,7 @@ describe("Billing, ex GST", () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce(
       record({
-        family: chandra({
+        family: kiran({
           members: [
             /* the parent carries the two variations' lines on top of its balance */
             { remoteId: "j-3237", jobNumber: "3237", totalCents: null, paidCents: 0, lastPaidOn: null, lines: { cents: 1019000, taxInclusive: false }, exCents: 1019000, raisedOn: null },
@@ -1813,7 +1813,7 @@ describe("Billing, ex GST", () => {
 
   it("marks the claim the page was opened for", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail(), "j-3237a"));
-    readJobRecord.mockResolvedValueOnce(record({ family: chandra() }));
+    readJobRecord.mockResolvedValueOnce(record({ family: kiran() }));
     render(<Job row={row({ number: "3237A" })} {...props} moneyVisible section="billing" />);
 
     await face("money").findByText("Payments");
@@ -1833,7 +1833,7 @@ describe("Billing, ex GST", () => {
     await openMoney();
 
     expect(document.querySelector(".jb")).toBeNull();
-    land(record({ family: chandra() }));
+    land(record({ family: kiran() }));
     expect(await face("money").findByText("$19,700")).toBeInTheDocument();
   });
 
@@ -1905,7 +1905,7 @@ describe("an invoice, opened on Price", () => {
   const price = () => within(document.querySelector(".jp-price") as HTMLElement);
   const openProgress = async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    readJobRecord.mockResolvedValueOnce(record({ family: chandra() }));
+    readJobRecord.mockResolvedValueOnce(record({ family: kiran() }));
     render(<Job row={row()} {...props} moneyVisible />);
     await openMoney();
     await userEvent.click(await face("money").findByRole("button", { name: "Progress, 30%" }));
@@ -1986,7 +1986,7 @@ describe("an invoice, opened on Price", () => {
       },
     });
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    readJobRecord.mockResolvedValueOnce(record({ family: chandra() }));
+    readJobRecord.mockResolvedValueOnce(record({ family: kiran() }));
     render(<Job row={row()} {...props} moneyVisible />);
     await openMoney();
     await userEvent.click(await face("money").findByRole("button", { name: "Deposit, 30%" }));
@@ -1998,7 +1998,7 @@ describe("an invoice, opened on Price", () => {
   it("leaves a claim still to come on Billing: it isn't an invoice yet", async () => {
     readClaim.mockResolvedValue(emptyClaim());
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    readJobRecord.mockResolvedValueOnce(record({ family: chandra() }));
+    readJobRecord.mockResolvedValueOnce(record({ family: kiran() }));
     render(<Job row={row()} {...props} moneyVisible />);
     await openMoney();
     await face("money").findByRole("button", { name: "Progress, 30%" });
@@ -2038,10 +2038,10 @@ describe("the job's once-per-job acts", () => {
     await userEvent.click(within(await moreMenu()).getByRole("menuitem", { name: "Create a project from this job" }));
     const input = screen.getByLabelText("Name the project");
     await userEvent.clear(input);
-    await userEvent.type(input, "Wallace St change-over{Enter}");
+    await userEvent.type(input, "Eiusmod St change-over{Enter}");
     await waitFor(() =>
       expect(createProjectFromJob).toHaveBeenCalledWith("j-1", expect.objectContaining({
-        name: "Wallace St change-over",
+        name: "Eiusmod St change-over",
       }))
     );
   });
@@ -2308,7 +2308,7 @@ describe("money stays behind its grant", () => {
 describe("designs started from this job", () => {
   const design = (over: Partial<JobDesign> = {}): JobDesign => ({
     id: "dsn_1",
-    name: "12/3 Wallace St",
+    name: "12/3 Eiusmod St",
     mode: "plan",
     floorCount: 2,
     systemCount: 3,
@@ -2323,7 +2323,7 @@ describe("designs started from this job", () => {
     await openTab("Documents");
 
     const drawings = within(face("documents").getByRole("region", { name: "Drawings" }));
-    const link = drawings.getByRole("link", { name: "12/3 Wallace St" });
+    const link = drawings.getByRole("link", { name: "12/3 Eiusmod St" });
     expect(link).toHaveAttribute("href", "/dashboard/studio?design=dsn_1");
     expect(drawings.getByText(/2 floors, 3 systems/)).toBeInTheDocument();
   });
@@ -2332,7 +2332,7 @@ describe("designs started from this job", () => {
     readMirrorJob.mockResolvedValueOnce(
       card(
         detail({
-          designs: [design(), design({ id: "dsn_2", name: "12/3 Wallace St — option B" })],
+          designs: [design(), design({ id: "dsn_2", name: "12/3 Eiusmod St — option B" })],
         })
       )
     );
@@ -2371,7 +2371,7 @@ describe("designs started from this job", () => {
     await detailLanded();
     await openTab("Documents");
 
-    expect(screen.getByRole("link", { name: /12\/3 Wallace St/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /12\/3 Eiusmod St/ })).toHaveAttribute(
       "href",
       "/dashboard/studio?design=dsn%20a%26b"
     );
@@ -3507,7 +3507,7 @@ describe("compliance on the page", () => {
     manage: true,
   };
   const draft: EmailDraft = {
-    contacts: [{ name: "Josh", email: "josh@lsdb.com.au", role: "Property manager" }],
+    contacts: [{ name: "Josh", email: "josh@kpsb.example", role: "Property manager" }],
     subject: "Documents for job 3137",
     message: "Hi,\n\nPlease find our documents for this job attached.",
     ready: true,
@@ -3523,8 +3523,8 @@ describe("compliance on the page", () => {
     const onToast = jest.fn();
     compliance.emailJobDocuments.mockResolvedValue({
       ok: true,
-      to: ["josh@lsdb.com.au"],
-      note: { id: "n-1", text: "Emailed Public liability to josh@lsdb.com.au.", at: "2026-09-23T02:00:00Z", author: "Isaac Smith" },
+      to: ["josh@kpsb.example"],
+      note: { id: "n-1", text: "Emailed Public liability to josh@kpsb.example.", at: "2026-09-23T02:00:00Z", author: "Isaac Smith" },
     });
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<Job row={row()} {...props} onToast={onToast} />);
@@ -3553,11 +3553,11 @@ describe("compliance on the page", () => {
     expect(compliance.emailJobDocuments).toHaveBeenCalledWith({
       jobUuid: "j-1",
       keys: ["p:p1"],
-      to: ["josh@lsdb.com.au"],
+      to: ["josh@kpsb.example"],
       subject: "Documents for job 3137",
       message: "Hi,\n\nPlease find our documents for this job attached.",
     });
-    await waitFor(() => expect(onToast).toHaveBeenCalledWith("Email sent to josh@lsdb.com.au"));
+    await waitFor(() => expect(onToast).toHaveBeenCalledWith("Email sent to josh@kpsb.example"));
     /* sent: the ticks clear, and the dialog and the bar go with them */
     expect(screen.queryByText("1 document ticked")).toBeNull();
     expect(screen.queryByRole("dialog", { name: "Email documents" })).toBeNull();
@@ -3565,7 +3565,7 @@ describe("compliance on the page", () => {
 
     /* and the conversation says what went, without a reload */
     await openTab("Diary");
-    expect(await convo().findByText("Emailed Public liability to josh@lsdb.com.au.")).toBeInTheDocument();
+    expect(await convo().findByText("Emailed Public liability to josh@kpsb.example.")).toBeInTheDocument();
   });
 
   it("adds papers from Add's Licences and insurance, and what was just added arrives ticked ready to send", async () => {

@@ -34,23 +34,23 @@ describe("All, day by day", () => {
 
 describe("an email in the feed", () => {
   it("shows its words without its sign-off and what follows", () => {
-    expect(withoutSignature("Hi Sharon want me to pay this out of Shackel Rent?\nKind regards,\nJacqueline Blacket\nThe Blacket Agency\n0407 899 944")).toBe(
-      "Hi Sharon want me to pay this out of Shackel Rent?",
+    expect(withoutSignature("Hi Sharon want me to pay this out of Marsh Rent?\nKind regards,\nJacinta Corrie\nThe Corrie Agency\n0491 570 110")).toBe(
+      "Hi Sharon want me to pay this out of Marsh Rent?",
     );
     expect(withoutSignature("All good, see you then.\nSent from my iPhone")).toBe("All good, see you then.");
     expect(withoutSignature("Thanks!")).toBe("Thanks!");
   });
 
   it("finds a signature with no sign-off over it (3408, the walk of 15 November 2026)", () => {
-    const jacqueline =
-      "Hi Sharon want me to pay this out of Shackel Rent?\nJACQUELINE BLACKET B.Ec L.R.E.A\n2024 DOUBLE BAY AGENCY OF THE YEAR\nDirector\nSales, Property Management\nM 0407 899 944 P (02) 9327 1717 F (02) 9363 3794\nE jacqueline.blacket@theblacketagency.com.au\nFind me on\nThe information contained in this e-mail and any included attachments are confidential";
-    expect(withoutSignature(jacqueline, "Jacqueline")).toBe("Hi Sharon want me to pay this out of Shackel Rent?");
+    const jacinta =
+      "Hi Sharon want me to pay this out of Marsh Rent?\nJACINTA CORRIE B.Ec L.R.E.A\n2024 SAMPLE BAY AGENCY OF THE YEAR\nDirector\nSales, Property Management\nM 0491 570 110 P (02) 5550 1717 F (02) 5550 3794\nE jacinta.corrie@thecorrieagency.example\nFind me on\nThe information contained in this e-mail and any included attachments are confidential";
+    expect(withoutSignature(jacinta, "Jacinta")).toBe("Hi Sharon want me to pay this out of Marsh Rent?");
     /* no name to go on: the numbers or the disclaimer still end it */
-    expect(withoutSignature("Can you come Tuesday?\nDirector\nM 0407 899 944", null)).toBe("Can you come Tuesday?\nDirector");
+    expect(withoutSignature("Can you come Tuesday?\nDirector\nM 0491 570 110", null)).toBe("Can you come Tuesday?\nDirector");
     expect(withoutSignature("Paid today.\nThis email is confidential and intended only for", null)).toBe("Paid today.");
     /* the sender's name inside a sentence, or on the first line, stays */
-    expect(withoutSignature("Jacqueline here\nJacqueline is away till Monday, so call the office.", "Jacqueline")).toBe(
-      "Jacqueline here\nJacqueline is away till Monday, so call the office.",
+    expect(withoutSignature("Jacinta here\nJacinta is away till Monday, so call the office.", "Jacinta")).toBe(
+      "Jacinta here\nJacinta is away till Monday, so call the office.",
     );
     expect(withoutSignature("The unit is on level 3.\nMe and Dave can do Thursday.", "Dave")).toBe("The unit is on level 3.\nMe and Dave can do Thursday.");
   });

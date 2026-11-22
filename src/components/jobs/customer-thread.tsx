@@ -13,11 +13,11 @@ import { fileTypeWord, linkParts, type CommsThread, type CustomerSend, type Cust
 
    SERVICEM8'S OWN SEND is the feed's event row: its grey icon, the bold
    words ("Booking for Wed 14 Oct, 2:00 pm texted"), a grey line, and on
-   the right the customer's short answer in bold ("Piero: YES") or when an
+   the right the customer's short answer in bold ("Marco: YES") or when an
    email was seen.
 
    A CONVERSATION is a thread: a 32 head, its grey icon and "Email with
-   Piero", the subject once in grey; then the messages oldest first, the
+   Marco", the subject once in grey; then the messages oldest first, the
    customer on the left and the team on the right, at most 80% wide, each
    in a filled bubble like a phone's (Isaac, 26 October 2026: "Deep green
    with white"): the team's deep green with white words, the customer's

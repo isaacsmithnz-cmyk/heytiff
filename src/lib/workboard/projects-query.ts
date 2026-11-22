@@ -668,7 +668,7 @@ export type JobSearchHit = {
   companyId: string | null;
   suburb: string | null;
   /** ServiceM8's own site address, VERBATIM — which means MULTI-LINE:
-      "2 Spring St\nPaddington NSW 2021". Anything showing it on one line has
+      "2 Fable St\nFauxington NSW 2021". Anything showing it on one line has
       to flatten it; see `flatAddress` in lib/studio/job-link. */
   address: string | null;
   /** What the job is, one line — "Supply and installation of a 12.5kW ducted".
@@ -709,7 +709,7 @@ export async function searchMirrorJobs(
 
   /* THREE angles, merged in confidence order: the number people say out loud,
      the client name, then the site address. Address is here because a job is
-     as often "the Vaucluse one" as it is a number or a company — and the
+     as often "the Samplecluse one" as it is a number or a company — and the
      Design Studio, where a design is NAMED after its street, could not find
      anything without it. */
   const byNumber = supabaseAdmin

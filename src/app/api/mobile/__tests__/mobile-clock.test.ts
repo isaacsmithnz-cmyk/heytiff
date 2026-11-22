@@ -135,7 +135,7 @@ beforeEach(() => {
   fake.db.sm8_vendor = [{ org_id: ORG, uuid: TENANT, name: "Acme Air", timezone_name: ZONE }];
   fake.db.sm8_staff = [{ org_id: ORG, uuid: SAM_SM8, first: "Sam", last: "Tester", active: 1 }];
   fake.db.sm8_jobs = [
-    { org_id: ORG, uuid: JOB, active: 1, status: "Work Order", generated_job_id: "2935", job_address: "72 Railway Avenue\nStanmore NSW 2048", geo_city: "Stanmore" },
+    { org_id: ORG, uuid: JOB, active: 1, status: "Work Order", generated_job_id: "2935", job_address: "72 Trial Avenue\nPlaceholm NSW 2048", geo_city: "Placeholm" },
     { org_id: ORG, uuid: OTHER_JOB, active: 1, status: "Work Order", generated_job_id: "3304", job_address: "14 Thorn Street", geo_city: "Pennant Hills" },
   ];
   /* Sam is booked on 2935 all of today */
@@ -164,7 +164,7 @@ test("Clock on: on the job now, with its number, its street and the end of your 
   expect(r.status).toBe(200);
   expect(r.body.said).toBe("Clocked on at 2935.");
   const end = new Date(wallInstant(`${today} 23:45:00`, ZONE, "earliest")!).toISOString();
-  expect((r.body.state as Row).on).toMatchObject({ jobUuid: JOB, number: "2935", where: "72 Railway Avenue, Stanmore", bookingEnd: end });
+  expect((r.body.state as Row).on).toMatchObject({ jobUuid: JOB, number: "2935", where: "72 Trial Avenue, Placeholm", bookingEnd: end });
   expect(checkIns()).toHaveLength(1);
   /* pressed again on the same job: still the one stint */
   await press("auth0|sam", { do: "on", jobUuid: JOB });

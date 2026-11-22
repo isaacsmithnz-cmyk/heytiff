@@ -11,13 +11,13 @@
 
 import { dayFull, placeDays } from "../free-days-plan";
 
-const MOSMAN = "job-3469";
-const CREMORNE = "job-3375";
+const SAMPLETON = "job-3469";
+const TESTMORNE = "job-3375";
 const MOVING = "job-3488";
 const jobs = new Map([
-  [MOSMAN, { number: "3469", suburb: "Mosman", colour: null, status: "Work Order" }],
-  [CREMORNE, { number: "3375", suburb: "Cremorne", colour: "#B45309", status: "Work Order" }],
-  [MOVING, { number: "3488", suburb: "Mosman", colour: null, status: "Quote" }],
+  [SAMPLETON, { number: "3469", suburb: "Sampleton", colour: null, status: "Work Order" }],
+  [TESTMORNE, { number: "3375", suburb: "Testmorne", colour: "#B45309", status: "Work Order" }],
+  [MOVING, { number: "3488", suburb: "Sampleton", colour: null, status: "Quote" }],
 ]);
 const normal = { startMin: 7 * 60, endMin: 15 * 60 };
 const at = (d: string, hhmm: string) => `${d} ${hhmm}:00`;
@@ -31,8 +31,8 @@ test("a day's gaps sit around its bookings, inside the normal day, with its subu
     normal,
     workDays: [0, 1, 2, 3, 4],
     bookings: [
-      { activity: "a1", jobUuid: CREMORNE, start: at(FRI, "07:00"), end: at(FRI, "09:00") },
-      { activity: "a2", jobUuid: MOSMAN, start: at(FRI, "11:00"), end: at(FRI, "12:00") },
+      { activity: "a1", jobUuid: TESTMORNE, start: at(FRI, "07:00"), end: at(FRI, "09:00") },
+      { activity: "a2", jobUuid: SAMPLETON, start: at(FRI, "11:00"), end: at(FRI, "12:00") },
     ],
     jobs,
     away: noneOff,
@@ -50,11 +50,11 @@ test("a day's gaps sit around its bookings, inside the normal day, with its subu
     ],
     freeMin: 300,
     off: null,
-    suburbs: ["Cremorne", "Mosman"],
+    suburbs: ["Testmorne", "Sampleton"],
   });
   expect(days[0]!.bookings.map((b) => [b.number, b.suburb])).toEqual([
-    ["3375", "Cremorne"],
-    ["3469", "Mosman"],
+    ["3375", "Testmorne"],
+    ["3469", "Sampleton"],
   ]);
 });
 
@@ -64,8 +64,8 @@ test("close by is the gap right after a booking in the job's suburb, the visit's
     normal,
     workDays: [0, 1, 2, 3, 4],
     bookings: [
-      { activity: "a1", jobUuid: CREMORNE, start: at(FRI, "07:00"), end: at(FRI, "09:00") },
-      { activity: "a2", jobUuid: MOSMAN, start: at(FRI, "11:00"), end: at(FRI, "12:00") },
+      { activity: "a1", jobUuid: TESTMORNE, start: at(FRI, "07:00"), end: at(FRI, "09:00") },
+      { activity: "a2", jobUuid: SAMPLETON, start: at(FRI, "11:00"), end: at(FRI, "12:00") },
     ],
     jobs,
     away: noneOff,
@@ -73,10 +73,10 @@ test("close by is the gap right after a booking in the job's suburb, the visit's
     minutes: 60,
     job: MOVING,
   });
-  /* 9:00 to 11:00 is before 3469 in Mosman too; the first that fits wins */
+  /* 9:00 to 11:00 is before 3469 in Sampleton too; the first that fits wins */
   expect(near).toEqual([
-    { day: FRI, start: at(FRI, "10:00"), end: at(FRI, "11:00"), next: "before", number: "3469", suburb: "Mosman" },
-    { day: FRI, start: at(FRI, "12:00"), end: at(FRI, "13:00"), next: "after", number: "3469", suburb: "Mosman" },
+    { day: FRI, start: at(FRI, "10:00"), end: at(FRI, "11:00"), next: "before", number: "3469", suburb: "Sampleton" },
+    { day: FRI, start: at(FRI, "12:00"), end: at(FRI, "13:00"), next: "after", number: "3469", suburb: "Sampleton" },
   ]);
 });
 
@@ -119,7 +119,7 @@ test("a day off the roster is still listed, as ServiceM8 still books it; a slive
     days: [SAT],
     normal,
     workDays: [0, 1, 2, 3, 4],
-    bookings: [{ activity: "a1", jobUuid: CREMORNE, start: at(SAT, "07:20"), end: at(SAT, "15:00") }],
+    bookings: [{ activity: "a1", jobUuid: TESTMORNE, start: at(SAT, "07:20"), end: at(SAT, "15:00") }],
     jobs,
     away: noneOff,
     now: null,

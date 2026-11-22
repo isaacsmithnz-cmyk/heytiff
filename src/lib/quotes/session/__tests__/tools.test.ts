@@ -480,7 +480,7 @@ describe("her tools, run", () => {
     expect(JSON.stringify(out.value).length).toBeLessThan(20_000);
   });
 
-  /* Isaac, 2026-10-17, on 27 Milroy: "I think Tiff can already read the studio design. Or can she not?" */
+  /* Isaac, 2026-10-17, on 27 Proident: "I think Tiff can already read the studio design. Or can she not?" */
   it("reads the job's Studio design, the newest unless she names another, and lists the job's others", async () => {
     const read = {
       design: { id: "dsn_new", name: "12 Example St", saved: "15 Oct 2026" },

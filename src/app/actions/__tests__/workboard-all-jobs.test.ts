@@ -73,9 +73,9 @@ const readMirrorJobRow = jest.fn(
     remoteId: id,
     jobNumber: "2051",
     status: "Work Order",
-    clientName: "Mosman Marina",
+    clientName: "Sampleton Marina",
     description: "Service the rooftop units",
-    suburb: "Mosman",
+    suburb: "Sampleton",
     categoryName: null,
     categoryColour: null,
     date: null,
@@ -304,15 +304,15 @@ describe("openMirrorJob", () => {
     expect(readMirrorJobRow).toHaveBeenCalledWith("org-1", "j-2051", expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/), {
       includeMoney: false,
     });
-    expect(row).toMatchObject({ id: "j-2051", number: "2051", clientName: "Mosman Marina" });
+    expect(row).toMatchObject({ id: "j-2051", number: "2051", clientName: "Sampleton Marina" });
   });
 
   it("carries what the job is tracked as, so the card wears the board's chip", async () => {
     caps = new Set(["workboard"]);
-    readJobTracked.mockResolvedValueOnce({ kind: "visit", label: "Mosman Marina", id: "v-9" });
+    readJobTracked.mockResolvedValueOnce({ kind: "visit", label: "Sampleton Marina", id: "v-9" });
     const row = await openMirrorJob("j-2051");
     expect(readJobTracked).toHaveBeenCalledWith("org-1", "j-2051");
-    expect(row?.tracked).toEqual({ kind: "visit", label: "Mosman Marina", id: "v-9" });
+    expect(row?.tracked).toEqual({ kind: "visit", label: "Sampleton Marina", id: "v-9" });
   });
 
   it("lets money ride only for a reader who holds it", async () => {

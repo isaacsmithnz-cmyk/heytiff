@@ -47,7 +47,7 @@ const planImages = {
 };
 
 function docWithFloors(n: number): DesignDocument {
-  const d = createDesign({ name: "85 West St", mode: "blank", now: "2026-08-20T00:00:00.000Z" });
+  const d = createDesign({ name: "85 Placeholder St", mode: "blank", now: "2026-08-20T00:00:00.000Z" });
   d.floors = Array.from({ length: n }, (_, i) => ({
     id: `f${i}`,
     name: i === 0 ? "Ground" : `Level ${i}`,
@@ -420,13 +420,13 @@ describe("ServiceM8", () => {
       status: 200,
       json: async () => ({
         ok: true,
-        fileName: "85 West St.pdf",
+        fileName: "85 Placeholder St.pdf",
         sm8: { ok: true, trial: false, sent: ["d:x"], waiting: [], failed: [], already: [], sends: [] },
       }),
     }));
     global.fetch = fetchMock as unknown as typeof fetch;
     renderCard({ doc: linked() });
-    await waitFor(() => expect(readDesignJob).toHaveBeenCalledWith("job-1", "85 West St"));
+    await waitFor(() => expect(readDesignJob).toHaveBeenCalledWith("job-1", "85 Placeholder St"));
     await toJob(user);
     expect(screen.getByText(/then to ServiceM8/)).toBeInTheDocument();
     await user.click(within(foot()).getByRole("button", { name: "Attach to job 3151" }));
@@ -511,7 +511,7 @@ describe("a preview opens its page full size", () => {
     await toLink(user);
 
     await user.click(screen.getByRole("button", { name: "Open the customer's page full size" }));
-    const page = await screen.findByRole("dialog", { name: "85 West St" });
+    const page = await screen.findByRole("dialog", { name: "85 Placeholder St" });
     expect(page.querySelector(".ds-lb-sheet .dsd")).not.toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
   });

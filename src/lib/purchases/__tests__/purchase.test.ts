@@ -87,15 +87,15 @@ describe("judgeLine", () => {
 
 describe("where it went", () => {
   const lines = [
-    line({ id: "1", wentTo: "job", jobUuid: "j1", jobLabel: "1352 Holbrook Ave", cents: 27387 }),
+    line({ id: "1", wentTo: "job", jobUuid: "j1", jobLabel: "1352 Dolor Ave", cents: 27387 }),
     line({ id: "2", wentTo: "stock", cents: 1890 }),
-    line({ id: "3", wentTo: "job", jobUuid: "j1", jobLabel: "1352 Holbrook Ave", cents: 7452, qty: 2 }),
-    line({ id: "4", wentTo: "job", jobUuid: "j2", jobLabel: "3304 Kirribilli Ave", cents: 2828 }),
+    line({ id: "3", wentTo: "job", jobUuid: "j1", jobLabel: "1352 Dolor Ave", cents: 7452, qty: 2 }),
+    line({ id: "4", wentTo: "job", jobUuid: "j2", jobLabel: "3304 Exampleton Ave", cents: 2828 }),
   ];
   it("groups by job, stock last", () => {
     expect(whereItWent(lines)).toEqual([
-      { key: "job:j1", wentTo: "job", jobUuid: "j1", label: "1352 Holbrook Ave", lines: 2, cents: 27387 + 14904 },
-      { key: "job:j2", wentTo: "job", jobUuid: "j2", label: "3304 Kirribilli Ave", lines: 1, cents: 2828 },
+      { key: "job:j1", wentTo: "job", jobUuid: "j1", label: "1352 Dolor Ave", lines: 2, cents: 27387 + 14904 },
+      { key: "job:j2", wentTo: "job", jobUuid: "j2", label: "3304 Exampleton Ave", lines: 1, cents: 2828 },
       { key: "stock", wentTo: "stock", jobUuid: null, label: "Stock", lines: 1, cents: 1890 },
     ]);
   });

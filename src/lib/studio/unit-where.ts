@@ -1,5 +1,5 @@
 /* WHERE AN INDOOR UNIT SITS (the next flow; Isaac, 29 October 2026: a unit can
-   sit under the floor it serves: 7 Cutler's PEA, with no lower-ground plan to
+   sit under the floor it serves: 7 Ipsum's PEA, with no lower-ground plan to
    put it on). It is the unit's plane: drawn dashed on the floor it serves,
    said in its callout, low in 3D, with an access hatch on the job. */
 

@@ -4,7 +4,7 @@
 
 /* MOVING A BOOKING FROM TIFF (note-move) — the server.
 
-   Isaac, 2 November 2026: "Move Lisa and Mossman, uh, my booking this
+   Isaac, 2 November 2026: "Move Lisa and Sampletton, uh, my booking this
    afternoon to Friday, seven AM" booked a second visit on the chip's job.
    The router's move lane is faked (no model is called); everything after it
    is real: `fileNote` finds the booking among his own and asks first,
@@ -198,7 +198,7 @@ const CHIP_JOB = "job-3375";
 const move = (over: Partial<ProposedMove> = {}): ProposedMove => ({
   whoId: null,
   whoHint: "",
-  words: "Lisa in Mossman",
+  words: "Lisa in Sampletton",
   fromDay: TODAY,
   fromStart: "",
   fromPart: "afternoon",
@@ -206,10 +206,10 @@ const move = (over: Partial<ProposedMove> = {}): ProposedMove => ({
   toStart: "07:00",
   ...over,
 });
-const SAID = "Move Lisa and Mossman, my booking this afternoon to Friday seven am.";
+const SAID = "Move Lisa and Sampletton, my booking this afternoon to Friday seven am.";
 const t = (who: "you" | "tiff", text: string) => ({ who, text, at: "2026-10-13T00:05:00.000Z" });
 function note(proposal: Partial<NoteProposal> = {}) {
-  const p = { ...EMPTY, moves: [move()], jobNote: "Move Lisa in Mosman to Friday 7 am.", ...proposal };
+  const p = { ...EMPTY, moves: [move()], jobNote: "Move Lisa in Sampleton to Friday 7 am.", ...proposal };
   db.workboard_notes = [
     {
       id: "n-1",
@@ -228,7 +228,7 @@ function note(proposal: Partial<NoteProposal> = {}) {
 }
 const noteRow = () => db.workboard_notes[0]!;
 
-const MOSMAN = { uuid: "act-mosman", jobUuid: "job-3488", staffUuid: "sm8-me", start: "2026-10-13 15:00:00", end: "2026-10-13 16:00:00", place: "6/40 Raglan St, Mosman", match: "3488 Lisa Brown 6/40 Raglan St Mosman" };
+const SAMPLETON = { uuid: "act-sampleton", jobUuid: "job-3488", staffUuid: "sm8-me", start: "2026-10-13 15:00:00", end: "2026-10-13 16:00:00", place: "6/40 Lorem St, Sampleton", match: "3488 Lisa Brown 6/40 Lorem St Sampleton" };
 const MANLY = { uuid: "act-manly", jobUuid: CHIP_JOB, staffUuid: "sm8-me", start: "2026-10-13 07:00:00", end: "2026-10-13 11:00:00", place: "12 Pittwater Rd, Manly", match: "3375 Hall 12 Pittwater Rd Manly" };
 
 beforeEach(() => {
@@ -240,7 +240,7 @@ beforeEach(() => {
   sendOn = true;
   trial = false;
   gateOk = true;
-  bookings = [MANLY, MOSMAN];
+  bookings = [MANLY, SAMPLETON];
   changeAnswer = { ok: true, state: "sent", said: "", undo: { do: "time", activity: "act-new", start: "2026-10-13 15:00:00", end: "2026-10-13 16:00:00" } };
   changeSchedule.mockClear();
 });
@@ -252,7 +252,7 @@ describe("moving his booking", () => {
     expect(res.ok).toBe(true);
     if (!res.ok) return;
     expect(res.ask).toEqual({
-      question: "Move your visit at 6/40 Raglan St, Mosman from today 3:00 to 4:00 pm to Friday 7:00 to 8:00 am?",
+      question: "Move your visit at 6/40 Lorem St, Sampleton from today 3:00 to 4:00 pm to Friday 7:00 to 8:00 am?",
       options: [
         { label: "Move the visit", visit: { index: 100, start: null } },
         { label: "Not now", visit: { index: 100, start: null } },
@@ -273,11 +273,11 @@ describe("moving his booking", () => {
     expect(res.ok).toBe(true);
     expect(changeSchedule).toHaveBeenCalledTimes(1);
     expect(changeSchedule.mock.calls[0]![2]).toEqual({
-      change: { do: "time", activity: "act-mosman", start: "2026-10-16 07:00:00", end: "2026-10-16 08:00:00" },
+      change: { do: "time", activity: "act-sampleton", start: "2026-10-16 07:00:00", end: "2026-10-16 08:00:00" },
       tell: true,
     });
     if (res.ok) {
-      expect(res.turns.at(-1)!.text).toBe("Moved. Your visit at 6/40 Raglan St, Mosman is Friday 7:00 to 8:00 am now.");
+      expect(res.turns.at(-1)!.text).toBe("Moved. Your visit at 6/40 Lorem St, Sampleton is Friday 7:00 to 8:00 am now.");
       expect(res.visit).toMatchObject({ title: "Moved", undo: true });
     }
     expect(appliedOf(noteRow().applied).moves).toEqual([expect.objectContaining({ index: 0, undo: { do: "time", activity: "act-new", start: "2026-10-13 15:00:00", end: "2026-10-13 16:00:00" } })]);
@@ -304,9 +304,9 @@ describe("moving his booking", () => {
     const res = await fileNote("n-1");
     if (!res.ok) throw new Error("not filed");
     expect(res.ask!.question).toBe("Which one goes to Friday 7:00 am? Two fit.");
-    expect(res.ask!.options.map((o) => o.label)).toEqual(["Today 7:00 to 11:00 am, 12 Pittwater Rd, Manly", "Today 3:00 to 4:00 pm, 6/40 Raglan St, Mosman", "Neither"]);
-    await answerVisit("n-1", "Today 3:00 to 4:00 pm, 6/40 Raglan St, Mosman");
-    expect(changeSchedule.mock.calls[0]![2]).toMatchObject({ change: { activity: "act-mosman" } });
+    expect(res.ask!.options.map((o) => o.label)).toEqual(["Today 7:00 to 11:00 am, 12 Pittwater Rd, Manly", "Today 3:00 to 4:00 pm, 6/40 Lorem St, Sampleton", "Neither"]);
+    await answerVisit("n-1", "Today 3:00 to 4:00 pm, 6/40 Lorem St, Sampleton");
+    expect(changeSchedule.mock.calls[0]![2]).toMatchObject({ change: { activity: "act-sampleton" } });
   });
 
   it("does nothing when none fits, and says so", async () => {
@@ -337,10 +337,10 @@ describe("moving his booking", () => {
   });
 
   it("moves the named person's booking, theirs not his", async () => {
-    bookings = [MANLY, { ...MOSMAN, uuid: "act-lyle", staffUuid: "sm8-lyle" }];
+    bookings = [MANLY, { ...SAMPLETON, uuid: "act-lyle", staffUuid: "sm8-lyle" }];
     note({ moves: [move({ whoId: "s-lyle", whoHint: "Lyle" })] });
     const res = await fileNote("n-1");
     if (!res.ok) throw new Error("not filed");
-    expect(res.ask!.question).toBe("Move Lyle's visit at 6/40 Raglan St, Mosman from today 3:00 to 4:00 pm to Friday 7:00 to 8:00 am?");
+    expect(res.ask!.question).toBe("Move Lyle's visit at 6/40 Lorem St, Sampleton from today 3:00 to 4:00 pm to Friday 7:00 to 8:00 am?");
   });
 });

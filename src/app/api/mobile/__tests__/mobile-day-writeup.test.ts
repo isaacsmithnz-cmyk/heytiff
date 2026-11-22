@@ -43,7 +43,7 @@ const summary = {
   until: "2026-10-29T04:15:00.000Z",
   minutes: 495,
   jobs: [
-    { jobUuid: "j-1352", number: "1352", where: "9/6 Holbrook Avenue", from: "2026-10-28T20:15:00.000Z", until: "2026-10-29T04:00:00.000Z", minutes: 465, how: "phone" },
+    { jobUuid: "j-1352", number: "1352", where: "9/6 Dolor Avenue", from: "2026-10-28T20:15:00.000Z", until: "2026-10-29T04:00:00.000Z", minutes: 465, how: "phone" },
     { jobUuid: "j-3372", number: "3372", where: "12 Pittwater Rd", from: "2026-10-29T04:00:00.000Z", until: "2026-10-29T04:15:00.000Z", minutes: 15, how: "phone" },
   ],
   office: { minutes: 0, spans: [] },
@@ -67,7 +67,7 @@ beforeEach(() => {
     { org_id: "org-1", id: "card-isaac", user_id: "auth0|isaac", first_name: "Isaac", full_name: "Isaac Smith" },
     { org_id: "org-1", id: "card-dave", user_id: "auth0|dave", first_name: "David", full_name: "David Hann" },
   ];
-  tables.sm8_jobs = [{ org_id: "org-1", uuid: "j-1352", job_address: "9/6 Holbrook Avenue\nKirribilli NSW 2061" }];
+  tables.sm8_jobs = [{ org_id: "org-1", uuid: "j-1352", job_address: "9/6 Dolor Avenue\nExampleton NSW 2061" }];
   tables.workboard_notes = [
     { org_id: "org-1", author_id: "card-isaac", target_kind: "job", target_id: "j-1352", transcript: "Pipes run balcony to lounge and bedroom heads. Lounge head up and wired, bedroom tomorrow", created_at: "2026-10-29T01:00:00.000Z" },
     { org_id: "org-1", author_id: "card-isaac", target_kind: "job", target_id: "j-1352", transcript: "yesterday's note", created_at: "2026-10-27T01:00:00.000Z" },
@@ -113,7 +113,7 @@ test("the day written up: each job's own notes, photos and questions; a job with
     {
       jobUuid: "j-1352",
       number: "1352",
-      where: "9/6 Holbrook Avenue",
+      where: "9/6 Dolor Avenue",
       line: "Isaac, 7:15 to 3:00 · 4 photos · 1 question to the Library",
       name: "Isaac",
       photos: 4,
@@ -121,7 +121,7 @@ test("the day written up: each job's own notes, photos and questions; a job with
       text: expect.stringContaining("600 mm apart"),
       /* the wrap-up's: your own notes and photos today, and everyone else's notes on the job */
       spans: [{ from: "2026-10-28T20:15:00.000Z", until: "2026-10-29T04:00:00.000Z" }],
-      address: "9/6 Holbrook Avenue, Kirribilli NSW 2061",
+      address: "9/6 Dolor Avenue, Exampleton NSW 2061",
       mine: [{ at: "2026-10-29T01:00:00.000Z", text: expect.stringContaining("Lounge head up") }],
       photoIds: ["p1", "p2", "p3", "p4"],
       others: [{ name: "David", at: "2026-10-29T02:00:00.000Z", text: "Dave's own note" }],
@@ -132,7 +132,7 @@ test("the day written up: each job's own notes, photos and questions; a job with
   ]);
   /* only the job with something said is sent, with today's own note and nobody else's */
   const sent = create.mock.calls[0]![0].messages[0].content as string;
-  expect(sent).toContain("Job 1: 1352, 9/6 Holbrook Avenue");
+  expect(sent).toContain("Job 1: 1352, 9/6 Dolor Avenue");
   expect(sent).toContain("Lounge head up and wired");
   expect(sent).not.toContain("yesterday's note");
   expect(sent).not.toContain("Dave's own note");
@@ -150,8 +150,8 @@ test("when the writing fails, each entry is still its time", async () => {
 });
 
 test("the material reads job by job", () => {
-  expect(promptOf([{ jobUuid: "j", number: "1352", where: "Holbrook Ave", spans: [], notes: ["a note"], photos: 0, asked: [], mine: [], photoIds: [], others: [], address: null, own: [] }])).toBe(
-    "Job 1: 1352, Holbrook Ave\nNotes:\n- a note\nQuestions:\n(no questions)",
+  expect(promptOf([{ jobUuid: "j", number: "1352", where: "Dolor Ave", spans: [], notes: ["a note"], photos: 0, asked: [], mine: [], photoIds: [], others: [], address: null, own: [] }])).toBe(
+    "Job 1: 1352, Dolor Ave\nNotes:\n- a note\nQuestions:\n(no questions)",
   );
 });
 

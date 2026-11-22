@@ -127,8 +127,8 @@ const link = (key: string, name: string, label: string, href: string, over: Part
 const ROWS: TodoRow[] = [
   link("chip:rego", "Hilux, XQG41B", "Renew", "/dashboard/assets?v=v1&screen=rego", { tone: "wrong", line: "Rego ran out Sun 20 Sept", lineTone: true }),
   { key: "reminder:t9", source: "reminder", tone: "look", name: "Ring the Hilux dealer", line: "Reminder, now", lineTone: false, tick: "t9", act: { kind: "later", taskId: "t9" } },
-  { key: "assignment:a1", source: "assignment", tone: "look", name: "Measure up Rozelle", line: "From Lyle", lineTone: false, tick: "a1", act: { kind: "gotit", taskId: "a1" } },
-  link("task:m1", "Which fans for Rozelle?", "Reply", "/dashboard/desk?ask=n-77", { source: "list", tick: "m1" }),
+  { key: "assignment:a1", source: "assignment", tone: "look", name: "Measure up Mockzelle", line: "From Lyle", lineTone: false, tick: "a1", act: { kind: "gotit", taskId: "a1" } },
+  link("task:m1", "Which fans for Mockzelle?", "Reply", "/dashboard/desk?ask=n-77", { source: "list", tick: "m1" }),
   link("timesheets", "Timesheets", "Review", "/dashboard/timepay", { source: "timesheets", line: "4 to approve" }),
   link("notice:n1", "Toolbox talk", "Open", "/dashboard/notices", { source: "notice", tone: "info" }),
 ];
@@ -156,8 +156,8 @@ const feedPanel = () => document.getElementById("hm-panel-feed")!;
 const tj = (over: Partial<TeamJob> = {}): TeamJob => ({
   id: "j-3479",
   number: "3479",
-  client: "Dan Brad",
-  suburb: "Glebe",
+  client: "Dan Moorcroft",
+  suburb: "Mockglen",
   kind: "Install",
   hue: "purple",
   people: ["Ryan", "Sam"],
@@ -179,8 +179,8 @@ const TEAM: TeamDay = {
   live: [{ name: "Josh", at: { lat: -33.882, lng: 151.2 }, mins: 3 }],
   jobs: [
     tj(),
-    tj({ id: "j-3432", number: "3432", client: "Sutcliffe, Will", suburb: "Paddington", hue: "orange", people: ["Daniel"], state: { tone: "good", word: "Done" }, done: true, here: [], at: { lat: -33.884, lng: 151.227 }, href: "/dashboard/jobs/j-3432" }),
-    tj({ id: "j-2359", number: "2359", client: "Dryridge Estate", suburb: "Megalong Valley", kind: "Service call", hue: "pink", people: ["you"], mine: true, startMin: 720, time: "12:00", state: { tone: "info", word: "Booked" }, here: [], at: { lat: -33.726, lng: 150.238 }, href: "/dashboard/jobs/j-2359" }),
+    tj({ id: "j-3432", number: "3432", client: "Dunmore, Will", suburb: "Fauxington", hue: "orange", people: ["Daniel"], state: { tone: "good", word: "Done" }, done: true, here: [], at: { lat: -33.884, lng: 151.227 }, href: "/dashboard/jobs/j-3432" }),
+    tj({ id: "j-2359", number: "2359", client: "Highfield Estate", suburb: "Pretend Valley", kind: "Service call", hue: "pink", people: ["you"], mine: true, startMin: 720, time: "12:00", state: { tone: "info", word: "Booked" }, here: [], at: { lat: -33.726, lng: 150.238 }, href: "/dashboard/jobs/j-2359" }),
   ],
 };
 
@@ -224,10 +224,10 @@ describe("the box", () => {
 
   it("(F) Send starts the conversation on the page, in place of the columns, and no window opens", async () => {
     draw();
-    await userEvent.type(screen.getByRole("textbox", { name: "What's happening on site?" }), "Finished the Rifkin install");
+    await userEvent.type(screen.getByRole("textbox", { name: "What's happening on site?" }), "Finished the Fairweather install");
     await userEvent.click(screen.getByRole("button", { name: "Send to Tiff" }));
     const chat = screen.getByRole("region", { name: "Talking to Tiff" });
-    expect(chat).toHaveTextContent("Finished the Rifkin install");
+    expect(chat).toHaveTextContent("Finished the Fairweather install");
     expect(open).not.toHaveBeenCalled();
     expect(screen.queryByRole("tab", { name: "Activity feed" })).toBeNull();
   });
@@ -270,20 +270,20 @@ describe("the card's two tabs", () => {
   });
 
   it("(F) puts To do in the Activity feed, what's due today among it", () => {
-    draw(today(), [link("chip:rego", "Hilux, XQG41B", "Renew", "/r", { col: "today", tone: "wrong" }), link("k1", "Price the Truecut quote", "Open", "/q")], [timesheets]);
+    draw(today(), [link("chip:rego", "Hilux, XQG41B", "Renew", "/r", { col: "today", tone: "wrong" }), link("k1", "Price the Plumbline quote", "Open", "/q")], [timesheets]);
     const feed = feedPanel();
     expect(within(feed).getByRole("heading", { name: "To do" })).toBeInTheDocument();
     expect(within(feed).getByText("Hilux, XQG41B")).toBeInTheDocument();
-    expect(within(feed).getByText("Price the Truecut quote")).toBeInTheDocument();
+    expect(within(feed).getByText("Price the Plumbline quote")).toBeInTheDocument();
     expect(within(feed).getByText("Timesheets")).toBeInTheDocument();
   });
 
   it("(F) offers the views All, To do, To you, Jobs and Approvals on the line under the tabs; To do shows only what waits", async () => {
-    draw(today(), [link("k1", "Price the Truecut quote", "Open", "/q")], [timesheets]);
+    draw(today(), [link("k1", "Price the Plumbline quote", "Open", "/q")], [timesheets]);
     const tray = within(feedPanel().querySelector(".hm-sub") as HTMLElement).getByRole("radiogroup", { name: "Show" });
     expect(within(tray).getAllByRole("radio").map((r) => r.textContent)).toEqual(["All", "To do", "To you", "Jobs", "Approvals"]);
     await userEvent.click(within(tray).getByRole("radio", { name: "To do" }));
-    expect(within(feedPanel()).getByText("Price the Truecut quote")).toBeInTheDocument();
+    expect(within(feedPanel()).getByText("Price the Plumbline quote")).toBeInTheDocument();
     expect(within(feedPanel()).queryByText("Timesheets")).toBeNull();
   });
 
@@ -292,14 +292,14 @@ describe("the card's two tabs", () => {
     const panel = document.getElementById("hm-panel-schedule")!;
     expect(within(panel).getByText("Nathan and Mia are free all day.")).toBeInTheDocument();
     const rows = within(panel).getByRole("list", { name: "Jobs today" });
-    const glebe = within(rows).getByRole("link", { name: /Dan Brad/ });
-    expect(glebe).toHaveAttribute("href", "/dashboard/jobs/j-3479");
-    expect(glebe.closest("li")).toHaveClass("hm-jc--purple");
-    expect(glebe.querySelector(".hm-jc-n")).toHaveTextContent("3479");
-    expect(glebe).toHaveTextContent("Glebe, with Ryan and Sam");
-    expect(glebe).toHaveTextContent("7:00");
-    expect(glebe).toHaveTextContent("On site");
-    const done = within(rows).getByRole("link", { name: /Sutcliffe/ }).closest("li")!;
+    const mockglen = within(rows).getByRole("link", { name: /Dan Moorcroft/ });
+    expect(mockglen).toHaveAttribute("href", "/dashboard/jobs/j-3479");
+    expect(mockglen.closest("li")).toHaveClass("hm-jc--purple");
+    expect(mockglen.querySelector(".hm-jc-n")).toHaveTextContent("3479");
+    expect(mockglen).toHaveTextContent("Mockglen, with Ryan and Sam");
+    expect(mockglen).toHaveTextContent("7:00");
+    expect(mockglen).toHaveTextContent("On site");
+    const done = within(rows).getByRole("link", { name: /Dunmore/ }).closest("li")!;
     expect(done).toHaveClass("hm-jc--grey");
     expect(done).toHaveClass("hm-sd-item--done");
     expect(within(rows).getAllByRole("listitem")).toHaveLength(3);
@@ -308,11 +308,11 @@ describe("the card's two tabs", () => {
   it("(F) puts the jobs on the map: a pin for each still to do, a dot for a done one, who's there beside theirs, and a far one on the edge", () => {
     draw(today(), [], [], TEAM);
     const map = screen.getByRole("group", { name: "Map of the day's jobs" });
-    expect(within(map).getByRole("link", { name: "3479, Dan Brad" })).toHaveAttribute("href", "/dashboard/jobs/j-3479");
+    expect(within(map).getByRole("link", { name: "3479, Dan Moorcroft" })).toHaveAttribute("href", "/dashboard/jobs/j-3479");
     expect(within(map).getByLabelText("Ryan, Sam on site")).toHaveTextContent("2");
     expect(map.querySelectorAll(".hm-map-dot")).toHaveLength(1);
     const far = within(map).getByRole("button", { name: /2359/ });
-    expect(far).toHaveTextContent("Megalong Valley");
+    expect(far).toHaveTextContent("Pretend Valley");
     expect(far).toHaveTextContent(/km/);
     expect(within(map).getByRole("img", { name: "Josh, 3 min ago" })).toHaveTextContent("J");
     expect(within(map).getByRole("button", { name: "Show all" })).toBeInTheDocument();
@@ -326,7 +326,7 @@ describe("the card's two tabs", () => {
     await userEvent.click(within(tray).getByRole("radio", { name: "You" }));
     const rows = screen.getByRole("list", { name: "Jobs today" });
     expect(within(rows).getAllByRole("listitem")).toHaveLength(1);
-    expect(within(rows).getByRole("link", { name: /Dryridge Estate/ })).toHaveTextContent("Service call, Megalong Valley");
+    expect(within(rows).getByRole("link", { name: /Highfield Estate/ })).toHaveTextContent("Service call, Pretend Valley");
     expect(screen.queryByText("Nathan and Mia are free all day.")).toBeNull();
     expect(screen.queryByRole("img", { name: /Josh/ })).toBeNull();
     cleanup();
@@ -335,7 +335,7 @@ describe("the card's two tabs", () => {
   });
 
   it("(F) reads another day when it's pressed, in the same place", async () => {
-    const wed: TeamDay = { ...TEAM, day: "2026-11-18", today: false, free: [], jobs: [tj({ id: "j-3095", number: "3095", client: "Kogan, Daniel", suburb: "Randwick", people: ["Alex", "Callum"], state: null, here: [], href: "/dashboard/jobs/j-3095" })] };
+    const wed: TeamDay = { ...TEAM, day: "2026-11-18", today: false, free: [], jobs: [tj({ id: "j-3095", number: "3095", client: "Fernleigh, Daniel", suburb: "Madeupton", people: ["Alex", "Callum"], state: null, here: [], href: "/dashboard/jobs/j-3095" })] };
     const fetchMock = jest.fn(async () => ({ ok: true, json: async () => wed }));
     const was = global.fetch;
     global.fetch = fetchMock as unknown as typeof fetch;
@@ -344,8 +344,8 @@ describe("the card's two tabs", () => {
       await userEvent.click(screen.getByRole("tab", { name: "Wed 18" }));
       expect(fetchMock).toHaveBeenCalledWith("/api/home/team-day?day=2026-11-18", { cache: "no-store" });
       const rows = await screen.findByRole("list", { name: "Jobs on Wed 18" });
-      const row = within(rows).getByRole("link", { name: /Kogan/ });
-      expect(row).toHaveTextContent("Randwick, with Alex and Callum");
+      const row = within(rows).getByRole("link", { name: /Fernleigh/ });
+      expect(row).toHaveTextContent("Madeupton, with Alex and Callum");
       expect(row).toHaveTextContent("Install");
     } finally {
       global.fetch = was;
@@ -406,11 +406,11 @@ describe("To do's Reply, on Home", () => {
      of nothing, then the box under the fold. */
   it("(F) opens the mention's box in Your feed at once, first, without reading Home again", async () => {
     const feed = [...Array.from({ length: 10 }, (_, i) => mention(i + 1)), mention(0)];
-    draw(today(), [link("task:m1", "Which fans for Rozelle?", "Reply", `/dashboard?reply=${NOTE}`, { source: "list" })], feed);
+    draw(today(), [link("task:m1", "Which fans for Mockzelle?", "Reply", `/dashboard?reply=${NOTE}`, { source: "list" })], feed);
     const todo = section("To do");
-    expect(within(todo).queryByRole("link", { name: /Rozelle/ })).toBeNull();
+    expect(within(todo).queryByRole("link", { name: /Mockzelle/ })).toBeNull();
     /* the row itself is the Reply (Isaac, 5 November 2026) */
-    await userEvent.click(within(todo).getByRole("button", { name: "Which fans for Rozelle?" }));
+    await userEvent.click(within(todo).getByRole("button", { name: "Which fans for Mockzelle?" }));
     const items = within(screen.getByRole("list", { name: "Activity feed" })).getAllByRole("listitem");
     expect(within(items[0]).getByRole("textbox", { name: "Reply to Luke Parker" })).toBeInTheDocument();
     expect(refresh).not.toHaveBeenCalled();
@@ -423,7 +423,7 @@ describe("To do", () => {
     const s = section("To do");
     expect(within(s).queryByText(String(ROWS.length))).toBeNull();
     expect(within(s).getByRole("link", { name: "Hilux, XQG41B" })).toHaveAttribute("href", "/dashboard/assets?v=v1&screen=rego");
-    expect(within(s).getByRole("link", { name: "Which fans for Rozelle?" })).toHaveAttribute("href", "/dashboard/desk?ask=n-77");
+    expect(within(s).getByRole("link", { name: "Which fans for Mockzelle?" })).toHaveAttribute("href", "/dashboard/desk?ask=n-77");
     expect(within(s).getByRole("link", { name: "Timesheets" })).toHaveAttribute("href", "/dashboard/timepay");
     expect(within(s).getByRole("link", { name: "Toolbox talk" })).toHaveAttribute("href", "/dashboard/notices");
     expect(within(s).queryByRole("link", { name: /^(Renew|Reply|Review|Open), / })).toBeNull();
@@ -457,7 +457,7 @@ describe("To do", () => {
     window.addEventListener("heytiff:bell-refresh", asked);
     draw();
     await act(async () => {
-      fireEvent.click(within(section("To do")).getByRole("button", { name: "Measure up Rozelle" }));
+      fireEvent.click(within(section("To do")).getByRole("button", { name: "Measure up Mockzelle" }));
     });
     expect(acknowledgeTask).toHaveBeenCalledWith("a1");
     expect(completeTask).not.toHaveBeenCalled();

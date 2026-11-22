@@ -1,10 +1,10 @@
 /* A street address's first line, read into what two spellings of one place
-   share: "6/40 Raglan Street, Mosman NSW 2088" and "6/40 Raglan St\nMosman
-   NSW 2088" are one place, and so is "Unit 6, 40 Raglan St". The unit, the
+   share: "6/40 Lorem Street, Sampleton NSW 2088" and "6/40 Lorem St\nSampleton
+   NSW 2088" are one place, and so is "Unit 6, 40 Lorem St". The unit, the
    number, the street's name and its type, the type in Australia Post's short
    form. It says two places are the same, never that they are near: a unit
    is only ever its own unit, and 3/40 is not 6/40 (Isaac, 10 November 2026:
-   an email for 6/40 Raglan St missed job 3488 on "Street" for "St"). */
+   an email for 6/40 Lorem St missed job 3488 on "Street" for "St"). */
 
 /** Australia Post's street types, long and short, each to its short form. */
 const TYPES: Record<string, string> = {
@@ -50,7 +50,7 @@ export type Street = {
   unit: string;
   /** "40", "60a", "12-14" */
   number: string;
-  /** "raglan", "st johns": the name's words, lower case */
+  /** "lorem", "st johns": the name's words, lower case */
   name: string;
   /** "st", "rd": "" when the line gives none */
   type: string;

@@ -650,7 +650,7 @@ describe("set aside", () => {
   it("goes with you to another screen, where the card in front does not", async () => {
     const user = userEvent.setup();
     hold("v-1");
-    hold("v-2", "Annual service", "Coogee Strata");
+    hold("v-2", "Annual service", "Testcove Strata");
     const { rerender } = render(
       <Frame>
         <Door id="v-1" label="First" />

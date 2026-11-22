@@ -18,10 +18,10 @@ import { JobCustomerDialog } from "../job-customer-dialog";
 
 const form = (): CustomerForm => ({
   jobUuid: "j-1",
-  company: { uuid: "c-1", name: "Chandra Jayasinghe", address: "105 Shadforth Street, Mosman NSW 2088" },
-  billingAddress: "PO Box 12, Mosman NSW 2088",
+  company: { uuid: "c-1", name: "Kiran Blackwood", address: "105 Culpa Street, Sampleton NSW 2088" },
+  billingAddress: "PO Box 12, Sampleton NSW 2088",
   contacts: [
-    { uuid: "p-1", first: "Chandra", last: "Jayasinghe", mobile: "0400 000 000", phone: "", email: "c@example.com", type: "JOB" },
+    { uuid: "p-1", first: "Kiran", last: "Blackwood", mobile: "0400 000 000", phone: "", email: "c@example.com", type: "JOB" },
     { uuid: "p-2", first: "Ravi", last: "", mobile: "", phone: "", email: "", type: "Tenant" },
   ],
 });
@@ -35,20 +35,20 @@ const open = async () => {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  readCustomerForEdit.mockResolvedValue({ ok: true, form: form(), siteAddress: "105 Shadforth Street, Mosman NSW 2088", billingRead: true });
+  readCustomerForEdit.mockResolvedValue({ ok: true, form: form(), siteAddress: "105 Culpa Street, Sampleton NSW 2088", billingRead: true });
   saveCustomer.mockResolvedValue({ ok: true, saved: 1, waiting: 0, failed: [] });
 });
 
 it("is the v2 dialog, its fields labelled above them", async () => {
   const dialog = await open();
   expect(screen.getByRole("dialog", { name: "Edit customer" })).toHaveClass("pt-dialog", "pt-dialog--560");
-  expect(await dialog.findByLabelText("Customer")).toHaveValue("Chandra Jayasinghe");
-  expect(dialog.getByLabelText("Address")).toHaveValue("105 Shadforth Street, Mosman NSW 2088");
-  expect(dialog.getByLabelText("Bills go to")).toHaveValue("PO Box 12, Mosman NSW 2088");
+  expect(await dialog.findByLabelText("Customer")).toHaveValue("Kiran Blackwood");
+  expect(dialog.getByLabelText("Address")).toHaveValue("105 Culpa Street, Sampleton NSW 2088");
+  expect(dialog.getByLabelText("Bills go to")).toHaveValue("PO Box 12, Sampleton NSW 2088");
   expect(dialog.getByRole("heading", { name: "Contacts" })).toBeInTheDocument();
   const first = within(dialog.getByRole("group", { name: "Contact 1" }));
-  expect(first.getByLabelText("First name")).toHaveValue("Chandra");
-  expect(first.getByLabelText("Last name")).toHaveValue("Jayasinghe");
+  expect(first.getByLabelText("First name")).toHaveValue("Kiran");
+  expect(first.getByLabelText("Last name")).toHaveValue("Blackwood");
   expect(first.getByLabelText("Mobile")).toHaveValue("0400 000 000");
   expect(first.getByLabelText("Email")).toHaveValue("c@example.com");
   expect(dialog.getByRole("button", { name: "Save to ServiceM8" })).toHaveClass("pt-btn--main");
@@ -95,7 +95,7 @@ it("removes a contact, adds a blank one, and fills the bills from the site", asy
   expect(added.getByRole("combobox", { name: "Role" })).toHaveTextContent("Job contact");
 
   await userEvent.click(dialog.getByRole("button", { name: "Same as the site" }));
-  expect(dialog.getByLabelText("Bills go to")).toHaveValue("105 Shadforth Street, Mosman NSW 2088");
+  expect(dialog.getByLabelText("Bills go to")).toHaveValue("105 Culpa Street, Sampleton NSW 2088");
   expect(dialog.queryByRole("button", { name: "Same as the site" })).toBeNull();
 });
 

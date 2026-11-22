@@ -20,7 +20,7 @@ import { tabName } from "@/components/shell/topbar";
 export const ALL_JOBS = "/dashboard/jobs";
 
 /** What the way back calls a screen: a place by its own name ("Jobs",
-    "Home"), a page that named itself by that name ("3209 Richards"). */
+    "Home"), a page that named itself by that name ("3209 Rowland"). */
 export function backLabel(href: string, names: Parameters<typeof tabName>[1] = {}): string {
   const path = href.split(/[?#]/)[0];
   const place = PLACES.find((p) => p.href === path);

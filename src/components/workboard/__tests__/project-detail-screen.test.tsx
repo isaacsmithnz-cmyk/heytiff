@@ -181,9 +181,9 @@ const checklist = (doneSections: string[]): ProjectDetail["checklist"] => {
 function detail(over: Partial<ProjectDetail> = {}): ProjectDetail {
   return {
     id: "p-1",
-    name: "Bowden St ducted",
-    clientName: "The Bowdens",
-    siteLabel: "14 Bowden St",
+    name: "Sample St ducted",
+    clientName: "The Samples",
+    siteLabel: "14 Sample St",
     siteAddress: null,
     stage: "Pre-install",
     status: "active",
@@ -244,9 +244,9 @@ const mirror = (
 function trip(over: Partial<ProjectBoardVisit> & { id: string }): ProjectBoardVisit {
   return {
     projectId: "p-1",
-    projectName: "Bowden St ducted",
-    clientName: "The Bowdens",
-    siteLabel: "14 Bowden St",
+    projectName: "Sample St ducted",
+    clientName: "The Samples",
+    siteLabel: "14 Sample St",
     label: "Rough-in — day 1",
     dueDate: "2026-08-04",
     bookedDate: null,
@@ -491,7 +491,7 @@ describe("money (the two axes, never mixed)", () => {
         detail: null,
         amountCents: 400_000,
         status: "approved",
-        decidedBy: "Sarah Bowden",
+        decidedBy: "Sarah Sample",
         decidedAt: "2026-07-20T00:00:00Z",
         createdAt: "2026-07-19T00:00:00Z",
       },
@@ -670,9 +670,9 @@ describe("variations record who made the call", () => {
     expect(dialog.getByText("Zone the media room, $2,500.")).toBeInTheDocument();
     const approve = dialog.getByRole("button", { name: "Approve variation" });
     expect(approve).toBeDisabled();
-    await userEvent.type(dialog.getByLabelText("Who approved it"), "Sarah Bowden");
+    await userEvent.type(dialog.getByLabelText("Who approved it"), "Sarah Sample");
     await userEvent.click(approve);
-    expect(pact.decideVariation).toHaveBeenCalledWith("var-9", "approved", "Sarah Bowden");
+    expect(pact.decideVariation).toHaveBeenCalledWith("var-9", "approved", "Sarah Sample");
   });
 
   it("adds one through its form, waiting on a decision", async () => {
@@ -692,26 +692,26 @@ describe("the project's forms", () => {
     await action("Edit details");
     const dialog = within(screen.getByRole("dialog", { name: "Edit project" }));
     await userEvent.clear(dialog.getByLabelText("Client"));
-    await userEvent.type(dialog.getByLabelText("Client"), "Sarah Bowden");
+    await userEvent.type(dialog.getByLabelText("Client"), "Sarah Sample");
     await userEvent.click(dialog.getByRole("button", { name: "Save project" }));
     expect(act.updateProjectMeta).toHaveBeenCalledWith("p-1", {
-      name: "Bowden St ducted",
-      clientName: "Sarah Bowden",
-      siteLabel: "14 Bowden St",
+      name: "Sample St ducted",
+      clientName: "Sarah Sample",
+      siteLabel: "14 Sample St",
       siteAddress: "",
     });
   });
 
   it("keeps a two-line site address on two lines", async () => {
-    mount(detail({ siteAddress: "26 Boomerang Ave\nLilli Pilli NSW 2229" }));
+    mount(detail({ siteAddress: "26 Fancy Ave\nMockwood NSW 2229" }));
     await action("Edit details");
     const dialog = within(screen.getByRole("dialog", { name: "Edit project" }));
     const address = dialog.getByLabelText("Site address");
     expect(address.tagName).toBe("TEXTAREA");
-    expect(address).toHaveValue("26 Boomerang Ave\nLilli Pilli NSW 2229");
+    expect(address).toHaveValue("26 Fancy Ave\nMockwood NSW 2229");
     await userEvent.type(address, "{Enter}Australia");
     await userEvent.click(dialog.getByRole("button", { name: "Save project" }));
-    expect(act.updateProjectMeta).toHaveBeenCalledWith("p-1", expect.objectContaining({ siteAddress: "26 Boomerang Ave\nLilli Pilli NSW 2229\nAustralia" }));
+    expect(act.updateProjectMeta).toHaveBeenCalledWith("p-1", expect.objectContaining({ siteAddress: "26 Fancy Ave\nMockwood NSW 2229\nAustralia" }));
   });
 
   it("attaches a typed job number in its role", async () => {
@@ -748,11 +748,11 @@ describe("the flywheel", () => {
     await userEvent.click(screen.getByRole("button", { name: "Set up agreement" }));
     const form = within(await screen.findByRole("dialog", { name: "New agreement" }));
     // the project is the record: filled in, and clearable
-    expect(form.getByText("Bowden St ducted", { selector: ".mk-job-name" })).toBeInTheDocument();
+    expect(form.getByText("Sample St ducted", { selector: ".mk-job-name" })).toBeInTheDocument();
     expect(form.getByRole("button", { name: "Clear the project" })).toBeInTheDocument();
-    expect(form.getByLabelText("Service label")).toHaveValue("Bowden St ducted");
-    expect(form.getByLabelText("Client")).toHaveValue("The Bowdens");
-    expect(form.getByLabelText("Site label")).toHaveValue("14 Bowden St");
+    expect(form.getByLabelText("Service label")).toHaveValue("Sample St ducted");
+    expect(form.getByLabelText("Client")).toHaveValue("The Samples");
+    expect(form.getByLabelText("Site label")).toHaveValue("14 Sample St");
     expect(form.getByRole("combobox", { name: "How often" })).toHaveTextContent("6-monthly");
     expect(form.getByLabelText("We installed this system")).toBeChecked();
     // a project's agreement is its own: no ServiceM8 leg
@@ -765,18 +765,18 @@ describe("the flywheel", () => {
     const form = within(await screen.findByRole("dialog", { name: "New agreement" }));
     await waitFor(() => expect(agreementFormContext).toHaveBeenCalled());
     await pickDate("First service due", "2027-02-01", form);
-    await userEvent.type(form.getByLabelText("Billing contact"), "sarah@bowden.au");
+    await userEvent.type(form.getByLabelText("Billing contact"), "sarah@sample.au");
     await userEvent.click(form.getByRole("button", { name: "Create the agreement" }));
     expect(pact.spawnAgreementFromProject).toHaveBeenCalledWith(
       "p-1",
       expect.objectContaining({
         intervalMonths: 6,
         anchorDate: "2027-02-01",
-        label: "Bowden St ducted",
-        clientName: "The Bowdens",
-        siteLabel: "14 Bowden St",
+        label: "Sample St ducted",
+        clientName: "The Samples",
+        siteLabel: "14 Sample St",
         weInstalled: true,
-        billingContact: "sarah@bowden.au",
+        billingContact: "sarah@sample.au",
       }),
     );
     expect(createAgreement).not.toHaveBeenCalled();
@@ -791,7 +791,7 @@ describe("the flywheel", () => {
     await userEvent.click(form.getByRole("button", { name: "Clear the project" }));
     await pickDate("First service due", "2027-02-01", form);
     await userEvent.click(form.getByRole("button", { name: "Create the agreement" }));
-    expect(createAgreement).toHaveBeenCalledWith(expect.objectContaining({ label: "Bowden St ducted", anchorDate: "2027-02-01" }));
+    expect(createAgreement).toHaveBeenCalledWith(expect.objectContaining({ label: "Sample St ducted", anchorDate: "2027-02-01" }));
     expect(pact.spawnAgreementFromProject).not.toHaveBeenCalled();
   });
 
@@ -800,7 +800,7 @@ describe("the flywheel", () => {
     expect(screen.queryByText(/Set up agreement/)).not.toBeInTheDocument();
     unmount();
 
-    mount(detail({ stage: "Handover", agreementId: "a-1", agreementLabel: "Bowden St ducted" }));
+    mount(detail({ stage: "Handover", agreementId: "a-1", agreementLabel: "Sample St ducted" }));
     expect(screen.queryByRole("button", { name: "Set up agreement" })).not.toBeInTheDocument();
     expect(screen.getByText(/On the maintenance board/)).toBeInTheDocument();
   });
@@ -917,10 +917,10 @@ describe("the mirror's garnish on a linked job", () => {
   it("the client's number comes from the linked job's contact", () => {
     mount(
       detail({
-        jobs: [linkedJob({ mirror: mirror({ contacts: [{ name: "Sarah Bowden", type: "JOB", phone: "0410667516", email: null }] }) })],
+        jobs: [linkedJob({ mirror: mirror({ contacts: [{ name: "Sarah Sample", type: "JOB", phone: "0491570156", email: null }] }) })],
       })
     );
     expect(screen.getByText("Job contact on 1042")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "0410 667 516" })).toHaveAttribute("href", "tel:0410667516");
+    expect(screen.getByRole("link", { name: "0491 570 156" })).toHaveAttribute("href", "tel:0491570156");
   });
 });

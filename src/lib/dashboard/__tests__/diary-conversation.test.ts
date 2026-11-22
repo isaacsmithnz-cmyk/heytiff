@@ -33,7 +33,7 @@ const note = (jobUuid: string, author: string, at: string, text: string): Mentio
   at,
   text,
 });
-const talk = (notes: MentionNote[], jobs = new Map([[J2041, { label: "2041 Wollstonecraft", live: true }]])) =>
+const talk = (notes: MentionNote[], jobs = new Map([[J2041, { label: "2041 Testcraft", live: true }]])) =>
   buildConversations({
     notes,
     me: { uuid: ISAAC.uuid, handle: ISAAC.handle },
@@ -106,7 +106,7 @@ describe("under it", () => {
   it("is the job's door, Reply to the job in ServiceM8, and where it came from", () => {
     const [c] = talk([note(J2041, LYLE.uuid, "2026-09-21 13:42:10", "@isaacsmith call Mary")]);
     expect(conversationUnder(c!, WHO)).toEqual({
-      job: { uuid: J2041, label: "2041 Wollstonecraft" },
+      job: { uuid: J2041, label: "2041 Testcraft" },
       tasks: [],
       reply: `https://go.servicem8.com/OpenJob/${J2041}`,
       lines: [SOURCE_LINE],
@@ -120,7 +120,7 @@ describe("under it", () => {
   it("is no door and no Reply for a deleted job, and says it has gone, in #809's words exactly", () => {
     const [c] = talk(
       [note(J2749, LYLE.uuid, "2026-09-09 10:04:00", "@isaacsmith can you advise Holly")],
-      new Map([[J2749, { label: "2749 Woolloomooloo", live: false }]]),
+      new Map([[J2749, { label: "2749 Exampleloo", live: false }]]),
     );
     expect(conversationUnder(c!, WHO)).toEqual({
       job: null,
@@ -133,7 +133,7 @@ describe("under it", () => {
 
   it("offers no Reply for a job whose id ServiceM8 could not open", () => {
     const [c] = talk([note("j-2041", LYLE.uuid, "2026-09-21 13:42:10", "@isaacsmith call Mary")], new Map([
-      ["j-2041", { label: "2041 Wollstonecraft", live: true }],
+      ["j-2041", { label: "2041 Testcraft", live: true }],
     ]));
     expect(conversationUnder(c!, WHO)).toMatchObject({ job: { uuid: "j-2041" }, reply: null });
   });
@@ -157,7 +157,7 @@ describe("the task an ask made", () => {
 
   it("is a door to it, between the job and Reply: '1 task for you'", () => {
     expect(conversationUnder(asked([t()]), WHO)).toEqual({
-      job: { uuid: J2041, label: "2041 Wollstonecraft" },
+      job: { uuid: J2041, label: "2041 Testcraft" },
       tasks: [{ text: "1 task for you", ids: ["t-mary"] }],
       reply: `https://go.servicem8.com/OpenJob/${J2041}`,
       lines: [SOURCE_LINE],
@@ -211,7 +211,7 @@ describe("the task an ask made", () => {
   });
 
   it("keeps its task door on a job its business deleted: the task is yours either way", () => {
-    const gone = asked([t()], new Map([[J2041, { label: "2041 Wollstonecraft", live: false }]]));
+    const gone = asked([t()], new Map([[J2041, { label: "2041 Testcraft", live: false }]]));
     expect(conversationUnder(gone, WHO)).toMatchObject({
       job: null,
       reply: null,
@@ -273,7 +273,7 @@ describe("what a door can land on", () => {
       notes: [note(J2041, LYLE.uuid, "2026-09-21 13:42:10", "@isaacsmith Please call Mary")],
       me: { uuid: ISAAC.uuid, handle: ISAAC.handle },
       people: [ISAAC, LYLE],
-      jobs: new Map([[J2041, { label: "2041 Wollstonecraft", live: true }]]),
+      jobs: new Map([[J2041, { label: "2041 Testcraft", live: true }]]),
       today: TODAY,
       replies: [{ id: "wn-reply", to: "n1", jobUuid: J2041, words: "@lyleirving on my way", at: `${TODAY} 07:30:00`, savedAt: `${TODAY}T07:30:00Z`, line: null }],
     });

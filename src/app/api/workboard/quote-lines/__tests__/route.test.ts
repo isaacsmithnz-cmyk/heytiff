@@ -44,7 +44,7 @@ jest.mock("@/lib/quotes/lines-job-server", () => ({
   startVariation: jest.fn(),
   startVersion: jest.fn(),
 }));
-jest.mock("@/lib/studio/job-designs-server", () => ({ readJobDesigns: async () => [{ id: "dsn_1", name: "6 Bishops Avenue", updatedAt: "2026-10-27T03:00:00Z" }] }));
+jest.mock("@/lib/studio/job-designs-server", () => ({ readJobDesigns: async () => [{ id: "dsn_1", name: "6 Nostrud Avenue", updatedAt: "2026-10-27T03:00:00Z" }] }));
 jest.mock("@/lib/quotes/quote-versions-server", () => ({ readVersions: async () => [{ n: 1, what: "", approvedAt: null, madeAt: "", options: [{ name: "Option 1", exGstCents: 1, incGstCents: 1, lines: [] }] }] }));
 jest.mock("@/lib/templates/query", () => ({ orgTemplates: async () => null }));
 jest.mock("@/lib/quotes/price-book-server", () => ({ readSuppliers: async () => [{ key: "aad", name: "AAD", itemCount: 9 }] }));
@@ -106,7 +106,7 @@ it("gives the job's designs to whoever has the Studio, and nothing to anyone els
   expect(without.designs).toBeNull();
   grants.add("studio");
   const a = await (await get()).json();
-  expect(a.designs).toEqual([{ id: "dsn_1", name: "6 Bishops Avenue", updatedAt: "2026-10-27T03:00:00Z" }]);
+  expect(a.designs).toEqual([{ id: "dsn_1", name: "6 Nostrud Avenue", updatedAt: "2026-10-27T03:00:00Z" }]);
   expect(a.noDesign).toBeNull();
 });
 

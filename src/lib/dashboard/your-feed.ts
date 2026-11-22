@@ -64,7 +64,7 @@ export type FeedItem = {
   who: { name: string; sm8: boolean; thing?: boolean };
   /** every note of theirs in it, so a Reply door naming any of them finds it */
   notes?: string[];
-  /** "mentioned you on 2674 St Lukes" */
+  /** "mentioned you on 2674 St Exemplar" */
   what: string;
   /** their words, when there are words */
   said: string | null;

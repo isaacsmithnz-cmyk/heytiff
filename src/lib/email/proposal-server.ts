@@ -44,7 +44,7 @@ const like = (s: string) => s.replace(/[%_\\]/g, (c) => `\\${c}`);
 
 /** The client a read names, when exactly one of the business's clients has
     that name, whatever legal ending either wears, and a person's name either
-    way round ("Watters, Lisa" is Lisa Watters): never a near one, which
+    way round ("Ashdown, Lisa" is Lisa Ashdown): never a near one, which
     would put a tender on the wrong builder. Looked for by the name's longest
     word, the one fewest others share. A builder is a client with sites of
     its own. */
@@ -69,8 +69,8 @@ export async function clientMatchOf(orgId: string, name: string): Promise<Client
 
 /** What an undecided email's read says, with what it matched looked for
     again: its client, its site and its jobs. It may have been read before
-    they were here, or before the match knew them (the Krui Street email said
-    "a new client" of JT Construct; the Raglan St one missed job 3488 on
+    they were here, or before the match knew them (the Tempor Street email said
+    "a new client" of QX Construct; the Lorem St one missed job 3488 on
     "Street" for "St"). The read itself stands, and a client or site already
     matched stands; nothing is read again. Saved on the row when it changed,
     so the Inbox's list says the same as the card. */

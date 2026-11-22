@@ -13,8 +13,8 @@ import {
   mmPerPointOf,
 } from "../plan-set";
 
-/* the title block of 7 Cutler Rd's CD103, as its PDF's words come out */
-const CUTLER_WORDS = ["GROUND FLOOR", "CD103", "SCALE:", "G", "1:50 @ A1", "CLIENT:", "JONAS & KYLIE PALMQVIST", "ADDRESS:", "1:100 TO RWO"].map(
+/* the title block of 7 Ipsum Rd's CD103, as its PDF's words come out */
+const IPSUM_WORDS = ["GROUND FLOOR", "CD103", "SCALE:", "G", "1:50 @ A1", "CLIENT:", "SAM & ALEX CITIZEN", "ADDRESS:", "1:100 TO RWO"].map(
   (text) => ({ text, at: { x: 0, y: 0 } }),
 );
 
@@ -30,8 +30,8 @@ const sheet = (id: string, page: number, w = 2400, h = 1695) => ({
   crop: { x: 2, y: 19, w: w - 14, h: h - 31 },
 });
 
-function cutler(): DesignDocument {
-  const d = createDesign({ name: "7 Cutler Rd", mode: "plan" });
+function ipsum(): DesignDocument {
+  const d = createDesign({ name: "7 Ipsum Rd", mode: "plan" });
   const floor = (id: string, level: number, page: number, w?: number, h?: number): Floor => ({
     id,
     name: id,
@@ -49,14 +49,14 @@ function cutler(): DesignDocument {
       placed: { 1: "org/o/gf.png", 2: "org/o/l1.png" },
       chosen: [1, 2],
       names: {},
-      words: { 1: CUTLER_WORDS },
+      words: { 1: IPSUM_WORDS },
     },
   };
 }
 
 describe("the printed scale", () => {
   test("reads 1:50 at A1 off the title block, not a note's 1:100", () => {
-    expect(printedScaleOf(CUTLER_WORDS)).toEqual({ ratio: 50, paper: "A1", text: "1:50 @ A1" });
+    expect(printedScaleOf(IPSUM_WORDS)).toEqual({ ratio: 50, paper: "A1", text: "1:50 @ A1" });
   });
 
   test("reads a scale split across words", () => {
@@ -80,76 +80,76 @@ describe("the printed scale", () => {
   });
 
   test("the design proposes the scale from the floor's own page", () => {
-    expect(proposedScale(cutler(), "gf")?.mmPerUnit).toBeCloseTo(17.521, 2);
-    expect(proposedScale(cutler(), "photo")).toBeNull();
+    expect(proposedScale(ipsum(), "gf")?.mmPerUnit).toBeCloseTo(17.521, 2);
+    expect(proposedScale(ipsum(), "photo")).toBeNull();
   });
 });
 
 describe("Tiff's measured scale", () => {
   /* 3517's plan, 13 November 2026: a marketing PNG with a 5 m scale bar and no 1:100 */
-  const benelong = (sure: boolean, words = false): DesignDocument => {
-    const d = createDesign({ name: "1/20d Benelong Crescent", mode: "plan" });
+  const occaecat = (sure: boolean, words = false): DesignDocument => {
+    const d = createDesign({ name: "1/20d Occaecat Crescent", mode: "plan" });
     return {
       ...d,
       floors: [{ id: "gf", name: "Ground floor", level: 0, scaleMmPerUnit: null, northDeg: null, northPos: null, plans: [{ ...sheet("gf", 1, 855, 1183), pageNumber: null }] }],
       planImport: {
-        sources: [{ ref: "org/o/benelong.png", kind: "image" }],
+        sources: [{ ref: "org/o/occaecat.png", kind: "image" }],
         placed: { 0: "org/o/gf.png" },
         chosen: [0],
         names: {},
-        ...(words ? { words: { 0: CUTLER_WORDS } } : {}),
+        ...(words ? { words: { 0: IPSUM_WORDS } } : {}),
         measured: { 0: { mmPerPx: 37.037, from: "the 5000 mm printed on it", sure } },
       },
     };
   };
 
   test("offers hers where the page prints no scale, saying where it came from", () => {
-    expect(proposedScale(benelong(false), "gf")).toEqual({ kind: "measured", from: "the 5000 mm printed on it", sure: false, mmPerUnit: 37.037 });
-    expect(proposedScale(benelong(true), "gf")).toMatchObject({ kind: "measured", sure: true });
+    expect(proposedScale(occaecat(false), "gf")).toEqual({ kind: "measured", from: "the 5000 mm printed on it", sure: false, mmPerUnit: 37.037 });
+    expect(proposedScale(occaecat(true), "gf")).toMatchObject({ kind: "measured", sure: true });
   });
 
   test("never sets it on its own", () => {
-    expect(benelong(true).floors[0].scaleMmPerUnit).toBeNull();
+    expect(occaecat(true).floors[0].scaleMmPerUnit).toBeNull();
   });
 
   test("a printed scale that fits the raster comes first; one that doesn't falls to hers", () => {
     /* a 1044 x 1015 photo isn't A1's shape, so the 1:50 can't be trusted there */
-    const d = benelong(true, true);
+    const d = occaecat(true, true);
     const photo = { ...d, floors: d.floors.map((f) => ({ ...f, plans: f.plans.map((p) => ({ ...p, width: 1044, height: 1015 })) })) };
     expect(proposedScale(photo, "gf")).toMatchObject({ kind: "measured" });
-    expect(proposedScale(cutler(), "gf")).toMatchObject({ kind: "printed", scale: { ratio: 50, paper: "A1" } });
+    expect(proposedScale(ipsum(), "gf")).toMatchObject({ kind: "printed", scale: { ratio: 50, paper: "A1" } });
   });
 
   test("a design with none offers nothing", () => {
-    expect(proposedScale(cutler(), "photo")).toBeNull();
+    expect(proposedScale(ipsum(), "photo")).toBeNull();
   });
 });
 
 describe("the sheet's title", () => {
   test("GROUND FLOOR beside CD103", () => {
-    expect(sheetTitleOf(CUTLER_WORDS)).toEqual({ title: "Ground floor", number: "CD103" });
+    expect(sheetTitleOf(IPSUM_WORDS)).toEqual({ title: "Ground floor", number: "CD103" });
   });
 });
 
 describe("one set, one scale and north", () => {
   test("pages of the same size from one upload are a set; a photo is not", () => {
-    expect(setOf(cutler(), "gf")).toEqual(["gf", "l1"]);
-    expect(setOf(cutler(), "photo")).toEqual(["photo"]);
+    expect(setOf(ipsum(), "gf")).toEqual(["gf", "l1"]);
+    expect(setOf(ipsum(), "photo")).toEqual(["photo"]);
   });
 
   test("a scale set on one floor reaches the rest of its set", () => {
-    const d = applyScaleToSet(cutler(), "gf", 17.52);
+    const d = applyScaleToSet(ipsum(), "gf", 17.52);
     expect(d.floors.map((f) => f.scaleMmPerUnit)).toEqual([17.52, 17.52, null]);
   });
 
   test("north set on one floor reaches the rest of its set, each with an arrow", () => {
-    const d = applyNorthToSet(cutler(), "l1", 0);
+    const d = applyNorthToSet(ipsum(), "l1", 0);
     expect(d.floors.map((f) => f.northDeg)).toEqual([0, 0, null]);
     expect(d.floors[0].northPos).not.toBeNull();
   });
 
   test("a calibration on the first floor answers the second: nothing left to ask", () => {
-    const prev = cutler();
+    const prev = ipsum();
     const measured = { ...prev, floors: prev.floors.map((f) => (f.id === "gf" ? { ...f, scaleMmPerUnit: 17.49 } : f)) };
     const turned = { ...measured, floors: measured.floors.map((f) => (f.id === "gf" ? { ...f, northDeg: 12 } : f)) };
     const out = shareAcrossSet(prev, turned);
@@ -162,7 +162,7 @@ describe("one set, one scale and north", () => {
    the plan (14 November 2026: one set of plans, on the job). */
 describe("a scale measured in a design made from a job's plan", () => {
   const fromJob = (): DesignDocument => {
-    const d = cutler();
+    const d = ipsum();
     return { ...d, planImport: { ...d.planImport!, jobPlanId: "jplan_1" } };
   };
   const scaled = (d: DesignDocument, id: string, mm: number | null): DesignDocument => ({ ...d, floors: d.floors.map((f) => (f.id === id ? { ...f, scaleMmPerUnit: mm } : f)) });
@@ -183,7 +183,7 @@ describe("a scale measured in a design made from a job's plan", () => {
     const d = fromJob();
     expect(measuredForJob(d, scaled(d, "photo", 12))).toEqual([]);
     expect(measuredForJob(scaled(d, "l1", 21.3), scaled(d, "l1", null))).toEqual([]);
-    expect(measuredForJob(cutler(), scaled(cutler(), "l1", 21.3))).toEqual([]);
+    expect(measuredForJob(ipsum(), scaled(ipsum(), "l1", 21.3))).toEqual([]);
   });
 });
 
@@ -206,12 +206,12 @@ describe("the sizes written in its rooms", () => {
     openTo: "",
     stair: "",
   });
-  const waitara = (spaces: ReturnType<typeof room>[]): DesignDocument => {
-    const d = createDesign({ name: "12/8-10 Park Ave", mode: "plan" });
+  const mockville = (spaces: ReturnType<typeof room>[]): DesignDocument => {
+    const d = createDesign({ name: "12/8-10 Example Ave", mode: "plan" });
     return {
       ...d,
       floors: [{ id: "gf", name: "Ground floor", level: 0, scaleMmPerUnit: null, northDeg: null, northPos: null, plans: [{ ...sheet("gf", 1, 1200, 900), pageNumber: null }] }],
-      planImport: { sources: [{ ref: "org/o/waitara.png", kind: "image" }], placed: { 0: "org/o/gf.png" }, chosen: [0], names: {} },
+      planImport: { sources: [{ ref: "org/o/mockville.png", kind: "image" }], placed: { 0: "org/o/gf.png" }, chosen: [0], names: {} },
       reading: {
         at: "2026-11-17T00:00:00Z",
         model: "test",
@@ -223,12 +223,12 @@ describe("the sizes written in its rooms", () => {
 
   test("offers the scale they give, 15 mm a pixel off two rooms", () => {
     /* 4.5 x 3.0 m over 300 x 200 px, 3.0 x 3.0 m over 200 x 200 px */
-    const d = waitara([room("Bed 1", 0, 0, 300, 200, "4.5m x 3.0m"), room("Bed 2", 400, 0, 200, 200, "3.0 x 3.0")]);
+    const d = mockville([room("Bed 1", 0, 0, 300, 200, "4.5m x 3.0m"), room("Bed 2", 400, 0, 200, 200, "3.0 x 3.0")]);
     expect(proposedScale(d, "gf")).toEqual({ kind: "measured", from: "the sizes written in 2 of its rooms", sure: true, mmPerUnit: 15 });
   });
 
   test("one room's size alone offers nothing", () => {
-    expect(proposedScale(waitara([room("Bed 1", 0, 0, 300, 200, "4.5m x 3.0m")]), "gf")).toBeNull();
+    expect(proposedScale(mockville([room("Bed 1", 0, 0, 300, 200, "4.5m x 3.0m")]), "gf")).toBeNull();
   });
 });
 

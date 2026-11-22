@@ -86,8 +86,8 @@ describe("the job's line on it", () => {
     expect(subfloorLine(plan(drawn))).toBe("Subfloor under the kitchen, laundry, hall and sitting rooms, about 200 mm, measured off section 1 on A401");
   });
   it("says who set its height, and in which design, once typed", () => {
-    const set = { ...drawn, set: { heightMm: 300, by: "Isaac", design: "14 Bishops Avenue", at: "2026-11-15T01:00:00Z" } };
-    expect(subfloorLine(plan(set))).toBe("Subfloor under the kitchen, laundry, hall and sitting rooms, 300 mm, set by Isaac in 14 Bishops Avenue on Sun 15 Nov");
+    const set = { ...drawn, set: { heightMm: 300, by: "Isaac", design: "14 Nostrud Avenue", at: "2026-11-15T01:00:00Z" } };
+    expect(subfloorLine(plan(set))).toBe("Subfloor under the kitchen, laundry, hall and sitting rooms, 300 mm, set by Isaac in 14 Nostrud Avenue on Sun 15 Nov");
   });
   it("says where the set only names one", () => {
     const named: ReadSubfloor = { ...drawn, shown: "mentioned", outline: [], rooms: "", heightMm: 0, heightFrom: "", sheet: "A200", words: "Subfloor fan ventilation system to front part of house." };
@@ -109,7 +109,7 @@ describe("the job's line on it", () => {
 describe("a design opened from the job", () => {
   const open = (p: JobPlan): DesignDocument => {
     const made = designFromPlan(p);
-    return subfloorFromReading({ ...createDesign({ name: "14 Bishops Avenue", mode: "plan" }), floors: made.floors, reading: made.reading });
+    return subfloorFromReading({ ...createDesign({ name: "14 Nostrud Avenue", mode: "plan" }), floors: made.floors, reading: made.reading });
   };
 
   it("has it under the ground floor, from the plans, set out where she drew it", () => {

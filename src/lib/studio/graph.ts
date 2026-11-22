@@ -253,7 +253,7 @@ export function buildSystemGraph(
           r.type === "pipe-run" &&
           (attachOf(r.props.startAttach)?.id === id || attachOf(r.props.endAttach)?.id === id)
       );
-    /* a riser only a duct goes up is no refrigerant pipe (7 Cutler's Study,
+    /* a riser only a duct goes up is no refrigerant pipe (7 Ipsum's Study,
        31 October 2026): its height is on the ductwork (duct-materials.ts) */
     const ductOn = (id: string) =>
       mine.some(

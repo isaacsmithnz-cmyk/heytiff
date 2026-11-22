@@ -104,14 +104,14 @@ describe("todayRows", () => {
       rail({
         blocks: [
           block({ key: "a2", remoteId: "j-3342", jobNumber: "3342", suburb: "Bellevue Hill", categoryName: "Installation", categoryColour: "#2563EB", startMin: 9 * 60, endMin: 11 * 60 + 30 }),
-          block({ key: "a3", remoteId: "j-3361", jobNumber: "3361", suburb: "Riverview", categoryName: "Quote", categoryColour: "#F97316", startMin: 12 * 60 + 45, endMin: 13 * 60 + 45 }),
+          block({ key: "a3", remoteId: "j-3361", jobNumber: "3361", suburb: "Fakeview", categoryName: "Quote", categoryColour: "#F97316", startMin: 12 * 60 + 45, endMin: 13 * 60 + 45 }),
         ],
         crew: { "j-3342": ["Lyle", "Callum"] },
       }),
     );
     expect(rows.map((r) => [r.time, r.name, r.line, r.hue, r.state?.word ?? null])).toEqual([
       ["9:00 to 11:30", "Bellevue Hill, Job 3342", "Installation, with Lyle and Callum", "blue", "On now"],
-      ["12:45 to 1:45", "Riverview, Job 3361", "Quote, you", "pink", null],
+      ["12:45 to 1:45", "Fakeview, Job 3361", "Quote, you", "pink", null],
     ]);
   });
 

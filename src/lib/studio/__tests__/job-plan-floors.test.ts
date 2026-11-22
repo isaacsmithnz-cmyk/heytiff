@@ -54,8 +54,8 @@ const plan = (id: string, pages: JobPlanPage[], over: Partial<JobPlan> = {}): Jo
   ...over,
 });
 
-/* 7 Cutler Rd, as the mock drew it: CD103 and CD105 both on the ground, CD104 one up */
-const cutler = plan("set", [page(1, 0, { ref: "org/o1/cd103.png" }), page(2, 1, { ref: "org/o1/cd104.png" }), page(3, 0, { ref: "org/o1/cd105.png", name: "Ground floor" })]);
+/* 7 Ipsum Rd, as the mock drew it: CD103 and CD105 both on the ground, CD104 one up */
+const ipsum = plan("set", [page(1, 0, { ref: "org/o1/cd103.png" }), page(2, 1, { ref: "org/o1/cd104.png" }), page(3, 0, { ref: "org/o1/cd105.png", name: "Ground floor" })]);
 
 const designOf = (...plans: JobPlan[]): DesignDocument => {
   const made = designFromPlan(plans[0]);
@@ -69,12 +69,12 @@ const chose = (p: JobPlan, chosen: Record<number, string>): JobPlan => ({ ...p, 
 
 describe("saving the Plans dialog into a design", () => {
   it("takes a ceiling plan out as Not a floor plan, and its read with it", () => {
-    const d = designOf(cutler);
+    const d = designOf(ipsum);
     expect(sheetsOn(d)).toEqual([
       { level: 0, refs: ["org/o1/cd103.png", "org/o1/cd105.png"] },
       { level: 1, refs: ["org/o1/cd104.png"] },
     ]);
-    const out = withJobPlans(d, [cutler], [chose(cutler, { 3: "none" })], ["set"]);
+    const out = withJobPlans(d, [ipsum], [chose(ipsum, { 3: "none" })], ["set"]);
     expect(sheetsOn(out.doc)).toEqual([
       { level: 0, refs: ["org/o1/cd103.png"] },
       { level: 1, refs: ["org/o1/cd104.png"] },
@@ -84,8 +84,8 @@ describe("saving the Plans dialog into a design", () => {
   });
 
   it("moves a page to its new floor, made where there's none, with what she read off it", () => {
-    const d = designOf(cutler);
-    const out = withJobPlans(d, [cutler], [chose(cutler, { 3: "2" })], ["set"]);
+    const d = designOf(ipsum);
+    const out = withJobPlans(d, [ipsum], [chose(ipsum, { 3: "2" })], ["set"]);
     expect(sheetsOn(out.doc)).toEqual([
       { level: 0, refs: ["org/o1/cd103.png"] },
       { level: 1, refs: ["org/o1/cd104.png"] },
@@ -99,12 +99,12 @@ describe("saving the Plans dialog into a design", () => {
   });
 
   it("keeps a floor something is drawn on when its plan leaves, and drops one with nothing on it", () => {
-    const d = designOf(cutler);
+    const d = designOf(ipsum);
     const up = d.floors.find((f) => f.level === 1)!;
     const unit = { id: "u1", type: "indoor-unit", floorId: up.id, props: {} } as unknown as DesignObject;
-    const off = chose(cutler, { 2: "none" });
-    expect(sheetsOn(withJobPlans(d, [cutler], [off], ["set"]).doc)).toEqual([{ level: 0, refs: ["org/o1/cd103.png", "org/o1/cd105.png"] }]);
-    const kept = withJobPlans({ ...d, objects: [unit] }, [cutler], [off], ["set"]).doc;
+    const off = chose(ipsum, { 2: "none" });
+    expect(sheetsOn(withJobPlans(d, [ipsum], [off], ["set"]).doc)).toEqual([{ level: 0, refs: ["org/o1/cd103.png", "org/o1/cd105.png"] }]);
+    const kept = withJobPlans({ ...d, objects: [unit] }, [ipsum], [off], ["set"]).doc;
     expect(sheetsOn(kept)).toEqual([
       { level: 0, refs: ["org/o1/cd103.png", "org/o1/cd105.png"] },
       { level: 1, refs: [] },
@@ -113,37 +113,37 @@ describe("saving the Plans dialog into a design", () => {
   });
 
   it("brings a newly ticked plan's floors in with its read, and takes an unticked one's out", () => {
-    const d = designOf(cutler);
+    const d = designOf(ipsum);
     const issueH = plan("h", [page(1, 0, { ref: "org/o1/h103.png" }), page(2, 1, { ref: "org/o1/h104.png" })]);
-    const both = withJobPlans(d, [cutler, issueH], [cutler, issueH], ["set", "h"]).doc;
+    const both = withJobPlans(d, [ipsum, issueH], [ipsum, issueH], ["set", "h"]).doc;
     expect(sheetsOn(both)).toEqual([
       { level: 0, refs: ["org/o1/cd103.png", "org/o1/cd105.png", "org/o1/h103.png"] },
       { level: 1, refs: ["org/o1/cd104.png", "org/o1/h104.png"] },
     ]);
     expect(roomsReadOn(both)[0]).toEqual(["Room 1", "Room 3", "Room 1"]);
-    const swapped = withJobPlans(both, [cutler, issueH], [cutler, issueH], ["h"]).doc;
+    const swapped = withJobPlans(both, [ipsum, issueH], [ipsum, issueH], ["h"]).doc;
     expect(sheetsOn(swapped)).toEqual([
       { level: 0, refs: ["org/o1/h103.png"] },
       { level: 1, refs: ["org/o1/h104.png"] },
     ]);
     expect(swapped.planImport?.jobPlanId).toBe("h");
-    expect(plansInDesign(swapped, [cutler, issueH])).toEqual(["h"]);
+    expect(plansInDesign(swapped, [ipsum, issueH])).toEqual(["h"]);
   });
 
   it("leaves a plan being read again as the design shows it, and plans dropped in by hand alone", () => {
-    const d = designOf(cutler);
+    const d = designOf(ipsum);
     const own = { id: "sht_own", imageRef: "org/o1/mine.png", pageNumber: null, name: "Sketch", width: 100, height: 100, x: 0, y: 0 };
     const withOwn = { ...d, floors: d.floors.map((f, i) => (i === 0 ? { ...f, plans: [...f.plans, own] } : f)) };
-    const rereading = { ...cutler, state: "reading" as const, pages: [] };
-    const out = withJobPlans(withOwn, [cutler], [rereading], ["set"]).doc;
+    const rereading = { ...ipsum, state: "reading" as const, pages: [] };
+    const out = withJobPlans(withOwn, [ipsum], [rereading], ["set"]).doc;
     expect(sheetsOn(out)).toEqual(sheetsOn(withOwn));
-    const untick = withJobPlans(withOwn, [cutler], [cutler], []).doc;
+    const untick = withJobPlans(withOwn, [ipsum], [ipsum], []).doc;
     expect(sheetsOn(untick)).toEqual([{ level: 0, refs: ["org/o1/mine.png"] }]);
   });
 
   it("knows which of the job's plans a design uses, by the pictures it shows", () => {
-    const d = designOf(cutler);
+    const d = designOf(ipsum);
     const other = plan("other", [page(1, 0, { ref: "org/o1/elsewhere.png" })]);
-    expect(plansInDesign(d, [cutler, other])).toEqual(["set"]);
+    expect(plansInDesign(d, [ipsum, other])).toEqual(["set"]);
   });
 });

@@ -91,12 +91,12 @@ export function parseSection(raw: string | string[] | undefined | null, moneyVis
   return (sectionsFor(moneyVisible, studio) as readonly string[]).includes(s) ? (s as JobSection) : "overview";
 }
 
-/* a first word that names nothing alone: "St Lukes" is not "St" */
+/* a first word that names nothing alone: "St Exemplar" is not "St" */
 const LEAD_WORD = /^(?:the|mr|mrs|ms|dr|st|mt|[a-z]{1,2})\.?$/i;
 
 /** What an open tab calls a job: its number and the first word of its
-    client's name, "3209 Richards"; the first two when the first is a
-    title or a short word, "2674 St Lukes". */
+    client's name, "3209 Rowland"; the first two when the first is a
+    title or a short word, "2674 St Exemplar". */
 export function jobTabLabel(number: string | null | undefined, clientName: string | null | undefined): string {
   const words = (clientName ?? "").trim().split(/\s+/);
   const short = (words.length > 1 && LEAD_WORD.test(words[0]) ? words.slice(0, 2).join(" ") : words[0]) ?? "";

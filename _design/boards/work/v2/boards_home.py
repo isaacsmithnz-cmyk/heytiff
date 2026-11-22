@@ -26,8 +26,8 @@ def daybar():
   <a class="dcard done" href="#" style="flex:112 1 0;color:#43506a" aria-label="Kingsford, Job 2380, 7:30 to 8:30, finished"><span class="dskin" style="background:#B4C5EE"></span><span class="dlab"><span class="dtag">Kingsford</span><span style="display:flex;flex-direction:column"><span class="dname">Job 2380</span><span class="dtime">7:30–8:30</span></span></span>{tick}</a>
   <a class="dcard sel" href="#" style="flex:230 1 0;color:#fff" aria-label="Bellevue Hill, Job 3342, 9:00 to 11:30, on now, 56%"><span class="dskin" style="background:#6D4FD8"><span class="dfill" style="width:56%;background:#291E52"></span><span class="dring"></span></span><span class="dlab"><span class="dtag">Bellevue Hill</span><span style="display:flex;flex-direction:column"><span class="dname">Job 3342</span><span class="dtime">9:00–11:30</span></span></span></a>
   <a class="dcard" href="#" style="flex:150 1 0;color:#2a3342" aria-label="Task, order the grilles, by 12:30"><span class="dskin" style="background:#E6E9EE"></span><span class="dlab"><span class="dtag">Task</span><span style="display:flex;flex-direction:column"><span class="dname">Order the grilles</span><span class="dtime">By 12:30</span></span></span></a>
-  <a class="dcard" href="#" style="flex:112 1 0;color:#fff" aria-label="Alexandria, Job 1042"><span class="dskin" style="background:#3D8620"></span><span class="dlab"><span class="dtag">Alexandria</span><span style="display:flex;flex-direction:column"><span class="dname">Job 1042</span><span class="dtime">12:45–1:45</span></span></span></a>
-  <a class="dcard" href="#" style="flex:140 1 0;color:#fff" aria-label="Randwick, Job 3271"><span class="dskin" style="background:#8A6A00"></span><span class="dlab"><span class="dtag">Randwick</span><span style="display:flex;flex-direction:column"><span class="dname">Job 3271</span><span class="dtime">2:45–4:00</span></span></span></a>
+  <a class="dcard" href="#" style="flex:112 1 0;color:#fff" aria-label="Exampleria, Job 1042"><span class="dskin" style="background:#3D8620"></span><span class="dlab"><span class="dtag">Exampleria</span><span style="display:flex;flex-direction:column"><span class="dname">Job 1042</span><span class="dtime">12:45–1:45</span></span></span></a>
+  <a class="dcard" href="#" style="flex:140 1 0;color:#fff" aria-label="Madeupton, Job 3271"><span class="dskin" style="background:#8A6A00"></span><span class="dlab"><span class="dtag">Madeupton</span><span style="display:flex;flex-direction:column"><span class="dname">Job 3271</span><span class="dtime">2:45–4:00</span></span></span></a>
 </div>'''
 
 
@@ -65,7 +65,7 @@ def needs_panel():
     {row("task", "Ring the Hilux dealer", "From your 8:12 am note")}
     {row("dot", "Kingsford Bakery, 2380", "Finished, ready to invoice", "Invoice", "#F0A431", "N-Job.dc.html")}
     {row("dot", "Timesheets, last week", "4 to approve, 150.5 hours", "Review", "#F0A431", "N-TeamTimesheets.dc.html")}
-    {row("dot", "Quote to write: Riverview", "Brief saved 8:40 am", "Quote", "#2554d8", "N-Quote.dc.html")}
+    {row("dot", "Quote to write: Fakeview", "Brief saved 8:40 am", "Quote", "#2554d8", "N-Quote.dc.html")}
     {grp("Jobs to book", 17)}
     {row("dot", "Northgate Realty, 3323", "Won 3 days ago, no day yet", "Book in", "#050505", "N-Job.dc.html")}
     {row("dot", "Ardex Logistics, 2601", "Service due today", "Book in", "#050505", "N-Schedule.dc.html")}
@@ -112,8 +112,8 @@ def home_body(extra_overlay=""):
           <span class="av">IS</span>
           <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
             <div class="lab"><b>You</b> <span class="q">8:40 am, spoken</span></div>
-            <p class="read">Just been to Riverview. They want a split in the main bedroom, back to back with the study. Don't have time to quote it now, save that as the brief.</p>
-            <div style="display:flex;gap:16px" class="lab"><a class="link" href="N-Quote.dc.html">Brief saved on 3361 Okafor, Riverview</a><a class="link" href="N-Convos.dc.html">Reply</a></div>
+            <p class="read">Just been to Fakeview. They want a split in the main bedroom, back to back with the study. Don't have time to quote it now, save that as the brief.</p>
+            <div style="display:flex;gap:16px" class="lab"><a class="link" href="N-Quote.dc.html">Brief saved on 3361 Okafor, Fakeview</a><a class="link" href="N-Convos.dc.html">Reply</a></div>
           </div>
         </article>
       </section>

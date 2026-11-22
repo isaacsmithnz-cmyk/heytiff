@@ -166,7 +166,7 @@ export function grilleMount(o: Grille): GrilleMount | null {
   return m === "ceiling" || m === "wall" || m === "floor" || m === "kicker" ? m : null;
 }
 
-/* ONE GRILLE, SUPPLY AND RETURN (Isaac, 31 October 2026, 7 Cutler: "a single
+/* ONE GRILLE, SUPPLY AND RETURN (Isaac, 31 October 2026, 7 Ipsum: "a single
    grille in each joinery. It has to be full width and do supply and return in
    same grille. I initially placed 2 x 1200mm grilles to make it look like
    1"). One long linear face with a divider behind it: the supply side runs

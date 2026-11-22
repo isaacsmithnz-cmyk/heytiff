@@ -1,7 +1,7 @@
 import { firstPlanPage, pagesToSend } from "../reading";
 
 /* A tender set too big to send whole goes from its first floor plan on
-   (Isaac, 21 October 2026: 7 Cutler Rd, 25 pages, 16 MB). */
+   (Isaac, 21 October 2026: 7 Ipsum Rd, 25 pages, 16 MB). */
 
 it("starts at the first floor plan chosen, when the set is the first file", () => {
   expect(firstPlanPage({ sources: [{ kind: "pdf" }], chosen: [4, 3] })).toBe(3);

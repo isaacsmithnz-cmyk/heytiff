@@ -5,7 +5,7 @@ import { latestPerJob, officeLists, placeEnding, type EndingRow, type JobFacts }
 const TODAY = "2026-11-11";
 const job = (over: Partial<JobFacts> = {}): JobFacts => ({
   number: "3324",
-  suburb: "Darling Point",
+  suburb: "Pretend Point",
   status: "Work Order",
   active: true,
   invoiced: false,
@@ -23,7 +23,7 @@ const said = (answer: EndingRow["ending"]["answer"], detail: EndingRow["ending"]
 
 describe("Ready to invoice", () => {
   it("holds a finished job as quoted, until it's Completed or invoiced", () => {
-    expect(placeEnding(said("finished"), job(), false, TODAY)).toEqual([{ list: "ready", jobUuid: "J1", day: "2026-11-10", title: "3324, Darling Point", sub: "Finished, as quoted, $9,856, Isaac, 10 Nov", days: 1, tone: null }]);
+    expect(placeEnding(said("finished"), job(), false, TODAY)).toEqual([{ list: "ready", jobUuid: "J1", day: "2026-11-10", title: "3324, Pretend Point", sub: "Finished, as quoted, $9,856, Isaac, 10 Nov", days: 1, tone: null }]);
     expect(placeEnding(said("finished"), job({ status: "Completed" }), false, TODAY)).toEqual([]);
     expect(placeEnding(said("finished"), job({ invoiced: true }), false, TODAY)).toEqual([]);
     expect(placeEnding(said("finished", { checked: "2026-11-11" }), job(), false, TODAY)).toEqual([]);
@@ -35,11 +35,11 @@ describe("Ready to invoice", () => {
     const quoted = said("finished", { quoteToo: true, quoteWords: "ducted upstairs" });
     expect(placeEnding(quoted, job(), false, TODAY).map((r) => [r.list, r.sub])).toEqual([
       ["ready", "Finished, as quoted, $9,856, Isaac, 10 Nov"],
-      ["quotes", "To quote, ducted upstairs, from 3324, Darling Point"],
+      ["quotes", "To quote, ducted upstairs, from 3324, Pretend Point"],
     ]);
     const opened = said("finished", { quoteToo: true, quoteWords: "ducted upstairs", quoteJob: "Q1" });
     const q = job({ number: "3530", suburb: null, status: "Quote", quoteSentOn: null, workOrderOn: null, quoted: 0 });
-    expect(placeEnding(opened, job(), false, TODAY, q)[1]).toMatchObject({ list: "quotes", jobUuid: "Q1", title: "3530, Darling Point", sub: "To price, ducted upstairs" });
+    expect(placeEnding(opened, job(), false, TODAY, q)[1]).toMatchObject({ list: "quotes", jobUuid: "Q1", title: "3530, Pretend Point", sub: "To price, ducted upstairs" });
     expect(placeEnding(opened, job(), false, TODAY, { ...q, quoteSentOn: "2026-11-11", quoted: 4200 })[1]).toMatchObject({ sub: "$4,200, sent 11 Nov", days: 0 });
   });
 });

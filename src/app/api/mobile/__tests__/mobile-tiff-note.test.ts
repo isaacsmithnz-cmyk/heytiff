@@ -136,9 +136,9 @@ test("what she can't work out she asks, and the answer is the note's", async () 
 });
 
 test("which job is a pick, filed on the job picked; a visit's time is its own answer", async () => {
-  fileAnswer = { ok: false, error: "", ask: { question: WHICH_JOB, options: [{ label: "2935 Railway Ave", target: { kind: "job", id: "j-2935" } }] }, turns: [{ who: "tiff", text: WHICH_JOB }] };
+  fileAnswer = { ok: false, error: "", ask: { question: WHICH_JOB, options: [{ label: "2935 Trial Ave", target: { kind: "job", id: "j-2935" } }] }, turns: [{ who: "tiff", text: WHICH_JOB }] };
   const r = await say("auth0|isaac", words("Order the grilles"));
-  expect(r.body.turns).toEqual([expect.objectContaining({ kind: "asks", answer: "job", options: [{ label: "2935 Railway Ave", target: { kind: "job", id: "j-2935" } }] })]);
+  expect(r.body.turns).toEqual([expect.objectContaining({ kind: "asks", answer: "job", options: [{ label: "2935 Trial Ave", target: { kind: "job", id: "j-2935" } }] })]);
   await say("auth0|isaac", { do: "job", noteId: "n-1", target: { kind: "job", id: "j-2935" } });
   expect(asked.slice(-1)).toEqual(["file as auth0|isaac@org-1: n-1 on j-2935"]);
   const v = await say("auth0|isaac", { do: "visit", noteId: "n-2", answer: "7:00 am" });
@@ -147,10 +147,10 @@ test("which job is a pick, filed on the job picked; a visit's time is its own an
 
 test("a question comes once: with nothing filed yet it carries the plan and no Undo; after a filing it isn't the filing's words", async () => {
   fileAnswer = { ok: true, summary: "", doors: [], ask: { question: "Make the job in ServiceM8?", options: [{ label: "Make the job" }, { label: "Not now" }] }, turns: [{ who: "tiff", text: "Make the job in ServiceM8?" }] };
-  const r = await say("auth0|isaac", words("Peter Fraser wants a return visit"));
+  const r = await say("auth0|isaac", words("Peter Quartermain wants a return visit"));
   expect(r.body.turns).toEqual([expect.objectContaining({ kind: "asks", say: "Make the job in ServiceM8?", rows: [expect.objectContaining({ lead: "Luke" })] })]);
   fileAnswer = { ...fileAnswer, doors: [{ kind: "tasks", count: 1, label: "1 task filed", ids: ["t-1"] }] };
-  const f = await say("auth0|isaac", words("Peter Fraser wants a return visit"));
+  const f = await say("auth0|isaac", words("Peter Quartermain wants a return visit"));
   expect(f.body.turns?.map((x) => [x.kind, x.say])).toEqual([
     ["filed", "Done."],
     ["asks", "Make the job in ServiceM8?"],
@@ -158,7 +158,7 @@ test("a question comes once: with nothing filed yet it carries the plan and no U
 });
 
 test("her dates are said in words", () => {
-  expect(datesInWords("the end of next Friday (2026-11-27), Peter Fraser")).toBe("the end of next Friday (Fri 27 Nov), Peter Fraser");
+  expect(datesInWords("the end of next Friday (2026-11-27), Peter Quartermain")).toBe("the end of next Friday (Fri 27 Nov), Peter Quartermain");
 });
 
 test("nothing to file is set aside and answered instead; Undo takes a note back as its author", async () => {

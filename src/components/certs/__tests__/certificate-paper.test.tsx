@@ -30,7 +30,7 @@ function render(a: CertAnswers = ANSWERS) {
       content={buildCertificate(a)}
       brand={brand}
       papers={{ licences: ["ARC authorisation AU12345"] }}
-      job={{ number: "3326", builder: "Helix Venture Studio Pty Ltd", address: "Lv 3 Suite 4/44-54 Botany Road, Alexandria, NSW, 2015" }}
+      job={{ number: "3326", builder: "Vertex Venture Studio Pty Ltd", address: "Lv 3 Suite 4/44-54 Saga Road, Exampleria, NSW, 2015" }}
       signOff={{
         name: "Isaac Smith",
         signedOn: "2026-10-01",
@@ -48,7 +48,7 @@ describe("CertificatePaper", () => {
     const html = render();
     expect(html).toContain("<h1>Mechanical Compliance Certificate</h1>");
     /* the street once, under the builder, not again as the heading */
-    expect(html.match(/Lv 3 Suite 4\/44-54 Botany Road/g)).toHaveLength(1);
+    expect(html.match(/Lv 3 Suite 4\/44-54 Saga Road/g)).toHaveLength(1);
     expect(html).not.toContain("dsd-eyebrow");
     expect(html).toContain("cer-plain");
     expect(html).not.toContain("Attention");
@@ -111,10 +111,10 @@ describe("the paper's words", () => {
   });
 
   it("splits a one-line address at its first comma, and keeps written lines", () => {
-    expect(addressLines("Lv 3 Suite 4/44-54 Botany Road, Alexandria, NSW, 2015")).toEqual(["Lv 3 Suite 4/44-54 Botany Road", "Alexandria, NSW, 2015"]);
-    expect(addressLines("74/10 Etham Avenue\nDarling Point NSW 2027")).toEqual(["74/10 Etham Avenue", "Darling Point NSW 2027"]);
+    expect(addressLines("Lv 3 Suite 4/44-54 Saga Road, Exampleria, NSW, 2015")).toEqual(["Lv 3 Suite 4/44-54 Saga Road", "Exampleria, NSW, 2015"]);
+    expect(addressLines("74/10 Fugiat Avenue\nPretend Point NSW 2027")).toEqual(["74/10 Fugiat Avenue", "Pretend Point NSW 2027"]);
     expect(addressLines(null)).toEqual([]);
     /* ServiceM8 sometimes leaves a comma at a line's end */
-    expect(addressLines("260 Birrell St,\nBondi NSW 2026")).toEqual(["260 Birrell St", "Bondi NSW 2026"]);
+    expect(addressLines("260 Veniam St,\nFictonia NSW 2026")).toEqual(["260 Veniam St", "Fictonia NSW 2026"]);
   });
 });

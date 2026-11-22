@@ -80,7 +80,7 @@ def thread(note_open=False, question=True):
     msgs = [
         '<div class="dd2">Yesterday</div>',
         f'<div class="msg">{av("CA")}<div class="bd">{who("Callum Ahn", "3:40 pm")}<p>Customer wants an isolator on the deck as well. <span class="nt">Isaac</span> can you price it?</p></div></div>',
-        f'<div class="msg">{tiff_av()}<div class="bd">{who("Tiff", "3:40 pm")}<p>I\'ve drafted a variation for it. It\'s waiting for Isaac before it goes to Julian.</p>{act("doc", "Variation: isolator on the deck", "$480 plus GST, waiting for Isaac", "Open")}</div></div>',
+        f'<div class="msg">{tiff_av()}<div class="bd">{who("Tiff", "3:40 pm")}<p>I\'ve drafted a variation for it. It\'s waiting for Isaac before it goes to Jules.</p>{act("doc", "Variation: isolator on the deck", "$480 plus GST, waiting for Isaac", "Open")}</div></div>',
         '<div class="dd2">Today</div>',
         f'''<div class="msg">{av("LI")}<div class="bd">{who("Lyle Irving", "10:02 am")}<div class="note2{" open" if note_open else ""}"><div class="lb2">{ico("mic")}Note from 42 seconds of voice</div><p class="r16">Study head mounted and levelled. Pipe going through the robe, 6 m to the outdoor, so it needs the longer run.</p></div></div></div>''',
         f'<div class="msg">{av("IS")}<div class="bd">{who("Isaac Smith", "10:05 am", voice)}<p>Get Lyle to order the grilles before lunch, and book commissioning for Friday arvo.</p></div></div>',
@@ -135,11 +135,11 @@ def phone():
     msgs = (f'<div class="msg">{av("IS")}<div class="bd">{who("Isaac Smith", "10:05")}<p style="font-size:15px;line-height:22px">Get Lyle to order the grilles before lunch.</p></div></div>'
             f'<div class="msg">{tiff_av()}<div class="bd">{who("Tiff", "10:05")}{act("task", "Order the grilles", "You, today by 12:30")}</div></div>'
             f'<div class="msg">{av("LI")}<div class="bd">{who("You", "10:31")}<div class="note2"><div class="lb2">{ico("mic")}Note from 20 seconds of voice</div><p style="font-size:15px;line-height:22px">Grilles ordered from Reece, pick up at 2. Two 600 square, white.</p></div></div></div>'
-            + f'<div class="msg">{tiff_av()}<div class="bd">{who("Tiff", "10:31")}<p style="font-size:15px;line-height:22px">Ticked off the grilles, and put the pick-up in your day.</p>{act("cal", "Pick up grilles, Reece Alexandria", "You, today 2:00")}</div></div>')
+            + f'<div class="msg">{tiff_av()}<div class="bd">{who("Tiff", "10:31")}<p style="font-size:15px;line-height:22px">Ticked off the grilles, and put the pick-up in your day.</p>{act("cal", "Pick up grilles, Reece Exampleria", "You, today 2:00")}</div></div>')
     return f'''<div class="v3 on-ink" style="width:390px;height:844px;flex-direction:column">{v3.MARK_DEFS}{MONO_DEFS}{tc.DEFS}
   <div style="height:56px;flex:none;display:flex;align-items:center;gap:8px;padding:0 12px 0 8px;color:#fff"><span class="ib bare lg" style="background:transparent;color:#fff">{ico("menu")}</span>{v3.mark_svg()}<b style="font-size:16px;font-weight:700">HeyTiff</b><span style="flex:1"></span><span class="b" style="height:40px;background:#fff;color:var(--ink)">{ico("plus")}New</span></div>
   <div style="flex:1;min-height:0;background:#fff;border-radius:40px 0 0 0;display:flex;flex-direction:column;overflow:hidden">
-    <div style="padding:20px 16px 0 24px"><a class="lk l13 qq" href="#">Jobs</a><h1 class="t20" style="margin-top:4px">Rifkin, Julian</h1><p class="l13 qq" style="display:flex;align-items:center;gap:6px">{v3.dot("Blue")}3342, Bellevue Hill. <span class="st good">On site</span></p></div>
+    <div style="padding:20px 16px 0 24px"><a class="lk l13 qq" href="#">Jobs</a><h1 class="t20" style="margin-top:4px">Fairweather, Jules</h1><p class="l13 qq" style="display:flex;align-items:center;gap:6px">{v3.dot("Blue")}3342, Bellevue Hill. <span class="st good">On site</span></p></div>
     <nav class="stb" style="margin:12px 0 0;padding:0 16px;overflow:hidden"><a class="on" href="#">Overview</a><a href="#">Quote</a><a href="#">Visits<span class="c">2</span></a><a href="#">Checklist</a></nav>
     <div style="flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;gap:14px;padding:12px 16px;-webkit-mask-image:linear-gradient(to bottom,transparent,#000 32px);mask-image:linear-gradient(to bottom,transparent,#000 32px)">{msgs}</div>
     <div class="jbar" style="margin:0 12px 12px">
@@ -161,7 +161,7 @@ def spec():
         ("Forms still work.", "The job's Add button opens Visit, Task, Variation, Cost, SWMS or Certificate by hand. Manual entry always works."),
     ]
     k = "".join(f'<div class="k"><span class="n">{i + 1}</span><div><b>{a}</b><p>{b}</p></div></div>' for i, (a, b) in enumerate(ks))
-    ex = [("\"Running the pipe through the robe, six metres\"", "A note"), ("\"Get Lyle to order the grilles before lunch\"", "A task for Lyle, today by 12:30"), ("\"Book commissioning for Friday arvo\"", "A visit, after asking the time"), ("\"Julian wants an isolator on the deck\"", "A variation, drafted, waiting for approval"), ("A photo of a Reece invoice", "A cost on the job"), ("\"Send Julian the variation\"", "Asks first: it goes to the customer")]
+    ex = [("\"Running the pipe through the robe, six metres\"", "A note"), ("\"Get Lyle to order the grilles before lunch\"", "A task for Lyle, today by 12:30"), ("\"Book commissioning for Friday arvo\"", "A visit, after asking the time"), ("\"Jules wants an isolator on the deck\"", "A variation, drafted, waiting for approval"), ("A photo of a Reece invoice", "A cost on the job"), ("\"Send Jules the variation\"", "Asks first: it goes to the customer")]
     e = "".join(f'<div class="tk2"><span>{a}</span><span>{b}</span></div>' for a, b in ex)
     return f'''<div class="v3" style="display:block;background:#fff"><div class="jcs">
 <div><h1>The job's conversation</h1><p class="ld">Type or talk to the job. Tiff turns it into the right thing, says what she did, and asks only when she has to.</p><div style="margin-top:20px">{k}</div></div>

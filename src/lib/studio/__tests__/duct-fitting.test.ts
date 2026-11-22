@@ -22,7 +22,7 @@ describe("what a fitting is called", () => {
     expect(fittingName({ ends })).toBe(name);
   });
 
-  it("is a Y when what runs straight on is no bigger than a branch (7 Cutler's second)", () => {
+  it("is a Y when what runs straight on is no bigger than a branch (7 Ipsum's second)", () => {
     expect(fittingKind([end(400, 180), end(350, 90), end(300, 0)])).toBe("Y");
   });
 

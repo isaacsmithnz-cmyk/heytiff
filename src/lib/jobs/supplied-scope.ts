@@ -78,7 +78,7 @@ export const SUPPLIED_SYSTEM_PROMPT =
   "when they say. `from` is where it came from, each a short label: a drawing by its sheet " +
   "number where its heading gives one (\"CD105\"), else by its page (\"Drawings, page 6\"), " +
   "never a sheet number the headings don't show; a " +
-  "spec's clause and page (\"Spec 0702, page 185\"); or an email (\"JT Construct's email, " +
+  "spec's clause and page (\"Spec 0702, page 185\"); or an email (\"QX Construct's email, " +
   "12 Nov\").\n\n" +
   "`fine`: the conditions the papers put on the work that change what's priced or how it's " +
   "done: design conditions, refrigerant limits, duct sizing and lengths, filters, noise, " +
@@ -194,7 +194,7 @@ const SHEET_NUMBER = /^[A-Z]{1,4}[-\s.]?\d{1,4}(\.\d{1,2})?[A-Z]?$/;
     A room's tag or a window's code moves about and repeats; a sheet number
     doesn't. A set with no such spot gets none, and its sheets are cited by
     page, so a number is never guessed (on eight real sets, 11 November 2026:
-    7 Cutler Rd CD101 to CD607, 3405 A0000 to A7015, 6 Bishops, 85 West
+    7 Ipsum Rd CD101 to CD607, 3405 A0000 to A7015, 6 Nostrud, 85 Placeholder
     Street right; four others none, and no wrong one anywhere). */
 export function sheetNumbersOf(pages: readonly (readonly SheetWord[])[]): (string | null)[] {
   const spot = (w: SheetWord) => `${Math.round(w.fx * 25)},${Math.round(w.fy * 25)}`;

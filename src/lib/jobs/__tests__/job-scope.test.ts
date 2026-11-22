@@ -6,8 +6,8 @@ import { SCOPE_SCHEMA, changingWords, descriptionOf, ledeAfterDescription, intoV
    answer is read back. */
 
 const brief = {
-  description: "Four systems for the Carney Residence.",
-  lede: "Four systems for the Carney Residence, from Anna Vaughan Architects' tender set.",
+  description: "Four systems for the Larkspur Residence.",
+  lede: "Four systems for the Larkspur Residence, from Anna Kettlewell Architects' tender set.",
   systems: [
     { area: "Ground floor", kind: "ducted, under the floor", text: "Living/Dining, Kids Play and Guest Bed.", from: ["A200", "A202", ""] },
     { area: "", kind: "", text: "", from: [] },
@@ -21,7 +21,7 @@ const brief = {
 describe("reading Tiff's brief back", () => {
   it("keeps what she wrote and drops what's empty", () => {
     expect(scopeOf(brief)).toEqual({
-      description: "Four systems for the Carney Residence.",
+      description: "Four systems for the Larkspur Residence.",
       lede: brief.lede,
       systems: [{ area: "Ground floor", kind: "ducted, under the floor", text: "Living/Dining, Kids Play and Guest Bed.", from: ["A200", "A202"] }],
       added: [{ text: "Exhaust fans in the three bathrooms", from: "The builder's call, 28 Oct" }],
@@ -49,13 +49,13 @@ describe("what Tiff is handed", () => {
   it("is the job's own words and its record, newest first", () => {
     const p = scopePrompt({
       status: "Quote",
-      clientName: "Tandem Projects",
-      scope: "Fw: Quote 6 Bishops avenue, Randwick",
+      clientName: "Tangent Projects",
+      scope: "Fw: Quote 6 Nostrud avenue, Madeupton",
       workDone: null,
       lines: ['2026-10-28 14:40 — note by Isaac Smith: "Builder rang"', "2026-10-08 — 1 document added"],
     });
-    expect(p).toContain("Client: Tandem Projects");
-    expect(p).toContain("The job, in the office's own words:\nFw: Quote 6 Bishops avenue, Randwick");
+    expect(p).toContain("Client: Tangent Projects");
+    expect(p).toContain("The job, in the office's own words:\nFw: Quote 6 Nostrud avenue, Madeupton");
     expect(p).toContain('newest first:\n2026-10-28 14:40 — note by Isaac Smith: "Builder rang"\n2026-10-08');
     expect(p).not.toContain("invoice description");
   });
@@ -72,8 +72,8 @@ describe("what Tiff is handed", () => {
 
   it("hands over the brief as it stands with its description, one written before it had one with its first sentence", () => {
     const read = { status: "Quote", clientName: "C", scope: null, workDone: null, lines: [] };
-    const was = { description: "", lede: "A ducted system at 125 Homer St, Earlwood. Scope from Luke's note.", systems: [], added: [], notOurs: [], clarify: [], updates: [], undoSaid: "" };
-    expect(scopePrompt({ ...read, previous: was })).toContain('"description":"A ducted system at 125 Homer St, Earlwood."');
+    const was = { description: "", lede: "A ducted system at 125 Exemplar St, Fakewood. Scope from Luke's note.", systems: [], added: [], notOurs: [], clarify: [], updates: [], undoSaid: "" };
+    expect(scopePrompt({ ...read, previous: was })).toContain('"description":"A ducted system at 125 Exemplar St, Fakewood."');
   });
 });
 
@@ -83,11 +83,11 @@ describe("the description under the job's name", () => {
   });
 
   it("is the lede's first sentence for a brief written before it had one, never cut at a street or a title", () => {
-    expect(descriptionOf({ description: "", lede: "Sharon Doyle wants a detailed clean of the AC system. Scope is from the office's description." })).toBe(
-      "Sharon Doyle wants a detailed clean of the AC system."
+    expect(descriptionOf({ description: "", lede: "Sharon Ironside wants a detailed clean of the AC system. Scope is from the office's description." })).toBe(
+      "Sharon Ironside wants a detailed clean of the AC system."
     );
-    expect(descriptionOf({ description: "", lede: "Ducted at 4 Smith St. Earlwood for Dr. Lee, quoted as two options. Scope from Luke." })).toBe(
-      "Ducted at 4 Smith St. Earlwood for Dr. Lee, quoted as two options."
+    expect(descriptionOf({ description: "", lede: "Ducted at 4 Smith St. Fakewood for Dr. Lee, quoted as two options. Scope from Luke." })).toBe(
+      "Ducted at 4 Smith St. Fakewood for Dr. Lee, quoted as two options."
     );
     expect(descriptionOf({ description: "", lede: "A Mitsubishi 7.1kW single zone." })).toBe("A Mitsubishi 7.1kW single zone.");
   });
@@ -213,15 +213,15 @@ describe("after it's sent", () => {
   });
 
   it("writes what's changing in the brief's words, with where each came from", () => {
-    expect(changingWords([{ text: "Concealed fan coil unit next to the Study", from: "Anna Vaughan's email, Tue 3 Nov" }])).toBe(
-      "Concealed fan coil unit next to the Study (Anna Vaughan's email, Tue 3 Nov).",
+    expect(changingWords([{ text: "Concealed fan coil unit next to the Study", from: "Anna Kettlewell's email, Tue 3 Nov" }])).toBe(
+      "Concealed fan coil unit next to the Study (Anna Kettlewell's email, Tue 3 Nov).",
     );
     expect(changingWords([{ text: "New trunking.", from: "" }, { text: "A pump", from: "Isaac's note" }])).toBe("New trunking; A pump (Isaac's note).");
     expect(changingWords([])).toBe("");
   });
 
   describe("taken into a version", () => {
-    const study = { text: "Concealed fan coil unit next to the Study", from: "Anna Vaughan's email" };
+    const study = { text: "Concealed fan coil unit next to the Study", from: "Anna Kettlewell's email" };
     const pump = { text: "A condensate pump", from: "Isaac's note" };
 
     it("marks what's taken with the version's number and keeps the rest open", () => {
@@ -237,7 +237,7 @@ describe("after it's sent", () => {
     });
 
     it("says on Added which version it went in", () => {
-      expect(versionFrom({ ...study, version: 2 })).toBe("Version 2, from Anna Vaughan's email");
+      expect(versionFrom({ ...study, version: 2 })).toBe("Version 2, from Anna Kettlewell's email");
       expect(versionFrom({ text: "x", from: "", version: 3 })).toBe("Version 3");
       expect(versionFrom(pump)).toBe("Isaac's note");
     });
@@ -247,8 +247,8 @@ describe("after it's sent", () => {
 describe("a lede cut off by a cap (3533, 15 November 2026)", () => {
   it("ends at its last full sentence, never mid-word", () => {
     const { wholeSentences } = jest.requireActual("../supplied-scope") as typeof import("../supplied-scope");
-    expect(wholeSentences("Whole-house ducted air at 2 Krui Street, Fairlight. The scope comes from JT Construct's request, so there is no room list or outdoor unit locati", 700)).toBe(
-      "Whole-house ducted air at 2 Krui Street, Fairlight.",
+    expect(wholeSentences("Whole-house ducted air at 2 Tempor Street, Demoford. The scope comes from QX Construct's request, so there is no room list or outdoor unit locati", 700)).toBe(
+      "Whole-house ducted air at 2 Tempor Street, Demoford.",
     );
     expect(wholeSentences("One sentence. Two sentences.", 700)).toBe("One sentence. Two sentences.");
     expect(wholeSentences("No stop at all here", 700)).toBe("No stop at all here");

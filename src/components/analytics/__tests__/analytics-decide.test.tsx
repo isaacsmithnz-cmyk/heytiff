@@ -22,7 +22,7 @@ const job = (id: string, over: Partial<Ask["job"]> = {}): Ask["job"] => ({
   valueCents: 1_840_000,
   kind: "ducted",
   number: "3187",
-  suburb: "Chatswood",
+  suburb: "Fablewood",
   brief: "Ducted install, unit 4, as per builder's plans",
   clientId: "co-1",
   ...over,

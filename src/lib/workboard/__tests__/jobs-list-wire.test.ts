@@ -10,8 +10,8 @@ const job: JobsListRow = {
   href: "/dashboard/jobs/01a11840-8dae-7c94-9d9b-0e57c08f4c3b",
   number: "3405",
   numberOurs: false,
-  client: "Built Complete",
-  site: "Edgecliff",
+  client: "Built Sample",
+  site: "Fakecliff",
   kind: "Construction Project",
   hue: "yellow",
   state: "Quote to write",
@@ -22,7 +22,7 @@ const job: JobsListRow = {
   who: ["Luke Ingold"],
   valueCents: null,
   views: ["all", "quotes"],
-  words: "3405 built complete edgecliff fw: 48 thorne st - ac quote construction project",
+  words: "3405 built sample fakecliff fw: 48 laborum st - ac quote construction project",
 };
 /* a visit with no ServiceM8 job: its link is its own */
 const visit: JobsListRow = {

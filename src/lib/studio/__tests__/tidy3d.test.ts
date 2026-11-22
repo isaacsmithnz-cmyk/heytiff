@@ -29,7 +29,7 @@ describe("doors and windows onto their walls", () => {
     expect(w.b).toEqual([2.5, 0]);
   });
 
-  it("moves one read 0.6 m inside an outside wall out onto it (6 Bishops Ave)", () => {
+  it("moves one read 0.6 m inside an outside wall out onto it (6 Nostrud Ave)", () => {
     const living = room("Living", rect(0, 0, 6, 5));
     const [w] = snapOpenings([living], [opening("window", [0.6, 1], [0.6, 2.5], true)]);
     expect(w.a).toEqual([0, 1]);
@@ -53,7 +53,7 @@ describe("doors and windows onto their walls", () => {
 });
 
 describe("no wall where the plan has none", () => {
-  /* 4/48 Avoca St: the entry runs into the living, their outlines meeting */
+  /* 4/48 Dolore St: the entry runs into the living, their outlines meeting */
   it("opens where the hall and the living meet edge to edge", () => {
     const f = floor([room("Entry", rect(0, 0, 3, 1), "circulation"), room("Living / Dining", rect(3, -1, 8, 3))]);
     waysIn(f);
@@ -66,7 +66,7 @@ describe("no wall where the plan has none", () => {
     expect(opens(f, "x", 1.2, 0, 4)).toBe(false);
   });
 
-  /* 27 Milroy Ave: the old hall drawn right up to the old rumpus it has a door into */
+  /* 27 Proident Ave: the old hall drawn right up to the old rumpus it has a door into */
   it("keeps the wall where a door joins the two", () => {
     const f = floor([room("Entry Hall", rect(0, 0, 6, 1.2), "circulation"), room("Rumpus", rect(0, 1.2, 4, 4))], [opening("door", [1, 1.2], [1.8, 1.2])]);
     waysIn(f);

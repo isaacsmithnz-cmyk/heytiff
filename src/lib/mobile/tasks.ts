@@ -29,7 +29,7 @@ export type PhoneTask = {
   from: string | null;
   /** you made it, so you may delete it */
   own: boolean;
-  /** the job it's about, which the task opens: "3516 Waitara", and the note it was read from, where Tiff made it from one */
+  /** the job it's about, which the task opens: "3516 Mockville", and the note it was read from, where Tiff made it from one */
   job?: { uuid: string; label: string; note: string | null };
 };
 

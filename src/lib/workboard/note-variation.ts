@@ -37,7 +37,7 @@ export type ProposedVariation = {
   /** What the client wants changed, in the record's language: "return
       grille in Bed 2". */
   what: string;
-  /** The lines said for it (Isaac, 17 November 2026, Dan Brad's job:
+  /** The lines said for it (Isaac, 17 November 2026, Dan Moorcroft's job:
       "Allow 1 hour for the tap and 2 hours for the ceiling fans as a
       variation. No materials needed"): put on the variation's draft, still
       to price. Absent on every proposal stored before them. */

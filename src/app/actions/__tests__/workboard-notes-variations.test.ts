@@ -242,7 +242,7 @@ beforeEach(() => {
   db = {
     staff_profiles: STAFF.map((s) => ({ ...s })),
     sm8_jobs: [{ org_id: "org-1", uuid: JOB, generated_job_id: "3209", company_uuid: "co-1", active: 1 }],
-    sm8_companies: [{ org_id: "org-1", uuid: "co-1", name: "Richards" }],
+    sm8_companies: [{ org_id: "org-1", uuid: "co-1", name: "Rowland" }],
   };
   seq = 0;
   caps = new Set(["workboard", "financials"]);
@@ -296,7 +296,7 @@ describe("starting a variation from the words", () => {
       expect.objectContaining({
         title: "Add to the quote: return grille in Bed 2",
         assigned_to: "s-me",
-        detail: "Nothing is accepted on the quote on #3209 — Richards in HeyTiff yet, so this changes the quote itself rather than starting a variation: reprice it from the job's Quote tab.",
+        detail: "Nothing is accepted on the quote on #3209 — Rowland in HeyTiff yet, so this changes the quote itself rather than starting a variation: reprice it from the job's Quote tab.",
       }),
     ]);
     expect(res.turns.at(-1)!.text).toBe(

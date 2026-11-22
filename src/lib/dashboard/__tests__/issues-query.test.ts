@@ -98,7 +98,7 @@ it("names every kind of target, one read per table, not one per row", async () =
   ];
   rows.projects = [{ id: "p1", name: "Fit-out", client_name: "Harbour St" }];
   rows.sm8_jobs = [{ uuid: "j1", generated_job_id: "3271", company_uuid: "c1" }];
-  rows.sm8_companies = [{ uuid: "c1", name: "Richard Ferns" }];
+  rows.sm8_companies = [{ uuid: "c1", name: "Richard Valemont" }];
 
   const out = await listOpenIssues("org-1");
   expect(out.map((i) => [i.id, i.where])).toEqual([
@@ -106,7 +106,7 @@ it("names every kind of target, one read per table, not one per row", async () =
     ["i2", "Job 1007, Bayview Apartments"],
     ["i3", "Northgate Realty, Annual clean"],
     ["i4", "Harbour St, Fit-out"],
-    ["i5", "Job 3271, Richard Ferns"],
+    ["i5", "Job 3271, Richard Valemont"],
   ]);
   for (const t of ["maintenance_visits", "maintenance_agreements", "projects", "sm8_jobs", "sm8_companies"]) {
     expect(of(t)).toHaveLength(1);

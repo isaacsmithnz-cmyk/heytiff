@@ -31,7 +31,7 @@ const person = (over: Partial<SwmsPerson>): SwmsPerson => ({
   ...over,
 });
 const withIssue = (issue: string, over: Partial<NonNullable<SwmsPerson["signon"]>> = {}) => ({
-  at: "2026-09-15T21:50:00.000Z", version: 1, onPhoneOf: null, signedByStaffId: null, briefedBy: "Troy Porter", issue, issueCleared: null, svg: "<svg/>", ...over,
+  at: "2026-09-15T21:50:00.000Z", version: 1, onPhoneOf: null, signedByStaffId: null, briefedBy: "Troy Northam", issue, issueCleared: null, svg: "<svg/>", ...over,
 });
 const doc = (over: Partial<SwmsDocument> = {}): SwmsDocument => ({
   swmsId: "s-1",
@@ -41,19 +41,19 @@ const doc = (over: Partial<SwmsDocument> = {}): SwmsDocument => ({
   issuedAt: "2026-09-15T21:42:00.000Z",
   jurisdiction: "NSW",
   answers,
-  content: buildSwms(answers, { work: "Install a split system", electricianName: "Sam Ikpeba", firstAiderName: "Troy Porter" }),
+  content: buildSwms(answers, { work: "Install a split system", electricianName: "Sam Ikpeba", firstAiderName: "Troy Northam" }),
   libraryVersion: "hvac-2026.09",
   job: { uuid: "job-1", number: "2601", clientName: null, address: "14 Attunga Road, Miranda NSW 2228", description: null, status: "Work Order", state: "NSW", jurisdiction: "NSW", postcode: "2228", categoryName: "Install" },
   responsibleStaffId: "troy",
-  responsible: "Troy Porter",
-  siteCheckedBy: "Troy Porter",
+  responsible: "Troy Northam",
+  siteCheckedBy: "Troy Northam",
   siteCheckedAt: "2026-09-15T21:40:00.000Z",
   people: [
-    person({ id: "p-troy", staffProfileId: "troy", name: "Troy Porter", role: "Supervisor", signon: withIssue("") }),
+    person({ id: "p-troy", staffProfileId: "troy", name: "Troy Northam", role: "Supervisor", signon: withIssue("") }),
     person({ id: "p-dane", staffProfileId: "dane", name: "Dane Whitmore" }),
     person({ id: "p-kai", name: "Kai Lindqvist", role: "Lindqvist Plumbing", team: false }),
   ],
-  versions: [{ id: "v-1", version: 1, issuedAt: "2026-09-15T21:42:00.000Z", reason: "First issue", material: true, issuedBy: "Troy Porter" }],
+  versions: [{ id: "v-1", version: 1, issuedAt: "2026-09-15T21:42:00.000Z", reason: "First issue", material: true, issuedBy: "Troy Northam" }],
   ...over,
 });
 
@@ -135,8 +135,8 @@ it("leads a revision with what changed", () => {
       doc={doc({
         version: 2,
         versions: [
-          { id: "v-1", version: 1, issuedAt: "2026-09-15T21:42:00.000Z", reason: "First issue", material: true, issuedBy: "Troy Porter" },
-          { id: "v-2", version: 2, issuedAt: "2026-09-16T01:00:00.000Z", reason: "Crane lift instead of a hoist", material: true, issuedBy: "Troy Porter" },
+          { id: "v-1", version: 1, issuedAt: "2026-09-15T21:42:00.000Z", reason: "First issue", material: true, issuedBy: "Troy Northam" },
+          { id: "v-2", version: 2, issuedAt: "2026-09-16T01:00:00.000Z", reason: "Crane lift instead of a hoist", material: true, issuedBy: "Troy Northam" },
         ],
       })}
       me="dane"
@@ -173,8 +173,8 @@ it("points a replaced version at the one that replaced it, and takes no sign-on"
       doc={doc({
         latest: false,
         versions: [
-          { id: "v-1", version: 1, issuedAt: "2026-09-15T21:42:00.000Z", reason: "First issue", material: true, issuedBy: "Troy Porter" },
-          { id: "v-2", version: 2, issuedAt: "2026-09-16T01:00:00.000Z", reason: "New isolation point", material: true, issuedBy: "Troy Porter" },
+          { id: "v-1", version: 1, issuedAt: "2026-09-15T21:42:00.000Z", reason: "First issue", material: true, issuedBy: "Troy Northam" },
+          { id: "v-2", version: 2, issuedAt: "2026-09-16T01:00:00.000Z", reason: "New isolation point", material: true, issuedBy: "Troy Northam" },
         ],
       })}
       me="dane"
@@ -206,7 +206,7 @@ it("puts the reading before the signature, in plain words, in the site's own tim
   expect(screen.queryByText("Admin")).toBeNull();
   /* 21:42 UTC on the 15th is 7:42am on the 16th in Sydney — written the way
      the job card writes a day and the calendar writes a time */
-  expect(screen.getByText("Issued Wed 16 Sept, 7:42am. Troy Porter is in charge on site.")).toBeInTheDocument();
+  expect(screen.getByText("Issued Wed 16 Sept, 7:42am. Troy Northam is in charge on site.")).toBeInTheDocument();
 });
 
 /* the person in charge ticked "I've been briefed", and the register said
@@ -218,7 +218,7 @@ it("asks the person in charge to brief everyone, not to have been briefed", asyn
   expect(screen.getByText(/You're in charge on site\.$/)).toBeInTheDocument();
   expect(screen.queryByText(/I was consulted and briefed/)).toBeNull();
   expect(screen.getByText(/I'll brief everyone it covers before work starts/)).toBeInTheDocument();
-  expect(screen.queryByText(/and tell Troy Porter/)).toBeNull();
+  expect(screen.queryByText(/and tell Troy Northam/)).toBeNull();
   sign("Your signature");
   await userEvent.click(screen.getByRole("button", { name: "Sign on" }));
   expect(signOnSwms).toHaveBeenCalledWith(expect.objectContaining({ personId: "p-troy" }));
@@ -247,11 +247,11 @@ it("shows nobody else the answer-it card, and says who sorted one", () => {
   const sorted = doc();
   sorted.people[1] = {
     ...sorted.people[1],
-    signon: withIssue("No anchor on the rear ridge", { issueCleared: { by: "Troy Porter", at: "2026-09-16T08:05:00.000Z" } }),
+    signon: withIssue("No anchor on the rear ridge", { issueCleared: { by: "Troy Northam", at: "2026-09-16T08:05:00.000Z" } }),
   };
   render(<SwmsSignOn doc={sorted} me="dane" />);
   expect(screen.queryByText("An issue was raised")).toBeNull();
-  expect(screen.getByText("Raised: No anchor on the rear ridge — sorted by Troy Porter, Wed 16 Sept, 6:05pm")).toBeInTheDocument();
+  expect(screen.getByText("Raised: No anchor on the rear ridge — sorted by Troy Northam, Wed 16 Sept, 6:05pm")).toBeInTheDocument();
 });
 
 /* THE ANCHOR IS FOUND RUSTED ON THE ROOF — after the briefing at the truck,
@@ -274,7 +274,7 @@ it("keeps a door to raise an issue after you've signed", async () => {
    signing — the door was only ever on the reader's own row. */
 it("lets whoever gave a sign-on on their phone add an issue to it", async () => {
   const given = doc();
-  given.people[2] = { ...given.people[2], signon: withIssue("", { onPhoneOf: "Troy Porter", signedByStaffId: "troy" }) };
+  given.people[2] = { ...given.people[2], signon: withIssue("", { onPhoneOf: "Troy Northam", signedByStaffId: "troy" }) };
   render(<SwmsSignOn doc={given} me="troy" />);
   const kai = row("Kai Lindqvist");
   await userEvent.click(within(kai).getByRole("button", { name: "Raise an issue" }));
@@ -285,7 +285,7 @@ it("lets whoever gave a sign-on on their phone add an issue to it", async () => 
 
 it("offers nobody else's row that door", () => {
   const given = doc();
-  given.people[2] = { ...given.people[2], signon: withIssue("", { onPhoneOf: "Troy Porter", signedByStaffId: "troy" }) };
+  given.people[2] = { ...given.people[2], signon: withIssue("", { onPhoneOf: "Troy Northam", signedByStaffId: "troy" }) };
   render(<SwmsSignOn doc={given} me="dane" />);
   const kai = row("Kai Lindqvist");
   expect(within(kai).queryByRole("button", { name: /Raise an issue/ })).toBeNull();
@@ -297,7 +297,7 @@ it("keeps the in-charge words when someone else holds the phone", async () => {
   const unsigned = doc();
   unsigned.people[0] = { ...unsigned.people[0], signon: null };
   render(<SwmsSignOn doc={unsigned} me="dane" />);
-  const troy = row("Troy Porter");
+  const troy = row("Troy Northam");
   await userEvent.click(within(troy).getByRole("button", { name: "Sign them on" }));
   expect(screen.getByText(/They'll brief everyone it covers before work starts/)).toBeInTheDocument();
 });
@@ -312,8 +312,8 @@ it("says a sign-on a correction carried was given before it, without a version n
   const carried = doc({
     version: 2,
     versions: [
-      { id: "v-1", version: 1, issuedAt: "2026-09-15T21:42:00.000Z", reason: "First issue", material: true, issuedBy: "Troy Porter" },
-      { id: "v-2", version: 2, issuedAt: "2026-09-16T01:00:00.000Z", reason: "Hospital name was wrong", material: false, issuedBy: "Troy Porter" },
+      { id: "v-1", version: 1, issuedAt: "2026-09-15T21:42:00.000Z", reason: "First issue", material: true, issuedBy: "Troy Northam" },
+      { id: "v-2", version: 2, issuedAt: "2026-09-16T01:00:00.000Z", reason: "Hospital name was wrong", material: false, issuedBy: "Troy Northam" },
     ],
   });
   render(<SwmsSignOn doc={carried} me="troy" />);
@@ -326,7 +326,7 @@ it("says a sign-on a correction carried was given before it, without a version n
    time alone */
 it("says who is in charge and who is you, and when each signed on", () => {
   render(<SwmsSignOn doc={doc()} me="dane" />);
-  const troy = row("Troy Porter");
+  const troy = row("Troy Northam");
   expect(within(troy).getByText("Supervisor, in charge")).toBeInTheDocument();
   expect(within(troy).getByText("Signed on 7:50am")).toBeInTheDocument();
   const dane = row("Dane Whitmore");

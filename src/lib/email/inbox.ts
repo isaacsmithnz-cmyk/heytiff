@@ -58,7 +58,7 @@ export type InboxRowIn = {
 
 /** The rows, said: a refused email (not from the team) is never shown, and a
     forward that couldn't be read goes once the same email, forwarded again by
-    the same person, was (Krui Street, 29 October 2026: the failed read sat
+    the same person, was (Tempor Street, 29 October 2026: the failed read sat
     beside the one that worked, under the same title). */
 export function inboxOf(rows: readonly InboxRowIn[], me: string | null, names: ReadonlyMap<string, string>): InboxEmail[] {
   const out = rows
@@ -107,7 +107,7 @@ export function inboxWord(e: InboxEmail): { tone: Tone; word: string; waiting: b
   }
 }
 
-/** The grey line under an email's subject: From Shaheer Khan, forwarded by
+/** The grey line under an email's subject: From Sami Crestfield, forwarded by
     you yesterday. */
 export function inboxLine(e: Pick<InboxEmail, "from" | "by" | "mine" | "at">, now: number): string {
   const by = e.mine ? "you" : e.by;
@@ -115,7 +115,7 @@ export function inboxLine(e: Pick<InboxEmail, "from" | "by" | "mine" | "at">, no
   return e.from ? `From ${e.from}, ${forwarded}` : `${forwarded[0]!.toUpperCase()}${forwarded.slice(1)}`;
 }
 
-/** The grey line under an open email's subject: From Shaheer Khan at JT
+/** The grey line under an open email's subject: From Sami Crestfield at JT
     Construct, forwarded by you yesterday at 7:48 pm. */
 export function inboxHeadLine(e: Pick<InboxEmail, "by" | "mine" | "at">, p: EmailProposal | null, now: number): string {
   const contact = contactOf(p);

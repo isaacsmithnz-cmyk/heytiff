@@ -5,7 +5,7 @@ import { createNote, noteLayoutOf, type NoteObject } from "../notes";
 import { clearCallouts, paperFootprint } from "../paper-labels";
 
 /* 10 mm a unit on a 10 m by 7 m sheet: a PEA under a note's words, as 7
-   Cutler printed it, and a head whose callout is clear */
+   Ipsum printed it, and a head whose callout is clear */
 const unit = (id: string, at: [number, number], callout: [number, number]): DesignObject => ({
   id,
   type: "unit",

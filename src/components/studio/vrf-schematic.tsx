@@ -129,7 +129,7 @@ export function VrfSchematic({
   const headModel = (id: string) => allocs.find((a) => a.id === id)?.model ?? "";
   const word = combinationWord(doc, pack, sys);
   /* the heads a drawing misses, once any refrigerant run is drawn — a
-     drawing that never reaches the outdoor misses every one (48 Thorne St,
+     drawing that never reaches the outdoor misses every one (48 Laborum St,
      2026-10-13: four runs to a riser pair, none to the outdoor, and no word) */
   const unpiped =
     tree && !tree.drawn && doc.objects.some((o) => o.type === "pipe-run" && o.systemId === sys.id)

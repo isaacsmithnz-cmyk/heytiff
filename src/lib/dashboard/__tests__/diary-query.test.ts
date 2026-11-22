@@ -215,7 +215,7 @@ describe("your replies from HeyTiff", () => {
         notes,
         me: { uuid: ISAAC_P.uuid, handle: ISAAC_P.handle },
         people: [ISAAC_P, LYLE_P],
-        jobs: new Map([["j-2041", { label: "2041 Wollstonecraft", live: true }]]),
+        jobs: new Map([["j-2041", { label: "2041 Testcraft", live: true }]]),
         today,
         ...(opts.replies ? { replies: await opts.replies } : {}),
       });

@@ -104,7 +104,7 @@ const listOf = (over: Partial<ListInput> = {}) =>
 
 const given = (over: Partial<NewAssignment> = {}): NewAssignment => ({
   taskId: "a1",
-  title: "Measure up the Rozelle fans",
+  title: "Measure up the Mockzelle fans",
   detail: null,
   fromName: "Lyle Irving",
   dueDate: null,
@@ -258,11 +258,11 @@ describe("the old list's rows", () => {
 
   it("(F) a task a ServiceM8 ask made says who asked, and Reply opens the conversation", () => {
     const list = listOf({
-      tasks: [task({ id: "m1", title: "Which fans for Rozelle?" })],
+      tasks: [task({ id: "m1", title: "Which fans for Mockzelle?" })],
       mentions: [{ taskId: "m1", noteId: "n-77", asker: "Lyle", day: DAY }],
     });
     const [row] = todoRows(input({ list }));
-    expect(row).toMatchObject({ name: "Which fans for Rozelle?", tick: "m1", act: { kind: "link", label: "Reply", href: deskAskHref("n-77") } });
+    expect(row).toMatchObject({ name: "Which fans for Mockzelle?", tick: "m1", act: { kind: "link", label: "Reply", href: deskAskHref("n-77") } });
   });
 
   it("(F) a won job never booked: Book in, on its page's Visits", () => {
@@ -386,7 +386,7 @@ describe("an email Tiff has read", () => {
     const rows = todoRows(
       input({
         emails: [
-          { id: "e1", subject: "Tender – 40 Westbourne Street, Stanmore", day: "2026-10-29", forJob: null },
+          { id: "e1", subject: "Tender – 40 Aliqua Street, Placeholm", day: "2026-10-29", forJob: null },
           { id: "e2", subject: "Revised drawings, Rev D", day: "2026-10-29", forJob: "3444" },
         ],
       })
@@ -395,7 +395,7 @@ describe("an email Tiff has read", () => {
       source: "email",
       col: "activity",
       tone: "look",
-      name: "Tender – 40 Westbourne Street, Stanmore",
+      name: "Tender – 40 Aliqua Street, Placeholm",
       line: "Tiff read your email: a new job",
       act: { kind: "link", label: "Open", href: "/dashboard/conversations?open=email-e1" },
     });

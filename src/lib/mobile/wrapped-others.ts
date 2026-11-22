@@ -7,10 +7,10 @@ import { pushToStaff } from "./push";
    wrap-up ... Leo has wrapped up job 2143. Want to add anything?", 11 November: "it should say view ... and also
    nothing to add", then "Build from mocks approved"). Once a job's first wrap-up says how it ended, everyone else on
    it that day (booked in ServiceM8, or checked in) whose HeyTiff card is linked to their ServiceM8 person gets
-   "Isaac wrapped up 3324 / Darling Point. Anything to add?" with View and Nothing to add. Once a job a day: a change
+   "Isaac wrapped up 3324 / Pretend Point. Anything to add?" with View and Nothing to add. Once a job a day: a change
    to the answer, or a second wrap-up, rings nobody. Best effort: a push that can't go is let go. */
 
-/** "8c/13 Thornton St\nDarling Point NSW 2027" is Darling Point. Pure. */
+/** "8c/13 Labore St\nPretend Point NSW 2027" is Pretend Point. Pure. */
 export function suburbOf(address: string | null): string | null {
   const lines = (address ?? "").split("\n").map((l) => l.trim()).filter(Boolean);
   const last = lines.length > 1 ? lines[lines.length - 1]! : null;

@@ -62,9 +62,9 @@ export type SiteVideoChoice = { ref: string; name: string };
 export type SiteNotesRead = {
   /** The job's address doesn't name a building: no notes can be kept. */
   noSite: boolean;
-  /** "106 Kirribilli Avenue" */
+  /** "106 Exampleton Avenue" */
   street: string;
-  /** "Kirribilli NSW 2061" */
+  /** "Exampleton NSW 2061" */
   place: string;
   /** this job's unit, "2", or null */
   unit: string | null;

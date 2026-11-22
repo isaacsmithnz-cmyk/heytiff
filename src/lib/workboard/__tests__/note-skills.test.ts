@@ -85,7 +85,7 @@ describe("checks", () => {
   });
 });
 
-describe("Dan Brad's variation, with its lines", () => {
+describe("Dan Moorcroft's variation, with its lines", () => {
   const said = { what: "replace 2 ceiling fans and move a tap", lines: [{ kind: "labour", what: "move the tap", hours: 1, qty: 0 }, { kind: "labour", what: "replace 2 ceiling fans", hours: 2, qty: 0 }] };
 
   it("keeps the labour lines, no materials", () => {

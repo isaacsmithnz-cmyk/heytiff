@@ -61,7 +61,7 @@ it("names the customer from the job's contacts, by number or address, and the te
   expect(bubbles.map((b) => b.name)).toEqual(["Dana", "Marco", null]);
 });
 
-/* the walk of 26 October 2026: the text part joined "Luke Ingold61457301636" */
+/* the walk of 26 October 2026: the text part joined "Luke Ingold61491570158" */
 it("reads the HTML as text before ServiceM8's text part, and the text part where the HTML says nothing", async () => {
   jobRows = [
     { uuid: "s1", kind: "email", direction: "outbound", raw: { timestamp: "2026-10-06 11:51:06", subject: "Re: Your Quote", message_text: "Regards,\n\nDana Lee61400000002\nOperations Manager", message_html: 'Regards,<br /><br /><font size="2">Dana Lee</font><div><span>61400000002</span><br /><span>Operations Manager</span></div>', sent_by_staff_uuid: "s-dana" } },

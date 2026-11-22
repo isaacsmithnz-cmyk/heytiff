@@ -89,7 +89,7 @@ export async function searchClients(
     .eq("org_id", orgId)
     .eq("active", 1);
   /* One word is looked for anywhere in a name, and ranked. Several must each
-     START a word of it, in any order — "constr hr" is HR Constructions — the
+     START a word of it, in any order — "contr hr" is HR Contracting — the
      rule the mirror's own job search names a client by. */
   if (words.length === 1) asked = asked.ilike("name", `%${safe}%`);
   else for (const w of words) asked = asked.or(`name.ilike.${w}%,name.ilike.% ${w}%`);
@@ -206,7 +206,7 @@ export async function searchStaff(
 }
 
 /** Projects by their name, their client or their site — every word landing in
-    one of them, so "hr mosman" is HR's project on a Mosman site. Archived ones
+    one of them, so "hr sampleton" is HR's project on a Sampleton site. Archived ones
     stay put away, as they do on the Projects list — "done" is still work
     somebody looks up. */
 export async function searchProjects(

@@ -113,11 +113,11 @@ it("dates every job by its earliest booking on the day — what the row builder 
 
 describe("addresses — the street line under Home's Where", () => {
   it("keys each job's first address line by the job, and reads the column to do it", async () => {
-    rows.sm8_jobs[0].job_address = "260 Birrell St,\nBondi NSW 2026";
-    rows.sm8_jobs[1].job_address = "\n2 Spring St\r\nPaddington NSW 2021";
+    rows.sm8_jobs[0].job_address = "260 Veniam St,\nFictonia NSW 2026";
+    rows.sm8_jobs[1].job_address = "\n2 Fable St\r\nFauxington NSW 2021";
     const day = await loadScheduleDay("org-1", DAY);
     // the street alone: ServiceM8's trailing comma off, a blank first line skipped
-    expect(day.addresses).toEqual({ "j-1": "260 Birrell St", "j-2": "2 Spring St" });
+    expect(day.addresses).toEqual({ "j-1": "260 Veniam St", "j-2": "2 Fable St" });
   });
 
   it("leaves out a job with no address rather than saying nothing under Where", async () => {

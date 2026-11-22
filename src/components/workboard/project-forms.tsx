@@ -122,7 +122,7 @@ export function EditProjectForm({ project, onClose, onSave }: Close & { project:
           <TextInput value={siteLabel} onChange={(e) => setSiteLabel(e.target.value)} />
         </Field>
       </div>
-      {/* two lines, as the address is kept: "26 Boomerang Ave" over "Lilli Pilli NSW 2229" */}
+      {/* two lines, as the address is kept: "26 Fancy Ave" over "Mockwood NSW 2229" */}
       <Field label="Site address">
         <TextArea rows={2} value={siteAddress} onChange={(e) => setSiteAddress(e.target.value)} />
       </Field>
@@ -455,7 +455,7 @@ export function DecideForm({
         <TextInput
           value={who}
           onChange={(e) => setWho(e.target.value)}
-          placeholder="Sarah Bowden (client)"
+          placeholder="Sarah Sample (client)"
           data-autofocus
           onKeyDown={(e) => {
             if (e.key === "Enter") go();

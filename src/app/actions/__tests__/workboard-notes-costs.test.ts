@@ -256,7 +256,7 @@ beforeEach(() => {
   db = {
     staff_profiles: STAFF.map((s) => ({ ...s })),
     sm8_jobs: [{ org_id: "org-1", uuid: JOB, generated_job_id: "3209", company_uuid: "co-1" }],
-    sm8_companies: [{ org_id: "org-1", uuid: "co-1", name: "Richards" }],
+    sm8_companies: [{ org_id: "org-1", uuid: "co-1", name: "Rowland" }],
   };
   seq = 0;
   caps = new Set(["workboard"]);
@@ -277,7 +277,7 @@ describe("filing through the expense form's gate", () => {
         org_id: "org-1",
         staff_profile_id: "s-me",
         expense_date: "2026-10-13",
-        description: "fittings, for #3209 — Richards",
+        description: "fittings, for #3209 — Rowland",
         category: "materials",
         amount: 85,
         gst_amount: null,
@@ -380,7 +380,7 @@ describe("a receipt photo with the note", () => {
       gst_amount: 8.5,
       supplier: "Reece Plumbing Preston",
       expense_date: "2026-10-12",
-      description: "Copper fittings and flux, for #3209 — Richards",
+      description: "Copper fittings and flux, for #3209 — Rowland",
     });
     // adopted by submitClaim, as the form's upload is
     expect(db.documents[0]!.expense_claim_id).toBe(claims()[0]!.id);
@@ -532,7 +532,7 @@ describe("the gates", () => {
       expect.objectContaining({
         title: "Claim $85.00 at Reece",
         assigned_to: "s-lyle",
-        detail: "Fittings, today, for #3209 — Richards. Isaac said you paid. Claim it in Expense claims.",
+        detail: "Fittings, today, for #3209 — Rowland. Isaac said you paid. Claim it in Expense claims.",
       }),
     ]);
     expect(res.turns.at(-1)!.text).toBe(

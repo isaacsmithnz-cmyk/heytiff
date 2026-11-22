@@ -5,7 +5,7 @@ const A3 = { w: 1191, h: 842 };
 const A4 = { w: 595, h: 842 };
 const page = (size: { w: number; h: number }, text: string): PdfPage => ({ ...size, text });
 const OWN = ["Diamond Air Solutions", "Diamond Air"];
-const SITE = "7 Cutler Rd\nClontarf NSW 2093";
+const SITE = "7 Ipsum Rd\nTestbury NSW 2093";
 
 describe("sortPdf", () => {
   /* the sorts below are the 11 November run on the real files on Isaac's Mac */
@@ -29,12 +29,12 @@ describe("sortPdf", () => {
       page(A4, "Tender documentation for the works"),
       page(A4, "0702 Mechanical design and install. Air condi?oning system design. Mechanical Ven6la6on to the subfloor"),
     ];
-    const s = sortPdf(spec, { own: OWN, site: SITE, pageCount: 202, title: "250619 Tender Project Specification - 7 Cutler Road, Clontarf" });
+    const s = sortPdf(spec, { own: OWN, site: SITE, pageCount: 202, title: "250619 Tender Project Specification - 7 Ipsum Road, Testbury" });
     expect(s).toEqual({ sort: "spec", why: "A specification, 202 pages, that names air conditioning, ventilation and mechanical services" });
   });
 
   it("takes a builder's scope letter that names the job's street", () => {
-    const letter = [page(A4, "Re: 7 Cutler Road, Clontarf. Please price ducted air conditioning to both levels and exhaust to the bathrooms.")];
+    const letter = [page(A4, "Re: 7 Ipsum Road, Testbury. Please price ducted air conditioning to both levels and exhaust to the bathrooms.")];
     expect(sortPdf(letter, { own: OWN, site: SITE })).toEqual({ sort: "spec", why: "A scope, 1 page, that names air conditioning and exhaust" });
   });
 
@@ -45,12 +45,12 @@ describe("sortPdf", () => {
 
   it("knows our own paperwork by our name, and anything printed from HeyTiff", () => {
     expect(sortPdf([page(A4, "Diamond Air Solutions Tax Invoice #2845A")], { own: OWN })).toEqual({ sort: "ours", why: "Our own paperwork" });
-    expect(sortPdf([page(A4, "7 Cutler Rd Ground floor PEA-M125HAA ducted")], { own: OWN, site: SITE, title: "HeyTiff" })).toEqual({ sort: "ours", why: "Printed from HeyTiff" });
+    expect(sortPdf([page(A4, "7 Ipsum Rd Ground floor PEA-M125HAA ducted")], { own: OWN, site: SITE, title: "HeyTiff" })).toEqual({ sort: "ours", why: "Printed from HeyTiff" });
   });
 
   it("leaves a long document that only mentions us alone", () => {
     const spec = Array.from({ length: 30 }, () => page(A4, "Tender specification. Refer A/C system quoted by Diamond Air Solutions. Mechanical ventilation."));
-    spec[0] = page(A4, "Tender specification, 7 Cutler Road. Refer A/C system quoted by Diamond Air Solutions.");
+    spec[0] = page(A4, "Tender specification, 7 Ipsum Road. Refer A/C system quoted by Diamond Air Solutions.");
     expect(sortPdf(spec, { own: OWN, site: SITE }).sort).toBe("spec");
   });
 
@@ -71,8 +71,8 @@ describe("the helpers", () => {
   });
 
   it("finds a job's street in a file's words, by its number and name", () => {
-    expect(namesSite("Tender set for 7 Cutler Road, Clontarf", SITE)).toBe(true);
-    expect(namesSite("Tender set for 17 Cutler Road", SITE)).toBe(false);
+    expect(namesSite("Tender set for 7 Ipsum Road, Testbury", SITE)).toBe(true);
+    expect(namesSite("Tender set for 17 Ipsum Road", SITE)).toBe(false);
     expect(namesSite("Anything", "")).toBe(false);
   });
 

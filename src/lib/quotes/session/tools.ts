@@ -501,7 +501,7 @@ export const SESSION_TOOLS: ToolDef[] = [
     description: "Add a unit from the book to the compare on a unit line, when the person asked to compare it with something: the indoor's code as search_book gave it; its outdoor is paired from the book.",
     input_schema: { type: "object", properties: { line_id: { type: "string" }, code: { type: "string" } }, required: ["line_id", "code"], additionalProperties: false },
   },
-  /* Isaac, 2026-10-17, on 27 Milroy: "I think Tiff can already read the
+  /* Isaac, 2026-10-17, on 27 Proident: "I think Tiff can already read the
      studio design. Or can she not?" She saw a design only as a PDF on the job */
   {
     name: "read_design",

@@ -47,8 +47,8 @@ function baseDoc(): DesignDocument {
     mode: "blank",
     now: "2026-10-29T00:00:00.000Z",
     jobNumber: "2845",
-    client: "JT Construct",
-    site: "7 Example Rd\nClontarf NSW 2093",
+    client: "QX Construct",
+    site: "7 Example Rd\nTestbury NSW 2093",
   });
 }
 
@@ -116,8 +116,8 @@ describe("the document", () => {
   it("opens on the name, who it is for, the address and date, and the business's own letterhead", () => {
     sheet();
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("7 Example Rd");
-    expect(screen.getByText("Air conditioning design for JT Construct, job 2845")).toBeTruthy();
-    expect(screen.getByText("7 Example Rd, Clontarf NSW 2093. 29 October 2026")).toBeTruthy();
+    expect(screen.getByText("Air conditioning design for QX Construct, job 2845")).toBeTruthy();
+    expect(screen.getByText("7 Example Rd, Testbury NSW 2093. 29 October 2026")).toBeTruthy();
     expect(screen.getByText("Northside Cooling")).toBeTruthy();
     expect(screen.getByText("ABN 14 603 285 409")).toBeTruthy();
     expect(screen.getByText("hello@northside.example")).toBeTruthy();
@@ -286,9 +286,9 @@ describe("the owner's Summary", () => {
     const sim = screen.getByRole("button", { name: "Simulate" });
     expect(sim.className).not.toContain("cta");
     expect(sim.textContent).toBe("Simulate");
-    expect((screen.getByLabelText("Client") as HTMLInputElement).value).toBe("JT Construct");
+    expect((screen.getByLabelText("Client") as HTMLInputElement).value).toBe("QX Construct");
     expect((screen.getByLabelText("Job number") as HTMLInputElement).value).toBe("2845");
-    expect((screen.getByLabelText("Site") as HTMLTextAreaElement).value).toContain("Clontarf");
+    expect((screen.getByLabelText("Site") as HTMLTextAreaElement).value).toContain("Testbury");
   });
 
   it("current flow: the Summary it always was", () => {

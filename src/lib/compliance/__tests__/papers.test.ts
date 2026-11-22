@@ -149,10 +149,10 @@ describe("the chooser's order", () => {
   const staff = [
     choice({ key: "l:1", kind: "staff", name: "Driver’s licence", person: "Dane Whitmore", booked: true }),
     choice({ key: "l:2", kind: "staff", name: "Working at heights", person: "Kai Lindqvist" }),
-    choice({ key: "l:3", kind: "staff", name: "ARC licence", person: "Troy Porter" }),
+    choice({ key: "l:3", kind: "staff", name: "ARC licence", person: "Troy Northam" }),
     choice({ key: "l:4", kind: "staff", name: "arc licence", person: "Dane Whitmore", booked: true }),
     choice({ key: "l:5", kind: "staff", name: "Contractor licence", person: "Kai Lindqvist" }),
-    choice({ key: "l:6", kind: "staff", name: "Asbestos awareness", person: "Troy Porter" }),
+    choice({ key: "l:6", kind: "staff", name: "Asbestos awareness", person: "Troy Northam" }),
     choice({ key: "l:7", kind: "staff", name: "White card", person: "Kai Lindqvist" }),
   ];
 
@@ -168,7 +168,7 @@ describe("the chooser's order", () => {
   });
 
   it("holds one type however it was typed, with the people booked on the job first", () => {
-    expect(holdersOf(staff, "ARC licence").map((c) => c.person)).toEqual(["Dane Whitmore", "Troy Porter"]);
+    expect(holdersOf(staff, "ARC licence").map((c) => c.person)).toEqual(["Dane Whitmore", "Troy Northam"]);
     expect(holdersOf(staff, "driver's licence").map((c) => c.key)).toEqual(["l:1"]);
   });
 });

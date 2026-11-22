@@ -63,14 +63,14 @@ test("nothing is said of check-ins, the past, beyond a fortnight, an unchanged b
 test("the words: one change whole, several counted", () => {
   expect(whenWords("2026-11-02 07:00:00")).toBe("Mon 2 Nov, 7:00 am");
   expect(whenWords("2026-10-30 13:30:00")).toBe("Fri 30 Oct, 1:30 pm");
-  const name = () => "1352, 9/6 Holbrook Avenue";
+  const name = () => "1352, 9/6 Dolor Avenue";
   expect(changeMessage([{ uuid: "a", staffUuid: "s", jobUuid: "j", kind: "moved", start: "2026-10-30 09:00:00" }], name)).toEqual({
     title: "Booking moved",
-    body: "1352, 9/6 Holbrook Avenue moved to Fri 30 Oct, 9:00 am",
+    body: "1352, 9/6 Dolor Avenue moved to Fri 30 Oct, 9:00 am",
   });
   const three = (["new", "gone", "moved"] as const).map((kind, i) => ({ uuid: String(i), staffUuid: "s", jobUuid: "j", kind, start: "2026-11-02 07:00:00" }));
   expect(changeMessage(three, name)).toEqual({
     title: "Your schedule changed: 3 bookings",
-    body: "1352, 9/6 Holbrook Avenue, Mon 2 Nov, 7:00 am. 1352, 9/6 Holbrook Avenue, Mon 2 Nov, 7:00 am, taken off (and 1 more)",
+    body: "1352, 9/6 Dolor Avenue, Mon 2 Nov, 7:00 am. 1352, 9/6 Dolor Avenue, Mon 2 Nov, 7:00 am, taken off (and 1 more)",
   });
 });

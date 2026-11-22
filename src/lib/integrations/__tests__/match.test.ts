@@ -202,44 +202,44 @@ describe("suggestMatches", () => {
 
 describe("a company's name", () => {
   it("leaves off what only the paperwork adds", () => {
-    expect(companyKey("JT Construct Pty Ltd")).toBe("jt construct");
-    expect(companyKey("JT Construct Pty. Ltd.")).toBe("jt construct");
-    expect(companyKey("JT CONSTRUCT P/L")).toBe("jt construct");
-    expect(companyKey("Truecut Building Limited")).toBe("truecut building");
-    expect(companyKey("JT Construct")).toBe("jt construct");
+    expect(companyKey("QX Construct Pty Ltd")).toBe("qx construct");
+    expect(companyKey("QX Construct Pty. Ltd.")).toBe("qx construct");
+    expect(companyKey("QX CONSTRUCT P/L")).toBe("qx construct");
+    expect(companyKey("Plumbline Building Limited")).toBe("plumbline building");
+    expect(companyKey("QX Construct")).toBe("qx construct");
   });
 
   it("keeps a word that is the name, and anything that isn't a legal ending", () => {
     expect(companyKey("Limited")).toBe("limited");
-    expect(companyKey("JT Developments")).toBe("jt developments");
+    expect(companyKey("QX Developments")).toBe("qx developments");
     expect(companyKey("Pty Plumbing")).toBe("pty plumbing");
   });
 
   const co = (name: string) => ({ name });
 
-  /* the Krui Street tender: 65 jobs under JT Construct, and the card said "a new client" */
+  /* the Tempor Street tender: 65 jobs under QX Construct, and the card said "a new client" */
   it("finds the client an email names with its legal ending, and not a near one", () => {
-    const clients = [co("JT Construct"), co("JT Developments"), co("JTM AUTO")];
-    expect(oneCompanyNamed(clients, "JT Construct Pty Ltd")?.name).toBe("JT Construct");
-    expect(oneCompanyNamed(clients, "JT Constructions")).toBeNull();
-    expect(oneCompanyNamed(clients, "JT")).toBeNull();
+    const clients = [co("QX Construct"), co("QX Developments"), co("QXM AUTO")];
+    expect(oneCompanyNamed(clients, "QX Construct Pty Ltd")?.name).toBe("QX Construct");
+    expect(oneCompanyNamed(clients, "QX Constructions")).toBeNull();
+    expect(oneCompanyNamed(clients, "QX")).toBeNull();
   });
 
   it("takes the exact name when two differ only by the ending, and no one when it can't tell", () => {
-    const both = [co("Truecut Building"), co("Truecut Building Pty Ltd")];
-    expect(oneCompanyNamed(both, "Truecut Building Pty Ltd")?.name).toBe("Truecut Building Pty Ltd");
-    expect(oneCompanyNamed(both, "Truecut Building")?.name).toBe("Truecut Building");
-    expect(oneCompanyNamed(both, "Truecut Building Limited")).toBeNull();
-    expect(oneCompanyNamed([], "Truecut")).toBeNull();
+    const both = [co("Plumbline Building"), co("Plumbline Building Pty Ltd")];
+    expect(oneCompanyNamed(both, "Plumbline Building Pty Ltd")?.name).toBe("Plumbline Building Pty Ltd");
+    expect(oneCompanyNamed(both, "Plumbline Building")?.name).toBe("Plumbline Building");
+    expect(oneCompanyNamed(both, "Plumbline Building Limited")).toBeNull();
+    expect(oneCompanyNamed([], "Plumbline")).toBeNull();
   });
 
-  /* the Raglan St email: Lisa Watters is "Watters, Lisa" in ServiceM8, and the card said she wasn't a client */
+  /* the Lorem St email: Lisa Ashdown is "Ashdown, Lisa" in ServiceM8, and the card said she wasn't a client */
   it("finds a person either way round, and only when one would do", () => {
-    const clients = [co("Watters, Lisa"), co("Lisa Smith"), co("Watters Group")];
-    expect(oneCompanyNamed(clients, "Lisa Watters")).toBeNull();
-    expect(oneCompanyNamedAnyOrder(clients, "Lisa Watters")?.name).toBe("Watters, Lisa");
-    expect(oneCompanyNamedAnyOrder([...clients, co("Lisa Watters")], "Lisa Watters")).toBeNull();
+    const clients = [co("Ashdown, Lisa"), co("Lisa Smith"), co("Ashdown Group")];
+    expect(oneCompanyNamed(clients, "Lisa Ashdown")).toBeNull();
+    expect(oneCompanyNamedAnyOrder(clients, "Lisa Ashdown")?.name).toBe("Ashdown, Lisa");
+    expect(oneCompanyNamedAnyOrder([...clients, co("Lisa Ashdown")], "Lisa Ashdown")).toBeNull();
     expect(oneCompanyNamedAnyOrder(clients, "Lisa")).toBeNull();
-    expect(oneCompanyNamedAnyOrder(clients, "Lisa Waters")).toBeNull();
+    expect(oneCompanyNamedAnyOrder(clients, "Lisa Ashdon")).toBeNull();
   });
 });

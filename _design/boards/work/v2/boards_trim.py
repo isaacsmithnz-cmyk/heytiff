@@ -161,10 +161,10 @@ def main_buttons():
 # ------------------------------------------------------------------ a job's colour
 def job_colour():
     people = [
-        ("Isaac", [(7.5, 8.5, "Green", "Kingsford Bakery", "2380, Service"), (14.75, 16, "Green", "Randwick Dental", "3271, Service")]),
+        ("Isaac", [(7.5, 8.5, "Green", "Kingsford Bakery", "2380, Service"), (14.75, 16, "Green", "Madeupton Dental", "3271, Service")]),
         ("Lyle", [(9, 11.5, "Blue", "Bellevue Hill", "3342, Installation")]),
-        ("Callum", [(9, 11.5, "Blue", "Bellevue Hill", "3342, Installation"), (12.5, 15.5, "Purple", "Heuvel, Chatswood", "3302, Project")]),
-        ("Dan", [(12.75, 13.75, "Orange", "Riverview", "3361, Quote"), (14.25, 16.25, "Yellow", "Ardex Logistics", "2601, Maintenance")]),
+        ("Callum", [(9, 11.5, "Blue", "Bellevue Hill", "3342, Installation"), (12.5, 15.5, "Purple", "Testa, Fablewood", "3302, Project")]),
+        ("Dan", [(12.75, 13.75, "Orange", "Fakeview", "3361, Quote"), (14.25, 16.25, "Yellow", "Ardex Logistics", "2601, Maintenance")]),
     ]
 
     def lanes(style):
@@ -185,8 +185,8 @@ def job_colour():
 
     today = [("7:30 to 8:30", "Green", "Kingsford Bakery, Job 2380", "Service, you", '<span class="wd" style="color:#15803D">Done</span>'),
              ("9:00 to 11:30", "Blue", "Bellevue Hill, Job 3342", "Installation, Lyle and Callum", '<span class="wd" style="color:#15803D">On now</span>'),
-             ("12:45 to 1:45", "Orange", "Riverview, Job 3361", "Quote, Dan", ""),
-             ("2:45 to 4:00", "Green", "Randwick, Job 3271", "Service, you", "")]
+             ("12:45 to 1:45", "Orange", "Fakeview, Job 3361", "Quote, Dan", ""),
+             ("2:45 to 4:00", "Green", "Madeupton, Job 3271", "Service, you", "")]
     tl = "".join(f'<div class="agr"><span class="tm">{tm}</span><span class="dt" style="background:{H[h][0]}"></span><div class="m"><div class="t">{t}</div><div class="s q" style="font-size:13px">{s}</div></div>{r}</div>' for tm, h, t, s, r in today)
 
     inner = f'''<h1 class="t1">A job's colour, without the wash or the edge line</h1>
@@ -198,9 +198,9 @@ def job_colour():
 <div class="sws" style="grid-template-columns:1fr 1fr;gap:24px;margin-top:24px">
   <div class="panel"><h3>Home's Today, a dot instead of the strip</h3>{tl}</div>
   <div class="panel"><h3>On the job card and in a tab</h3>
-    <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px"><span style="font-size:24px;line-height:32px;font-weight:600">Rifkin, Julian</span>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px"><span style="font-size:24px;line-height:32px;font-weight:600">Fairweather, Jules</span>
     <span class="q"><span class="dt" style="background:{H["Blue"][0]};margin-right:8px;vertical-align:0"></span>Installation, Job 3342, 41 Victoria Rd, Bellevue Hill. <span class="wd" style="color:#15803D">On site</span></span></div>
-    <div class="ex" style="margin-top:20px"><span class="tt on"><span class="dt" style="background:{H["Blue"][0]}"></span>3342 Rifkin<span class="x">{ico("x")}</span></span><span class="tt"><span class="dt" style="background:{H["Orange"][0]}"></span>3361 Okafor<span class="x">{ico("x")}</span></span></div>
+    <div class="ex" style="margin-top:20px"><span class="tt on"><span class="dt" style="background:{H["Blue"][0]}"></span>3342 Fairweather<span class="x">{ico("x")}</span></span><span class="tt"><span class="dt" style="background:{H["Orange"][0]}"></span>3361 Okafor<span class="x">{ico("x")}</span></span></div>
   </div>
 </div>'''
     return wrap(inner, 1300)

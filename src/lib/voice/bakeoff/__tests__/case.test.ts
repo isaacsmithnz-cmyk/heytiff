@@ -6,8 +6,8 @@ const good = {
   conditions: "van idling, windows down",
   speaker: "Lyle",
   language: "en",
-  truth: "tell Lyle we are at 36 Wyndham Street for job 337, condensate still to run",
-  expect: { job: "337", site: "36 Wyndham Street", people: ["Lyle"], terms: ["condensate"] },
+  truth: "tell Lyle we are at 36 Fabulum Street for job 337, condensate still to run",
+  expect: { job: "337", site: "36 Fabulum Street", people: ["Lyle"], terms: ["condensate"] },
 };
 
 describe("parseCase", () => {
@@ -69,7 +69,7 @@ describe("parseCase", () => {
     expect(() =>
       parseCase("x", {
         ...good,
-        truth: "tell Lyle we are at 36 Wyndham Street for job 337, condensate still to run",
+        truth: "tell Lyle we are at 36 Fabulum Street for job 337, condensate still to run",
       }),
     ).not.toThrow();
   });

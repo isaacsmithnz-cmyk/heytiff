@@ -19,10 +19,10 @@ it("finds the business an email was sent to, among its recipients, at our domain
 });
 
 it("reads a sender's address and name", () => {
-  expect(addressOf("Matt Glass <Matt@Truecut.com.au>")).toBe("matt@truecut.com.au");
+  expect(addressOf("Matt Juniper <Matt@Plumbline.example>")).toBe("matt@plumbline.example");
   expect(addressOf("isaac@diamondair.com.au")).toBe("isaac@diamondair.com.au");
-  expect(nameOf('"Matt Glass" <matt@truecut.com.au>')).toBe("Matt Glass");
-  expect(nameOf("matt@truecut.com.au")).toBeNull();
+  expect(nameOf('"Matt Juniper" <matt@plumbline.example>')).toBe("Matt Juniper");
+  expect(nameOf("matt@plumbline.example")).toBeNull();
 });
 
 describe("a post Resend signed", () => {

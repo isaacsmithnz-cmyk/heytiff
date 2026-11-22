@@ -102,9 +102,9 @@ describe("Design Studio shell", () => {
     const dialog = screen.getByRole("dialog", { name: "New design" });
     expect(within(dialog).getByText("Drop the plans")).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "Choose files" })).toBeInTheDocument();
-    await user.type(within(dialog).getByPlaceholderText(/Design name/), "Farran St");
+    await user.type(within(dialog).getByPlaceholderText(/Design name/), "Cillum St");
     await user.click(within(dialog).getByRole("button", { name: "Start with a blank canvas" }));
-    expect(await screen.findByLabelText("Design name")).toHaveValue("Farran St");
+    expect(await screen.findByLabelText("Design name")).toHaveValue("Cillum St");
   });
 
   it("Cancel closes New design and leaves the list as it was", async () => {

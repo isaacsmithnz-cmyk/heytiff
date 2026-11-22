@@ -68,7 +68,7 @@ describe("a SWMS's state, as the job card words it", () => {
   });
 
   it("opens on its sign-on, named for its kind, with no version number", () => {
-    const r = swmsRow(swms({ version: 2, kind: "service" }), { label: "3342 Rifkin, Bellevue Hill", hue: "blue" }, day);
+    const r = swmsRow(swms({ version: 2, kind: "service" }), { label: "3342 Fairweather, Bellevue Hill", hue: "blue" }, day);
     expect(r).toMatchObject({ name: "Service SWMS, revised", href: "/dashboard/swms/v-2", newTab: false, by: "Lyle Irving", day: "2026-10-13", waiting: true });
   });
 });
@@ -96,7 +96,7 @@ describe("the other kinds", () => {
 
 describe("the list's state", () => {
   const rows = [
-    swmsRow(swms(), { label: "3342 Rifkin, Bellevue Hill", hue: "blue" }, day),
+    swmsRow(swms(), { label: "3342 Fairweather, Bellevue Hill", hue: "blue" }, day),
     certRow(cert(), { label: "3318 Hartley, Lane Cove", hue: "green" }, day),
     letterRow({ id: "l-1", title: "Employment confirmation", preview: "", date: "", signer: "Isaac Smith", writer: "Isaac Smith", updatedAt: "2026-10-09T01:00:00.000Z" }, day),
   ];

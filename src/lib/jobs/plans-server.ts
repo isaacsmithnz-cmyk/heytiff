@@ -302,7 +302,7 @@ const failedLine = (url: string, why: string) => {
     is handed to the page from here: the page asks for its signed address,
     and the browser is answered with the bytes the server already holds, so
     nothing rides the headless browser's own network but the page. Fetched
-    by Vercel's Chromium, an 11 MB set (Luke's 307 Coonawarra Rd, bug 51,
+    by Vercel's Chromium, an 11 MB set (Luke's 307 Deserunt Rd, bug 51,
     19 November 2026) failed in under a second with "Failed to fetch" while
     Supabase logged its 200; every plan read in production till then was a
     photo under 1 MB. A request that fails anyway is named in the error. */
@@ -375,7 +375,7 @@ const MEASURE_MM = 17.5;
 
 /** When the stage must be done by, from the run's start: the route is killed
     at 300 s with nothing saved, and the pages still have to be written and
-    handed on (7 Cutler Rd's level took 303 s on its own; the engine's review,
+    handed on (7 Ipsum Rd's level took 303 s on its own; the engine's review,
     21 November 2026). */
 const MEASURE_BY_MS = 250_000;
 /** What a floor's page says until its measuring lands: a run killed part-way

@@ -38,12 +38,12 @@ jest.mock("@/lib/supabase-server", () => {
 import { addJobPlans, readPlanAgain } from "../plans-server";
 import { planProgressOf } from "../plans";
 
-const doc = (id: string, size: number): Row => ({ org_id: "org-1", id, file_name: "307 Coonawarra Rd_CDC.pdf", storage_ref: `org-1/${id}.pdf`, mime_type: "application/pdf", size_bytes: size, sm8_job_uuid: "job-3570", uploaded_at: "2026-11-19T21:47:52Z" });
+const doc = (id: string, size: number): Row => ({ org_id: "org-1", id, file_name: "307 Deserunt Rd_CDC.pdf", storage_ref: `org-1/${id}.pdf`, mime_type: "application/pdf", size_bytes: size, sm8_job_uuid: "job-3570", uploaded_at: "2026-11-19T21:47:52Z" });
 
 beforeEach(() => {
   for (const k of Object.keys(tables)) delete tables[k];
   tables.documents = [doc("d-1", 11271429), doc("d-2", 11271429), doc("d-3", 512)];
-  tables.job_plans = [{ id: "jplan_1", org_id: "org-1", job_uuid: "job-3570", document_id: "d-1", attachment_id: null, name: "307 Coonawarra Rd_CDC.pdf", state: "failed", said: "Failed to fetch", claimed_at: "2026-11-19T21:48:04Z" }];
+  tables.job_plans = [{ id: "jplan_1", org_id: "org-1", job_uuid: "job-3570", document_id: "d-1", attachment_id: null, name: "307 Deserunt Rd_CDC.pdf", state: "failed", said: "Failed to fetch", claimed_at: "2026-11-19T21:48:04Z" }];
 });
 
 describe("reading a plan again", () => {

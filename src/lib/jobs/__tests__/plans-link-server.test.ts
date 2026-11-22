@@ -63,7 +63,7 @@ async function design(read: boolean) {
   stored["studio-plans"][`org/${ORG}/page1.png`] = png;
   const doc = {
     id: "dsn_1",
-    meta: { name: "Neridah idea" },
+    meta: { name: "Irure idea" },
     floors: [{ id: "flr_gf", name: "Ground floor", level: 0, scaleMmPerUnit: null, northDeg: null, northPos: null, plans: [{ id: "sht_1", imageRef: `org/${ORG}/page1.png`, pageNumber: null, name: "Ground floor", width: 1200, height: 800, x: 0, y: 0 }] }],
     planImport: { sources: [{ ref: `org/${ORG}/src.jpeg`, kind: "image", name: "3465 5 Nov 08.49.jpg" }], placed: { 0: `org/${ORG}/page1.png` }, chosen: [0], names: {} },
     reading: read

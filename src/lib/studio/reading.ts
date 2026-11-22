@@ -454,7 +454,7 @@ export function readingSummary(floors: FloorLike[], reading: PlanReading | null 
   };
 }
 
-/* A SET TOO BIG TO SEND WHOLE (Isaac, 21 October 2026, 7 Cutler Rd: a 25
+/* A SET TOO BIG TO SEND WHOLE (Isaac, 21 October 2026, 7 Ipsum Rd: a 25
    page tender set at 16 MB). Past the reader's ceiling it is sent from the
    first floor plan on, which is where the plans, sections and elevations
    sit in an architect's set; the cover, notes and demolition plan come

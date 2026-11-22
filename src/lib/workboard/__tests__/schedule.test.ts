@@ -25,9 +25,9 @@ import type { AllJobsMirrorJob } from "../all-jobs";
 const job = (over: Partial<AllJobsMirrorJob> & { remoteId: string }): AllJobsMirrorJob => ({
   jobNumber: "3163",
   status: "Work Order",
-  clientName: "SQM Real Estate",
+  clientName: "SQX Real Estate",
   description: null,
-  suburb: "Alexandria",
+  suburb: "Exampleria",
   categoryName: "Service Call",
   categoryColour: "#ffb5b5",
   date: null,
@@ -248,7 +248,7 @@ describe("the rail", () => {
 
 describe("ownership outranks category", () => {
   it("marks a tracked job's block and leaves the rest alone", () => {
-    const tracked = new Map([["j-2694", { kind: "project" as const, label: "Enmore install" }]]);
+    const tracked = new Map([["j-2694", { kind: "project" as const, label: "Testmore install" }]]);
     const day = layoutScheduleDay({
       activities: [
         act({ uuid: "a", jobUuid: "j-2694" }),
@@ -259,7 +259,7 @@ describe("ownership outranks category", () => {
       tracked,
     });
     const blocks = day.lanes.flatMap((l) => l.blocks);
-    expect(blocks.find((b) => b.remoteId === "j-2694")?.tracked?.label).toBe("Enmore install");
+    expect(blocks.find((b) => b.remoteId === "j-2694")?.tracked?.label).toBe("Testmore install");
     expect(blocks.find((b) => b.remoteId === "j-1")?.tracked).toBeNull();
   });
 });

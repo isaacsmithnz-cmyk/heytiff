@@ -5,7 +5,7 @@ import { factsKept, jobNoteWords, knownMentionsOnly, numbersIn } from "../note-t
    words are job 2935's, as a tech might say them on site. */
 
 const SAID =
-  "Um, so for Stanmore on Monday, the kitchen head's actually going on the wall above the fridge, not the, uh, the window side like the quote said. And the pipe run to bed three is about 14 metres, so we'll need another 15 metre coil of quarter half. Get David to grab that from Reece on Friday. Oh, and the outdoor's going down the side path on the 600 brackets.";
+  "Um, so for Placeholm on Monday, the kitchen head's actually going on the wall above the fridge, not the, uh, the window side like the quote said. And the pipe run to bed three is about 14 metres, so we'll need another 15 metre coil of quarter half. Get David to grab that from Reece on Friday. Oh, and the outdoor's going down the side path on the 600 brackets.";
 const TIDIED =
   "Kitchen head goes on the wall above the fridge, not the window side as quoted.\n\nPipe run to Bed 3 is about 14 m, so we need another 15 m coil of 1/4 + 1/2. @davidhann please grab it from Reece on Friday.\n\nOutdoor unit goes down the side path on the 600 brackets.";
 const HANDLES = new Set(["davidhann", "michaeldiamond"]);
@@ -41,7 +41,7 @@ describe("a mention", () => {
   });
 
   it("isn't an email address", () => {
-    expect(knownMentionsOnly("send it to susie@peterson.com", HANDLES)).toBe("send it to susie@peterson.com");
+    expect(knownMentionsOnly("send it to susie@hollowell.com", HANDLES)).toBe("send it to susie@hollowell.com");
   });
 });
 

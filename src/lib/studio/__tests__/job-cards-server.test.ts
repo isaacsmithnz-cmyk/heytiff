@@ -31,8 +31,8 @@ const job = (uuid: string, number: string, over: Record<string, unknown> = {}) =
   status: "Work Order",
   company_uuid: "co-1",
   category_uuid: "cat-install",
-  geo_city: "Chatswood",
-  job_address: "2 Neridah Street, Chatswood NSW, Australia",
+  geo_city: "Fablewood",
+  job_address: "2 Irure Street, Fablewood NSW, Australia",
   job_description: "Removal",
   ...over,
 });
@@ -43,7 +43,7 @@ beforeEach(() => {
   jest.spyOn(console, "error").mockImplementation(() => {});
   tables = {
     sm8_jobs: [job("J-3465", "3465", { status: "Quote" }), job("j-3517", "3517"), job("j-3526", "3526", { company_uuid: null, category_uuid: null })],
-    sm8_companies: [{ uuid: "co-1", name: "Lenzner, Mark" }],
+    sm8_companies: [{ uuid: "co-1", name: "Eastbrook, Mark" }],
     sm8_categories: [{ uuid: "cat-install", name: "Install ", colour: "e7b5ff" }],
     job_plans: [{ job_uuid: "j-3465" }],
   };
@@ -55,7 +55,7 @@ const said = (table: string, method: string) => asks.filter((a) => a.table === t
 describe("a job as its card", () => {
   it("carries the client, the kind, the colour and whether plans are read", async () => {
     const [quote, booked, bare] = await studioJobsByIds("org-1", ["J-3465", "j-3517", "j-3526"]);
-    expect(quote).toMatchObject({ remoteId: "J-3465", jobNumber: "3465", clientName: "Lenzner, Mark", kind: "Install", plansRead: true });
+    expect(quote).toMatchObject({ remoteId: "J-3465", jobNumber: "3465", clientName: "Eastbrook, Mark", kind: "Install", plansRead: true });
     // a quote is orange whatever its category; a booked job wears its category's colour
     expect(quote.hue).toBe("orange");
     expect(booked).toMatchObject({ hue: "purple", plansRead: false });

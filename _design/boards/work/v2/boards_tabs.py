@@ -137,18 +137,18 @@ def I(name):
 
 HOME_T = (I("home"), "Home")
 DESIGN_T = (I("design"), "Okafor house")
-JOB61_T = (I("jobs"), "3361 Okafor, Riverview")
+JOB61_T = (I("jobs"), "3361 Okafor, Fakeview")
 SCHED_T = (I("cal"), "Schedule")
 MAINT_T = (I("repeat"), "Maintenance, October")
-JOB42_T = (I("jobs"), "3342 Rifkin, Bellevue Hill")
+JOB42_T = (I("jobs"), "3342 Fairweather, Bellevue Hill")
 
 
 # ------------------------------------------------------------------ the sidebar
 def sidebar(active):
     nav = [("home", "Home", "3"), ("chat", "Conversations", ""), ("jobs", "Jobs", ""), ("cal", "Schedule", ""), ("doc", "Documents", ""), ("lib", "Library", ""), ("design", "Design", ""), ("team", "Team", "")]
     rows = "".join(f'<a class="sr{" on" if k == active else ""}" href="#">{ico(k)}{n}{f"<span class=r>{c}</span>" if c else ""}</a>' for k, n, c in nav)
-    pinned = "".join(f'<a class="rc" href="#"><span class="sq" style="background:{c}"></span><span class="tx">{x}</span></a>' for c, x in [(JOB_A, "3342 Rifkin, Bellevue Hill"), ("#4B5565", "3302 Heuvel, Chatswood")])
-    rec_items = [("chat", "Riverview brief"), ("doc", "SWMS, Heuvel roof work"), ("person", "Lyle Irving"), ("jobs", "Northgate Realty, 3323"), ("chat", "Clearing an E6 on a Daikin split")]
+    pinned = "".join(f'<a class="rc" href="#"><span class="sq" style="background:{c}"></span><span class="tx">{x}</span></a>' for c, x in [(JOB_A, "3342 Fairweather, Bellevue Hill"), ("#4B5565", "3302 Testa, Fablewood")])
+    rec_items = [("chat", "Fakeview brief"), ("doc", "SWMS, Testa roof work"), ("person", "Lyle Irving"), ("jobs", "Northgate Realty, 3323"), ("chat", "Clearing an E6 on a Daikin split")]
     rec = "".join(f'<a class="rc" href="#">{ico(k)}<span class="tx">{x}</span></a>' for k, x in rec_items)
     return f'''<aside class="sd">
   <div class="br">{mark_svg()}<b>Hey<span>Tiff</span></b><span style="flex:1"></span><span class="qd">{ico("panel")}</span></div>
@@ -211,7 +211,7 @@ def design_body():
     zones = "".join(f'<div class="zr"><span class="z">{n}</span><span class="s num">{k}</span></div>' for n, k in [("Study", "1.4 kW"), ("Bed 2", "2.2 kW"), ("Living", "4.6 kW")])
     return f'''<div class="ghd">
   <h1 class="h24">Okafor house</h1><span class="q" style="margin-top:4px">Saved</span>
-  <a class="lk" href="#" style="margin-top:4px;font-size:14px">For 3361 Okafor, Riverview</a>
+  <a class="lk" href="#" style="margin-top:4px;font-size:14px">For 3361 Okafor, Fakeview</a>
   <span style="flex:1"></span>
   <span class="dd2">Ground floor{ico("down")}</span><span class="dd2">Calibrate{ico("down")}</span><span class="dd2">View{ico("down")}</span>
   <span style="width:12px"></span>
@@ -244,7 +244,7 @@ def job61_body():
     return f'''<div class="jh">
   <div class="crumb2"><a href="#">Jobs</a>{ico("right")}<b>3361</b></div>
   <div style="display:flex;align-items:flex-start;gap:12px">
-    <div style="display:flex;flex-direction:column;gap:4px;min-width:0"><h1 class="h24">Okafor, Ada</h1><p class="q">Job 3361, Quote, 12 River Rd, Riverview. <span class="info" style="font-weight:600">Quote to write</span></p></div>
+    <div style="display:flex;flex-direction:column;gap:4px;min-width:0"><h1 class="h24">Okafor, Ada</h1><p class="q">Job 3361, Quote, 12 River Rd, Fakeview. <span class="info" style="font-weight:600">Quote to write</span></p></div>
     <span style="flex:1"></span><a class="bt2" href="#">Open in ServiceM8</a><span class="bt2">Actions{ico("down")}</span>
   </div>
   <div class="steps">{st}</div>
@@ -253,7 +253,7 @@ def job61_body():
 <div style="flex:1;min-height:0;display:flex;gap:32px;padding:24px 32px;overflow:hidden">
   <section style="flex:1;min-width:0;display:flex;flex-direction:column;gap:24px">
     <div>
-      <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:8px"><h2 class="h16">The brief</h2><span class="s">Spoken to Tiff today, 8:40 am</span><span style="flex:1"></span><a class="lk" href="#">Riverview brief</a></div>
+      <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:8px"><h2 class="h16">The brief</h2><span class="s">Spoken to Tiff today, 8:40 am</span><span style="flex:1"></span><a class="lk" href="#">Fakeview brief</a></div>
       <p style="font-size:24px;line-height:32px;font-weight:400">A split in the main bedroom, back to back with the study.</p>
     </div>
     <div class="box" style="box-shadow:none">
@@ -284,10 +284,10 @@ def schedule_body():
     hours = list(range(7, 18))
     head = "".join(f'<div class="cap2" style="position:absolute;left:{(h - 7) / 10 * 100}%;top:8px;transform:translateX(-50%)">{h if h <= 12 else h - 12}{"am" if h < 12 else "pm"}</div>' for h in hours[1:-1])
     people = [
-        ("Isaac Smith", [(7.5, 8.5, "#B4C5EE", "Kingsford", "Job 2380, done", "#43506a"), (14.75, 16, "#8A6A00", "Randwick", "Job 3271", "#fff")]),
+        ("Isaac Smith", [(7.5, 8.5, "#B4C5EE", "Kingsford", "Job 2380, done", "#43506a"), (14.75, 16, "#8A6A00", "Madeupton", "Job 3271", "#fff")]),
         ("Lyle Irving", [(9, 11.5, JOB_A, "Bellevue Hill", "Job 3342", "#fff")]),
-        ("Callum Ahn", [(9, 11.5, JOB_A, "Bellevue Hill", "Job 3342", "#fff"), (12.5, 15.5, "#4B5565", "Chatswood", "Job 3302", "#fff")]),
-        ("Dan Walsh", [(12.75, 13.75, "#3D8620", "Alexandria", "Job 1042", "#fff"), (14.25, 16.25, "#2F5FD0", "Botany", "Service 2601", "#fff")]),
+        ("Callum Ahn", [(9, 11.5, JOB_A, "Bellevue Hill", "Job 3342", "#fff"), (12.5, 15.5, "#4B5565", "Fablewood", "Job 3302", "#fff")]),
+        ("Dan Walsh", [(12.75, 13.75, "#3D8620", "Exampleria", "Job 1042", "#fff"), (14.25, 16.25, "#2F5FD0", "Botany", "Service 2601", "#fff")]),
         ("Kai Lee", []),
     ]
     lanes = ""
@@ -298,7 +298,7 @@ def schedule_body():
         ini = "".join(w[0] for w in name.split())
         lanes += f'<div class="lane"><div style="display:flex;align-items:center;gap:10px;font-weight:600"><span class="av2">{ini}</span>{name}</div><div style="position:relative">{bl}</div></div>'
     now = (10 + 5 / 60 - 7) / 10
-    nd = [("Northgate Realty, 3323", "Install, about 2 days", "q"), ("Ardex Logistics, service", "Due today", "warn"), ("Heuvel, visit 3: fit-off", "Job 3302, around 20 October", "q"), ("Grange Microbrewery, 3288", "Install, about 1 day", "q")]
+    nd = [("Northgate Realty, 3323", "Install, about 2 days", "q"), ("Ardex Logistics, service", "Due today", "warn"), ("Testa, visit 3: fit-off", "Job 3302, around 20 October", "q"), ("Grange Microbrewery, 3288", "Install, about 1 day", "q")]
     nds = "".join(f'<div class="nd"><div style="font-weight:600">{t}</div><div class="s {c}">{s}</div></div>' for t, s, c in nd)
     return f'''<div class="ghd">
   <h1 class="h24">Schedule</h1>
@@ -329,15 +329,15 @@ def maint_body():
         dt.date(2026, 10, 2): [("done", "", "Belmont Holdings")],
         dt.date(2026, 10, 6): [("done", "", "Grange Microbrewery")],
         dt.date(2026, 10, 7): [("done", "", "Scott Group")],
-        dt.date(2026, 10, 9): [("np", "", "Coogee Pavilion", '<span class="st" style="color:#c81a41">Overdue</span>')],
+        dt.date(2026, 10, 9): [("np", "", "Testcove Pavilion", '<span class="st" style="color:#c81a41">Overdue</span>')],
         dt.date(2026, 10, 12): [("done", "", "Hale Street apartments")],
-        dt.date(2026, 10, 13): [("", "12:45", "Meridian Data"), ("", "2:45", "Randwick Dental"), ("np", "", "Ardex Logistics", '<span class="st warn">Not placed</span>')],
+        dt.date(2026, 10, 13): [("", "12:45", "Meridian Data"), ("", "2:45", "Madeupton Dental"), ("np", "", "Ardex Logistics", '<span class="st warn">Not placed</span>')],
         dt.date(2026, 10, 15): [("", "8:00", "Northgate Realty")],
         dt.date(2026, 10, 19): [("", "7:00", "Kingsford Bakery")],
-        dt.date(2026, 10, 21): [("", "7:30", "Bondi Surf Club")],
+        dt.date(2026, 10, 21): [("", "7:30", "Fictonia Surf Club")],
         dt.date(2026, 10, 22): [("np", "", "Ryde Library", '<span class="st warn">Not placed</span>')],
-        dt.date(2026, 10, 27): [("", "8:00", "Marrickville Medical")],
-        dt.date(2026, 10, 29): [("", "9:30", "Rozelle Bowling Club")],
+        dt.date(2026, 10, 27): [("", "8:00", "Exampleville Medical")],
+        dt.date(2026, 10, 29): [("", "9:30", "Mockzelle Bowling Club")],
     }
     heads = "".join(f'<div class="dh">{d}</div>' for d in ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"])
     cells = ""
@@ -389,8 +389,8 @@ def spec():
     def ex(title, inner):
         return f'<div class="ex"><h2>{title}</h2>{inner}</div>'
 
-    working = (tiff(16, True), "Riverview brief")
-    many = [HOME_T, DESIGN_T, JOB61_T, SCHED_T, MAINT_T, JOB42_T, (I("doc"), "SWMS, Heuvel roof work"), (I("person"), "Lyle Irving"), (I("jobs"), "3323 Northgate Realty"), (I("team"), "Team, Timesheets"), (I("lib"), "Library")]
+    working = (tiff(16, True), "Fakeview brief")
+    many = [HOME_T, DESIGN_T, JOB61_T, SCHED_T, MAINT_T, JOB42_T, (I("doc"), "SWMS, Testa roof work"), (I("person"), "Lyle Irving"), (I("jobs"), "3323 Northgate Realty"), (I("team"), "Team, Timesheets"), (I("lib"), "Library")]
     many_html = []
     for i, (ic, t) in enumerate(many):
         if i:

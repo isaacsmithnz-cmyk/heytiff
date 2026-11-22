@@ -70,8 +70,8 @@ CSS = bt.CSS + """
 .vD .tt.on .ico,.vD .tt.on .x{color:rgba(255,255,255,.6)}
 """
 
-TABS = [bt.HOME_T, (bt.I("chat"), "Riverview brief"), bt.DESIGN_T, bt.JOB61_T]
-WORKING = (tiff(16, True), "Riverview brief")
+TABS = [bt.HOME_T, (bt.I("chat"), "Fakeview brief"), bt.DESIGN_T, bt.JOB61_T]
+WORKING = (tiff(16, True), "Fakeview brief")
 # which styles show the cross on every tab, not just the one you're on
 X_ALL = {"B": True, "C": True, "E": True, "H": True}
 

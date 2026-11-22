@@ -79,9 +79,9 @@ describe("the browser's copy and the server's, merged", () => {
 
   it("keeps a rename made here, which doesn't move a thread", () => {
     const sent = t("a", 3);
-    const renamed = { ...sent, title: "Riverview brief" };
+    const renamed = { ...sent, title: "Fakeview brief" };
     const { threads, upload } = mergeThreads([renamed], [sent], { who: "who-1", sigs: sigsOf([sent]) }, "who-1");
-    expect(threads[0].title).toBe("Riverview brief");
+    expect(threads[0].title).toBe("Fakeview brief");
     expect(upload).toEqual([renamed]);
   });
 

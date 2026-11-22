@@ -39,7 +39,7 @@ const offer: PaperChoices = {
     choice({ key: "l:1", kind: "staff", name: "Driver’s licence", person: "Dane Whitmore", booked: true }),
     choice({ key: "l:2", kind: "staff", name: "ARC licence", person: "Kai Lindqvist" }),
     choice({ key: "l:3", kind: "staff", name: "ARC licence", person: "Dane Whitmore", booked: true }),
-    choice({ key: "l:4", kind: "staff", name: "ARC licence", person: "Troy Porter", expiresOn: "2026-10-05", state: "warn" }),
+    choice({ key: "l:4", kind: "staff", name: "ARC licence", person: "Troy Northam", expiresOn: "2026-10-05", state: "warn" }),
   ],
 };
 
@@ -96,10 +96,10 @@ it("groups the team's tickets by licence — the trade tickets lead — with the
   expect(groups).toEqual(["ARC licence", "Driver’s licence"]);
   const arc = within(screen.getByRole("region", { name: "ARC licence" }));
   const names = arc.getAllByRole("checkbox").map((c) => c.closest("label")?.querySelector("b")?.textContent);
-  expect(names).toEqual(["Dane Whitmore", "Kai Lindqvist", "Troy Porter"]);
+  expect(names).toEqual(["Dane Whitmore", "Kai Lindqvist", "Troy Northam"]);
   expect(arc.getByText(/^Booked on this job, /)).toBeInTheDocument();
-  expect(stateOf(/Troy Porter/)).toHaveTextContent("Expires in 12 days");
-  expect(stateOf(/Troy Porter/)).toHaveClass("pt-state--look");
+  expect(stateOf(/Troy Northam/)).toHaveTextContent("Expires in 12 days");
+  expect(stateOf(/Troy Northam/)).toHaveClass("pt-state--look");
 });
 
 it("keeps ticks across the two sides, counts them at the foot, and adds every one once", async () => {

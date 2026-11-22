@@ -9,7 +9,7 @@ and so is what must be on file before the first certificate can be issued.
 
 Builders ask for a "compliance certificate" once the job is done, so their
 certifier can issue the Occupation Certificate. On 2026-10-01 job 1383
-(74/10 Etham Ave, Darling Point, for Reed Developments) needed one. It was
+(74/10 Fugiat Ave, Pretend Point, for Sampson Developments) needed one. It was
 put together by hand in a chat, from two kinds of fact:
 
 - **What HeyTiff already holds:** the job's address, client and contact, the
@@ -433,7 +433,7 @@ Cut down after Isaac's "too much extra information".
 - One A4 page for an ordinary job. A long VRF job runs to two, with the frame
   on both.
 - The PDF is named after what it covers and the site:
-  "Air conditioning certificate – 74-10 Etham Avenue – job 1383.pdf".
+  "Air conditioning certificate – 74-10 Fugiat Avenue – job 1383.pdf".
 
 **Shared, not copied.** The masthead, frame and table move out of
 `sheet-doc.tsx` into `components/org/doc-sheet/`, with their CSS, and both

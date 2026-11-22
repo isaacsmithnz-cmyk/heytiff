@@ -6,7 +6,7 @@
 
    A view opens fitted to the day's jobs, less any job far from the rest
    (Isaac, 17 November 2026: "If they're far away, like if they're out of
-   the picture, where would they show up?"): Megalong Valley doesn't pull a
+   the picture, where would they show up?"): Pretend Valley doesn't pull a
    Sydney day out to the mountains. It waits on the map's edge facing it,
    with how far it is, and Show all fits everything. */
 
@@ -56,7 +56,7 @@ export function zoomed(view: MapView, by: number): MapView {
 /** + on the map: in toward the jobs. The middle of the jobs on the map
     comes to the map's middle as it closes in, or, where none is on it, the
     middle of them all (Isaac's walk, 17 November 2026: after Show all
-    fitted Megalong Valley in, the map's own middle was past Penrith, and
+    fitted Pretend Valley in, the map's own middle was past Penrith, and
     two presses of + left him in the mountains with no job in sight). −
     goes out about the map's middle, which loses nothing. */
 export function zoomedToward(view: MapView, by: number, points: readonly LatLng[], w: number, h: number): MapView {

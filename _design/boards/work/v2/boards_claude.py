@@ -144,11 +144,11 @@ def expenses():
 <div class="ttl"><h1 class="h24">Team</h1></div>
 {pills("Expenses")}
 <p class="lead">Two to decide, two to pay back.</p>
-{row("LI", "Copper fittings and flux, $86.40", "Lyle Irving at Reece, for 3342 Rifkin", ad)}
+{row("LI", "Copper fittings and flux, $86.40", "Lyle Irving at Reece, for 3342 Fairweather", ad)}
 {row("DW", "Fuel, $112.80", "Dan Walsh at Ampol Botany, 52.3 litres, Hilux", ad)}
 <div class="gl">To pay back, $213.40</div>
 {row("CA", "Drill bits, $34.90", "Callum Ahn at Bunnings", '<span class="btn sm">Mark paid</span>')}
-{row("KL", "Parking and tolls, $178.50", "Kai Lee, for 3302 Heuvel", '<span class="btn sm">Mark paid</span>')}
+{row("KL", "Parking and tolls, $178.50", "Kai Lee, for 3302 Testa", '<span class="btn sm">Mark paid</span>')}
 <div class="lr" style="margin-top:16px;border-top:1px solid rgba(5,5,5,.08)"><div class="m"><div class="t">On the company card</div><div class="s">3 this week, $632.85, no approval needed</div></div><a class="link lab" href="#">Show</a></div>
 ''')
 

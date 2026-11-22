@@ -155,7 +155,7 @@ Scope of Work:
 Note: Quote price excludes switchboard upgrades and any building/strata works not specifically listed above.`;
 
 /* FutureCert's list for job 1383, item 9.1, as its three requirements. */
-/** 6 Urunga St, North Balgowlah, for JT Construct: a VRF upstairs, in-line
+/** 6 Ullamco St, North Demoland, for QX Construct: a VRF upstairs, in-line
     fans to louvres, and a supply and exhaust pair under the floor. */
 export const JOB_2043 = `Ground Floor
 - Decommission and removal of exisiting unit.
@@ -220,7 +220,7 @@ Outcome:
 
 Additional cost: $5900 + GST`;
 
-/** 32 England Avenue, Marrickville, for Lush Constructions: a summary
+/** 32 Chimera Avenue, Exampleville, for Verdant Constructions: a summary
     sentence and then the model lines, for one Daikin bulkhead system. */
 export const JOB_2885 = `Supply and installation of Daikin 7.0kW bulkhead air conditioning system to suit kitchen bulkhead application.
 

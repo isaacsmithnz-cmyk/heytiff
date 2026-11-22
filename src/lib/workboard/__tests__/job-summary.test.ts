@@ -138,7 +138,7 @@ const serverRead = (over: Partial<JobStoryServerRead> = {}): JobStoryServerRead 
     scope: "Supply and install a new 14kW system",
     workDone: null,
     status: "Completed",
-    clientName: "Susie Peterson",
+    clientName: "Susie Hollowell",
     createdOn: null,
     quoteSentOn: null,
     completedOn: "2026-08-21",

@@ -199,7 +199,7 @@ describe("the statements", () => {
 describe("the paper's facts", () => {
   it("call every certificate a mechanical compliance certificate, whatever it covers", () => {
     for (const covers of [AC, { ac: false, vent: true }, BOTH]) expect(buildCertificate(answersFor(JOB_279, covers, "house")).title).toBe("Mechanical Compliance Certificate");
-    expect(certFileName("74/10 Etham Avenue", "1383")).toBe("Mechanical Compliance Certificate – 74-10 Etham Avenue – job 1383.pdf");
+    expect(certFileName("74/10 Fugiat Avenue", "1383")).toBe("Mechanical Compliance Certificate – 74-10 Fugiat Avenue – job 1383.pdf");
   });
 
   it("print a class only when one was picked, and a serial column only when serials are added", () => {

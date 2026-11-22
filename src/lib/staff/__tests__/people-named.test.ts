@@ -26,7 +26,7 @@ const PEOPLE: Person[] = [
 const named = (text: string) => namedIn(text, PEOPLE).map((n) => text.slice(n.start, n.end));
 
 it("finds a person by their first name, as Isaac said it", () => {
-  expect(named("Can you let Luke know that Jay Matthews' job is ready to book in?")).toEqual(["Luke"]);
+  expect(named("Can you let Luke know that Jay Oakhurst' job is ready to book in?")).toEqual(["Luke"]);
 });
 
 it("takes the longest name: Alex Lorenz is one name, and Alex alone is two people's so stays plain", () => {

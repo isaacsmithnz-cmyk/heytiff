@@ -42,7 +42,7 @@ const context = (over: Partial<SwmsWizardContext> = {}): SwmsWizardContext => ({
   job: {
     uuid: "job-1",
     number: "2601",
-    clientName: "M. and J. Rowe",
+    clientName: "M. and J. Lockwood",
     address: "14 Attunga Road, Miranda NSW 2228",
     description: "Supply and install a 5.0 kW split system",
     status: "Work Order",
@@ -52,7 +52,7 @@ const context = (over: Partial<SwmsWizardContext> = {}): SwmsWizardContext => ({
     categoryName: "Install",
   },
   team: [
-    { id: "troy", name: "Troy Porter", role: "Supervisor", booked: true, tickets: [{ name: "White Card", expires: null, current: true }] },
+    { id: "troy", name: "Troy Northam", role: "Supervisor", booked: true, tickets: [{ name: "White Card", expires: null, current: true }] },
     { id: "dane", name: "Dane Whitmore", role: "", booked: true, tickets: [] },
     { id: "sam", name: "Sam Ikpeba", role: "Electrician", booked: false, tickets: [] },
   ],
@@ -243,7 +243,7 @@ describe("what the job already says", () => {
     swmsWizardContext.mockImplementation(async () =>
       context({
         team: [
-          { id: "troy", name: "Troy Porter", role: "Supervisor", booked: true, tickets: [{ name: "White Card", expires: null, current: true }] },
+          { id: "troy", name: "Troy Northam", role: "Supervisor", booked: true, tickets: [{ name: "White Card", expires: null, current: true }] },
           { id: "dane", name: "Dane Whitmore", role: "", booked: true, tickets: [{ name: "HLTAID011 Provide First Aid", expires: "2027-01-01", current: true }] },
           { id: "sam", name: "Sam Ikpeba", role: "Electrician", booked: false, tickets: [{ name: "First aid", expires: "2020-01-01", current: false }] },
         ],
@@ -303,7 +303,7 @@ describe("who it covers", () => {
     await userEvent.type(screen.getByLabelText("Their name"), "Kai Lindqvist");
     await tab("Review");
     expect(screen.getByText("4 people")).toBeInTheDocument();
-    expect(screen.getByText("Troy Porter, Dane Whitmore, Sam Ikpeba, Kai Lindqvist")).toBeInTheDocument();
+    expect(screen.getByText("Troy Northam, Dane Whitmore, Sam Ikpeba, Kai Lindqvist")).toBeInTheDocument();
     /* one person, one row, and a blank one below for the next */
     expect(screen.getByLabelText("Name 1")).toHaveValue("Kai Lindqvist");
     expect(screen.getByLabelText("Their name")).toHaveValue("");
@@ -354,11 +354,11 @@ describe("the review", () => {
     expect(within(emergency).getByText(/Nearest hospital: not named yet/)).toBeInTheDocument();
 
     await tab("Who it covers");
-    await choose("First aider", "Troy Porter");
+    await choose("First aider", "Troy Northam");
     await userEvent.type(screen.getByLabelText("Nearest hospital"), "Sutherland Hospital");
     await tab("Review");
     const named = panel("review").getByText("Emergency").closest("div") as HTMLElement;
-    expect(within(named).getByText("Troy Porter")).toBeInTheDocument();
+    expect(within(named).getByText("Troy Northam")).toBeInTheDocument();
     expect(panel("review").queryByText("Nobody named as first aider")).toBeNull();
   });
 
@@ -518,7 +518,7 @@ describe("a revision", () => {
       outsiders: [{ name: "Kai Lindqvist", company: "Lindqvist Plumbing" }],
       responsibleStaffId: "troy",
       electricianName: "Sam Ikpeba",
-      firstAiderName: "Troy Porter",
+      firstAiderName: "Troy Northam",
       signedStaffIds: ["troy"],
       signedOutsideNames: ["kai lindqvist"],
     }));
@@ -532,7 +532,7 @@ describe("a revision", () => {
         job: { ...context().job, address: "14 Attunga Road, Miranda", state: null, jurisdiction: null },
         /* someone the auto-pick would choose, if the last version's answer
            didn't stand */
-        team: [{ id: "troy", name: "Troy Porter", role: "Supervisor", booked: true, tickets: [{ name: "First aid", expires: "2027-03-01", current: true }] }],
+        team: [{ id: "troy", name: "Troy Northam", role: "Supervisor", booked: true, tickets: [{ name: "First aid", expires: "2027-03-01", current: true }] }],
       })
     );
     swmsPrevious.mockImplementation(async () => ({
@@ -580,7 +580,7 @@ describe("a revision", () => {
     await tab("Who it covers");
     expect(screen.getByRole("checkbox", { name: /Dane Whitmore/ })).not.toBeChecked();
     expect(screen.getByDisplayValue("Lindqvist Plumbing")).toBeInTheDocument();
-    expect(screen.getByLabelText("First aider")).toHaveTextContent("Troy Porter");
+    expect(screen.getByLabelText("First aider")).toHaveTextContent("Troy Northam");
     await tab("How it's done");
     expect(screen.getByLabelText("Electrician connecting it")).toHaveTextContent("Sam Ikpeba");
     await tab("Review");

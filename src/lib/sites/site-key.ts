@@ -15,13 +15,13 @@ import { streetOf } from "@/lib/address/street";
                          city, lower case
 
    The unit, the state and the postcode are left off the building: "2/106
-   Kirribilli Avenue\nKirribilli NSW 2061" and "106 Kirribilli Avenue\n
-   Kirribilli,  2061" are one building, and the first is its Unit 2.
+   Exampleton Avenue\nExampleton NSW 2061" and "106 Exampleton Avenue\n
+   Exampleton,  2061" are one building, and the first is its Unit 2.
 
    Pure: the job page's read and the old notes' list both ask it. */
 
 export type Site = {
-  /** "106|kirribilli|ave|kirribilli": what site_notes.building_key holds */
+  /** "106|exampleton|ave|exampleton": what site_notes.building_key holds */
   key: string;
   /** "2", "1a", "b308": the unit, or null for an address with none */
   unit: string | null;
@@ -29,7 +29,7 @@ export type Site = {
 
 const STATES = /^(nsw|vic|qld|sa|wa|tas|nt|act|new south wales|victoria|queensland|south australia|western australia|tasmania|northern territory|australian capital territory|australia)$/;
 
-/** "b308/87 Bay St": a unit with a letter before its number, which the
+/** "b308/87 Dummy St": a unit with a letter before its number, which the
     street reader doesn't take. */
 const LETTER_UNIT = /^\s*([a-tv-z][0-9]+[a-z]?)\s*\/\s*/i;
 
@@ -43,7 +43,7 @@ export function typedSuburb(address: string | null | undefined): string {
   const text = (address ?? "").replace(/\r/g, "");
   const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
   /* on one line, what follows the part holding the street ("Unit 2, 106
-     Kirribilli Ave, Kirribilli": not the "106 Kirribilli Ave" after the unit) */
+     Exampleton Ave, Exampleton": not the "106 Exampleton Ave" after the unit) */
   const parts = (lines[0] ?? "").split(",");
   const at = parts.findIndex((p) => STREET_PART.test(p));
   const after = lines.length > 1 ? lines.slice(1) : parts.slice(at >= 0 ? at + 1 : 1);
@@ -53,7 +53,7 @@ export function typedSuburb(address: string | null | undefined): string {
       .replace(/[^a-z0-9' -]+/g, " ")
       .replace(/\s+/g, " ")
       .trim()
-      // "Kirribilli NSW 2061": the state and the postcode at its end
+      // "Exampleton NSW 2061": the state and the postcode at its end
       .replace(/\s*\b\d{4}$/, "")
       .replace(/\s+(nsw|vic|qld|sa|wa|tas|nt|act)$/, "")
       .trim();

@@ -26,15 +26,15 @@ describe("the supplied scope", () => {
   });
 
   it("counts an email as supplied when it's about the air side", () => {
-    expect(emailSupplies("Watters - 6/40 Raglan St", "the floor plan and the engineer's report")).toBe(false);
+    expect(emailSupplies("Ashdown - 6/40 Lorem St", "the floor plan and the engineer's report")).toBe(false);
     expect(emailSupplies("Grilles", "Please use Airfoil linear bar grilles for the air conditioning")).toBe(true);
   });
 
   it("hands Tiff the newest sources first, to a limit", () => {
     const big = "x".repeat(SOURCE_WORDS_MAX);
-    const prompt = suppliedPrompt({ client: "JT Construct", site: "7 Cutler Rd", sources: [{ id: "a", at: "2", kind: "email", label: "JT's email", words: big }, { id: "b", at: "1", kind: "spec", label: "The spec", words: "late" }] });
-    expect(prompt).toContain("Client: JT Construct");
-    expect(prompt).toContain("JT's email");
+    const prompt = suppliedPrompt({ client: "QX Construct", site: "7 Ipsum Rd", sources: [{ id: "a", at: "2", kind: "email", label: "QX's email", words: big }, { id: "b", at: "1", kind: "spec", label: "The spec", words: "late" }] });
+    expect(prompt).toContain("Client: QX Construct");
+    expect(prompt).toContain("QX's email");
     expect(prompt).not.toContain("late");
   });
 
@@ -52,7 +52,7 @@ describe("the quoted scope against it", () => {
   });
 
   it("hands the brief's writer the supplied scope", () => {
-    const prompt = scopePrompt({ status: "Quote", clientName: "JT Construct", scope: null, workDone: null, lines: [], supplied: SUPPLIED });
+    const prompt = scopePrompt({ status: "Quote", clientName: "QX Construct", scope: null, workDone: null, lines: [], supplied: SUPPLIED });
     expect(prompt).toContain("The supplied scope, what the drawings, the specification and the emails asked for:");
     expect(prompt).toContain("Two FXDQ40 and an FXDQ50");
   });

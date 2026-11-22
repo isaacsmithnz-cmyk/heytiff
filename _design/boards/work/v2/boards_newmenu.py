@@ -21,7 +21,7 @@ CSS = MCSS + """
 
 def items(ctx=True):
     rows = "".join(mi(i, t) for i, t in [("jobs", "Job"), ("dollar", "Quote"), ("task", "Task"), ("cal", "Event"), ("receipt", "Expense"), ("sun", "Leave")])
-    c = (f'<div class="ctx">{v3.dot("Blue")}<span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">For 3342 Rifkin, Bellevue Hill</span><span class="x">{ico("x")}</span></div><div class="mdv"></div>' if ctx else "")
+    c = (f'<div class="ctx">{v3.dot("Blue")}<span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">For 3342 Fairweather, Bellevue Hill</span><span class="x">{ico("x")}</span></div><div class="mdv"></div>' if ctx else "")
     more = mi("doc", "Document", "", f'<span class="r">{ico("right")}</span>') + mi("dots", "More", "", f'<span class="r">{ico("right")}</span>')
     return c + rows + '<div class="mdv"></div>' + more
 
@@ -90,8 +90,8 @@ def grow_dark(width, ctx_text, sub=False):
 
 
 def build_dark(out):
-    out["NM-dark.dc.html"] = page("New, opening dark inside the panel", 1440, 900, DCSS, base_job(False).replace("</main>", "</main>" + v3.new_menu_dark("For 3342 Rifkin, Bellevue Hill"), 1))
-    out["NM-dark-wide.dc.html"] = page("New, opening dark, a little wider, Document open", 1440, 900, DCSS, grow_dark(296, "For 3342 Rifkin, Bellevue Hill", True))
+    out["NM-dark.dc.html"] = page("New, opening dark inside the panel", 1440, 900, DCSS, base_job(False).replace("</main>", "</main>" + v3.new_menu_dark("For 3342 Fairweather, Bellevue Hill"), 1))
+    out["NM-dark-wide.dc.html"] = page("New, opening dark, a little wider, Document open", 1440, 900, DCSS, grow_dark(296, "For 3342 Fairweather, Bellevue Hill", True))
 
 
 _b = build
@@ -127,7 +127,7 @@ def flow_dark():
     rows = "".join(mi(i, t) for i, t in [("jobs", "Job"), ("dollar", "Quote"), ("task", "Task"), ("cal", "Event"), ("receipt", "Expense"), ("sun", "Leave")])
     chev = f'<span class="r">{ico("right")}</span>'
     menu = f'''<div class="fd"><i class="jn ftop"></i><i class="jn fbot"></i>
-<div class="band">{v3.dot("Blue")}<span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">For 3342 Rifkin, Bellevue Hill</span><span class="x">{ico("x")}</span></div>
+<div class="band">{v3.dot("Blue")}<span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">For 3342 Fairweather, Bellevue Hill</span><span class="x">{ico("x")}</span></div>
 <div class="in"><div class="mdv"></div>{rows}<div class="mdv"></div>{mi("doc", "Document", "", chev)}{mi("dots", "More", "", chev)}</div></div>'''
     return h.replace("</main>", "</main>" + menu, 1)
 
@@ -137,4 +137,4 @@ _b2 = build
 
 def build(out):
     _b2(out)
-    out["NM-flow-dark.dc.html"] = page("New, the panel reaching out into the menu", 1440, 900, FCSS, v3.with_new_menu_old(base_job(False), "For 3342 Rifkin, Bellevue Hill"))
+    out["NM-flow-dark.dc.html"] = page("New, the panel reaching out into the menu", 1440, 900, FCSS, v3.with_new_menu_old(base_job(False), "For 3342 Fairweather, Bellevue Hill"))

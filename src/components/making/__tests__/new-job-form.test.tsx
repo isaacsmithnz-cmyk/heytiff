@@ -44,9 +44,9 @@ jest.mock("@/components/notes/dictation", () => {
 import { NewJobForm } from "../new-job-form";
 import { NoteScopeProvider } from "@/components/notes/note-context";
 
-const BUILDER = { uuid: "c0c0c0c0-0000-4000-8000-0000000000b1", name: "Built By MK", address: "1 Office St", sites: 14, contacts: [{ name: "Jake Breen", mobile: "0400 000 000", phone: null, email: "jake@builtbymk.com.au" }] };
-const PERSON = { uuid: "c0c0c0c0-0000-4000-8000-0000000000c1", name: "Tim Scott", address: "702/22 Sir John Young Cres, Woolloomooloo", sites: 0, contacts: [] };
-const SITE = { uuid: "5e5e5e5e-0000-4000-8000-000000000001", name: "41 Waverley St, Bondi Junction", address: "41 Waverley St, Bondi Junction", parentName: "Built By MK", lastJob: "2904" };
+const BUILDER = { uuid: "c0c0c0c0-0000-4000-8000-0000000000b1", name: "Built By RJ", address: "1 Office St", sites: 14, contacts: [{ name: "Jake Stonebridge", mobile: "0400 000 000", phone: null, email: "jake@builtbyrj.example" }] };
+const PERSON = { uuid: "c0c0c0c0-0000-4000-8000-0000000000c1", name: "Tim Thistlewood", address: "702/22 Sample Cres, Exampleloo", sites: 0, contacts: [] };
+const SITE = { uuid: "5e5e5e5e-0000-4000-8000-000000000001", name: "41 Fakehurst St, Fictonia Junction", address: "41 Fakehurst St, Fictonia Junction", parentName: "Built By RJ", lastJob: "2904" };
 const JOB = "10b10b10-0000-4000-8000-000000003401";
 const IN = { ok: true, rowId: "r1", line: { state: "in", words: "In ServiceM8 as #3401.", number: "3401" }, sm8Url: "https://go.servicem8.com/job/x", jobUuid: JOB };
 
@@ -125,7 +125,7 @@ describe("New job", () => {
     await user().click(create());
     expect(screen.getByLabelText("The job")).toHaveAttribute("aria-invalid", "true");
     await typeName("Tim");
-    await pickCustomer(/Tim Scott/);
+    await pickCustomer(/Tim Thistlewood/);
     act(() => heard.say!("Service call"));
     expect(screen.getByLabelText("The job")).toHaveValue("Service call");
     expect(screen.queryByText("Say what the job is.")).toBeNull();
@@ -142,7 +142,7 @@ describe("New job", () => {
   it("brings up repeat customers as their name is typed, and offers a new one", async () => {
     draw();
     await typeName("Bui");
-    expect(await screen.findByRole("button", { name: /Built By MK/ })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /Built By RJ/ })).toBeInTheDocument();
     await user().click(screen.getByRole("button", { name: /Add “Bui” as a new customer/ }));
     expect(screen.getByText("A new customer.")).toBeInTheDocument();
     expect(screen.getByLabelText("Address")).toBeInTheDocument();
@@ -151,13 +151,13 @@ describe("New job", () => {
   it("puts a builder's job on a new site by default, with their previous sites to choose", async () => {
     draw();
     await typeName("Built");
-    await pickCustomer(/Built By MK/);
+    await pickCustomer(/Built By RJ/);
     expect(screen.getByText("An existing customer: 14 sites.")).toBeInTheDocument();
     expect(screen.getByLabelText("Site address")).toHaveValue("");
     expect(screen.getByRole("combobox", { name: "Site" })).toHaveTextContent("A new site");
     expect(searchClientSites).toHaveBeenCalledWith(BUILDER.uuid, "");
-    choose("Site", /41 Waverley St/);
-    expect(screen.getByText("41 Waverley St, Bondi Junction, last job 2904.")).toBeInTheDocument();
+    choose("Site", /41 Fakehurst St/);
+    expect(screen.getByText("41 Fakehurst St, Fictonia Junction, last job 2904.")).toBeInTheDocument();
     expect(screen.queryByLabelText("Site address")).toBeNull();
     /* past the sites read, theirs are searched */
     await user().type(screen.getByLabelText("Search their sites"), "Wav");
@@ -171,14 +171,14 @@ describe("New job", () => {
     matchPreviousSite.mockResolvedValue(SITE);
     draw();
     await typeName("Built");
-    await pickCustomer(/Built By MK/);
-    await user().type(screen.getByLabelText("Site address"), "41 Waverley St");
+    await pickCustomer(/Built By RJ/);
+    await user().type(screen.getByLabelText("Site address"), "41 Fakehurst St");
     await act(async () => {
       jest.advanceTimersByTime(450);
     });
-    expect(await screen.findByText("Matches a previous site: 41 Waverley St, Bondi Junction, job 2904, Built By MK.")).toBeInTheDocument();
+    expect(await screen.findByText("Matches a previous site: 41 Fakehurst St, Fictonia Junction, job 2904, Built By RJ.")).toBeInTheDocument();
     await user().click(screen.getByRole("button", { name: "Use this site" }));
-    expect(screen.getByRole("combobox", { name: "Site" })).toHaveTextContent("41 Waverley St, Bondi Junction");
+    expect(screen.getByRole("combobox", { name: "Site" })).toHaveTextContent("41 Fakehurst St, Fictonia Junction");
   });
 
   it("finds the address as it's typed, and a picked one is the line ServiceM8 keeps, checked against our sites", async () => {
@@ -187,26 +187,26 @@ describe("New job", () => {
       const { op } = JSON.parse(init.body);
       const body =
         op === "suggest"
-          ? { enabled: true, suggestions: [{ placeId: "p1", text: "2 Krui Street, Fairlight NSW, Australia" }] }
-          : { enabled: true, formatted: "2 Krui St, Fairlight NSW 2094, Australia", parts: { address: "2 Krui St", suburb: "Fairlight", state: "NSW", postcode: "2094" } };
+          ? { enabled: true, suggestions: [{ placeId: "p1", text: "2 Tempor Street, Demoford NSW, Australia" }] }
+          : { enabled: true, formatted: "2 Tempor St, Demoford NSW 2094, Australia", parts: { address: "2 Tempor St", suburb: "Demoford", state: "NSW", postcode: "2094" } };
       return Promise.resolve({ ok: true, status: 200, json: async () => body });
     });
     global.fetch = fetchMock as unknown as typeof fetch;
     try {
       draw();
       await typeName("Built");
-      await pickCustomer(/Built By MK/);
-      await user().type(screen.getByLabelText("Site address"), "2 Krui");
+      await pickCustomer(/Built By RJ/);
+      await user().type(screen.getByLabelText("Site address"), "2 Tempor");
       await act(async () => {
         jest.advanceTimersByTime(250);
       });
-      await user().click(await screen.findByRole("option", { name: /2 Krui Street/ }));
-      await waitFor(() => expect(screen.getByLabelText("Site address")).toHaveValue("2 Krui St, Fairlight NSW 2094"));
+      await user().click(await screen.findByRole("option", { name: /2 Tempor Street/ }));
+      await waitFor(() => expect(screen.getByLabelText("Site address")).toHaveValue("2 Tempor St, Demoford NSW 2094"));
       expect(fetchMock.mock.calls[0]![0]).toBe("/api/address");
       await act(async () => {
         jest.advanceTimersByTime(450);
       });
-      expect(matchPreviousSite).toHaveBeenLastCalledWith("2 Krui St, Fairlight NSW 2094");
+      expect(matchPreviousSite).toHaveBeenLastCalledWith("2 Tempor St, Demoford NSW 2094");
     } finally {
       global.fetch = realFetch;
     }
@@ -215,9 +215,9 @@ describe("New job", () => {
   it("creates the job under a new site, with its contact, kind and how they came in, then opens it on its page", async () => {
     const onClose = draw();
     await typeName("Built");
-    await pickCustomer(/Built By MK/);
-    await user().type(screen.getByLabelText("Site address"), "9 New Rd, Rose Bay");
-    choose("Contact", "Jake Breen");
+    await pickCustomer(/Built By RJ/);
+    await user().type(screen.getByLabelText("Site address"), "9 New Rd, Example Bay");
+    choose("Contact", "Jake Stonebridge");
     expect(screen.getByLabelText("Mobile")).toHaveValue("0400 000 000");
     choose("Kind", "Install");
     await user().type(screen.getByLabelText("The job"), "Two splits upstairs");
@@ -225,12 +225,12 @@ describe("New job", () => {
     await user().click(create());
     await waitFor(() => expect(createNewJob).toHaveBeenCalledTimes(1));
     expect(createNewJob.mock.calls[0]![0]).toMatchObject({
-      clientName: "Built By MK",
-      client: { kind: "site", parentUuid: BUILDER.uuid, address: "9 New Rd, Rose Bay" },
-      jobAddress: "9 New Rd, Rose Bay",
+      clientName: "Built By RJ",
+      client: { kind: "site", parentUuid: BUILDER.uuid, address: "9 New Rd, Example Bay" },
+      jobAddress: "9 New Rd, Example Bay",
       description: "Two splits upstairs",
       categoryUuid: "ca7ca7ca-0000-4000-8000-000000000001",
-      contact: { first: "Jake", last: "Breen", mobile: "0400 000 000", email: "jake@builtbymk.com.au" },
+      contact: { first: "Jake", last: "Stonebridge", mobile: "0400 000 000", email: "jake@builtbyrj.example" },
       via: "phone",
       next: null,
     });
@@ -245,7 +245,7 @@ describe("New job", () => {
     openMirrorJob.mockResolvedValue(null);
     const onClose = draw();
     await typeName("Tim");
-    await pickCustomer(/Tim Scott/);
+    await pickCustomer(/Tim Thistlewood/);
     await user().type(screen.getByLabelText("The job"), "Service call");
     await user().click(create());
     expect(await screen.findByRole("button", { name: "Opening job 3401" })).toBeDisabled();
@@ -263,7 +263,7 @@ describe("New job", () => {
   it("puts a person's job at their own address, under them, as an existing customer", async () => {
     draw();
     await typeName("Tim");
-    await pickCustomer(/Tim Scott/);
+    await pickCustomer(/Tim Thistlewood/);
     expect(screen.getByLabelText("Address")).toHaveValue(PERSON.address);
     expect(screen.getByRole("radio", { name: "Existing customer" })).toHaveAttribute("aria-checked", "true");
     await user().type(screen.getByLabelText("The job"), "Service call");
@@ -277,7 +277,7 @@ describe("New job", () => {
     await typeName("Rob");
     await user().click(await screen.findByRole("button", { name: /Add “Rob” as a new customer/ }));
     await user().click(screen.getByRole("radio", { name: "Existing customer" }));
-    await user().type(screen.getByLabelText("Address"), "3 Ocean St, Narrabeen");
+    await user().type(screen.getByLabelText("Address"), "3 Figment St, Pretendale");
     await user().type(screen.getByLabelText("The job"), "Split in the study");
     await user().click(create());
     expect(screen.getByText("An existing customer is one already here. Find them by name.")).toBeInTheDocument();
@@ -293,7 +293,7 @@ describe("New job", () => {
     createNewJob.mockResolvedValue({ ok: false, error: "Sending new jobs to ServiceM8 is switched off." });
     draw();
     await typeName("Tim");
-    await pickCustomer(/Tim Scott/);
+    await pickCustomer(/Tim Thistlewood/);
     await user().type(screen.getByLabelText("The job"), "Service call");
     await user().click(create());
     expect(await screen.findByText("Sending new jobs to ServiceM8 is switched off.")).toBeInTheDocument();
@@ -305,7 +305,7 @@ describe("New job", () => {
     createNewJob.mockResolvedValueOnce({ ...IN, line: { state: "waiting", words: "Waiting to go to ServiceM8.", number: null }, sm8Url: null });
     draw();
     await typeName("Tim");
-    await pickCustomer(/Tim Scott/);
+    await pickCustomer(/Tim Thistlewood/);
     await user().type(screen.getByLabelText("The job"), "Service call");
     await user().click(create());
     expect(await screen.findByText("Waiting to go to ServiceM8.")).toBeInTheDocument();

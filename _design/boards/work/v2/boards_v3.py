@@ -256,8 +256,8 @@ def sidebar(active="home", mk=False):
         search = M(4, search, "top:-6px;right:-6px", True)
         pin_lbl = M(6, pin_lbl, "top:10px;right:-6px", True)
         you = M(7, you, "top:-6px;right:-6px", True)
-    pinned = "".join(f'<a class="rc" href="#">{dot(c)}<span class="tx">{x}</span></a>' for c, x in [("Blue", "3342 Rifkin, Bellevue Hill"), ("Purple", "3302 Heuvel, Chatswood")])
-    rec = "".join(f'<a class="rc" href="#">{ico(k)}<span class="tx">{x}</span></a>' for k, x in [("chat", "Riverview brief"), ("doc", "SWMS, Heuvel roof work"), ("person", "Lyle Irving"), ("jobs", "Northgate Realty, 3323")])
+    pinned = "".join(f'<a class="rc" href="#">{dot(c)}<span class="tx">{x}</span></a>' for c, x in [("Blue", "3342 Fairweather, Bellevue Hill"), ("Purple", "3302 Testa, Fablewood")])
+    rec = "".join(f'<a class="rc" href="#">{ico(k)}<span class="tx">{x}</span></a>' for k, x in [("chat", "Fakeview brief"), ("doc", "SWMS, Testa roof work"), ("person", "Lyle Irving"), ("jobs", "Northgate Realty, 3323")])
     return f'''<aside class="sd">{brand}{new}{search}<div style="height:12px"></div>{rows}{pin_lbl}{pinned}<div class="slb">Recents</div>{rec}{you}</aside>'''
 
 
@@ -302,7 +302,7 @@ def home():
         ("7:30 to 8:30", "Green", "Kingsford Bakery, Job 2380", "Service, you", '<span class="st good">Done</span>'),
         ("9:00 to 11:30", "Blue", "Bellevue Hill, Job 3342", "Installation, Lyle and Callum", '<span class="st good">On now</span>'),
         ("By 12:30", None, "Order the grilles", "Task, for Bellevue Hill", ""),
-        ("12:45 to 1:45", "Orange", "Riverview, Job 3361", "Quote, Dan", ""),
+        ("12:45 to 1:45", "Orange", "Fakeview, Job 3361", "Quote, Dan", ""),
     ]
     rows = ""
     for i, (tm, c, t, s, r) in enumerate(today):
@@ -316,7 +316,7 @@ def home():
         rows += row
     todo = [
         ("Red", "Hilux XQG 41B rego", '<span class="st wrong">Runs out today</span>', "Renew"),
-        ("Orange", "Lyle asked you: which fans for Rozelle?", '<span class="s">A note on 3348 Ma, Rozelle, 7:40 am</span>', "Reply"),
+        ("Orange", "Lyle asked you: which fans for Mockzelle?", '<span class="s">A note on 3348 Ma, Mockzelle, 7:40 am</span>', "Reply"),
         ("Orange", "Kingsford Bakery, 2380", '<span class="st look">Finished, ready to invoice</span>', "Invoice"),
         ("Orange", "Timesheets, last week", '<span class="s">4 to approve, 150.5 hours</span>', "Review"),
         ("Grey", "Callum mentioned you on Toolbox talk", '<span class="s">A comment on the notice, Friday</span>', "Open"),
@@ -350,7 +350,7 @@ VIEWS = [("All", 142), ("To book", 19), ("Quotes", 23), ("To invoice", 8), ("Owe
 
 def jobs(menus=None, views="soft"):
     menus = menus or {}
-    tabs = [TAB_HOME, (ico("jobs"), "Jobs"), tab_job("Blue", "3342 Rifkin")]
+    tabs = [TAB_HOME, (ico("jobs"), "Jobs"), tab_job("Blue", "3342 Fairweather")]
     chips = '<span class="chip on">All <span class="c">142</span></span>' + "".join(f'<span class="chip">{n} <span class="c">{c}</span></span>' for n, c in VIEWS[1:])
     if views == "chips":
         viewrow = M(29, f'<span style="display:inline-flex;gap:8px">{chips}</span>')
@@ -362,14 +362,14 @@ def jobs(menus=None, views="soft"):
         viewrow = ""
     cols = "72px minmax(0,1.6fr) 150px minmax(0,1.2fr) 150px 96px 110px"
     data = [
-        ("3342", "Rifkin, Julian", "Bellevue Hill", "Blue", "Installation", '<span class="st good">On site</span>', "Today 9:00", ["LI", "CA"], "$9,840"),
-        ("3361", "Okafor, Ada", "Riverview", "Orange", "Quote", '<span class="st info">Quote to write</span>', "Brief saved today", ["IS"], ""),
+        ("3342", "Fairweather, Jules", "Bellevue Hill", "Blue", "Installation", '<span class="st good">On site</span>', "Today 9:00", ["LI", "CA"], "$9,840"),
+        ("3361", "Okafor, Ada", "Fakeview", "Orange", "Quote", '<span class="st info">Quote to write</span>', "Brief saved today", ["IS"], ""),
         ("3323", "Northgate Realty", "Ryde", "Blue", "Installation", '<span class="st look">Waiting on a day</span>', "Won 9 October", ["KL"], "$24,600"),
-        ("3302", "Heuvel Construction", "Chatswood", "Purple", "Project", '<span class="st good">Rough-in, day 2 of 3</span>', "Today", ["KL", "DW"], "$188,000"),
-        ("1042", "Meridian Data", "Alexandria", "Yellow", "Maintenance", '<span class="qq">Booked</span>', "Today 12:45", ["DW"], "$1,120"),
+        ("3302", "Testa Construction", "Fablewood", "Purple", "Project", '<span class="st good">Rough-in, day 2 of 3</span>', "Today", ["KL", "DW"], "$188,000"),
+        ("1042", "Meridian Data", "Exampleria", "Yellow", "Maintenance", '<span class="qq">Booked</span>', "Today 12:45", ["DW"], "$1,120"),
         ("2380", "Kingsford Bakery", "Kingsford", "Green", "Service", '<span class="st look">Ready to invoice</span>', "Done 8:30 am", ["IS"], "$420"),
         ("3250", "Scott Group", "Parramatta", "Blue", "Installation", '<span class="st wrong">Waiting 4 weeks for a day</span>', "Won 14 September", [], "$31,900"),
-        ("3294", "Belmont Holdings", "Rozelle", "Orange", "Quote", '<span class="qq">Waiting on an answer</span>', "Sent 2 October", ["IS"], "$3,150"),
+        ("3294", "Belmont Holdings", "Mockzelle", "Orange", "Quote", '<span class="qq">Waiting on an answer</span>', "Sent 2 October", ["IS"], "$3,150"),
     ]
     trs = ""
     rowhtml = {}
@@ -403,7 +403,7 @@ def jobs(menus=None, views="soft"):
 
 # ------------------------------------------------------------------ a job
 def job(actions_menu="", sections="counts", tab="Overview", content=None, aside_top="", add_menu=""):
-    tabs = [TAB_HOME, (ico("jobs"), "Jobs"), tab_job("Blue", "3342 Rifkin")]
+    tabs = [TAB_HOME, (ico("jobs"), "Jobs"), tab_job("Blue", "3342 Fairweather")]
     steps = [("Enquiry", "dn"), ("Quoted", "dn"), ("Accepted", "dn"), ("Booked", "dn"), ("On site", "on"), ("Done", ""), ("Invoiced", ""), ("Paid", "")]
     st = '<span class="sep"></span>'.join(f'<span class="{c}">{n}</span>' for n, c in steps)
     counts = {"Visits": "2", "Checklist": "8 of 14", "Photos": "24", "Documents": "3"} if sections == "counts" else {}
@@ -418,14 +418,14 @@ def job(actions_menu="", sections="counts", tab="Overview", content=None, aside_
         nt += f'<div class="gp" style="display:flex;gap:12px;padding:16px 0 4px">{av}<div style="min-width:0"><div class="l13"><b style="font-weight:600">{n}</b> <span class="qq">{t}</span></div><p class="r16" style="margin-top:2px">{x}</p></div></div>'
     var_card = f'''<div class="cd" style="padding:16px;display:flex;flex-direction:column;gap:10px">
   <div style="display:flex;align-items:baseline;gap:8px"><b class="t16">Variation: isolator on the deck</b></div>
-  <p class="qq">$480 plus GST, drafted from Callum's note. Julian hasn't seen it yet.</p>
-  <div style="display:flex;gap:8px;justify-content:flex-end"><span class="b sm sec">Edit</span><span class="b sm go">Send to Julian</span></div>
+  <p class="qq">$480 plus GST, drafted from Callum's note. Jules hasn't seen it yet.</p>
+  <div style="display:flex;gap:8px;justify-content:flex-end"><span class="b sm sec">Edit</span><span class="b sm go">Send to Jules</span></div>
 </div>'''
     docs = "".join(f'<a class="rw" href="#" style="padding:10px 0">{ico(i)}<span class="m">{n}</span>{s}</a>' for i, n, s in [("shield", "SWMS, split install", '<span class="st look">2 of 3 signed on</span>'), ("doc", "Quote, version 2", '<span class="st good">Accepted</span>'), ("cert", "Commissioning certificate", '<span class="qq">Not made yet</span>')])
     body = f'''<div class="ph">
   <div class="l13 qq" style="display:flex;gap:8px;align-items:center"><a class="lk" href="#" style="color:var(--q)">Jobs</a>{ico("right")}<b style="color:var(--ink);font-weight:600">3342</b></div>
   <div style="display:flex;align-items:flex-start;gap:12px;margin-top:8px">
-    <div style="flex:1;min-width:0"><h1 class="t24">Rifkin, Julian</h1><p class="qq" style="margin-top:4px;display:flex;align-items:center;gap:8px">{dot("Blue")}Installation, Job 3342, 41 Victoria Rd, Bellevue Hill. <span class="st good">On site</span></p></div>
+    <div style="flex:1;min-width:0"><h1 class="t24">Fairweather, Jules</h1><p class="qq" style="margin-top:4px;display:flex;align-items:center;gap:8px">{dot("Blue")}Installation, Job 3342, 41 Victoria Rd, Bellevue Hill. <span class="st good">On site</span></p></div>
     <span class="b sec">Open in ServiceM8</span><span style="position:relative;display:inline-flex"><span class="b sec"{" style=border-color:var(--ink)" if add_menu else ""}>{ico("plus")}Add{ico("down")}</span>{add_menu}</span>{M(34, f'<span style="position:relative;display:inline-flex"><span class="b sec"{" style=border-color:var(--ink)" if actions_menu else ""}>Actions{ico("down")}</span>{actions_menu}</span>')}
   </div>
   <div class="steps" style="margin-top:16px">{st}</div>
@@ -453,10 +453,10 @@ def job(actions_menu="", sections="counts", tab="Overview", content=None, aside_
 def schedule():
     tabs = [TAB_HOME, (ico("cal"), "Schedule"), (ico("repeat"), "Maintenance, October")]
     people = [
-        ("Isaac Smith", "IS", [(7.5, 8.5, "Green", "Kingsford", "2380, Service"), (14.75, 16, "Green", "Randwick Dental", "3271, Service")]),
+        ("Isaac Smith", "IS", [(7.5, 8.5, "Green", "Kingsford", "2380, Service"), (14.75, 16, "Green", "Madeupton Dental", "3271, Service")]),
         ("Lyle Irving", "LI", [(9, 11.5, "Blue", "Bellevue Hill", "3342, Installation")]),
-        ("Callum Ahn", "CA", [(9, 11.5, "Blue", "Bellevue Hill", "3342, Installation"), (12.5, 15.5, "Purple", "Heuvel, Chatswood", "3302, Project")]),
-        ("Dan Walsh", "DW", [(12.75, 13.75, "Orange", "Riverview", "3361, Quote"), (14.25, 16.25, "Yellow", "Ardex Logistics", "2601, Maintenance")]),
+        ("Callum Ahn", "CA", [(9, 11.5, "Blue", "Bellevue Hill", "3342, Installation"), (12.5, 15.5, "Purple", "Testa, Fablewood", "3302, Project")]),
+        ("Dan Walsh", "DW", [(12.75, 13.75, "Orange", "Fakeview", "3361, Quote"), (14.25, 16.25, "Yellow", "Ardex Logistics", "2601, Maintenance")]),
         ("Kai Lee", "KL", []),
     ]
     lanes = ""
@@ -474,7 +474,7 @@ def schedule():
             bl = '<div style="position:absolute;inset:8px 0;display:flex;align-items:center;padding:0 12px" class="qq">On leave, back Thursday</div>'
         lanes += f'<div class="lane"><div style="display:flex;align-items:center;gap:10px;font-weight:600"><span class="avt s">{ini}</span>{name}</div><div style="position:relative">{bl}</div></div>'
     hours = "".join(f'<span class="c12" style="position:absolute;left:{(h - 7) / 10 * 100}%;transform:translateX(-50%)">{h if h <= 12 else h - 12}{"am" if h < 12 else "pm"}</span>' for h in range(8, 17))
-    nd = "".join(f'<div class="cd" style="padding:12px 14px;margin-bottom:8px;display:flex;gap:10px;align-items:flex-start"><span style="margin-top:6px">{dot(c)}</span><div><div style="font-weight:600">{t}</div><div class="l13 {sc}">{s}</div></div></div>' for c, t, s, sc in [("Blue", "Northgate Realty, 3323", "Installation, about 2 days", "qq"), ("Yellow", "Ardex Logistics, service", "Due today", "st look"), ("Purple", "Heuvel, visit 3: fit-off", "Around 20 October", "qq")])
+    nd = "".join(f'<div class="cd" style="padding:12px 14px;margin-bottom:8px;display:flex;gap:10px;align-items:flex-start"><span style="margin-top:6px">{dot(c)}</span><div><div style="font-weight:600">{t}</div><div class="l13 {sc}">{s}</div></div></div>' for c, t, s, sc in [("Blue", "Northgate Realty, 3323", "Installation, about 2 days", "qq"), ("Yellow", "Ardex Logistics, service", "Due today", "st look"), ("Purple", "Testa, visit 3: fit-off", "Around 20 October", "qq")])
     pager = f'<span class="ib bare">{ico("left")}</span><span style="font-weight:600">Tuesday 13 October</span><span class="ib bare">{ico("right")}</span>'
     body = f'''<div class="ph" style="display:flex;align-items:center;gap:12px">
   <h1 class="t24">Schedule</h1>{M(30, '<span class="sg" style="margin-left:8px"><span class="on">Day</span><span>Week</span><span>Month</span></span>')}
@@ -661,18 +661,18 @@ def new_menu():
 
 def search():
     rows = [
-        ("Jobs", [(dot("Orange"), "3361 Okafor, Riverview", "Quote, brief saved today"), (dot("Blue"), "3355 Riverview Medical", "Installation, done 2 October")]),
+        ("Jobs", [(dot("Orange"), "3361 Okafor, Fakeview", "Quote, brief saved today"), (dot("Blue"), "3355 Fakeview Medical", "Installation, done 2 October")]),
         ("Documents", [(ico("doc"), "Brief, 3361 Okafor", "From your conversation, 8:40 am")]),
-        ("Conversations", [(ico("chat"), "Riverview brief", "Today 8:40 am")]),
+        ("Conversations", [(ico("chat"), "Fakeview brief", "Today 8:40 am")]),
     ]
     body = ""
     for g, items in rows:
         body += f'<div class="c12" style="padding:12px 12px 4px">{g}</div>'
         for i, (lead, t, s) in enumerate(items):
             body += f'<a class="mi{" on" if (g == "Jobs" and i == 0) else ""}" href="#" style="height:auto;padding:8px 12px">{lead}<span style="display:flex;flex-direction:column"><span style="font-weight:600">{t}</span><span class="l13 qq">{s}</span></span></a>'
-    ask = f'<div class="mdv"></div><a class="mi" href="#" style="height:44px">{tiff_mono(20)}<span>Ask Tiff about <b style="font-weight:600">riverview</b></span><span class="r l13">Enter</span></a>'
+    ask = f'<div class="mdv"></div><a class="mi" href="#" style="height:44px">{tiff_mono(20)}<span>Ask Tiff about <b style="font-weight:600">fakeview</b></span><span class="r l13">Enter</span></a>'
     pal = f'''<div class="scr" style="z-index:4"></div><div class="ov" style="position:absolute;left:calc(256px + (100% - 256px) / 2 - 320px);top:110px;width:640px;padding:8px;z-index:5">
-  <div class="fi" style="height:44px;border-color:transparent;font-size:16px">{ico("search")}<span>riverview</span></div><div class="mdv"></div>
+  <div class="fi" style="height:44px;border-color:transparent;font-size:16px">{ico("search")}<span>fakeview</span></div><div class="mdv"></div>
   {body}{M(43, ask, "top:6px;right:-12px", True)}
 </div>'''
     return job().replace('<i class="cf"', '<i class="cf" hidden').replace("</main>", "</main>" + pal, 1)
@@ -702,7 +702,7 @@ def states():
 
 # ------------------------------------------------------------------ phone
 def phone():
-    rows = "".join(f'<div class="rw" style="gap:10px"><span class="l13 qq nm" style="width:72px">{tm}</span>{dot(c)}<div class="m"><div class="t">{t}</div><div class="s">{s}</div></div>{r}</div>' for tm, c, t, s, r in [("7:30", "Green", "Kingsford Bakery", "Service, you", '<span class="st good l13">Done</span>'), ("9:00", "Blue", "Bellevue Hill", "Installation, Lyle", '<span class="st good l13">On now</span>'), ("12:45", "Orange", "Riverview", "Quote, Dan", ""), ("2:45", "Green", "Randwick Dental", "Service, you", "")])
+    rows = "".join(f'<div class="rw" style="gap:10px"><span class="l13 qq nm" style="width:72px">{tm}</span>{dot(c)}<div class="m"><div class="t">{t}</div><div class="s">{s}</div></div>{r}</div>' for tm, c, t, s, r in [("7:30", "Green", "Kingsford Bakery", "Service, you", '<span class="st good l13">Done</span>'), ("9:00", "Blue", "Bellevue Hill", "Installation, Lyle", '<span class="st good l13">On now</span>'), ("12:45", "Orange", "Fakeview", "Quote, Dan", ""), ("2:45", "Green", "Madeupton Dental", "Service, you", "")])
     return f'''<div class="v3 on-ink" style="width:390px;height:844px;flex-direction:column">{MARK_DEFS}{MONO_DEFS}
   <div style="height:56px;flex:none;display:flex;align-items:center;gap:8px;padding:0 12px 0 8px;color:#fff"><span class="ib bare lg" style="background:transparent;color:#fff">{ico("menu")}</span>{mark_svg()}<b style="font-size:16px;font-weight:700">HeyTiff</b><span style="flex:1"></span><span class="b" style="height:40px;background:#fff;color:var(--ink)">{ico("plus")}New</span></div>
   {M(48, f"""<div style="flex:1;min-height:0;height:788px;background:#fff;border-radius:40px 0 0 0;display:flex;flex-direction:column;overflow:hidden">

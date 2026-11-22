@@ -66,15 +66,15 @@ describe("the last thing seen", () => {
     now: ms("2026-11-19T22:00:00+11:00"),
     office: [],
   };
-  const glebe = [{ inAt: at("2026-11-19T12:30:00+11:00"), outAt: at("2026-11-19T13:00:00+11:00") }];
+  const mockglen = [{ inAt: at("2026-11-19T12:30:00+11:00"), outAt: at("2026-11-19T13:00:00+11:00") }];
   it("is getting home, 3:00 pm", () => {
-    expect(lastSeen({ ...base, homeAt: at("2026-11-19T15:00:00+11:00"), stints: glebe })).toEqual({ at: at("2026-11-19T15:00:00+11:00"), what: "home" });
+    expect(lastSeen({ ...base, homeAt: at("2026-11-19T15:00:00+11:00"), stints: mockglen })).toEqual({ at: at("2026-11-19T15:00:00+11:00"), what: "home" });
   });
   it("is the last check-out with no home on the card, 1:00 pm", () => {
-    expect(lastSeen({ ...base, homeAt: null, stints: glebe })).toEqual({ at: at("2026-11-19T13:00:00+11:00"), what: "checkout" });
+    expect(lastSeen({ ...base, homeAt: null, stints: mockglen })).toEqual({ at: at("2026-11-19T13:00:00+11:00"), what: "checkout" });
   });
   it("is the last check-out when a job came after getting home for lunch", () => {
-    const later = [...glebe, { inAt: at("2026-11-19T13:30:00+11:00"), outAt: at("2026-11-19T15:30:00+11:00") }];
+    const later = [...mockglen, { inAt: at("2026-11-19T13:30:00+11:00"), outAt: at("2026-11-19T15:30:00+11:00") }];
     expect(lastSeen({ ...base, homeAt: at("2026-11-19T13:10:00+11:00"), stints: later })).toEqual({ at: at("2026-11-19T15:30:00+11:00"), what: "checkout" });
   });
   it("is the end with nothing seen", () => {

@@ -32,7 +32,7 @@ export function WizardDialog({
   children,
 }: {
   heading: string;
-  /** "Job 3385, 8/36 Abbott Road, Seven Hills NSW 2147" */
+  /** "Job 3385, 8/36 Laboris Road, Dummy Hills NSW 2147" */
   line: string | null;
   tabs?: { items: readonly TabItem[]; current: string; onGo: (key: string) => void; ariaLabel: string; idPrefix: string; panelPrefix: string } | null;
   width: DialogWidth;

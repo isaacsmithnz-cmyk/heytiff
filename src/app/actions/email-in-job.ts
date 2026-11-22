@@ -46,7 +46,7 @@ export async function createJobFromEmail(id: string): Promise<MadeAnswer> {
     ? { kind: "existing" as const, uuid: theirSite.uuid }
     : /* a builder's new job goes on the builder, its address on the job, as
          every other job of theirs is: never a new site named by its address
-         (3533 on JT Construct, Isaac, 17 November 2026: "I think Tiff just
+         (3533 on QX Construct, Isaac, 17 November 2026: "I think Tiff just
          made the job wrong") */
       p.clientMatch
       ? { kind: "existing" as const, uuid: p.clientMatch.uuid }

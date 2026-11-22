@@ -53,7 +53,7 @@ const tanOf = (r: RoofRect) => Math.tan((Math.max(0, r.part.pitchDeg) * Math.PI)
 /* THE ROOF SITS ON ITS RAFTERS, AND THEY ON THE WALLS: at the wall line the
    sheets are a rafter's depth (measured square to the slope) above the top
    of the wall, never on it, or the ceiling joists, which sit on the wall
-   too, come up through the roof at a low eave (23 Hope St, 20 October). */
+   too, come up through the roof at a low eave (23 Rumour St, 20 October). */
 export const seatOf = (r: RoofRect): number => (r.part.form === "flat" ? 0 : RAFTER.h / Math.cos(Math.atan(tanOf(r))) + 0.02);
 
 /** Which way a skillion climbs in v: true when its low side is at v0. */

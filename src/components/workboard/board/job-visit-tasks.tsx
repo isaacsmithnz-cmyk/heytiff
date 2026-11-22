@@ -695,7 +695,7 @@ export function VisitDialog({
   onChange,
 }: {
   visit: ComingVisit;
-  /** "Job 2043, JT Construct" */
+  /** "Job 2043, QX Construct" */
   jobLine: string;
   /** the booking's state in ServiceM8, and Open in ServiceM8 */
   state: ReactNode;

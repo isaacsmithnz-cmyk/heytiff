@@ -11,7 +11,7 @@ jest.mock("@/components/shell/open-tabs", () => ({ openInTab: jest.fn((href: str
 const JOB = "01a16037-b85f-7c94-9d9b-bc2fbdedbf2b";
 const d = (over: Partial<JobDesign> = {}): JobDesign => ({
   id: "dsn_new",
-  name: "90 O'Brien Street",
+  name: "90 Dreamer Street",
   mode: "plan",
   floorCount: 1,
   systemCount: 1,
@@ -30,8 +30,8 @@ describe("the job's Design section", () => {
     );
     const rows = within(screen.getByRole("list", { name: "The job's designs" })).getAllByRole("listitem");
     expect(rows.map((r) => r.textContent)).toEqual([
-      "90 O'Brien Street1 floor, 1 system, edited Wed 28 OctOpen design",
-      "90 O'Brien Street2 floors, 2 systems, edited Thu 22 OctOpen design",
+      "90 Dreamer Street1 floor, 1 system, edited Wed 28 OctOpen design",
+      "90 Dreamer Street2 floors, 2 systems, edited Thu 22 OctOpen design",
     ]);
     expect(within(rows[1]).getByRole("link", { name: "Open design" })).toHaveAttribute("href", "/dashboard/studio?design=dsn_old");
   });

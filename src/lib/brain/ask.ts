@@ -131,7 +131,7 @@ export type AskHistoryTurn = { who: "you" | "tiff"; text: string };
 export type AskPage = {
   screen?: string;
   /** What on the screen they're about, said by the screen: Design's open
-      design ("the design \"7 Cutler Rd\" (id dsn_…)"). */
+      design ("the design \"7 Ipsum Rd\" (id dsn_…)"). */
   detail?: string;
   target?: { kind: string; id: string; label?: string };
 };

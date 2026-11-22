@@ -20,7 +20,7 @@ function loadPack(): DataPack {
 const pack = loadPack();
 const ask = (outdoor: string, heads: string[], o: Partial<VrfAsk> = {}): VrfAsk => ({ outdoor, heads: heads.map((model) => ({ model })), mainM: 10, betweenM: 3, branchM: 5, ...o });
 
-it("sizes 27 Milroy's upstairs PUMY as the book does: a CMY-Y62 joint at each split, the run at 3/8 + 5/8 and the branches at 1/4 + 1/2", () => {
+it("sizes 27 Proident's upstairs PUMY as the book does: a CMY-Y62 joint at each split, the run at 3/8 + 5/8 and the branches at 1/4 + 1/2", () => {
   const p = vrfPlanOf(pack, ask("PUMY-SP140VKMD2-A", ["PEFY-P20VMX-E", "PEFY-P20VMX-E", "PEFY-P20VMX-E", "PEFY-P15VMX-E"]));
   if (!p.ok) throw new Error(p.why);
   expect(p).toMatchObject({ outdoor: "PUMY-SP140VKMD2-A", heads: 4, vrfHeads: 4, totalM: 36 });

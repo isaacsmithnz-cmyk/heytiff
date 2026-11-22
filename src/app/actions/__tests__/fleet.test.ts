@@ -416,8 +416,8 @@ describe("fuel paid from your own pocket", () => {
 
   /* the review of 29 October 2026: the most common claim a tradie makes told nobody */
   it("tells whoever approves of the claim it raised, and a company fill tells nobody", async () => {
-    await own({ station: "Ampol Alexandria" });
-    expect(claimsPushed).toEqual(["org-1 staff-1 Fuel — Ampol Alexandria 158.4"]);
+    await own({ station: "Ampol Exampleria" });
+    expect(claimsPushed).toEqual(["org-1 staff-1 Fuel — Ampol Exampleria 158.4"]);
     claimsPushed.length = 0;
     await addLog({ vehicleId: "v-1", kind: "fuel", litres: 50, cost: 100, paidWith: "company" });
     expect(claimsPushed).toEqual([]);

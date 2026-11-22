@@ -58,10 +58,10 @@ const RAY = "0b1e0b1e-0000-4000-8000-0000000000a2";
 const PRESS_ID = "0b1e0b1e-0000-4000-8000-0000000000ff";
 const FORM = {
   jobUuid: J,
-  company: { uuid: "0b1e0b1e-0000-4000-8000-0000000000c1", name: "Lisa Watters", address: "6/40 Raglan St, Mosman" },
-  billingAddress: "6/40 Raglan St\nMosman",
-  siteAddress: "6/40 Raglan St, Mosman",
-  contacts: [{ uuid: RAY, first: "Ray", last: "Watters", mobile: "0400 111 222", phone: "02 9960 0000", email: "", type: "BILLING" }],
+  company: { uuid: "0b1e0b1e-0000-4000-8000-0000000000c1", name: "Lisa Ashdown", address: "6/40 Lorem St, Sampleton" },
+  billingAddress: "6/40 Lorem St\nSampleton",
+  siteAddress: "6/40 Lorem St, Sampleton",
+  contacts: [{ uuid: RAY, first: "Ray", last: "Ashdown", mobile: "0400 111 222", phone: "02 9960 0000", email: "", type: "BILLING" }],
 };
 const saved: { orgId: string; pressId: string; after: unknown; pressed: boolean }[] = [];
 let answer: unknown = { ok: true, saved: 1, waiting: 0, failed: [] };
@@ -138,9 +138,9 @@ describe("reading for the Contact sheet", () => {
     const body = await (await GET(req("auth0|isaac"), params)).json();
     expect(body).toMatchObject({
       canEdit: true,
-      people: [{ id: RAY, first: "Ray", last: "Watters", mobile: "0400 111 222", type: "BILLING" }],
-      site: "6/40 Raglan St, Mosman",
-      billing: "6/40 Raglan St\nMosman",
+      people: [{ id: RAY, first: "Ray", last: "Ashdown", mobile: "0400 111 222", type: "BILLING" }],
+      site: "6/40 Lorem St, Sampleton",
+      billing: "6/40 Lorem St\nSampleton",
       billingSame: true,
     });
     expect(body.roles.map((r: { word: string }) => r.word)).toEqual(["Job contact", "Billing contact", "Site contact", "Property manager", "Property owner", "Tenant"]);
@@ -149,7 +149,7 @@ describe("reading for the Contact sheet", () => {
 });
 
 describe("saving one change", () => {
-  const person = { kind: "person", id: RAY, first: "Ray", last: "Watters", mobile: "0400 999 888", email: "ray@example.com", type: "Tenant" };
+  const person = { kind: "person", id: RAY, first: "Ray", last: "Ashdown", mobile: "0400 999 888", email: "ray@example.com", type: "Tenant" };
 
   it("someone who doesn't run the board is refused before anything is read", async () => {
     const res = await POST(req("auth0|lyle", { pressId: PRESS_ID, edit: person }), params);
@@ -181,12 +181,12 @@ describe("saving one change", () => {
     expect(await res.json()).toEqual({ saved: 1, waiting: 0 });
     expect(saved).toHaveLength(1);
     expect(saved[0]).toMatchObject({ orgId: "org-diamond", pressId: PRESS_ID, pressed: true });
-    expect((saved[0]!.after as typeof FORM).contacts).toEqual([{ uuid: RAY, first: "Ray", last: "Watters", mobile: "0400 999 888", phone: "02 9960 0000", email: "ray@example.com", type: "Tenant" }]);
+    expect((saved[0]!.after as typeof FORM).contacts).toEqual([{ uuid: RAY, first: "Ray", last: "Ashdown", mobile: "0400 999 888", phone: "02 9960 0000", email: "ray@example.com", type: "Tenant" }]);
   });
 
   it("saving what's already there is done, not a refusal", async () => {
     answer = { ok: false, error: CUSTOMER_WORDS.press.nothing };
-    const res = await POST(req("auth0|isaac", { pressId: PRESS_ID, edit: { kind: "site", address: "6/40 Raglan St, Mosman" } }), params);
+    const res = await POST(req("auth0|isaac", { pressId: PRESS_ID, edit: { kind: "site", address: "6/40 Lorem St, Sampleton" } }), params);
     expect([res.status, await res.json()]).toEqual([200, { saved: 0, waiting: 0 }]);
   });
 
@@ -203,7 +203,7 @@ describe("the phone's address lookup", () => {
     const real = global.fetch;
     global.fetch = fetchMock as unknown as typeof fetch;
     try {
-      const res = await address(new Request("https://go.hey-tiff.com/api/mobile/address", { method: "POST", body: JSON.stringify({ op: "suggest", input: "40 Raglan" }) }));
+      const res = await address(new Request("https://go.hey-tiff.com/api/mobile/address", { method: "POST", body: JSON.stringify({ op: "suggest", input: "40 Lorem" }) }));
       expect(res.status).toBe(401);
       expect(fetchMock).not.toHaveBeenCalled();
     } finally {
@@ -214,7 +214,7 @@ describe("the phone's address lookup", () => {
   it("with no key, says lookup is off", async () => {
     delete process.env.GOOGLE_MAPS_API_KEY;
     const res = await address(
-      new Request("https://go.hey-tiff.com/api/mobile/address", { method: "POST", headers: { authorization: `Bearer ${mint("auth0|lyle")}` }, body: JSON.stringify({ op: "suggest", input: "40 Raglan" }) })
+      new Request("https://go.hey-tiff.com/api/mobile/address", { method: "POST", headers: { authorization: `Bearer ${mint("auth0|lyle")}` }, body: JSON.stringify({ op: "suggest", input: "40 Lorem" }) })
     );
     expect([res.status, await res.json()]).toEqual([503, { enabled: false }]);
   });

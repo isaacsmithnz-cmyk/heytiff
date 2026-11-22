@@ -34,7 +34,7 @@ def mbox(ph="What's happening on site?"):
 
 
 def m_home():
-    needs = [("bad", "#e0264f", "Hilux XQG 41B rego", "Runs out today", "Renew"), ("", "#F0A431", "Kingsford Bakery, 2380", "Ready to invoice", "Invoice"), ("", "#2554d8", "Quote to write: Riverview", "Brief saved 8:40 am", "Quote"), ("", "#050505", "Northgate Realty, 3323", "Won 3 days ago, no day yet", "Book in")]
+    needs = [("bad", "#e0264f", "Hilux XQG 41B rego", "Runs out today", "Renew"), ("", "#F0A431", "Kingsford Bakery, 2380", "Ready to invoice", "Invoice"), ("", "#2554d8", "Quote to write: Fakeview", "Brief saved 8:40 am", "Quote"), ("", "#050505", "Northgate Realty, 3323", "Won 3 days ago, no day yet", "Book in")]
     nr = "".join(f'<div class="mrow" style="padding:10px 16px"><span style="width:8px;height:8px;border-radius:50%;background:{c};flex:none;margin:0 5px"></span><div style="flex:1;min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{t}</div><div class="lab {k or "q"}" style="font-size:13px">{s}</div></div><span class="mbtn" style="height:36px;font-size:13px">{v}</span></div>' for k, c, t, s, v in needs)
     return f'''<div class="ph">
 {mtop(MARK + "HeyTiff")}
@@ -43,7 +43,7 @@ def m_home():
   <div style="overflow:hidden;padding:0 16px"><div class="row5" style="width:640px">
     <a class="dcard sel" href="#" style="flex:0 0 200px;color:#fff"><span class="dskin" style="background:#6D4FD8"><span class="dfill" style="width:56%;background:#291E52"></span><span class="dring"></span></span><span class="dlab"><span class="dtag">Bellevue Hill</span><span style="display:flex;flex-direction:column"><span class="dname">Job 3342</span><span class="dtime">9:00–11:30</span></span></span></a>
     <a class="dcard" href="#" style="flex:0 0 140px;color:#2a3342"><span class="dskin" style="background:#E6E9EE"></span><span class="dlab"><span class="dtag">Task</span><span style="display:flex;flex-direction:column"><span class="dname">Order the grilles</span><span class="dtime">By 12:30</span></span></span></a>
-    <a class="dcard" href="#" style="flex:0 0 120px;color:#fff"><span class="dskin" style="background:#3D8620"></span><span class="dlab"><span class="dtag">Alexandria</span><span style="display:flex;flex-direction:column"><span class="dname">Job 1042</span><span class="dtime">12:45</span></span></span></a>
+    <a class="dcard" href="#" style="flex:0 0 120px;color:#fff"><span class="dskin" style="background:#3D8620"></span><span class="dlab"><span class="dtag">Exampleria</span><span style="display:flex;flex-direction:column"><span class="dname">Job 1042</span><span class="dtime">12:45</span></span></span></a>
   </div></div>
   <a href="M-Job.dc.html" class="mbtn" style="margin:12px 16px 0;width:calc(100% - 32px);justify-content:center">Open job 3342</a>
   <div style="display:flex;align-items:center;padding:24px 16px 4px"><h2 class="h16" style="font-size:16px;line-height:24px;margin:0">To do</h2><span class="q" style="margin-left:8px">9</span><span style="flex:1"></span><a class="link" href="#">All</a></div>
@@ -58,13 +58,13 @@ def m_new():
     row = lambda i, n, more=False: f'<a href="#" style="display:flex;align-items:center;gap:12px;height:48px;padding:0 12px;border-radius:10px;font-size:16px;font-weight:500">{ico(i, "ico q")}{n}{ico("right", "ico i16", "margin-left:auto;color:#5f6a79") if more else ""}</a>'
     it = "".join(row(i, n) for i, n in top)
     return f'''<div class="ph">
-{mtop("Rifkin, Julian", right='<span class="ib"></span>')}
+{mtop("Fairweather, Jules", right='<span class="ib"></span>')}
 <div style="padding:0 16px" class="q">Job 3342, Install</div>
 <div style="position:absolute;inset:0;background:rgba(10,11,16,.45)"></div>
 <div class="sheet">
   <div class="grab"></div>
   <div style="display:flex;align-items:center;margin-bottom:4px"><h2 style="font-size:20px;line-height:28px;font-weight:600;margin:0">New</h2><span style="flex:1"></span><span class="ib" aria-label="Close">{ico("x")}</span></div>
-  <div style="display:flex;align-items:center;gap:8px;height:44px;padding:0 4px 0 12px"><span style="width:8px;height:8px;background:#6D4FD8;flex:none"></span><span style="flex:1;font-size:13px;font-weight:500">For 3342 Rifkin, Bellevue Hill</span><span class="ib" style="width:40px;height:40px" aria-label="Not for this job">{ico("x", "ico i16")}</span></div>
+  <div style="display:flex;align-items:center;gap:8px;height:44px;padding:0 4px 0 12px"><span style="width:8px;height:8px;background:#6D4FD8;flex:none"></span><span style="flex:1;font-size:13px;font-weight:500">For 3342 Fairweather, Bellevue Hill</span><span class="ib" style="width:40px;height:40px" aria-label="Not for this job">{ico("x", "ico i16")}</span></div>
   <div style="border-top:1px solid rgba(5,5,5,.08);padding-top:4px">{it}</div>
   <div style="border-top:1px solid rgba(5,5,5,.08);padding-top:4px;margin-top:4px">{row("doc", "Document", True)}{row("dots", "More", True)}</div>
 </div>
@@ -76,7 +76,7 @@ def m_job():
     nt = "".join(f'<div style="display:flex;gap:12px;padding:12px 16px;border-top:1px solid rgba(5,5,5,.08)"><span class="av" style="width:32px;height:32px;border-radius:50%;background:{bg};color:{"#fff" if bg == "#050505" else "#050505"};font-size:12px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;flex:none">{a}</span><div><div style="font-size:13px;font-weight:500"><b>{n}</b> <span class="q">{t}</span></div><p style="font-size:16px;line-height:24px">{x}</p></div></div>' for a, bg, n, t, x in notes)
     return f'''<div class="ph">
 <header class="mtop"><a class="ib" href="M-Home.dc.html" aria-label="Back">{ico("left")}</a><span style="flex:1;font-weight:600">Jobs</span><a class="mbtn ink" href="M-New.dc.html" style="height:36px">{ico("plus", "ico i16")}New</a></header>
-<div style="padding:0 16px 12px"><h1 style="font-size:24px;line-height:32px;font-weight:600;margin:0">Rifkin, Julian</h1><p class="q">Job 3342, Install, Bellevue Hill. <span class="ok" style="font-weight:600">On site</span></p></div>
+<div style="padding:0 16px 12px"><h1 style="font-size:24px;line-height:32px;font-weight:600;margin:0">Fairweather, Jules</h1><p class="q">Job 3342, Install, Bellevue Hill. <span class="ok" style="font-weight:600">On site</span></p></div>
 <nav class="mtabs"><a class="on">Overview</a><a>Notes</a><a>Quote</a><a>Visits</a><a>Checklist</a><a>Photos</a></nav>
 <div style="padding:16px">
   <div style="border:1px solid rgba(5,5,5,.14);border-radius:16px;padding:12px">

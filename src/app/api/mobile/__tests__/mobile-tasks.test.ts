@@ -25,8 +25,8 @@ const TABLES: Record<string, Record<string, unknown>[]> = {
   ],
   mention_asks: [{ task_id: "a", sm8_job_uuid: "job-2041", sm8_note_uuid: "note-9" }],
   sm8_jobs: [
-    { uuid: "job-3516", generated_job_id: "3516", geo_city: "Waitara" },
-    { uuid: "job-2041", generated_job_id: "2041", geo_city: "Wollstonecraft" },
+    { uuid: "job-3516", generated_job_id: "3516", geo_city: "Mockville" },
+    { uuid: "job-2041", generated_job_id: "2041", geo_city: "Testcraft" },
   ],
 };
 jest.mock("@/lib/supabase-server", () => ({
@@ -131,8 +131,8 @@ test("your open tasks, in Home's order, with who gave each one where it wasn't y
   expect(body.tasks[0]).toMatchObject({ from: "Luke Ingold", own: false, dueDate: "2026-10-07" });
   expect(body.tasks[1]).toMatchObject({ from: null, own: true });
   /* each opens its job: the one it was made on, or the one of the note Tiff read it from, at that note */
-  expect(body.tasks[0].job).toEqual({ uuid: "job-3516", label: "3516 Waitara", note: null });
-  expect(body.tasks[1].job).toEqual({ uuid: "job-2041", label: "2041 Wollstonecraft", note: "note-9" });
+  expect(body.tasks[0].job).toEqual({ uuid: "job-3516", label: "3516 Mockville", note: null });
+  expect(body.tasks[1].job).toEqual({ uuid: "job-2041", label: "2041 Testcraft", note: "note-9" });
   /* no staff card, no tasks */
   expect((await (await GET(req("tasks", "auth0|nocard"))).json()).tasks).toEqual([]);
 });

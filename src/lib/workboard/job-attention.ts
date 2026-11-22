@@ -338,7 +338,7 @@ export function buildJobAttention(inputs: AttentionInputs): JobAttention {
 
 /* A TO DO ONCE (the walk of 16 November 2026, N1): a task born from a note
    is the To do's own row, with its tick and its form, so the attention rows
-   above it leave it out. On 3488 "Send quote to Lisa Watters" stood twice,
+   above it leave it out. On 3488 "Send quote to Lisa Ashdown" stood twice,
    once as "Task, Isaac Smith, was due Mon 9 Nov" and once with its tick. */
 export function attentionWithout(attention: JobAttention, taskIds: ReadonlySet<string>): JobAttention {
   const items = attention.items.filter((i) => !(i.kind === "task" && taskIds.has(i.id)));

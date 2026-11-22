@@ -108,8 +108,8 @@ def tokens(t):
 def sidebar(t):
     nav = [("home", "Home", "3"), ("chat", "Conversations", ""), ("jobs", "Jobs", ""), ("cal", "Schedule", ""), ("doc", "Documents", ""), ("lib", "Library", ""), ("design", "Design", ""), ("team", "Team", "")]
     rows = "".join(f'<a class="sr{" on" if k == "home" else ""}" href="#">{i(k)}{n}{f"<span class=r>{c}</span>" if c else ""}</a>' for k, n, c in nav)
-    pinned = "".join(f'<a class="rc" href="#"><span class="sq" style="background:{c}"></span><span class="tx">{x}</span></a>' for c, x in [("#6D4FD8", "3342 Rifkin, Bellevue Hill"), ("#4B5565", "3302 Heuvel, Chatswood")])
-    rec = "".join(f'<a class="rc" href="#">{i(k)}<span class="tx">{x}</span></a>' for k, x in [("chat", "Riverview brief, split install"), ("doc", "SWMS, Heuvel roof work"), ("person", "Lyle Irving"), ("jobs", "Northgate Realty, 3323"), ("chat", "Clearing an E6 on a Daikin split")])
+    pinned = "".join(f'<a class="rc" href="#"><span class="sq" style="background:{c}"></span><span class="tx">{x}</span></a>' for c, x in [("#6D4FD8", "3342 Fairweather, Bellevue Hill"), ("#4B5565", "3302 Testa, Fablewood")])
+    rec = "".join(f'<a class="rc" href="#">{i(k)}<span class="tx">{x}</span></a>' for k, x in [("chat", "Fakeview brief, split install"), ("doc", "SWMS, Testa roof work"), ("person", "Lyle Irving"), ("jobs", "Northgate Realty, 3323"), ("chat", "Clearing an E6 on a Daikin split")])
     return f'''<aside class="sd">
   <div class="br">{svg_mark(t["mark"])}<b>Hey<span>Tiff</span></b><span style="flex:1"></span><span class="sqq">{i("panel")}</span></div>
   <a class="sr nb" href="#"><span class="pl">{i("plus", "ic", "width:14px;height:14px;stroke-width:2.4")}</span>New</a>
@@ -128,8 +128,8 @@ def strip(t, phone=False):
         ("done", "#B4C5EE", "#43506a", "Kingsford", "Job 2380", "7:30 to 8:30", 132),
         ("on", "#6D4FD8", "#fff", "Bellevue Hill", "Job 3342", "9:00 to 11:30", 230),
         ("task", t["task"], t["taskfg"], "Task", "Order the grilles", "By 12:30", 150),
-        ("", "#3D8620", "#fff", "Alexandria", "Job 1042", "12:45 to 1:45", 112),
-        ("", "#8A6A00", "#fff", "Randwick", "Job 3271", "2:45 to 4:00", 124),
+        ("", "#3D8620", "#fff", "Exampleria", "Job 1042", "12:45 to 1:45", 112),
+        ("", "#8A6A00", "#fff", "Madeupton", "Job 3271", "2:45 to 4:00", 124),
     ]
     out = []
     for kind, bg, fg, tag, name, tm, flex in cards:
@@ -146,7 +146,7 @@ NEEDS = [
     ("dot", "bad", "Hilux XQG 41B rego", "Runs out today", "Renew"),
     ("dot", "warnd", "Kingsford Bakery, 2380", "Finished, ready to invoice", "Invoice"),
     ("dot", "warnd", "Timesheets, last week", "4 to approve, 150.5 hours", "Review"),
-    ("dot", "info", "Quote to write: Riverview", "Brief saved yesterday, 8:40 am", "Quote"),
+    ("dot", "info", "Quote to write: Fakeview", "Brief saved yesterday, 8:40 am", "Quote"),
     ("task", "", "Ring the Hilux dealer", "From your note yesterday", None),
 ]
 DOTS = {"bad": "#e0264f", "warnd": "#F0A431", "info": "#2554d8"}

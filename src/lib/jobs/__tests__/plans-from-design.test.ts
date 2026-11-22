@@ -15,10 +15,10 @@ const read = (sheetId: string, rooms: string[]): SheetReading =>
 
 /** A design given one PDF of four pages: page 2 the ground floor, page 3 level 1. */
 function twoStorey(): DesignDocument {
-  const d = createDesign({ name: "7 Cutler Rd", mode: "plan" as never, now: "2026-11-15T00:00:00Z" });
+  const d = createDesign({ name: "7 Ipsum Rd", mode: "plan" as never, now: "2026-11-15T00:00:00Z" });
   d.floors = [floor("flr_l1", "Level 1", 1, [sheet("sht_l1", "org/o/p3.png", 3)]), floor("flr_gf", "Ground floor", 0, [sheet("sht_gf", "org/o/p2.png", 2, { crop: { x: 10, y: 20, w: 1800, h: 1200 } })], 20)];
   d.planImport = {
-    sources: [{ ref: "org/o/set.pdf", kind: "pdf", name: "Cutler DA set.pdf" }],
+    sources: [{ ref: "org/o/set.pdf", kind: "pdf", name: "Ipsum DA set.pdf" }],
     placed: { 1: "org/o/p2.png", 2: "org/o/p3.png" },
     chosen: [1, 2],
     names: {},
@@ -40,7 +40,7 @@ describe("the design's files, as the job's plans", () => {
   it("is one plan per file, its pages at their page in the set, lowest floor first", () => {
     const [g, ...more] = designPlanGroups(twoStorey());
     expect(more).toHaveLength(0);
-    expect(g.name).toBe("Cutler DA set.pdf");
+    expect(g.name).toBe("Ipsum DA set.pdf");
     expect(g.sourceRef).toBe("org/o/set.pdf");
     expect(g.pages.map((p) => [p.n, p.floor.name])).toEqual([
       [2, "Ground floor"],
@@ -51,7 +51,7 @@ describe("the design's files, as the job's plans", () => {
   it("names a file the design kept no name for after the design", () => {
     const d = twoStorey();
     d.planImport!.sources[0] = { ref: "org/o/set.pdf", kind: "pdf" };
-    expect(designPlanGroups(d)[0].name).toBe("7 Cutler Rd plans.pdf");
+    expect(designPlanGroups(d)[0].name).toBe("7 Ipsum Rd plans.pdf");
   });
 
   it("tells two files apart by where their pages sit, or by their counts", () => {
@@ -65,7 +65,7 @@ describe("the design's files, as the job's plans", () => {
       ["org/o/photo.jpeg", [1]],
       ["org/o/set.pdf", [2, 3]],
     ]);
-    expect(groups[0].name).toBe("7 Cutler Rd plans 1.jpeg");
+    expect(groups[0].name).toBe("7 Ipsum Rd plans 1.jpeg");
   });
 
   it("asks for the counts when a file with no page used hides where the next starts", () => {
@@ -80,8 +80,8 @@ describe("the design's files, as the job's plans", () => {
     d.planImport = null;
     const groups = designPlanGroups(d);
     expect(groups.map((g) => [g.sourceRef, g.sourceKind, g.name])).toEqual([
-      ["org/o/p2.png", "image", "7 Cutler Rd, Ground floor.png"],
-      ["org/o/p3.png", "image", "7 Cutler Rd, Level 1.png"],
+      ["org/o/p2.png", "image", "7 Ipsum Rd, Ground floor.png"],
+      ["org/o/p3.png", "image", "7 Ipsum Rd, Level 1.png"],
     ]);
   });
 });

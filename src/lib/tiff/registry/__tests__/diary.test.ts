@@ -72,9 +72,9 @@ function monday(): SchedulePayload {
       { uuid: "S-SAM", name: "Sam Ng" },
       { uuid: "S-KIM", name: "Kim Lee" },
     ],
-    jobs: [job("J-3432", "3432", "Holbrook Homes", "Kellyville"), job("J-3440", "3440", "R. Patel", "Castle Hill")],
+    jobs: [job("J-3432", "3432", "Dolor Homes", "Kellyville"), job("J-3440", "3440", "R. Patel", "Castle Hill")],
     onSite: [],
-    addresses: { "J-3432": "2 Spring St" },
+    addresses: { "J-3432": "2 Fable St" },
     away: [{ uuid: "v1", staffUuid: "s-kim", name: "Annual Leave", start: "2026-11-20 00:00:00", end: "2026-11-28 00:00:00" }],
     closed: [],
   };
@@ -147,9 +147,9 @@ describe("readDiary", () => {
             {
               id: "J-3432",
               job: "3432",
-              client: "Holbrook Homes",
+              client: "Dolor Homes",
               suburb: "Kellyville",
-              street: "2 Spring St",
+              street: "2 Fable St",
               what: "Install 7kW split in the main bedroom",
               status: "Work Order",
               start: "07:30",

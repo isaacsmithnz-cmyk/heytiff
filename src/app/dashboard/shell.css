@@ -8316,7 +8316,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    there is room for both: under about 1,230 across (a 1440 screen, a laptop)
    the library drops under the list, so a design's name and its job aren't
    squeezed to a word beside it (Isaac, 22 November 2026: "check the web
-   Studio for cut off text"; at 1280 "12/8-10 Park Avenue" read "12/8-10 Pa") */
+   Studio for cut off text"; at 1280 "12/8-10 Example Avenue" read "12/8-10 Ex") */
 .fg .ds2-body { display:flex; flex-wrap:wrap; gap:32px 48px; align-items:flex-start; }
 .fg .ds2-list { display:flex; flex-direction:column; gap:16px; flex:1 1 880px; min-width:0; }
 .fg .ds2-sr { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }

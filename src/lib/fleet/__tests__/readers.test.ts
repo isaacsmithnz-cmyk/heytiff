@@ -152,7 +152,7 @@ describe("parseRenewalRead", () => {
 
   it("only believes a cover that is one of ours, and a postcode that is four digits", () => {
     expect(parseRenewalRead({ ...GREEN_SLIP, cover: "gold plated" }, "insurance").cover).toBeNull();
-    expect(parseRenewalRead({ ...GREEN_SLIP, garagingPostcode: "Randwick" }, "ctp").garagingPostcode).toBeNull();
+    expect(parseRenewalRead({ ...GREEN_SLIP, garagingPostcode: "Madeupton" }, "ctp").garagingPostcode).toBeNull();
     expect(parseRenewalRead({ ...GREEN_SLIP, garagingPostcode: "20311" }, "ctp").garagingPostcode).toBeNull();
   });
 

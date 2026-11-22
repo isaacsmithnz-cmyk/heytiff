@@ -31,7 +31,7 @@ class LoadingImage {
 }
 
 function modelWith(crop?: { x: number; y: number; w: number; h: number }): PrintModel {
-  const doc = createDesign({ name: "4/3 Reed Street", mode: "plan", now: "2026-10-07T00:00:00.000Z" });
+  const doc = createDesign({ name: "4/3 Mirage Street", mode: "plan", now: "2026-10-07T00:00:00.000Z" });
   const floor = {
     id: "f1",
     name: "First Floor Plan",

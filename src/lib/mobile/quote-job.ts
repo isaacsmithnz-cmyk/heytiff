@@ -10,8 +10,8 @@ import { writeJobNote } from "@/lib/workboard/job-note-write";
 
 /* SOMETHING TO QUOTE HERE: A QUOTE JOB OF ITS OWN (Isaac, 11 November 2026,
    board 3 of https://claude.ai/artifact/ESTib5qakLMfgTXmUW9vCy: 1725
-   Finished, and a quote to build, "A new quote job for Michiel Kuppens at 40
-   Stanley St ... with these words"; "Build from mocks approved").
+   Finished, and a quote to build, "A new quote job for Michael Yarrow at 40
+   Sample St ... with these words"; "Build from mocks approved").
 
    A visit that ends Finished with a quote to build opens a new job in
    ServiceM8 for the same client at the same site, its description the words

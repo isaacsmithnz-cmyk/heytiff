@@ -88,10 +88,10 @@ it("puts the person's words in the thread at once, opens with the job's, and run
 it("names who is speaking before their words", async () => {
   namesBySignIn.mockResolvedValueOnce({ u1: "Isaac Smith" });
   const model = scripted([{ content: [{ type: "text", text: "On it." }], stopReason: "end_turn" }]);
-  const started = await startTurn("org", "job", "u1", "Make it 14 kW", { modelName: "m", model, brief: "Ducted, 2 Neridah St." });
+  const started = await startTurn("org", "job", "u1", "Make it 14 kW", { modelName: "m", model, brief: "Ducted, 2 Irure St." });
   await (started as Extract<typeof started, { ok: true }>).run();
   expect(namesBySignIn).toHaveBeenCalledWith("org", ["u1"]);
-  expect(model.calls[0]!.messages[0]!.content[0]).toEqual({ type: "text", text: "<the-job>\nDucted, 2 Neridah St.\n</the-job>\n\nIsaac Smith says:\nMake it 14 kW" });
+  expect(model.calls[0]!.messages[0]!.content[0]).toEqual({ type: "text", text: "<the-job>\nDucted, 2 Irure St.\n</the-job>\n\nIsaac Smith says:\nMake it 14 kW" });
   /* the thread keeps their words as they said them */
   expect(addEvents).toHaveBeenCalledWith("org", "s1", "t1", [{ kind: "message", author: "u1", body: { text: "Make it 14 kW", read: true } }]);
 });

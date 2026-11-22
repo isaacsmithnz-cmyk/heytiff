@@ -77,7 +77,7 @@ const sm8 = (over: Partial<TaskAbout> = {}): TaskAbout => ({
   askerName: "Lyle Irving",
   said: { day: "2026-09-21", time: "1:42 pm" },
   words: "@isaacsmith can you order the grilles",
-  job: { label: "2041 Wollstonecraft", uuid: "job-1" },
+  job: { label: "2041 Testcraft", uuid: "job-1" },
   ...over,
 });
 
@@ -182,7 +182,7 @@ describe("wordsCaption", () => {
   });
 
   it("names the ServiceM8 writer and the job", () => {
-    expect(wordsCaption(sm8(), TODAY)).toEqual({ strong: "Lyle Irving", rest: " wrote, in a job note on 2041 Wollstonecraft" });
+    expect(wordsCaption(sm8(), TODAY)).toEqual({ strong: "Lyle Irving", rest: " wrote, in a job note on 2041 Testcraft" });
     expect(wordsCaption(sm8({ job: null }), TODAY)).toEqual({ strong: "Lyle Irving", rest: " wrote, in a job note" });
   });
 
@@ -197,7 +197,7 @@ describe("factsOf", () => {
     expect(factsOf(task({ dueDate: "2026-10-02" }), sm8(), ME, TODAY, null)).toEqual([
       { label: "For", value: "You" },
       { label: "Due", value: "Fri 2 Oct" },
-      { label: "Job", value: "2041 Wollstonecraft", job: "job-1" },
+      { label: "Job", value: "2041 Testcraft", job: "job-1" },
     ]);
   });
 
@@ -422,9 +422,9 @@ describe("moments and labels", () => {
   });
 
   it("names a job by its number and its suburb", () => {
-    expect(jobLabelOf("2041", "Wollstonecraft")).toBe("2041 Wollstonecraft");
+    expect(jobLabelOf("2041", "Testcraft")).toBe("2041 Testcraft");
     expect(jobLabelOf("2041", null)).toBe("Job 2041");
-    expect(jobLabelOf(null, "Wollstonecraft")).toBe("Wollstonecraft");
+    expect(jobLabelOf(null, "Testcraft")).toBe("Testcraft");
     expect(jobLabelOf(" ", "")).toBeNull();
   });
 });

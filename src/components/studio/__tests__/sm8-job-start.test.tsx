@@ -19,8 +19,8 @@ const JOBS: StudioJobHit[] = [
     jobNumber: "3151",
     clientName: "Diamond Air",
     status: "Work Order",
-    address: "12/3 Wallace St\nWaverley NSW 2024",
-    suburb: "Waverley",
+    address: "12/3 Eiusmod St\nFakehurst NSW 2024",
+    suburb: "Fakehurst",
     description: "Supply and install 10kW multi",
     kind: "Install",
     hue: "purple",
@@ -29,10 +29,10 @@ const JOBS: StudioJobHit[] = [
   {
     remoteId: "j-2506",
     jobNumber: "2506",
-    clientName: "Bondi Body Corp",
+    clientName: "Fictonia Body Corp",
     status: "Completed",
-    address: "260 Birrell St,\nBondi Junction NSW 2022",
-    suburb: "Bondi Junction",
+    address: "260 Veniam St,\nFictonia Junction NSW 2022",
+    suburb: "Fictonia Junction",
     description: "AC not cooling",
   },
 ];
@@ -47,7 +47,7 @@ const studio = (jobSearch: JobSearch, sm8Jobs = true, jobLists?: JobLists) => (
 );
 
 const FIELD = "Find a job";
-const WALLACE = "3151, Diamond Air, 12/3 Wallace St, Waverley";
+const EIUSMOD = "3151, Diamond Air, 12/3 Eiusmod St, Fakehurst";
 
 /* The one design in the local store — autosave debounces, so callers wait on
    a field of this rather than reading it once. */
@@ -106,15 +106,15 @@ describe("new design — from a ServiceM8 job", () => {
     render(studio(async () => JOBS));
 
     await user.click(await screen.findByText("New design"));
-    await user.type(screen.getByLabelText(FIELD), "wallace");
+    await user.type(screen.getByLabelText(FIELD), "eiusmod");
 
     const list = await screen.findByRole("list", { name: "Jobs found" });
     // a found job is a job card: its number, its client, its street
-    const card = within(list).getByRole("button", { name: WALLACE });
+    const card = within(list).getByRole("button", { name: EIUSMOD });
     expect(card).toHaveClass("sc-card", "sc-card--purple");
     expect(within(card).getByText("3151")).toBeInTheDocument();
     expect(within(card).getByText("Diamond Air")).toBeInTheDocument();
-    expect(within(card).getByText("12/3 Wallace St, Waverley")).toBeInTheDocument();
+    expect(within(card).getByText("12/3 Eiusmod St, Fakehurst")).toBeInTheDocument();
     expect(within(card).getByText("Install")).toBeInTheDocument();
     expect(within(card).getByText("Plans read")).toBeInTheDocument();
     expect(screen.getByText("2 jobs")).toBeInTheDocument();
@@ -122,13 +122,13 @@ describe("new design — from a ServiceM8 job", () => {
     await user.click(card);
 
     // the name field is filled — and still editable
-    expect(screen.getByPlaceholderText(/Design name/)).toHaveValue("12/3 Wallace St");
+    expect(screen.getByPlaceholderText(/Design name/)).toHaveValue("12/3 Eiusmod St");
     // the search gives way to the job it found, as its card
     expect(screen.queryByLabelText(FIELD)).toBeNull();
     const picked = screen.getByText("3151").closest(".ds2-nd-picked")!;
     expect(picked).toHaveClass("sc-card--purple");
     expect(within(picked as HTMLElement).getByText("Diamond Air")).toBeInTheDocument();
-    expect(within(picked as HTMLElement).getByText("12/3 Wallace St, Waverley")).toBeInTheDocument();
+    expect(within(picked as HTMLElement).getByText("12/3 Eiusmod St, Fakehurst")).toBeInTheDocument();
     // the Plans row says what's read; the card doesn't say it twice
     expect(within(picked as HTMLElement).queryByText("Plans read")).toBeNull();
 
@@ -139,7 +139,7 @@ describe("new design — from a ServiceM8 job", () => {
     await user.click(screen.getByRole("button", { name: "Summary" }));
     expect(screen.getByLabelText("Job number")).toHaveValue("3151");
     expect(screen.getByLabelText("Client")).toHaveValue("Diamond Air");
-    expect(screen.getByLabelText("Site")).toHaveValue("12/3 Wallace St, Waverley NSW 2024");
+    expect(screen.getByLabelText("Site")).toHaveValue("12/3 Eiusmod St, Fakehurst NSW 2024");
     // …and the sheet says where they came from, which the fields cannot
     expect(screen.getByText(/Added from ServiceM8/)).toBeInTheDocument();
   });
@@ -152,8 +152,8 @@ describe("new design — from a ServiceM8 job", () => {
     render(studio(async () => JOBS));
 
     await user.click(await screen.findByText("New design"));
-    await user.type(screen.getByLabelText(FIELD), "wallace");
-    await user.click(await screen.findByRole("button", { name: WALLACE }));
+    await user.type(screen.getByLabelText(FIELD), "eiusmod");
+    await user.click(await screen.findByRole("button", { name: EIUSMOD }));
     await user.click(screen.getByRole("button", { name: "Start with a blank canvas" }));
     await screen.findByTestId("studio-canvas");
 
@@ -176,11 +176,11 @@ describe("new design — from a ServiceM8 job", () => {
     // the choice stays in the Job field, with a cross back to the jobs
     expect(screen.getByText("No job")).toBeInTheDocument();
     expect(screen.queryByLabelText(FIELD)).toBeNull();
-    await user.type(screen.getByPlaceholderText(/Design name/), "Farran St");
+    await user.type(screen.getByPlaceholderText(/Design name/), "Cillum St");
     await user.click(screen.getByRole("button", { name: "Start with a blank canvas" }));
     await screen.findByTestId("studio-canvas");
 
-    await waitFor(() => expect(savedDoc().meta.name).toBe("Farran St"));
+    await waitFor(() => expect(savedDoc().meta.name).toBe("Cillum St"));
     expect(savedDoc().jobLink).toBeNull();
   });
 
@@ -200,14 +200,14 @@ describe("new design — from a ServiceM8 job", () => {
     render(studio(async () => JOBS));
 
     await user.click(await screen.findByText("New design"));
-    await user.type(screen.getByLabelText(FIELD), "wallace");
-    await user.click(await screen.findByRole("button", { name: WALLACE }));
+    await user.type(screen.getByLabelText(FIELD), "eiusmod");
+    await user.click(await screen.findByRole("button", { name: EIUSMOD }));
 
     await user.clear(screen.getByPlaceholderText(/Design name/));
-    await user.type(screen.getByPlaceholderText(/Design name/), "Wallace St — option B");
+    await user.type(screen.getByPlaceholderText(/Design name/), "Eiusmod St — option B");
     await user.click(screen.getByRole("button", { name: "Start with a blank canvas" }));
 
-    expect(await screen.findByLabelText("Design name")).toHaveValue("Wallace St — option B");
+    expect(await screen.findByLabelText("Design name")).toHaveValue("Eiusmod St — option B");
     await user.click(screen.getByRole("button", { name: "Summary" }));
     expect(screen.getByLabelText("Client")).toHaveValue("Diamond Air");
   });
@@ -217,8 +217,8 @@ describe("new design — from a ServiceM8 job", () => {
     render(studio(async () => JOBS));
 
     await user.click(await screen.findByText("New design"));
-    await user.type(screen.getByLabelText(FIELD), "wallace");
-    await user.click(await screen.findByRole("button", { name: WALLACE }));
+    await user.type(screen.getByLabelText(FIELD), "eiusmod");
+    await user.click(await screen.findByRole("button", { name: EIUSMOD }));
 
     await user.click(screen.getByRole("button", { name: /Clear the job/ }));
     expect(screen.getByLabelText(FIELD)).toHaveValue("");
@@ -232,8 +232,8 @@ describe("new design — from a ServiceM8 job", () => {
     render(studio(async () => JOBS));
 
     await user.click(await screen.findByText("New design"));
-    await user.type(screen.getByLabelText(FIELD), "wallace");
-    await user.click(await screen.findByRole("button", { name: WALLACE }));
+    await user.type(screen.getByLabelText(FIELD), "eiusmod");
+    await user.click(await screen.findByRole("button", { name: EIUSMOD }));
     await user.clear(screen.getByPlaceholderText(/Design name/));
     await user.type(screen.getByPlaceholderText(/Design name/), "Option B");
 
@@ -280,17 +280,17 @@ describe("new design — from a ServiceM8 job", () => {
       await user.click(await screen.findByText("New design"));
       const recent = await screen.findByRole("list", { name: "Recent jobs" });
       expect(from.recent).toHaveBeenCalledWith(["j-3151"]);
-      expect(within(recent).getByRole("button", { name: WALLACE })).toHaveClass("sc-card--purple");
+      expect(within(recent).getByRole("button", { name: EIUSMOD })).toHaveClass("sc-card--purple");
 
       const all = await screen.findByRole("list", { name: "All jobs" });
       expect(from.list).toHaveBeenCalledWith(0, 6);
       // a job in Recent isn't said again under All jobs
-      expect(within(all).queryByRole("button", { name: WALLACE })).toBeNull();
+      expect(within(all).queryByRole("button", { name: EIUSMOD })).toBeNull();
       expect(within(all).getAllByRole("button")).toHaveLength(5);
       expect(within(all).getByRole("button", { name: "3500, Client 3500, 1 Test St, Bronte" })).toHaveClass("sc-card--orange");
 
-      await user.click(within(recent).getByRole("button", { name: WALLACE }));
-      expect(screen.getByPlaceholderText(/Design name/)).toHaveValue("12/3 Wallace St");
+      await user.click(within(recent).getByRole("button", { name: EIUSMOD }));
+      expect(screen.getByPlaceholderText(/Design name/)).toHaveValue("12/3 Eiusmod St");
     });
 
     it("Show more brings the next lot, and goes when there are no more", async () => {
@@ -317,7 +317,7 @@ describe("new design — from a ServiceM8 job", () => {
 
       await user.click(await screen.findByText("New design"));
       await screen.findByRole("list", { name: "Recent jobs" });
-      await user.type(screen.getByLabelText(FIELD), "birrell");
+      await user.type(screen.getByLabelText(FIELD), "veniam");
       const found = await screen.findByRole("list", { name: "Jobs found" });
       expect(within(found).getAllByRole("button")).toHaveLength(1);
       expect(screen.getByText("1 job")).toBeInTheDocument();
@@ -346,13 +346,13 @@ describe("new design — from a ServiceM8 job", () => {
     await user.click(await screen.findByText("New design"));
 
     await user.type(screen.getByLabelText(FIELD), "bo"); // the slow one
-    await user.type(screen.getByLabelText(FIELD), "ndi wallace"); // what's now typed
+    await user.type(screen.getByLabelText(FIELD), "ndi eiusmod"); // what's now typed
     // one request per keystroke from the second character on
     await waitFor(() => expect(release.length).toBeGreaterThan(5));
 
     // the newest answers first, then the stale "bo" lands late
     release[release.length - 1]();
-    await screen.findByText("12/3 Wallace St, Waverley");
+    await screen.findByText("12/3 Eiusmod St, Fakehurst");
     release[0]();
 
     /* GIVE THE STALE ANSWER ITS CHANCE, then assert once. A `waitFor(...toBeNull)`
@@ -361,8 +361,8 @@ describe("new design — from a ServiceM8 job", () => {
     await act(async () => {
       await new Promise((r) => setTimeout(r, 0));
     });
-    expect(screen.queryByText("260 Birrell St, Bondi Junction")).toBeNull();
-    expect(screen.getByText("12/3 Wallace St, Waverley")).toBeInTheDocument();
+    expect(screen.queryByText("260 Veniam St, Fictonia Junction")).toBeNull();
+    expect(screen.getByText("12/3 Eiusmod St, Fakehurst")).toBeInTheDocument();
   });
 });
 
@@ -382,13 +382,13 @@ describe("opening a design by id", () => {
   };
 
   it("opens that design instead of landing on Home", async () => {
-    const id = await seed("12/3 Wallace St");
+    const id = await seed("12/3 Eiusmod St");
     render(
       <Studio store={new LocalDesignStore(window.localStorage)} openDesignId={id} />
     );
 
     // straight into the canvas — no Home, no swap to sit through
-    expect(await screen.findByLabelText("Design name")).toHaveValue("12/3 Wallace St");
+    expect(await screen.findByLabelText("Design name")).toHaveValue("12/3 Eiusmod St");
     expect(screen.getByTestId("studio-canvas")).toBeInTheDocument();
   });
 
@@ -396,7 +396,7 @@ describe("opening a design by id", () => {
      address bar means any reload lands on Home with the design nowhere in
      sight. The id stays in the URL for exactly that reason. */
   it("keeps the parameter, so a reload comes back to the design", async () => {
-    const id = await seed("Farran St");
+    const id = await seed("Cillum St");
     window.history.replaceState(null, "", `/dashboard/studio?design=${id}`);
     render(
       <Studio store={new LocalDesignStore(window.localStorage)} openDesignId={id} />
@@ -457,7 +457,7 @@ describe("opening a design by id", () => {
   });
 
   it("lands on Home as usual when no design was named", async () => {
-    await seed("Farran St");
+    await seed("Cillum St");
     render(<Studio store={new LocalDesignStore(window.localStorage)} />);
 
     expect(await screen.findByText("New design")).toBeInTheDocument();

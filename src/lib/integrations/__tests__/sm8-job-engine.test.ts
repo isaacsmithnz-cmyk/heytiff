@@ -139,12 +139,12 @@ const run = () => runSm8Writes(ORG, "send", { clock: Date.now });
 const due = () => {
   for (const w of fake.db.sm8_writes as Row[]) w.next_attempt_at = new Date(Date.now() - 1000).toISOString();
 };
-const contact = { first: "Sarah", last: "Jones", mobile: "0426 719 412", phone: "", email: "sarah@example.com" };
+const contact = { first: "Sarah", last: "Jones", mobile: "0491 570 157", phone: "", email: "sarah@example.com" };
 
 async function queue(input: Partial<NewJobInput> = {}) {
   const v = validNewJob({
     client: { kind: "new", name: "Sarah Jones", address: "" },
-    jobAddress: "14 Raglan St, Mosman",
+    jobAddress: "14 Lorem St, Sampleton",
     description: "Quote a 7 kW ducted",
     categoryUuid: null,
     contact,
@@ -164,8 +164,8 @@ beforeEach(() => {
   fake.db.integration_links = [];
   fake.db.staff_profiles = [{ id: "staff-boss", org_id: ORG, first_name: "Isaac", last_name: "Smith", full_name: "Isaac Smith", preferred_name: null }];
   fake.db.sm8_companies = [
-    { org_id: ORG, uuid: BUILDER, name: "Built By MK", active: 1, parent_company_uuid: null },
-    { org_id: ORG, uuid: CLIENT, name: "Tim Scott", active: 1, parent_company_uuid: null },
+    { org_id: ORG, uuid: BUILDER, name: "Built By RJ", active: 1, parent_company_uuid: null },
+    { org_id: ORG, uuid: CLIENT, name: "Tim Thistlewood", active: 1, parent_company_uuid: null },
   ];
   fake.db.sm8_categories = [{ org_id: ORG, uuid: CATEGORY, name: "Install", active: 1 }];
   fake.db.sm8_writes = [];
@@ -203,9 +203,9 @@ describe("a new job goes to ServiceM8", () => {
     const r = rows()[0]!;
     await run();
     expect(posts.map((p) => p.what)).toEqual(["company", "job", "contact"]);
-    expect(posts[0]!.body).toMatchObject({ uuid: r.job_company_uuid, name: "Sarah Jones", address: "14 Raglan St, Mosman" });
+    expect(posts[0]!.body).toMatchObject({ uuid: r.job_company_uuid, name: "Sarah Jones", address: "14 Lorem St, Sampleton" });
     expect(posts[1]!.body).toMatchObject({ uuid: r.remote_uuid, companyUuid: r.job_company_uuid, categoryUuid: CATEGORY });
-    expect(posts[2]!.body).toMatchObject({ uuid: r.job_contact_uuid, jobUuid: r.remote_uuid, first: "Sarah", mobile: "0426 719 412" });
+    expect(posts[2]!.body).toMatchObject({ uuid: r.job_contact_uuid, jobUuid: r.remote_uuid, first: "Sarah", mobile: "0491 570 157" });
     expect(rows()[0]).toMatchObject({ status: "sent", job_done: ["company", "job", "contact"], job_number: "3401", maybe_landed: false });
   });
 
@@ -217,11 +217,11 @@ describe("a new job goes to ServiceM8", () => {
 
     fake.db.sm8_writes = [];
     posts.length = 0;
-    const v = validNewJob({ client: { kind: "site", parentUuid: BUILDER, address: "41 Waverley St, Bondi Junction" }, jobAddress: "41 Waverley St, Bondi Junction", description: "Split", categoryUuid: null, contact: null });
-    await queueNewJob(await press(), "9e9e9e9e-0000-4000-8000-000000000002", (v as { ok: true; job: never }).job, "Built By MK");
+    const v = validNewJob({ client: { kind: "site", parentUuid: BUILDER, address: "41 Fakehurst St, Fictonia Junction" }, jobAddress: "41 Fakehurst St, Fictonia Junction", description: "Split", categoryUuid: null, contact: null });
+    await queueNewJob(await press(), "9e9e9e9e-0000-4000-8000-000000000002", (v as { ok: true; job: never }).job, "Built By RJ");
     await run();
     expect(posts.map((p) => p.what)).toEqual(["company", "job"]);
-    expect(posts[0]!.body).toMatchObject({ name: "41 Waverley St, Bondi Junction", parentUuid: BUILDER });
+    expect(posts[0]!.body).toMatchObject({ name: "41 Fakehurst St, Fictonia Junction", parentUuid: BUILDER });
   });
 
   it("never makes a step twice: a job whose answer was lost after it landed is read back next time, and the contact goes", async () => {

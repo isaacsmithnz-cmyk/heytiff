@@ -5,7 +5,7 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 /* A TASK TIFF MADE FROM YOUR WORDS RINGS ITS PERSON'S PHONE, as one given
    with Add task does (actions/dashboard ringTheirPhone). Before, a note's task
    for someone else waited in their To do for the next time they opened the
-   app (Isaac, 10 November 2026: "Can you let Luke know that Jay Matthews' job
+   app (Isaac, 10 November 2026: "Can you let Luke know that Jay Oakhurst' job
    is ready to book in?"). Your own task is yours already: no ring. After the
    answer, and never in the way of the task being made. */
 export async function ringForTasks(orgId: string, giver: string | null, tasks: readonly { assigned_to: string | null; title: string }[]): Promise<void> {

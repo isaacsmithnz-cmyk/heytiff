@@ -1,18 +1,18 @@
-/* The links a builder sends instead of files (29 October 2026): the Krui
+/* The links a builder sends instead of files (29 October 2026): the Tempor
    Street tender's plans sat behind an architect's OneDrive folder. */
 import { aShare, jobShareLinks, shareLinksIn, shareWhat } from "../share-links";
 import { textOfEmail } from "../inbound";
 
-const KRUI =
+const TEMPOR =
   "Please provide an itemised quotation for your trade using the attached\nscope and relevant plans.\n\n" +
   "Tender link: 260917 Tender Issue\n" +
   "<https://watershedmanly-my.sharepoint.com/:f:/g/personal/elizabeth_watershedarchitects_com/IgAF2z7THNucTI9gTui9UyvrATDDz37u48fUlLEzwl7nEic?e=wLQywM>\n\n" +
   "*Quotation required by:* 21/10/26\n\n" +
-  "2 Krui Street, Fairlight <https://www.google.com/maps/search/2+Krui+Street,+Fairlight?entry=gmail&source=g>\n" +
+  "2 Tempor Street, Demoford <https://www.google.com/maps/search/2+Tempor+Street,+Demoford?entry=gmail&source=g>\n" +
   "Follow us on Instagram <https://www.instagram.com/jt.construct/>";
 
-it("brings the tender folder out of the Krui Street email, by the name the builder gave it, and leaves the map and Instagram", () => {
-  expect(shareLinksIn(KRUI)).toEqual([
+it("brings the tender folder out of the Tempor Street email, by the name the builder gave it, and leaves the map and Instagram", () => {
+  expect(shareLinksIn(TEMPOR)).toEqual([
     {
       url: "https://watershedmanly-my.sharepoint.com/:f:/g/personal/elizabeth_watershedarchitects_com/IgAF2z7THNucTI9gTui9UyvrATDDz37u48fUlLEzwl7nEic?e=wLQywM",
       name: "260917 Tender Issue",
@@ -56,12 +56,12 @@ it("says a or an before what it is", () => {
 it("gathers a job's links from its emails, newest first, each once, under the builder's name and never the forwarder's", () => {
   const folder = "https://www.dropbox.com/scl/fo/abc?rlkey=x";
   const links = jobShareLinks([
-    { id: "e2", body: `Revised: Stage 2 <${folder}>`, proposal: { client: "JT Construct Pty Ltd", contact: { first: "Shaheer", last: "Khan" } } },
-    { id: "e1", body: `${KRUI}\nAgain <${folder}>`, proposal: { client: "JT Construct Pty Ltd", contact: { first: "", last: "" } } },
+    { id: "e2", body: `Revised: Stage 2 <${folder}>`, proposal: { client: "QX Construct Pty Ltd", contact: { first: "Sami", last: "Crestfield" } } },
+    { id: "e1", body: `${TEMPOR}\nAgain <${folder}>`, proposal: { client: "QX Construct Pty Ltd", contact: { first: "", last: "" } } },
     { id: "e0", body: null, proposal: null },
   ]);
   expect(links.map((l) => [l.emailId, l.name, l.from])).toEqual([
-    ["e2", "Stage 2", "Shaheer Khan"],
-    ["e1", "260917 Tender Issue", "JT Construct Pty Ltd"],
+    ["e2", "Stage 2", "Sami Crestfield"],
+    ["e1", "260917 Tender Issue", "QX Construct Pty Ltd"],
   ]);
 });

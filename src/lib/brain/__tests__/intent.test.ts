@@ -43,7 +43,7 @@ describe("things that are notes, however question-shaped", () => {
     ["the middle rooftop unit tripped again"],
     ["gate code 4417"],
     // passing it on is work, however it's punctuated (Isaac, 10 November 2026)
-    ["Can you let Luke know that Jay Matthews' job is ready to book in?"],
+    ["Can you let Luke know that Jay Oakhurst' job is ready to book in?"],
     ["could you tell Leo the ladder's in my van?"],
     ["can you remind me to call Eve tomorrow?"],
     ["can you book Jay in for Thursday?"],

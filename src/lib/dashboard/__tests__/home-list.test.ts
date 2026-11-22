@@ -85,9 +85,9 @@ const job = (over: Partial<AllJobsMirrorJob> = {}): AllJobsMirrorJob => ({
   remoteId: "j1",
   jobNumber: "3323",
   status: "Work Order",
-  clientName: "Coogee Strata",
+  clientName: "Testcove Strata",
   description: null,
-  suburb: "Randwick",
+  suburb: "Madeupton",
   categoryName: null,
   categoryColour: null,
   date: "2026-09-20 09:00:00",
@@ -614,15 +614,15 @@ describe("won jobs", () => {
     const list = placeList(
       input({
         wins: [
-          won("fresh", "3323", "Randwick", "2026-09-23"),
-          won("old", "3050", "Oatley", "2026-07-20"),
-          won("mid", "3210", "Mosman", "2026-09-04"),
+          won("fresh", "3323", "Madeupton", "2026-09-23"),
+          won("old", "3050", "Fakeley", "2026-07-20"),
+          won("mid", "3210", "Sampleton", "2026-09-04"),
         ],
       }),
     );
     expect(FRESH_WIN_DAYS).toBe(2);
     expect(find<ListAlertRow>(list, "job:fresh")).toMatchObject({
-      title: "Job 3323, Randwick",
+      title: "Job 3323, Madeupton",
       sub: "Won 2 days ago. No day yet.",
       figure: "$8,470",
       dot: "today",
@@ -632,8 +632,8 @@ describe("won jobs", () => {
     const roll = rows(list, "tobook")[0] as ListRollupRow;
     expect(roll).toMatchObject({
       title: "2 more won jobs with no day",
-      sub: "Oldest 3050 Oatley, won 2 months ago.",
-      strong: "3050 Oatley",
+      sub: "Oldest 3050 Fakeley, won 2 months ago.",
+      strong: "3050 Fakeley",
       verb: { label: "Book", door: { to: "href", href: "/dashboard/schedule" } },
       count: 2,
     });
@@ -651,7 +651,7 @@ describe("won jobs", () => {
   });
 
   it("say 'more' only when Today holds a won job, and 'job' for one", () => {
-    const list = placeList(input({ wins: [won("old", "3050", "Oatley", "2026-07-20")] }));
+    const list = placeList(input({ wins: [won("old", "3050", "Fakeley", "2026-07-20")] }));
     expect((rows(list, "tobook")[0] as ListRollupRow).title).toBe("1 won job with no day");
     expect(group(list, "today")).toBeUndefined();
   });
@@ -675,7 +675,7 @@ describe("won jobs", () => {
   });
 
   it("count the jobs, not the row: Jobs to book 17", () => {
-    const wins = Array.from({ length: 17 }, (_, i) => won(`j${i}`, `${3000 + i}`, "Oatley", "2026-08-01"));
+    const wins = Array.from({ length: 17 }, (_, i) => won(`j${i}`, `${3000 + i}`, "Fakeley", "2026-08-01"));
     const list = placeList(input({ wins }));
     expect(group(list, "tobook")).toMatchObject({ title: "Jobs to book", count: 17 });
     expect(rows(list, "tobook")).toHaveLength(1);
@@ -763,7 +763,7 @@ describe("a workspace without ServiceM8", () => {
     const list = placeList(
       input({
         caps: { ...ALL, sm8: false },
-        wins: [won("fresh", "3323", "Randwick", "2026-09-23"), won("old", "3050", "Oatley", "2026-08-01")],
+        wins: [won("fresh", "3323", "Madeupton", "2026-09-23"), won("old", "3050", "Fakeley", "2026-08-01")],
         issues: [issue({ id: "onjob", targetKind: "job", targetId: "sm8-uuid" })],
         visits: [
           { id: "a", clientName: "Bayview Apartments", label: "annual service", dueDate: "2026-10-05" },
@@ -794,7 +794,7 @@ describe("the list as a whole", () => {
     const list = placeList(
       input({
         tasks: [task({ id: "a", dueDate: "2026-10-20" }), task({ id: "b" }), task({ id: "c", dueDate: DAY }), task({ id: "d", dueDate: "2026-09-01" })],
-        wins: [won("old", "3050", "Oatley", "2026-08-01")],
+        wins: [won("old", "3050", "Fakeley", "2026-08-01")],
       }),
     );
     expect(list.groups.map((g) => [g.key, g.title])).toEqual([
@@ -848,7 +848,7 @@ describe("thingsOnList", () => {
       input({
         tasks: [task({ id: "t-open", dueDate: DAY })],
         issues: [issue({ id: "i1" })],
-        wins: [won("fresh", "3323", "Randwick", "2026-09-23"), won("old", "3050", "Oatley", "2026-07-20")],
+        wins: [won("fresh", "3323", "Madeupton", "2026-09-23"), won("old", "3050", "Fakeley", "2026-07-20")],
       }),
     );
     const things = thingsOnList(list);

@@ -97,7 +97,7 @@ Open question: do your projects usually run on one ServiceM8 job, or several? If
 
 ### Saying a brief on site
 
-1. Tap the mic on Home and talk: "Just been to Riverview, need to install a split system…"
+1. Tap the mic on Home and talk: "Just been to Fakeview, need to install a split system…"
 2. Send. Tiff reads it as a job brief and shows the matching ServiceM8 jobs, plus "New job" filled in from your words.
 3. Tap the job. You land on its quote at the Brief step with your words in it, and the quote builder drafts lines from them.
 4. Said "no time to quote it now, save it as the brief"? Tiff saves it and stops. The job shows in To do as "Quote to write" until someone does it.

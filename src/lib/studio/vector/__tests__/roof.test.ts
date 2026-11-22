@@ -1,49 +1,9 @@
 import type { Line } from "../fills";
-import { arrowsOf, pitchOf, riseOf, roofLines, type RoofWord } from "../roof";
+import { arrowsOf, pitchOf, riseOf, roofLines, type RoofFace } from "../roof";
 import { placeFaces, type FloorUnder } from "../roof-place";
 import { faceMesh } from "../../roof3d";
 import type { ReadRoofPart, ReadSpace } from "../../reading";
-
-/* A ROOF PLAN DRAWN BY CODE, as an architect draws one: a hip roof 200 by
-   100 points, its eaves, ridge and four hips as thin black lines, and in
-   each face its pitch with an arrow down its fall (a shaft and two head
-   strokes heavier than the outlines, as 3570's A104 draws them). */
-const ink = (a: [number, number], b: [number, number], width = 0.24): Line => ({ colour: "#000000", width, a, b });
-const arrow = (from: [number, number], dir: [number, number]): Line[] => {
-  const tip: [number, number] = [from[0] + dir[0] * 14, from[1] + dir[1] * 14];
-  const head = (turn: number): [number, number] => {
-    const c = Math.cos(turn);
-    const s = Math.sin(turn);
-    return [tip[0] - (dir[0] * c - dir[1] * s) * 5, tip[1] - (dir[0] * s + dir[1] * c) * 5];
-  };
-  return [ink(from, tip), ink(tip, head(0.4), 1.4), ink(tip, head(-0.4), 1.4)];
-};
-const hipRoof = (pitches: [number, number, number, number] = [30, 30, 30, 30]) => {
-  const [x0, y0, x1, y1] = [100, 100, 300, 200];
-  const lines: Line[] = [
-    ink([x0, y0], [x1, y0]),
-    ink([x1, y0], [x1, y1]),
-    ink([x1, y1], [x0, y1]),
-    ink([x0, y1], [x0, y0]),
-    ink([150, 150], [250, 150]),
-    ink([x0, y0], [150, 150]),
-    ink([x1, y0], [250, 150]),
-    ink([x1, y1], [250, 150]),
-    ink([x0, y1], [150, 150]),
-    /* each face's arrow, its middle in the face, down its fall */
-    ...arrow([200, 125], [0, -1]),
-    ...arrow([200, 175], [0, 1]),
-    ...arrow([120, 150], [-1, 0]),
-    ...arrow([280, 150], [1, 0]),
-  ];
-  const words: RoofWord[] = [
-    { text: `${pitches[0]}.0°`, at: { x: 200, y: 115 } },
-    { text: `${pitches[1]}.0°`, at: { x: 200, y: 185 } },
-    { text: `${pitches[2]}°`, at: { x: 116, y: 140 } },
-    { text: `FALL ${pitches[3]}°`, at: { x: 284, y: 140 } },
-  ];
-  return { lines, words, width: 400, height: 300 };
-};
+import { arrow, hipRoof, ink } from "../__fixtures__/hip-roof";
 
 describe("a printed roof pitch", () => {
   it.each([
@@ -100,6 +60,26 @@ describe("the roof's faces off its lines", () => {
     if ("none" in r) return;
     expect(r.left.some((l) => /another pitch/.test(l.why))).toBe(true);
   });
+  it("a shape a hip runs into and stops short in is no face, though only one pitch is printed in it", () => {
+    /* two hip roofs on the page: the first's north-west hip drawn with a gap half way and its west face's arrow left off, so its north and west faces are one shape with one pitch; the second whole */
+    const gapped = hipRoof();
+    const west = arrow([120, 150], [-1, 0]);
+    const same = (l: Line, m: Line) => l.a[0] === m.a[0] && l.a[1] === m.a[1] && l.b[0] === m.b[0] && l.b[1] === m.b[1];
+    const lines = gapped.lines.filter((l) => !same(l, ink([100, 100], [150, 150])) && !west.some((w) => same(l, w)));
+    lines.push(ink([100, 100], [122, 122]), ink([128, 128], [150, 150]));
+    const whole = hipRoof();
+    const r = roofLines({
+      lines: [...lines, ...whole.lines.map((l): Line => ({ ...l, a: [l.a[0] + 300, l.a[1]], b: [l.b[0] + 300, l.b[1]] }))],
+      words: [...gapped.words, ...whole.words.map((w) => ({ ...w, at: { x: w.at.x + 300, y: w.at.y } }))],
+      width: 700,
+      height: 300,
+    });
+    if ("none" in r) throw new Error(r.none);
+    /* the whole roof's four faces and the gapped one's south and east: its north isn't built over its west */
+    expect(r.faces).toHaveLength(6);
+    expect(r.faces.every((f) => f.outline.length <= 4)).toBe(true);
+    expect(r.left.map((l) => l.why).sort()).toEqual(["a line stops short inside its shape, so two faces may run into one", "no arrow of its own beside it"]);
+  });
 });
 
 describe("a face's rise", () => {
@@ -133,32 +113,33 @@ describe("a face's rise", () => {
 });
 
 describe("the roof plan's faces set over the floors", () => {
+  const box = (x0: number, y0: number, x1: number, y1: number) => [
+    { x: x0, y: y0 },
+    { x: x1, y: y0 },
+    { x: x1, y: y1 },
+    { x: x0, y: y1 },
+  ];
   const room = (name: string, x0: number, y0: number, x1: number, y1: number): ReadSpace => ({
     name,
     named: true,
     kind: "room",
-    outline: [
-      { x: x0, y: y0 },
-      { x: x1, y: y0 },
-      { x: x1, y: y1 },
-      { x: x0, y: y1 },
-    ],
+    outline: box(x0, y0, x1, y1),
     written: "",
     existing: false,
     openTo: "",
     stair: "",
   });
-  const ground: FloorUnder = { floorId: "g", sheetId: "g", level: 0, pxPerPt: 1, spaces: [room("Living", 110, 110, 290, 190)], ceilingMm: 2700, mmPerPx: 35 };
+  /* the file's walls round a room, 7.5 px thick, their outside 12.5 px in from the hip roof's eaves; `dx` sets them off it */
+  const walled = (dx = 0): Pick<FloorUnder, "spaces" | "walls"> => ({
+    spaces: [room("Living", 120 + dx, 120, 280 + dx, 180)],
+    walls: [[box(112.5 + dx, 112.5, 287.5 + dx, 187.5), box(120 + dx, 120, 280 + dx, 180)]],
+  });
+  const ground: FloorUnder = { floorId: "g", sheetId: "g", level: 0, pxPerPt: 1, ...walled(), ceilingMm: 2700, mmPerPx: 35 };
   const part: ReadRoofPart = {
     floorId: "g",
     sheetId: "g",
     form: "hip",
-    outline: [
-      { x: 100, y: 100 },
-      { x: 300, y: 100 },
-      { x: 300, y: 200 },
-      { x: 100, y: 200 },
-    ],
+    outline: box(100, 100, 300, 200),
     ridge: "across",
     fallsTo: "",
     pitchDeg: 30,
@@ -167,31 +148,92 @@ describe("the roof plan's faces set over the floors", () => {
     existing: false,
     source: "Sections",
   };
-  it("each face onto the floor under it, its eave height the read's of the part it sits in", () => {
-    const r = roofLines(hipRoof());
+  const facesOf = (pitches?: [number, number, number, number]) => {
+    const r = roofLines(hipRoof(pitches));
     if ("none" in r) throw new Error(r.none);
-    const placed = placeFaces(r.faces, 4, [ground], [part]);
+    return r.faces;
+  };
+  const moved = (faces: RoofFace[], dx: number): RoofFace[] => faces.map((f) => ({ ...f, outline: f.outline.map(([x, y]) => [x + dx, y] as [number, number]), at: [f.at[0] + dx, f.at[1]] }));
+
+  it("each face onto the floor under it, its eave height the read's of the part it sits in, its overhang off the file's walls", () => {
+    const placed = placeFaces(facesOf(), 4, [ground], [part]);
     if ("none" in placed) throw new Error(placed.none);
     expect(placed.faces).toHaveLength(4);
     expect(placed.faces.every((f) => f.floorId === "g" && f.eaveMm === 2550 && f.page === 4)).toBe(true);
-    /* no walls drawn in the file: the eave sits at the wall line, not the read's guessed overhang */
-    expect(placed.faces.every((f) => f.overhangMm === 0)).toBe(true);
+    /* 13 px at 35 mm a pixel, not the read's guessed 450 */
+    expect(placed.faces.map((f) => f.overhangMm)).toEqual([455, 455, 455, 455]);
+  });
+  it("with no walls drawn in the file its overhang can't be measured, so its faces are left out and the read's boxes stand", () => {
+    const { walls: _walls, ...bare } = ground;
+    expect(placeFaces(facesOf(), 4, [bare], [part])).toEqual({ none: expect.stringContaining("No overhang could be measured") });
   });
   it("a roof plan the rooms don't stand under isn't put over them", () => {
-    const r = roofLines(hipRoof());
-    if ("none" in r) throw new Error(r.none);
     const away = { ...ground, spaces: [room("Living", 500, 500, 600, 600)] };
-    expect(placeFaces(r.faces, 4, [away], [part])).toEqual({ none: expect.stringContaining("0 of the 1 rooms") });
+    expect(placeFaces(facesOf(), 4, [away], [part])).toEqual({ none: expect.stringContaining("0 of the 1 rooms") });
+  });
+  it("a roof plan set off the floor under it isn't put over it, though the floor's rooms still stand under it", () => {
+    /* the floor 10 px (350 mm) east of the roof plan: its west eave 805 mm out past the wall, its east one 105 */
+    expect(placeFaces(facesOf(), 4, [{ ...ground, ...walled(10) }], [part])).toEqual({ none: expect.stringContaining("didn't measure alike on opposite sides") });
   });
   it("a face that doesn't meet its neighbours at one height is left out", () => {
     /* the east face printed at 60°: its hips stand far above the faces it meets */
-    const r = roofLines(hipRoof([30, 30, 30, 60]));
-    if ("none" in r) throw new Error(r.none);
-    const placed = placeFaces(r.faces, 4, [ground], [part]);
+    const placed = placeFaces(facesOf([30, 30, 30, 60]), 4, [ground], [part]);
     if ("none" in placed) throw new Error(placed.none);
     expect(placed.faces).toHaveLength(3);
     expect(placed.faces.some((f) => f.pitchDeg === 60)).toBe(false);
     expect(placed.left).toBe(1);
+  });
+  it("goes on the floor under most of it, though its middle falls in the wall between two rooms", () => {
+    /* level 1's cross wall runs under the ridge's middle, where all four faces have theirs */
+    const upper: FloorUnder = {
+      floorId: "u",
+      sheetId: "u",
+      level: 1,
+      pxPerPt: 1,
+      spaces: [room("Bed 1", 120, 120, 197, 180), room("Bed 2", 203, 120, 280, 180)],
+      walls: [[box(112.5, 112.5, 287.5, 187.5), box(120, 120, 197, 180), box(203, 120, 280, 180)]],
+      ceilingMm: 2400,
+      mmPerPx: 35,
+    };
+    const placed = placeFaces(facesOf(), 4, [ground, upper], [part]);
+    if ("none" in placed) throw new Error(placed.none);
+    expect(placed.faces.map((f) => [f.floorId, f.eaveMm])).toEqual([
+      ["u", 2400],
+      ["u", 2400],
+      ["u", 2400],
+      ["u", 2400],
+    ]);
+  });
+  it("a face standing half on the floor above and half past it is left out, not dropped a storey", () => {
+    /* two hip roofs side by side over the ground floor; level 1 under all the first and under only the second's west end */
+    const wide: FloorUnder = { ...ground, spaces: [room("Living", 120, 120, 580, 180)], walls: [[box(112.5, 112.5, 587.5, 187.5), box(120, 120, 580, 180)]] };
+    const upper: FloorUnder = {
+      floorId: "u",
+      sheetId: "u",
+      level: 1,
+      pxPerPt: 1,
+      spaces: [room("Bed 1", 120, 120, 280, 180), room("Bed 2", 420, 120, 470, 180)],
+      walls: [
+        [box(112.5, 112.5, 287.5, 187.5), box(120, 120, 280, 180)],
+        [box(412.5, 112.5, 477.5, 187.5), box(420, 120, 470, 180)],
+      ],
+      ceilingMm: 2400,
+      mmPerPx: 35,
+    };
+    const placed = placeFaces([...facesOf(), ...moved(facesOf(), 300)], 4, [wide, upper], []);
+    if ("none" in placed) throw new Error(placed.none);
+    /* the first roof and the second's west end on level 1; the second's north and south faces stand half on it,
+       and its east end alone on the ground floor has no eave opposite it measured there */
+    expect(placed.faces).toHaveLength(5);
+    expect(placed.faces.every((f) => f.floorId === "u")).toBe(true);
+    expect(placed.left).toBe(3);
+  });
+  it("finds a floor's walls with more points than can be spread into an argument list", () => {
+    /* a long curved wall well off the roof: 300,000 points */
+    const n = 300_000;
+    const curve = Array.from({ length: n }, (_, i) => ({ x: 2000 + 50 * Math.cos((i / n) * 2 * Math.PI), y: 2000 + 50 * Math.sin((i / n) * 2 * Math.PI) }));
+    const placed = placeFaces(facesOf(), 4, [{ ...ground, walls: [...ground.walls!, [curve]] }], [part]);
+    expect("faces" in placed && placed.faces).toHaveLength(4);
   });
 });
 

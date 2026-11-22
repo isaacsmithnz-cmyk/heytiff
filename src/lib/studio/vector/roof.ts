@@ -141,6 +141,8 @@ export function arrowsFor(pitches: readonly { at: [number, number] }[], arrows: 
 
 /** How far a traced corner stands from the line end it belongs to, points: the trace runs a line's half width and a grid pixel inside it. */
 const SNAP = 2;
+/** A line shorter than this, points, may be a dimension's tick (3570's: 4 to 7 pt), not a piece of the roof's lines. */
+const TICK = 12;
 
 /** Each corner onto the nearest line end within SNAP, the run of corners that
     land on one end made one. A corner with no end by it (a curve traced
@@ -225,6 +227,8 @@ export function roofLines(input: { lines: readonly Line[]; words: readonly RoofW
   });
   const grid = enclose(rasterise(strips, input.width, input.height, K), W, H, 0, 0);
 
+  const shapeAt = ([x, y]: [number, number]) => (x >= 0 && y >= 0 && x * K < W && y * K < H ? grid.label[Math.floor(y * K) * W + Math.floor(x * K)] : -1);
+
   /* each pitch to the shape it is printed in: its arrow's tail first (the word may straddle a line), then the word itself */
   const byShape = new Map<number, { deg: number; at: [number, number]; dir: [number, number] }[]>();
   const left: { at: [number, number]; why: string }[] = [];
@@ -232,7 +236,6 @@ export function roofLines(input: { lines: readonly Line[]; words: readonly RoofW
   pitches.forEach((p, i) => {
     const arrow = arrows[i];
     if (!arrow) return void left.push({ at: p.at, why: "no arrow of its own beside it" });
-    const shapeAt = ([x, y]: [number, number]) => grid.label[Math.floor(y * K) * W + Math.floor(x * K)] ?? -1;
     /* the arrow's middle names the shape; the word, unless it sits on a line, must be in the same one */
     const id = shapeAt(arrow.mid);
     const word = shapeAt(p.at);
@@ -248,6 +251,59 @@ export function roofLines(input: { lines: readonly Line[]; words: readonly RoofW
       const k = `${Math.round(e[0] / SNAP)},${Math.round(e[1] / SNAP)}`;
       ends.set(k, [...(ends.get(k) ?? []), e]);
     }
+  /* A LINE THAT STOPS SHORT IN A SHAPE: a hip or a valley drawn with a gap
+     lets two faces run into one shape, and with the other's pitch left out
+     (no arrow of its own) this one's would be built over both, rising twice
+     as high. So a shape is no face when a line in it (the same shape on both
+     its sides) ends there meeting nothing, and is joined end to end to the
+     lines round the faces: a piece of the roof's lines that stops short. A
+     dimension (its ends on its ticks), a tick, or a leader joined to no
+     line's end splits nothing. */
+  const lineAt = new Map<string, number[]>();
+  outlines.forEach((l, i) => {
+    for (const e of [l.a, l.b]) {
+      const k = `${Math.round(e[0] / SNAP)},${Math.round(e[1] / SNAP)}`;
+      lineAt.set(k, [...(lineAt.get(k) ?? []), i]);
+    }
+  });
+  const run = outlines.map((_, i) => i);
+  const root = (i: number) => {
+    while (run[i] !== i) i = run[i] = run[run[i]];
+    return i;
+  };
+  /* whether each line's ends meet another line's end */
+  const met = outlines.map((l, i) =>
+    [l.a, l.b].map((e) => {
+      let hit = false;
+      const gx = Math.round(e[0] / SNAP);
+      const gy = Math.round(e[1] / SNAP);
+      for (let x = gx - 1; x <= gx + 1; x++)
+        for (let y = gy - 1; y <= gy + 1; y++)
+          for (const j of lineAt.get(`${x},${y}`) ?? []) {
+            const o = outlines[j];
+            if (j === i || (Math.hypot(o.a[0] - e[0], o.a[1] - e[1]) > SNAP && Math.hypot(o.b[0] - e[0], o.b[1] - e[1]) > SNAP)) continue;
+            run[root(j)] = root(i);
+            hit = true;
+          }
+      return hit;
+    }),
+  );
+  /* each line's two sides, a line's width and a grid pixel off its middle */
+  const sides = outlines.map((l) => {
+    const len = Math.hypot(l.b[0] - l.a[0], l.b[1] - l.a[1]);
+    if (len < 4) return null;
+    const m: [number, number] = [(l.a[0] + l.b[0]) / 2, (l.a[1] + l.b[1]) / 2];
+    const n: [number, number] = [-(l.b[1] - l.a[1]) / len, (l.b[0] - l.a[0]) / len];
+    return [shapeAt([m[0] + n[0] * 1.5, m[1] + n[1] * 1.5]), shapeAt([m[0] - n[0] * 1.5, m[1] - n[1] * 1.5])];
+  });
+  const rounds = new Set(sides.flatMap((s, i) => (s && s[0] >= 0 && s[1] >= 0 && s[0] !== s[1] ? [root(i)] : [])));
+  const cut = new Set(
+    outlines.flatMap((l, i) => {
+      const s = sides[i];
+      const loose = Math.hypot(l.b[0] - l.a[0], l.b[1] - l.a[1]) >= TICK && met[i].some((m) => !m);
+      return s && s[0] >= 0 && s[0] === s[1] && loose && rounds.has(root(i)) ? [s[0]] : [];
+    }),
+  );
   const faces: RoofFace[] = [];
   for (const [id, said] of byShape) {
     const shape = grid.spaces[id];
@@ -261,6 +317,10 @@ export function roofLines(input: { lines: readonly Line[]; words: readonly RoofW
        which part is which isn't known */
     if (said.some((s) => s.deg !== said[0].deg || s.dir[0] * said[0].dir[0] + s.dir[1] * said[0].dir[1] < Math.cos(Math.PI / 18))) {
       for (const s of said) left.push({ at: s.at, why: "another pitch is printed in the same shape" });
+      continue;
+    }
+    if (cut.has(id)) {
+      for (const s of said) left.push({ at: s.at, why: "a line stops short inside its shape, so two faces may run into one" });
       continue;
     }
     const outline = onTheLines(

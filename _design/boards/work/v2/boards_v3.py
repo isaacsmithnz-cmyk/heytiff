@@ -418,8 +418,8 @@ def job(actions_menu="", sections="counts", tab="Overview", content=None, aside_
         nt += f'<div class="gp" style="display:flex;gap:12px;padding:16px 0 4px">{av}<div style="min-width:0"><div class="l13"><b style="font-weight:600">{n}</b> <span class="qq">{t}</span></div><p class="r16" style="margin-top:2px">{x}</p></div></div>'
     var_card = f'''<div class="cd" style="padding:16px;display:flex;flex-direction:column;gap:10px">
   <div style="display:flex;align-items:baseline;gap:8px"><b class="t16">Variation: isolator on the deck</b></div>
-  <p class="qq">$480 plus GST, drafted from Callum's note. Julian hasn't seen it yet.</p>
-  <div style="display:flex;gap:8px;justify-content:flex-end"><span class="b sm sec">Edit</span><span class="b sm go">Send to Julian</span></div>
+  <p class="qq">$480 plus GST, drafted from Callum's note. Jules hasn't seen it yet.</p>
+  <div style="display:flex;gap:8px;justify-content:flex-end"><span class="b sm sec">Edit</span><span class="b sm go">Send to Jules</span></div>
 </div>'''
     docs = "".join(f'<a class="rw" href="#" style="padding:10px 0">{ico(i)}<span class="m">{n}</span>{s}</a>' for i, n, s in [("shield", "SWMS, split install", '<span class="st look">2 of 3 signed on</span>'), ("doc", "Quote, version 2", '<span class="st good">Accepted</span>'), ("cert", "Commissioning certificate", '<span class="qq">Not made yet</span>')])
     body = f'''<div class="ph">

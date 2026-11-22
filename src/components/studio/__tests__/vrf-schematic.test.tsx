@@ -180,7 +180,7 @@ describe("a riser dropped on the trunk (Isaac, 2026-09-30: it sat on the pipe wi
 describe("pipework that never reaches the outdoor (48 Laborum St, 2026-10-13)", () => {
   /* four heads, two a floor, each piped to its floor's riser of one pair;
      the outdoor placed with no pipe on it */
-  function thorneSt(piped: boolean): { doc: DesignDocument; systemId: string } {
+  function laborumSt(piped: boolean): { doc: DesignDocument; systemId: string } {
     let doc = createDesign({ name: "48 Laborum St", mode: "blank" });
     const g = doc.floors[0];
     doc = { ...doc, floors: [{ ...g, name: "Ground floor" }, { ...g, id: "flr_up", name: "Level 1", level: 1 }] };
@@ -243,7 +243,7 @@ describe("pipework that never reaches the outdoor (48 Laborum St, 2026-10-13)", 
   }
 
   it("names every head and says the outdoor has no pipe on it", () => {
-    const { doc, systemId } = thorneSt(true);
+    const { doc, systemId } = laborumSt(true);
     const sys = doc.systems.find((s) => s.id === systemId)!;
     const tree = systemVrfTree(pack, sys, doc)!;
     expect(tree.joined).toBe(0);
@@ -266,7 +266,7 @@ describe("pipework that never reaches the outdoor (48 Laborum St, 2026-10-13)", 
   });
 
   it("with no run drawn at all, says neither", () => {
-    const { doc, systemId } = thorneSt(false);
+    const { doc, systemId } = laborumSt(false);
     const sys = doc.systems.find((s) => s.id === systemId)!;
     expect(systemFindings(doc, pack, sys).map((f) => f.code)).not.toContain("outdoor-unpiped");
     render(<VrfSchematic doc={doc} pack={pack} sys={sys} units="in" />);

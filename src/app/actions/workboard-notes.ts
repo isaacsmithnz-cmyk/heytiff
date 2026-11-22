@@ -1025,7 +1025,7 @@ async function applyConfirmed(
         group_id: groupId,
         /* THE JOB THE NOTE WAS SAID ON. Left off, the task form went looking
            for a job in the task's own words and found "140" in "140
-           single-phase outdoor": job #140, a 2024 job in Bellevue Hill, on a
+           single-phase outdoor": job #140, a 2024 job in Fakehill, on a
            task about #2845 (Isaac, 28 October 2026). */
         sm8_job_uuid: target.kind === "job" ? (target.id ?? null) : null,
       };

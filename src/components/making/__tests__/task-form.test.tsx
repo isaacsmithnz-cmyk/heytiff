@@ -83,22 +83,22 @@ describe("the task form", () => {
   });
 
   it("on a job's page: the job is filled in, and saving puts the task on it", async () => {
-    draw({ uuid: "j-3209", label: "3209 Richards" });
+    draw({ uuid: "j-3209", label: "3209 Rowland" });
     await act(async () => {});
-    expect(screen.getByText("3209 Richards")).toBeInTheDocument();
+    expect(screen.getByText("3209 Rowland")).toBeInTheDocument();
     say("Order the grilles");
     (makeTasks as jest.Mock).mockResolvedValueOnce({ ok: true, taskIds: ["t1"], jobKept: true });
     await act(async () => fireEvent.click(screen.getByRole("button", { name: "Add task" })));
     /* a job's task is anyone's until someone is chosen (Isaac, 24 October 2026) */
     expect((makeTasks as jest.Mock).mock.calls[0][0]).toMatchObject({ jobUuid: "j-3209", anyone: true, forStaffId: null });
-    expect(toast).toHaveBeenCalledWith("Task added to 3209 Richards", expect.any(Function));
+    expect(toast).toHaveBeenCalledWith("Task added to 3209 Rowland", expect.any(Function));
   });
 
   it("clears the job to make it a general task, and can find another", async () => {
-    draw({ uuid: "j-3209", label: "3209 Richards" });
+    draw({ uuid: "j-3209", label: "3209 Rowland" });
     await act(async () => {});
     fireEvent.click(screen.getByRole("button", { name: "Clear the job" }));
-    expect(screen.queryByText("3209 Richards")).toBeNull();
+    expect(screen.queryByText("3209 Rowland")).toBeNull();
     jest.useFakeTimers();
     fireEvent.change(screen.getByPlaceholderText("None, a general task"), { target: { value: "Fairweather" } });
     await act(async () => {
@@ -111,13 +111,13 @@ describe("the task form", () => {
   });
 
   it("makes one task a line, says how many, and Undo takes them all back", async () => {
-    draw({ uuid: "j-3209", label: "3209 Richards" });
+    draw({ uuid: "j-3209", label: "3209 Rowland" });
     await act(async () => {});
     say("Order the grilles\nBook the crane\n\nCall Fairweather");
     expect(screen.getByRole("button", { name: "Add 3 tasks" })).toBeInTheDocument();
     (makeTasks as jest.Mock).mockResolvedValueOnce({ ok: true, taskIds: ["a", "b", "c"], jobKept: true });
     await act(async () => fireEvent.click(screen.getByRole("button", { name: "Add 3 tasks" })));
-    expect(toast).toHaveBeenCalledWith("3 tasks added to 3209 Richards", expect.any(Function));
+    expect(toast).toHaveBeenCalledWith("3 tasks added to 3209 Rowland", expect.any(Function));
     await toast.mock.calls[0][1]();
     expect((deleteTask as jest.Mock).mock.calls.map((c) => c[0])).toEqual(["a", "b", "c"]);
   });

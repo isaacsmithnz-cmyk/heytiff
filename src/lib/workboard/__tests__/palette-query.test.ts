@@ -56,12 +56,12 @@ describe("searchClients", () => {
   });
 
   /* Several words each have to START a word of the name, in any order:
-     "constr hr" is HR Constructions, and "hr" inside Christine is not "hr". */
+     "contr hr" is HR Contracting, and "hr" inside Christine is not "hr". */
   it("asks for every word of several at the start of a word of the name", async () => {
-    await searchClients("org-1", "constr hr");
+    await searchClients("org-1", "contr hr");
     expect(asked("sm8_companies", "ilike")).toEqual([]);
     expect(asked("sm8_companies", "or")).toEqual([
-      ["name.ilike.constr%,name.ilike.% constr%"],
+      ["name.ilike.contr%,name.ilike.% contr%"],
       ["name.ilike.hr%,name.ilike.% hr%"],
     ]);
   });

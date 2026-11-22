@@ -112,7 +112,7 @@ describe("ServiceM8's own sends", () => {
 });
 
 describe("a conversation is a thread", () => {
-  /* the walk of 26 October 2026: Piero's 10:03 reply opened a thread whose first half was missing */
+  /* the walk of 26 October 2026: Marco's 10:03 reply opened a thread whose first half was missing */
   it("starts with the template the customer answered, as the team's first bubble with its Seen", () => {
     const t = threads().find((x) => x.day === "2026-10-06")!;
     expect(t.lines[0]).toMatchObject({ kind: "bubble", side: "us", name: "Dana", time: "9:31 am", seen: "Seen 9:56 am" });

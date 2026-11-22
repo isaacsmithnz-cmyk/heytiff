@@ -103,9 +103,9 @@ describe("the page's address", () => {
 describe("what an open tab calls a job", () => {
   it("is its number and the first word of its client, '3209 Rowland'", () => {
     expect(jobTabLabel("3209", "Rowland Building")).toBe("3209 Rowland");
-    expect(jobTabLabel("2674", "St Lukes")).toBe("2674 St Lukes");
+    expect(jobTabLabel("2674", "St Exemplar")).toBe("2674 St Exemplar");
     expect(jobTabLabel("3410", "The Smiths Group")).toBe("3410 The Smiths");
-    expect(jobTabLabel("3421", "Charlie")).toBe("3421 Charlie");
+    expect(jobTabLabel("3421", "Casey")).toBe("3421 Casey");
     expect(jobTabLabel("3209", null)).toBe("Job 3209");
     expect(jobTabLabel(null, "Testa Construction")).toBe("Testa Construction");
     expect(jobTabLabel(null, null)).toBe("Job");

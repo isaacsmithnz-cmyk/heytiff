@@ -1872,7 +1872,7 @@ export function withoutStreetTypes(words: string[]): string[] {
 
 /* ── several words: every one has to land ──
 
-   "hr constructions sampleton" is a client's name and a suburb. Asked as one
+   "hr contracting sampleton" is a client's name and a suburb. Asked as one
    phrase it matched nothing, because no one field holds all three words: the
    name lives on the client, the suburb on the job. So each word has to land
    in SOME field — the rule the board's own box has always run

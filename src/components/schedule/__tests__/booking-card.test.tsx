@@ -15,7 +15,7 @@ const blk = (over: Partial<DayBlock> = {}): DayBlock => ({
   key: "a1",
   jobUuid: "job-3401",
   number: "3401",
-  client: "Vix",
+  client: "Val",
   suburb: "Fictonia Beach",
   hue: "purple",
   startMin: 420,
@@ -34,7 +34,7 @@ it("puts the job number in a box of the job's colour, and the client, suburb, ty
   expect(card).toHaveClass("sc-card", "sc-card--purple");
   expect(card).toHaveAttribute("href", expect.stringContaining("job-3401"));
   expect(card.querySelector(".sc-cn")).toHaveTextContent("3401");
-  expect(card.querySelector(".sc-c1")).toHaveTextContent("Vix");
+  expect(card.querySelector(".sc-c1")).toHaveTextContent("Val");
   expect(card.querySelector(".sc-c2")).toHaveTextContent("Fictonia Beach");
   const third = card.querySelector(".sc-c3") as HTMLElement;
   expect(third).toHaveTextContent("Install");

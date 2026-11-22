@@ -1,6 +1,6 @@
 /* Several words, every one of them landing somewhere (2026-09-24). Isaac
-   typed "hr constructions sampleton" into ⌘K: the client's name and a suburb.
-   HR Constructions Pty Ltd has fifteen jobs in Sampleton, and the search found
+   typed "hr contracting sampleton" into ⌘K: the client's name and a suburb.
+   HR Contracting Pty Ltd has fifteen jobs in Sampleton, and the search found
    none, because it asked for the whole phrase inside one field.
 
    The fake here is a small PostgREST: it FILTERS rows the way the database
@@ -97,14 +97,14 @@ const numbers = async (query: string) =>
 
 beforeEach(() => {
   tables.sm8_companies = [
-    client("c-hr", "HR Constructions Pty Ltd"),
-    client("c-abc", "ABC Constructions"),
+    client("c-hr", "HR Contracting Pty Ltd"),
+    client("c-abc", "ABC Contracting"),
     client("c-chr", "Christine Hair Studio"),
   ];
   tables.sm8_jobs = [
     job("j-2675", { company_uuid: "c-hr", geo_city: "Sampleton", date: "2026-08-01 09:00:00" }),
     job("j-2545", { company_uuid: "c-hr", geo_city: "Sampleton", date: "2026-05-01 09:00:00" }),
-    job("j-3166", { company_uuid: "c-hr", geo_city: "Northbridge", date: "2026-09-01 09:00:00" }),
+    job("j-3166", { company_uuid: "c-hr", geo_city: "Fakebridge", date: "2026-09-01 09:00:00" }),
     job("j-2701", {
       company_uuid: "c-abc",
       geo_city: "Sampleton",
@@ -122,7 +122,7 @@ beforeEach(() => {
 
 describe("several words, every one landing", () => {
   it("finds a client's jobs in a suburb when the name and the suburb are typed together", async () => {
-    expect(await numbers("hr constructions sampleton")).toEqual([
+    expect(await numbers("hr contracting sampleton")).toEqual([
       // the client whose name covers the most words answers first, newest first
       "2675",
       "2545",
@@ -133,11 +133,11 @@ describe("several words, every one landing", () => {
 
   it("answers first with the client covering more words, whatever order the book is in", async () => {
     tables.sm8_companies = [...tables.sm8_companies].reverse();
-    expect(await numbers("constructions hr sampleton")).toEqual(["2675", "2545", "2701"]);
+    expect(await numbers("contracting hr sampleton")).toEqual(["2675", "2545", "2701"]);
   });
 
   it("takes the words in any order", async () => {
-    expect(await numbers("sampleton hr constructions")).toEqual(["2675", "2545", "2701"]);
+    expect(await numbers("sampleton hr contracting")).toEqual(["2675", "2545", "2701"]);
   });
 
   /* "hr" inside Christine is not the word hr: a client is named by the words
@@ -148,11 +148,11 @@ describe("several words, every one landing", () => {
 
   it("reads a job number and a suburb together", async () => {
     expect(await numbers("2675 sampleton")).toEqual(["2675"]);
-    expect(await numbers("2675 northbridge")).toEqual([]);
+    expect(await numbers("2675 fakebridge")).toEqual([]);
   });
 
   it("gives a client typed in full all of their work", async () => {
-    expect(await numbers("hr constructions pty ltd")).toEqual(["3166", "2675", "2545"]);
+    expect(await numbers("hr contracting pty ltd")).toEqual(["3166", "2675", "2545"]);
   });
 
   /* The per-word pools are capped, and a word as common as "pty" fills its
@@ -162,11 +162,11 @@ describe("several words, every one landing", () => {
     const filler = (n: number, name: string) => client(`c-${name}-${n}`, `${name} ${n}`);
     tables.sm8_companies = [
       ...Array.from({ length: 70 }, (_, n) => filler(n, "HR Recruitment")),
-      ...Array.from({ length: 70 }, (_, n) => filler(n, "Constructions Supplies")),
+      ...Array.from({ length: 70 }, (_, n) => filler(n, "Contracting Supplies")),
       ...Array.from({ length: 70 }, (_, n) => filler(n, "Pty Ltd Holdings")),
       ...tables.sm8_companies,
     ];
-    expect(await numbers("hr constructions pty ltd")).toEqual(["3166", "2675", "2545"]);
+    expect(await numbers("hr contracting pty ltd")).toEqual(["3166", "2675", "2545"]);
   });
 });
 
@@ -231,8 +231,8 @@ describe("a claim is its parent's card", () => {
     tables.sm8_jobs.push(
       job("j-2845", { company_uuid: "c-jt", status: "Work Order", geo_city: "Testbury", job_address: "7 Ipsum Rd", date: "2026-03-01 09:00:00" }),
       job("j-2845A", { company_uuid: "c-jt", status: "Completed", geo_city: "Testbury", job_address: "7 Ipsum Rd", date: "2026-04-01 09:00:00" }),
-      job("j-2042B", { company_uuid: "c-jt", status: "Completed", geo_city: "Allambie Heights", date: "2026-02-01 09:00:00" }),
-      job("j-2042", { company_uuid: "c-jt", status: "Completed", geo_city: "Allambie Heights", date: "2025-12-01 09:00:00" }),
+      job("j-2042B", { company_uuid: "c-jt", status: "Completed", geo_city: "Sampleby Heights", date: "2026-02-01 09:00:00" }),
+      job("j-2042", { company_uuid: "c-jt", status: "Completed", geo_city: "Sampleby Heights", date: "2025-12-01 09:00:00" }),
       job("j-1999A", { company_uuid: "c-jt", status: "Completed", geo_city: "Manly", date: "2025-01-01 09:00:00" }),
     );
   });
@@ -253,7 +253,7 @@ describe("a claim is its parent's card", () => {
   it("keeps a claim whose parent isn't in the states asked for", async () => {
     const open = async (query: string) =>
       (await searchAllMirrorJobs(ORG, query, TODAY, { includeMoney: false, statuses: ["Work Order"] })).map((j) => j.jobNumber);
-    tables.sm8_jobs.push(job("j-2042C", { company_uuid: "c-jt", status: "Work Order", geo_city: "Allambie Heights" }));
-    expect(await open("allambie")).toEqual(["2042C"]);
+    tables.sm8_jobs.push(job("j-2042C", { company_uuid: "c-jt", status: "Work Order", geo_city: "Sampleby Heights" }));
+    expect(await open("sampleby")).toEqual(["2042C"]);
   });
 });

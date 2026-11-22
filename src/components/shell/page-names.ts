@@ -4,7 +4,7 @@ import type { Hue } from "@/components/parts/state";
 
    The header names a tab by its address (topbar.tsx, `tabName`): the place
    or screen whose address starts the page's. A record's page is named by
-   the record, "3209 Richards", and the header can't read the record. So the
+   the record, "3209 Rowland", and the header can't read the record. So the
    page says its own name here, keyed by its path, and the header reads it
    first. A job's page names itself with its number, its short name and its
    colour.

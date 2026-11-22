@@ -316,7 +316,7 @@ describe("which way it goes", () => {
   });
 
   it("names a ServiceM8 job in the claim's words, where its column can't hold one", () => {
-    expect(costDescription(COST, "#3209 — Richards")).toBe("fittings, for #3209 — Richards");
+    expect(costDescription(COST, "#3209 — Rowland")).toBe("fittings, for #3209 — Rowland");
     expect(costDescription({ whatFor: "", supplier: "Reece" }, null)).toBe("Purchase at Reece");
   });
 });

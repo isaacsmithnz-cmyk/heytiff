@@ -89,7 +89,7 @@ export async function searchClients(
     .eq("org_id", orgId)
     .eq("active", 1);
   /* One word is looked for anywhere in a name, and ranked. Several must each
-     START a word of it, in any order — "constr hr" is HR Constructions — the
+     START a word of it, in any order — "contr hr" is HR Contracting — the
      rule the mirror's own job search names a client by. */
   if (words.length === 1) asked = asked.ilike("name", `%${safe}%`);
   else for (const w of words) asked = asked.or(`name.ilike.${w}%,name.ilike.% ${w}%`);

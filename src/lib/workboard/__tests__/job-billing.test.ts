@@ -17,7 +17,7 @@ const member = (over: Partial<FamilyMemberFacts> & Pick<FamilyMemberFacts, "remo
 });
 
 /* #3237 as the live mirror holds it */
-const chandra = (termsDays: number | null = 14, over: FamilyMemberFacts[] = []) =>
+const kiran = (termsDays: number | null = 14, over: FamilyMemberFacts[] = []) =>
   deriveFamilyMoney({
     members: over.length
       ? over
@@ -30,7 +30,7 @@ const chandra = (termsDays: number | null = 14, over: FamilyMemberFacts[] = []) 
     termsDays,
   });
 
-const view = (family = chandra(), statusLabel = "Work Order") =>
+const view = (family = kiran(), statusLabel = "Work Order") =>
   readBilling({ family, money: null, ledgerPaidCents: 0, statusLabel });
 
 describe("readBilling on #3237", () => {
@@ -56,13 +56,13 @@ describe("readBilling on #3237", () => {
   });
 
   it("says Awaiting, with no due date, while the terms are unset", () => {
-    const progress = view(chandra(null)).rows[1];
+    const progress = view(kiran(null)).rows[1];
     expect(progress.line).toBe("Invoice #3237B");
     expect([progress.word, progress.tone]).toEqual(["Awaiting", "look"]);
   });
 
   it("says the claim's own line for its dialog", () => {
-    const f = chandra();
+    const f = kiran();
     const v = readBilling({ family: f, money: null, ledgerPaidCents: 0, statusLabel: "Work Order" });
     expect(claimLine(f.claims[1], v.rows[1], true)).toMatch(
       /^Invoice #3237B, 30% of the job\. Raised Tue 15 Sept?, due Tue 29 Sept?\.$/
@@ -74,7 +74,7 @@ describe("readBilling on #3237", () => {
 
 describe("readBilling when a figure isn't known ex GST", () => {
   it("falls back to the family's own total, on its basis, and labels each row", () => {
-    const f = chandra(14, [
+    const f = kiran(14, [
       member({ remoteId: "p", jobNumber: "3237", totalCents: 866800 }),
       member({ remoteId: "a", jobNumber: "3237A", totalCents: 650100, paidCents: 650100, lastPaidOn: "2026-09-11", raisedOn: "2026-08-31" }),
     ]);
@@ -87,7 +87,7 @@ describe("readBilling when a figure isn't known ex GST", () => {
   });
 
   it("leaves paid and waiting unknown on a part-paid claim, and draws no bar", () => {
-    const f = chandra(null, [
+    const f = kiran(null, [
       member({ remoteId: "p", jobNumber: "2968", totalCents: 279400, paidCents: 100000, lines: { cents: 254000, taxInclusive: false }, exCents: 254000, raisedOn: "2026-08-01" }),
     ]);
     const v = view(f);
@@ -97,7 +97,7 @@ describe("readBilling when a figure isn't known ex GST", () => {
   });
 
   it("says a quote's own words, not Awaiting, on a quote with an invoice date (#3169)", () => {
-    const f = chandra(null, [member({ remoteId: "q", jobNumber: "3169", totalCents: 401500, raisedOn: "2026-08-10" })]);
+    const f = kiran(null, [member({ remoteId: "q", jobNumber: "3169", totalCents: 401500, raisedOn: "2026-08-10" })]);
     const v = readBilling({
       family: f,
       money: { valueCents: 401500, invoiced: null, invoicedOn: null, quoteSent: true, quoteSentOn: "2026-08-03", paid: false, paidOn: null },
@@ -145,7 +145,7 @@ describe("variations", () => {
 
   it("puts the quote's own figure in the box when the job has variations", () => {
     const v = readBilling({
-      family: chandra(),
+      family: kiran(),
       money: null,
       ledgerPaidCents: 0,
       statusLabel: "Work Order",

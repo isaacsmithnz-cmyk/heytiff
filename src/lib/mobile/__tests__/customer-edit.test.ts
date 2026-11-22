@@ -66,7 +66,7 @@ describe("what a phone's change can't do", () => {
   it("gives a role from the six, or keeps the one ServiceM8 already holds", () => {
     expect(applyPhoneEdit(job, { kind: "person", id: null, first: "Dana", last: "", mobile: "", email: "", type: "Agent" })).toEqual({ ok: false, error: PHONE_EDIT_WORDS.role });
     const odd = { ...job, contacts: [{ ...lisa, type: "Strata" }] };
-    expect(applyPhoneEdit(odd, { kind: "person", id: LISA, first: "Lisa", last: "W", mobile: "0412 345 678", email: "", type: "Strata" }).ok).toBe(true);
+    expect(applyPhoneEdit(odd, { kind: "person", id: LISA, first: "Lisa", last: "A", mobile: "0412 345 678", email: "", type: "Strata" }).ok).toBe(true);
   });
 
   it("never empties a person into a removal, nor adds no one", () => {

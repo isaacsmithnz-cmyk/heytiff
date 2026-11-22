@@ -80,7 +80,7 @@ export type CustomerSend = {
   opening: string | null;
   /** what it says inside a thread, as a grey centred line */
   line: string;
-  /** a short reply to it, said on its row: "Piero: YES" */
+  /** a short reply to it, said on its row: "Marco: YES" */
   reply: string | null;
   seen: string | null;
   files: MessageFile[];
@@ -139,7 +139,7 @@ export type CustomerThread = {
   /** its latest moment, where it stands in the feed */
   at: string;
   icon: "message" | "mail";
-  /** "Email with Piero", "Text with Piero", "Email and text with Piero" */
+  /** "Email with Marco", "Text with Marco", "Email and text with Marco" */
   title: string;
   subject: string | null;
   lines: ThreadLine[];
@@ -158,7 +158,7 @@ export function templateMarked(text: string): boolean {
   return LINK.test(text) || ARRIVAL.test(text) || YES_TO_CONFIRM.test(text);
 }
 
-/** The opening a template is known by: the greeting line ("Hi Piero,")
+/** The opening a template is known by: the greeting line ("Hi Marco,")
     dropped, and the first forty characters or so of the rest, cut at a
     word, as an ilike pattern of its words, so a name, a number or a line
     break between them never hides the same send. Null when there is too
@@ -290,7 +290,7 @@ export function customerFeed(
   const ours = opts.business?.trim() || "ServiceM8";
   const all = [...messages].sort((a, b) => (a.stamp < b.stamp ? -1 : a.stamp > b.stamp ? 1 : 0));
   /* A TEMPLATE THE CUSTOMER ANSWERED starts the conversation (the walk of
-     26 October 2026: Piero's 10:03 reply opened a thread whose first half
+     26 October 2026: Marco's 10:03 reply opened a thread whose first half
      was missing). An email of ServiceM8's is answered when an email of the
      customer's comes back to it: under its subject, Re: and Fwd: aside,
      within the week, or as the next email they sent that day. It is then the team's first

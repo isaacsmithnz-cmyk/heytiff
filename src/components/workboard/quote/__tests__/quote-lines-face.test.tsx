@@ -1136,7 +1136,7 @@ describe("a variation to the accepted quote", () => {
       return { json: async () => ({ ...view([indoor, diffuser, ...varied]), accepted: [0], variations: [variation], ...(init?.body ? { onJob: { added: 1, removed: 0 } } : {}) }) };
     });
     const onToast = jest.fn();
-    render(<QuoteLinesFace job="job-3377" price={priceFor([indoor, diffuser, ...varied])} onPriced={jest.fn()} onToast={onToast} meta={{ title: "Ducted", client: "Andrew", site: null, jobNumber: "3377" }} />);
+    render(<QuoteLinesFace job="job-3377" price={priceFor([indoor, diffuser, ...varied])} onPriced={jest.fn()} onToast={onToast} meta={{ title: "Ducted", client: "Adrian", site: null, jobNumber: "3377" }} />);
     fireEvent.click(await screen.findByRole("button", { name: /^Variation 1/ }));
     /* one more diffuser at $12.89 + 40%, the line rounded to the cent */
     expect(screen.getByRole("button", { name: /^Variation 1/ })).toHaveTextContent("+$18.04");
@@ -1180,7 +1180,7 @@ describe("version 2 before it's accepted", () => {
       if (init?.body) posted.push(JSON.parse(init.body));
       return { json: async () => ({ ...view([indoor, core]), ...answer }) };
     });
-    render(<QuoteLinesFace job="job-3377" price={price} onPriced={jest.fn()} meta={{ title: "Ducted", client: "Andrew", site: null, jobNumber: "3377" }} />);
+    render(<QuoteLinesFace job="job-3377" price={price} onPriced={jest.fn()} meta={{ title: "Ducted", client: "Adrian", site: null, jobNumber: "3377" }} />);
   };
 
   it("starts from Update quote on an approved quote nobody has accepted", async () => {

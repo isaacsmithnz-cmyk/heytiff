@@ -14,7 +14,7 @@ import {
 } from "../plan-set";
 
 /* the title block of 7 Ipsum Rd's CD103, as its PDF's words come out */
-const CUTLER_WORDS = ["GROUND FLOOR", "CD103", "SCALE:", "G", "1:50 @ A1", "CLIENT:", "JONAS & KYLIE PALMQVIST", "ADDRESS:", "1:100 TO RWO"].map(
+const IPSUM_WORDS = ["GROUND FLOOR", "CD103", "SCALE:", "G", "1:50 @ A1", "CLIENT:", "SAM & ALEX CITIZEN", "ADDRESS:", "1:100 TO RWO"].map(
   (text) => ({ text, at: { x: 0, y: 0 } }),
 );
 
@@ -49,14 +49,14 @@ function ipsum(): DesignDocument {
       placed: { 1: "org/o/gf.png", 2: "org/o/l1.png" },
       chosen: [1, 2],
       names: {},
-      words: { 1: CUTLER_WORDS },
+      words: { 1: IPSUM_WORDS },
     },
   };
 }
 
 describe("the printed scale", () => {
   test("reads 1:50 at A1 off the title block, not a note's 1:100", () => {
-    expect(printedScaleOf(CUTLER_WORDS)).toEqual({ ratio: 50, paper: "A1", text: "1:50 @ A1" });
+    expect(printedScaleOf(IPSUM_WORDS)).toEqual({ ratio: 50, paper: "A1", text: "1:50 @ A1" });
   });
 
   test("reads a scale split across words", () => {
@@ -97,7 +97,7 @@ describe("Tiff's measured scale", () => {
         placed: { 0: "org/o/gf.png" },
         chosen: [0],
         names: {},
-        ...(words ? { words: { 0: CUTLER_WORDS } } : {}),
+        ...(words ? { words: { 0: IPSUM_WORDS } } : {}),
         measured: { 0: { mmPerPx: 37.037, from: "the 5000 mm printed on it", sure } },
       },
     };
@@ -127,7 +127,7 @@ describe("Tiff's measured scale", () => {
 
 describe("the sheet's title", () => {
   test("GROUND FLOOR beside CD103", () => {
-    expect(sheetTitleOf(CUTLER_WORDS)).toEqual({ title: "Ground floor", number: "CD103" });
+    expect(sheetTitleOf(IPSUM_WORDS)).toEqual({ title: "Ground floor", number: "CD103" });
   });
 });
 

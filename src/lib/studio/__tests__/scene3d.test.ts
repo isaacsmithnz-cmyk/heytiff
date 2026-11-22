@@ -327,14 +327,14 @@ describe("the site round the house", () => {
           sheetId: "s-gf",
           boundary: sq(-100, -100, 600, 900),
           surfaces: [{ kind: "driveway", outline: sq(420, 0, 520, 800), finish: "exposed aggregate" }],
-          street: { name: "Hope St", kerb: [{ x: -100, y: 1000 }, { x: 600, y: 1000 }], widthMm: 8000 },
+          street: { name: "Rumour St", kerb: [{ x: -100, y: 1000 }, { x: 600, y: 1000 }], widthMm: 8000 },
           neighbours: [{ outline: sq(-600, 0, -150, 300), storeys: 2, attached: false, note: "No. 21" }],
           fences: [{ line: [{ x: -100, y: -100 }, { x: 600, y: -100 }], heightMm: 1800 }],
         },
       },
     });
     expect(s.site?.surfaces[0]).toMatchObject({ kind: "driveway", pts: [[4.2, 0], [5.2, 0], [5.2, 8], [4.2, 8]] });
-    expect(s.site?.street).toEqual({ name: "Hope St", kerb: [[-1, 10], [6, 10]], width: 8 });
+    expect(s.site?.street).toEqual({ name: "Rumour St", kerb: [[-1, 10], [6, 10]], width: 8 });
     expect(s.site?.neighbours[0].storeys).toBe(2);
     expect(s.site?.fences[0].height).toBe(1.8);
   });

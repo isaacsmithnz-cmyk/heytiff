@@ -179,8 +179,8 @@ describe("what Tiff says", () => {
     expect(variationDoneLine(t)).toBe(
       "Nothing is accepted on this job's quote in HeyTiff, so there's no variation to start; a quote accepted in ServiceM8 has no lines here to copy. Reprice it from the Quote tab. I've made it a task instead: Add to the quote: return grille in Bed 2.",
     );
-    expect(variationTaskDetail("unaccepted", "#3209 Richards")).toBe(
-      "Nothing is accepted on the quote on #3209 Richards in HeyTiff yet, so this changes the quote itself rather than starting a variation: reprice it from the job's Quote tab.",
+    expect(variationTaskDetail("unaccepted", "#3209 Rowland")).toBe(
+      "Nothing is accepted on the quote on #3209 Rowland in HeyTiff yet, so this changes the quote itself rather than starting a variation: reprice it from the job's Quote tab.",
     );
   });
 

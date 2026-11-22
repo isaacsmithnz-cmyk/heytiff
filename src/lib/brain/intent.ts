@@ -225,7 +225,7 @@ function matches(text: string, cue: Cue): boolean {
 /** Should these words go to the ask loop instead of the note flow? */
 /* A REQUEST TO PASS SOMETHING ON IS WORK, QUESTION MARK OR NOT (Isaac, 10
    November 2026, to Tiff on the phone: "Can you let Luke know that Jay
-   Matthews' job is ready to book in?"). Its "?" sent it to the answer loop,
+   Oakhurst' job is ready to book in?"). Its "?" sent it to the answer loop,
    which can change nothing: it said it couldn't message anyone, offered
    Conversations, and Luke was never told. A request modal opening on a verb
    that hands something to a person, or books or orders it, is the note flow's,

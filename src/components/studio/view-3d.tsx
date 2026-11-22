@@ -2293,7 +2293,7 @@ export function View3D({
         <div className="ds3-view" role="group" aria-label="View">
           <button type="button" className="ds3-view-head" aria-expanded onClick={() => foldView(false)}>
             <Icon name="layers" size={14} />
-            <span>View</span>
+            <span className="ds3-view-word">View</span>
             <Icon name="chevR" size={14} />
           </button>
           <div className="ds3-view-body">

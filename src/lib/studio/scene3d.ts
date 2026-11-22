@@ -194,9 +194,10 @@ export type Roof3D = { floorId: string; existing: boolean; faces: Mesh; fills: M
 export type Site3D = {
   boundary: XZ[];
   surfaces: { kind: SiteSurfaceKind; pts: XZ[]; finish: string }[];
-  /** the kerb nearest the house and how wide the road is, metres */
-  street: { name: string; kerb: [XZ, XZ]; width: number } | null;
-  neighbours: { pts: XZ[]; storeys: number; attached: boolean; note: string }[];
+  /** the kerb nearest the house and how wide the road is, metres; null where the set doesn't give its width */
+  street: { name: string; kerb: [XZ, XZ]; width: number | null } | null;
+  /** storeys null where the set doesn't say them */
+  neighbours: { pts: XZ[]; storeys: number | null; attached: boolean; note: string }[];
   fences: { pts: XZ[]; height: number }[];
 };
 
@@ -1276,11 +1277,13 @@ function siteOf(doc: DesignDocument, moves: Map<string, XZ>): Site3D | null {
     return [mm(x), mm(z)];
   };
   const kerb = site.street?.kerb.map(M);
+  /* a road width or storeys the set doesn't give are 0 in the read (reading-server toSite): none to draw, not none there */
   return {
     boundary: site.boundary.map(M),
     surfaces: site.surfaces.map((x) => ({ kind: x.kind, pts: x.outline.map(M), finish: x.finish })),
-    street: site.street && kerb && kerb.length >= 2 ? { name: site.street.name, kerb: [kerb[0], kerb[kerb.length - 1]], width: site.street.widthMm / 1000 } : null,
-    neighbours: site.neighbours.map((x) => ({ pts: x.outline.map(M), storeys: x.storeys, attached: x.attached, note: x.note })),
+    street:
+      site.street && kerb && kerb.length >= 2 ? { name: site.street.name, kerb: [kerb[0], kerb[kerb.length - 1]], width: site.street.widthMm > 0 ? site.street.widthMm / 1000 : null } : null,
+    neighbours: site.neighbours.map((x) => ({ pts: x.outline.map(M), storeys: x.storeys > 0 ? x.storeys : null, attached: x.attached, note: x.note })),
     fences: site.fences.map((x) => ({ pts: x.line.map(M), height: x.heightMm / 1000 })),
   };
 }

@@ -25,8 +25,8 @@ export type ScheduleItem = {
 /** A mark as a key: "GW.21", "gw 21" and "GW-21" are one. */
 export const markKey = (s: string) => s.toUpperCase().replace(/[\s.\-_]/g, "");
 
-/* a word that is a window's or a door's mark: letters then a figure, as plans write them */
-const MARK = /^[A-Z]{1,3}[.\-]?\d{1,3}(\.\d{1,2})?[A-Z]?$/i;
+/** a word that is a window's or a door's mark: letters then a figure, as plans write them */
+export const MARK = /^[A-Z]{1,3}[.\-]?\d{1,3}(\.\d{1,2})?[A-Z]?$/i;
 const TITLE = /\b(window|door|glazing)s?\s*(schedule|types?|legend)\b/i;
 
 /** Whether a page is a door or window schedule, by its words: its title, or a

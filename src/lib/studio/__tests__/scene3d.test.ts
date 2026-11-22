@@ -391,6 +391,27 @@ describe("the site round the house", () => {
     expect(s.site?.fences[0].height).toBe(1.8);
   });
 
+  /* the read gives 0 for a figure the set doesn't (reading-server toSite): a road and a neighbour of no size aren't drawn as if they had one */
+  it("has no road width or storeys where the set doesn't give them", () => {
+    const s = sceneOf({
+      ...base,
+      reading: {
+        ...base.reading!,
+        site: {
+          floorId: "gf",
+          sheetId: "s-gf",
+          boundary: [],
+          surfaces: [],
+          street: { name: "Rumour St", kerb: [{ x: -100, y: 1000 }, { x: 600, y: 1000 }], widthMm: 0 },
+          neighbours: [{ outline: sq(-600, 0, -150, 300), storeys: 0, attached: false, note: "" }],
+          fences: [],
+        },
+      },
+    });
+    expect(s.site?.street).toEqual({ name: "Rumour St", kerb: [[-1, 10], [6, 10]], width: null });
+    expect(s.site?.neighbours[0].storeys).toBeNull();
+  });
+
   it("is nothing until she has read it", () => {
     expect(sceneOf(base).site).toBeNull();
   });

@@ -44,6 +44,13 @@ describe("a drawing set, as it can be sent", () => {
     expect(last).toEqual(inOrder(8).slice(8 - last.length));
   });
 
+  it("tries what its order gives where that is fewer than its fewest, a set whose plans are its last pages", async () => {
+    const pdf = await set(8);
+    /* sent from its first plan on, page 7: two pages, though four is its fewest */
+    const out = await fitted(pdf, pdf.byteLength, (t) => [t - 2, t - 1], 4, "too large");
+    expect(await widths(out)).toEqual([6, 7]);
+  });
+
   it("says it is too large when even its fewest pages don't fit", async () => {
     const pdf = await set(8);
     await expect(fitted(pdf, 1000, inOrder, 4, "The drawing set is too large to read the roof from")).rejects.toThrow("too large to read the roof");

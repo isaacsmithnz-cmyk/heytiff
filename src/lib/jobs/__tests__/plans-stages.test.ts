@@ -107,6 +107,7 @@ jest.mock("@/lib/studio/measured-server", () => ({
   nameRooms: (_m: unknown, o: { floorName: string; deadline?: number }) => readMeasured(null, 1, o),
 }));
 const readRoof = jest.fn(async (..._a: unknown[]): Promise<Record<string, unknown>> => ({ said: null }));
+const readSite = jest.fn(async (..._a: unknown[]): Promise<unknown> => null);
 const readSchedule = jest.fn(async (_png: Buffer, _words: unknown[]) => ({ items: [{ mark: "GW.21", type: "W.05", kind: "window", width_mm: 750, height_mm: 1800, sill_mm: 300 }] }));
 /* the lengths printed along a floor's dimension lines: none, unless a test prints some */
 const readDimensions = jest.fn(async (_o: string, _s: { floorId: string }): Promise<unknown[]> => []);
@@ -115,7 +116,7 @@ jest.mock("@/lib/studio/reading-server", () => ({
   READING_MODEL: "claude-opus-5-5",
   readSheet: (...a: unknown[]) => readSheet(...(a as [string, { floorId: string }])),
   readRoof: (...a: unknown[]) => readRoof(...a),
-  readSite: async () => null,
+  readSite: (...a: unknown[]) => readSite(...a),
   readDimensions: (...a: unknown[]) => readDimensions(...(a as [string, { floorId: string }])),
   readSchedule: (...a: unknown[]) => readSchedule(...(a as [Buffer, unknown[]])),
   askWith: async () => ({}),
@@ -149,6 +150,7 @@ beforeEach(() => {
   vectorsInNode.mockClear();
   readSchedule.mockClear();
   readRoof.mockClear();
+  readSite.mockClear();
   scheduleOn.page = 0;
   fileFloors.clear();
   roofPages.clear();
@@ -526,5 +528,20 @@ describe("the roof's faces off the roof plan's lines", () => {
     expect(vectorsInNode.mock.calls.map((c) => c[1])).toEqual([5]);
     expect(got?.faces.map((f) => f.page)).toEqual([5, 5, 5, 5]);
     expect(log).toHaveBeenCalledWith("[job-plans] the roof's faces were read off 1 of 2 pages, the run was out of time");
+  });
+});
+
+describe("a site read that fails", () => {
+  it("leaves the site unread, not none, so it is read again", async () => {
+    /* a set too large to send throws (reading-server readSite) */
+    readSite.mockRejectedValueOnce(new Error("The drawing set is too large to read the site from"));
+    await readPlan("org-1", "jplan_1", "https://app.test", client);
+    clock += 1_000;
+    await readPlan("org-1", "jplan_1", "https://app.test", client);
+    clock += 1_000;
+    expect(await readPlan("org-1", "jplan_1", "https://app.test", client)).toMatchObject({ ok: true, finished: { jobUuid: "job-3570" } });
+    expect(readSite).toHaveBeenCalledTimes(1);
+    /* null would say the set has no site plan, and it would never be read again */
+    expect("site" in (plan().reading as Record<string, unknown>)).toBe(false);
   });
 });

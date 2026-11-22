@@ -289,12 +289,25 @@ describe("the heights and the roof, as the set writes them", () => {
       levels: [
         { floor: "Ground floor", ceiling_mm: 2700, floor_zone_mm: 300, source: "A301 section AA: CLG 2700" },
         { floor: "Level 1", ceiling_mm: 2550, floor_zone_mm: 0, source: "scaled off section BB" },
+        { floor: "Level 1", ceiling_mm: 2550, floor_zone_mm: 0, source: "measured off A302 at 1:100" },
         { floor: "Level 1", ceiling_mm: 2400, floor_zone_mm: 0, source: "typical ceiling" },
+        { floor: "Level 1", ceiling_mm: 2400, floor_zone_mm: 0, source: "assumed 2400, the usual" },
         { floor: "Level 1", ceiling_mm: 2400, floor_zone_mm: 0, source: "the sections" },
         { floor: "Level 1", ceiling_mm: 0, floor_zone_mm: 0, source: "A302" },
       ],
     });
     expect(r.levels).toEqual([{ floorId: "gf", ceilingMm: 2700, floorZoneMm: 300, source: "A301 section AA: CLG 2700" }]);
+    /* a sheet's own title, and heights worked out between the RLs it writes, are as written */
+    const titled = roof({
+      levels: [
+        { floor: "Ground floor", ceiling_mm: 2700, floor_zone_mm: 0, source: "A301 Typical Section: CLG 2700" },
+        { floor: "Level 1", ceiling_mm: 2550, floor_zone_mm: 0, source: "measured between the RLs on A301" },
+      ],
+    });
+    expect(titled.levels.map((l) => [l.floorId, l.ceilingMm])).toEqual([
+      ["gf", 2700],
+      ["l1", 2550],
+    ]);
     expect(JSON.stringify((roofSchema(["Ground floor"]) as { properties: { levels: unknown } }).properties.levels)).not.toMatch(/scaled/);
   });
 
@@ -318,6 +331,12 @@ describe("the heights and the roof, as the set writes them", () => {
       ["kept", 22.5, 2700],
       ["flat", 0, 2700],
     ]);
+  });
+
+  it("keeps an overhang as she read it, and leaves one no eave can have out rather than cut it to 1.5 m", () => {
+    const r = roof({ roof_parts: [part({ overhang_mm: 450 }), part({ overhang_mm: 2400 }), part({ overhang_mm: -300 })] });
+    expect(r.parts.map((p) => p.overhangMm)).toEqual([450, 0, 0]);
+    expect(JSON.stringify(roofSchema(["Ground floor"]))).toMatch(/overhang past the wall line, as written or dimensioned/);
   });
 
   it("keeps a skillion only when it falls to a side across its edges", () => {
@@ -363,9 +382,15 @@ describe("the site, as the set gives it", () => {
     expect(site({ street: [{ name: "Ipsum Rd", kerb: "0,300 200,300", width_mm: 12_000 }] }).street!.widthMm).toBe(12_000);
   });
 
-  it("is sent, when the set must be cut, the pages before its floor plans, nearest them first, then the first plan", () => {
-    expect(sitePages(20, 5)).toEqual([4, 3, 2, 1, 0, 5]);
-    /* a set that starts with its plans: its front */
-    expect(sitePages(20, 0)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+  it("is sent, when the set must be cut, the pages before its floor plans, nearest them first, then the first plan, then the pages after it", () => {
+    expect(sitePages(12, 5)).toEqual([4, 3, 2, 1, 0, 5, 6, 7, 8, 9, 10, 11]);
+    /* a set that starts with its plans, its roof and site plan after its floors: its front, on */
+    expect(sitePages(12, 0)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+    /* forty at most, the far end of the pages after its plans going first */
+    const many = sitePages(60, 5);
+    expect(many).toHaveLength(40);
+    expect(many.slice(0, 7)).toEqual([4, 3, 2, 1, 0, 5, 6]);
+    expect(many[39]).toBe(39);
+    expect(sitePages(0, 0)).toEqual([]);
   });
 });

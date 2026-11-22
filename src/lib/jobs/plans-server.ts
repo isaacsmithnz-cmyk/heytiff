@@ -1165,7 +1165,8 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
       const siteP: Promise<PlanReading["site"]> = wantSite
         ? counted(readSite(orgId, pdf, ground, first)).catch((e) => {
             console.error(`[job-plans] ${planId}/site: ${String(e)}`);
-            return null;
+            /* not read, which isn't none (null): left absent, it is read again, here on a handed-off run or by the Studio */
+            return undefined;
           })
         : Promise.resolve(kept?.site);
       if (!kept) {
@@ -1264,7 +1265,7 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
           if (got) reading.roof = { ...reading.roof, faces: got.faces, facesLeft: got.left };
         } else console.log(`[job-plans] ${planId}: the roof's faces weren't read off the roof plan, the run was out of time`);
       }
-      if (site !== LATE) reading.site = site;
+      if (site !== LATE && site !== undefined) reading.site = site;
       if ((roof === LATE || site === LATE) && !kept) {
         /* the floors stand; the roof and the site get a run of their own */
         await write(orgId, planId, { pages, reading: { ...reading, partial: true } });

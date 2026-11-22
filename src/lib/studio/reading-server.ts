@@ -26,7 +26,8 @@ import {
   type SiteReading,
   type SpaceKind,
 } from "./reading";
-import { markKey } from "./schedule";
+import { distToSegment } from "./geometry";
+import { MARK, markKey } from "./schedule";
 import { facingFrom } from "./gap-marks";
 
 /* TIFF READS A FLOOR PLAN (v2, 20 October). The bench's checklist read
@@ -268,20 +269,10 @@ export function toSheet(raw: Raw, furniture: Raw, sheetId: string, k: number, ox
 /* ── what the plan prints, by its own words ── */
 
 const norm = (t: string) => t.toLowerCase().replace(/[^a-z0-9]/g, "");
-/* a word that is a window's or a door's mark, as schedule.ts finds them */
-const MARK = /^[A-Z]{1,3}[.\-]?\d{1,3}(\.\d{1,2})?[A-Z]?$/i;
 /** how far from an opening its mark and its width are printed */
 const BESIDE_MM = 1500;
 /* a size as a plan writes one, "4.1 x 2.7" or "4100 x 2700" (parseWritten reads it) */
 const SIZES = /\d+(?:[.,]\d+)?\s*(?:mm|m)?\s*[x×]\s*\d+(?:[.,]\d+)?\s*(?:mm|m)?/gi;
-
-/** how far a point is from a segment */
-function toSegment(p: ReadPoint, a: ReadPoint, b: ReadPoint): number {
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  const t = dx || dy ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy))) : 0;
-  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
-}
 
 /** A space as the plan prints it: named only where a name is printed in it,
     hers word for word or as one of its words ("BATH" in her "Bathroom"),
@@ -314,7 +305,7 @@ export function openingAsPrinted(o: Pick<ReadOpening, "a" | "b" | "tag" | "width
   const len = Math.hypot(o.b.x - o.a.x, o.b.y - o.a.y);
   /* with no scale, about its own width */
   const reach = mmPerPx ? BESIDE_MM / mmPerPx : 1.5 * len;
-  const near = words.filter((w) => toSegment(w.at, o.a, o.b) <= reach);
+  const near = words.filter((w) => distToSegment(w.at, o.a, o.b) <= reach);
   const keys = new Set(near.flatMap((w, i) => [markKey(w.text), ...(i + 1 < near.length ? [markKey(w.text + near[i + 1].text)] : [])]));
   const parts = o.tag.split(/[\s/,]+/).filter(Boolean);
   const kept: string[] = [];
@@ -352,7 +343,7 @@ export function facingOf(o: Pick<ReadOpening, "a" | "b" | "room">, spaces: reado
       const ey = q.y - p.y;
       const el = Math.hypot(ex, ey);
       if (!(el > 0) || Math.abs(ex * (o.b.x - o.a.x) + ey * (o.b.y - o.a.y)) < 0.9 * el * len) continue;
-      const d = toSegment(mid, p, q);
+      const d = distToSegment(mid, p, q);
       if (d > len || (best && d >= best.d)) continue;
       /* which side of an edge is out follows from which way the outline winds */
       best = { d, out: wind > 0 ? { x: ey, y: -ex } : { x: -ey, y: ex } };
@@ -592,8 +583,10 @@ export function toDimensions(raw: Raw, k: number, ox: number, oy: number, words:
 /* ── the roof and the heights, off the whole set ── */
 
 const FORMS = ["gable", "hip", "skillion", "flat"] as const;
-/* where she says a height came from, the words that say it wasn't written */
-const GUESSED = /\b(scaled|measured|assumed|estimated|typical|usual|standard|approx|guess)/i;
+/* where she says a height came from, the words that say how she got one
+   that isn't written: not a sheet's own title ("A301 Typical Section"), nor
+   heights worked out between written RLs */
+const GUESSED = /\b(scaled|measured off|assumed|estimated|usual|approx|guess)/i;
 
 export const roofSchema = (floors: string[]): Json =>
   S({
@@ -615,7 +608,7 @@ export const roofSchema = (floors: string[]): Json =>
         falls_to: en(["left", "right", "up", "down", "none"]),
         pitch_deg: num("as written on a section, an elevation or the roof plan; 0 when not written"),
         eave_mm: num("top of the walls it sits on, above that floor's floor level, as written or from written RLs; 0 when not written"),
-        overhang_mm: num("eaves overhang past the wall line, 0 where there are none"),
+        overhang_mm: num("eaves overhang past the wall line, as written or dimensioned; 0 where there are none or it isn't"),
         existing: bool(),
         source: str("the sheets it was read from"),
       }),
@@ -641,7 +634,7 @@ export const roofPrompt = (plans: { floor: string; w: number; h: number; mm: num
 You are reading it for an air conditioning installer who needs the building in 3D: its heights, its roof and its roof space. Use the sections and elevations for heights and pitches, the roof plan (or the site plan's roof) for the roof's shape, and the floor plan images to set the roof out.
 
 1. levels: for every floor named, the ceiling height above its floor level, and the floor zone between its ceiling and the next floor level (0 on the top floor), as the set writes them (heights or RLs), and where. A height it doesn't write is 0: never one scaled off a drawing or taken as usual.
-2. roof_parts: the roof as rectangular parts. Break an L, T or U roof into rectangles, one per ridge. For each part: which floor's walls carry it, its form (gable: two slopes and gable ends; hip: slopes on all four sides; skillion: one slope; flat), its footprint as the 4 corners of the rectangle it covers AT THE WALL LINE, on THAT floor's plan image, in that image's pixels; which way its ridge runs on that image (across = along x, down = along y; for a skillion, the direction its edges run, not its slope); for a skillion, the side of the image it falls to (left, right, up or down; none for the others); its pitch in degrees and the top of the walls it sits on above that floor's level, in mm, each as the set writes it (0 for one it doesn't); its eaves overhang in mm; and whether it is existing. A verandah or patio roof is its own part. A neighbouring building or an existing garage drawn on the plan only gets a part if the set shows its roof.
+2. roof_parts: the roof as rectangular parts. Break an L, T or U roof into rectangles, one per ridge. For each part: which floor's walls carry it, its form (gable: two slopes and gable ends; hip: slopes on all four sides; skillion: one slope; flat), its footprint as the 4 corners of the rectangle it covers AT THE WALL LINE, on THAT floor's plan image, in that image's pixels; which way its ridge runs on that image (across = along x, down = along y; for a skillion, the direction its edges run, not its slope); for a skillion, the side of the image it falls to (left, right, up or down; none for the others); its pitch in degrees and the top of the walls it sits on above that floor's level, in mm, each as the set writes it (0 for one it doesn't); its eaves overhang in mm, as written or dimensioned (0 where it isn't); and whether it is existing. A verandah or patio roof is its own part. A neighbouring building or an existing garage drawn on the plan only gets a part if the set shows its roof.
 3. raked: every room whose ceiling follows the roof, with its low and high ceiling heights above its floor as the set writes them. Leave out a room whose heights it doesn't write.
 4. material, and what the set shows about the roof space: how high it is at the ridge, whether anything is noted for it, and what would fit.
 5. subfloor: the space between the ground and a suspended floor, where equipment can go. drawn: a plan or a section draws it as a space (labelled subfloor, sub-floor void, store under floor, crawl space, or a band or hatch marked as one). mentioned: a note or schedule only names one ("subfloor ventilation", "underfloor ducted system", "suspended floor with enclosed subfloor"). none: neither. Underfloor heating, a subfloor sheet or board under the flooring, or a slab on ground is not a subfloor. When drawn: the floor it is under, its outline on that floor's plan image round the rooms it runs under (where a section shows it under only some rooms, only those; a new slab beside it has none), those rooms in words, its height from the ground to the floor's underside (written, or measured off the section at its printed scale), and where that came from. Either way, the drawing number it is on and its words as written.
@@ -668,6 +661,8 @@ export function toRoof(raw: Raw, plans: { floorId: string; floor: string; sheetI
        part, not set at floor level or flat; a flat roof may fall at 0 */
     const pitch = n(r.pitch_deg);
     if (n(r.eave_mm) <= 0 || pitch > 60 || (form === "flat" ? pitch < 0 : pitch <= 0)) continue;
+    /* an overhang past 1.5 m is a misread: left out (0), not cut to 1.5 m */
+    const overhang = n(r.overhang_mm);
     parts.push({
       floorId: at.floorId,
       sheetId: at.sheetId,
@@ -677,7 +672,7 @@ export function toRoof(raw: Raw, plans: { floorId: string; floor: string; sheetI
       fallsTo,
       pitchDeg: pitch,
       eaveMm: n(r.eave_mm),
-      overhangMm: Math.max(0, Math.min(1500, n(r.overhang_mm))),
+      overhangMm: overhang > 0 && overhang <= 1500 ? overhang : 0,
       existing: r.existing === true,
       source: s(r.source),
     });
@@ -778,32 +773,38 @@ const base64 = (bytes: number) => Math.ceil(bytes / 3) * 4;
 
 /** The set as it can be sent in `room` characters of base64: whole when it
     fits, else the pages `order` puts first, as many as fit and `least` at
-    fewest. A set none of whose cuts fit is too large to read, and says so. */
+    fewest, or all it gives where it gives fewer. A set none of whose cuts
+    fit is too large to read, and says so. */
 export async function fitted(pdf: Buffer, room: number, order: (total: number) => number[], least: number, tooLarge: string): Promise<Buffer> {
   if (base64(pdf.byteLength) <= room) return pdf;
   const { PDFDocument } = await import("pdf-lib");
   const whole = await PDFDocument.load(pdf, { ignoreEncryption: true });
   let keep = order(whole.getPageCount());
-  while (keep.length >= least && room > 0) {
+  /* a set whose floor plans are its last few pages is still tried with them */
+  const fewest = Math.min(least, keep.length);
+  while (keep.length && room > 0) {
     const cut = await PDFDocument.create();
     for (const pg of await cut.copyPages(whole, [...keep].sort((a, b) => a - b))) cut.addPage(pg);
     const out = Buffer.from(await cut.save());
     if (base64(out.byteLength) <= room) return out;
-    if (keep.length === least) break;
+    if (keep.length === fewest) break;
     /* what goes is what `order` puts last */
-    keep = keep.slice(0, Math.max(least, Math.min(keep.length - 1, Math.ceil(keep.length * 0.75))));
+    keep = keep.slice(0, Math.max(fewest, Math.min(keep.length - 1, Math.ceil(keep.length * 0.75))));
   }
   throw new Error(tooLarge);
 }
 
-/** The pages a site read is sent when the set is cut: the site plan comes
-    before the floor plans, so every page before the first floor plan,
-    nearest it first, then the first floor plan; a set that starts with its
-    plans, from its front. */
+/** The pages a site read is sent when the set is cut, forty at most: the
+    site plan mostly comes before the floor plans, so every page before the
+    first floor plan, nearest it first, then that plan, then the pages after
+    it, nearest first, for a set that puts its site plan (or a site and roof
+    plan) after its floors. Cut again, what goes is the far end of those. */
 export function sitePages(total: number, from: number): number[] {
-  const start = Math.min(Math.max(0, from), Math.max(0, total - 1));
-  if (start === 0) return pagesToSend(total, 0, 12);
-  return [...Array.from({ length: start }, (_, i) => start - 1 - i), start].slice(0, 40);
+  if (total < 1) return [];
+  const start = Math.min(Math.max(0, from), total - 1);
+  const before = Array.from({ length: start }, (_, i) => start - 1 - i);
+  const after = Array.from({ length: total - start - 1 }, (_, i) => start + 1 + i);
+  return [...before, start, ...after].slice(0, 40);
 }
 
 /* REVISING IT (Isaac, 20 October 2026: "She should also be able to revise

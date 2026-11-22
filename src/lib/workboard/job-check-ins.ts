@@ -30,12 +30,12 @@ export type OurSession = {
   end: string;
   /** still checked in, and counted to now */
   live: boolean;
-  /** why they were there, from the phone's buttons: site_meeting, helping; none is plain labour */
+  /** why they were there, from the phone's buttons: site_meeting, helping, warranty (bug 73); none is plain labour */
   reason?: string | null;
 };
 
 /** A reason as the card says it. */
-export const REASON_WORDS: Record<string, string> = { site_meeting: "site meeting", helping: "helping out" };
+export const REASON_WORDS: Record<string, string> = { site_meeting: "site meeting", helping: "helping out", warranty: "warranty call" };
 
 export const heyStaffId = (userId: string) => `hey:${userId}`;
 

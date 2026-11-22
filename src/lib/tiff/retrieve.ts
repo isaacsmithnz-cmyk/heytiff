@@ -20,6 +20,7 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import type { AskSourceItem } from "./ask-client";
 import { embedTexts, isSemanticConfigured, type EmbedResult } from "./embeddings";
 import { asKbCategory, type KbCategory } from "./files";
+import { modelAhead, modelCodes, titleNamesModel, topDocs } from "./model-first";
 import { historyLines, prepareQuery } from "./query-prep";
 import { addKbUsage } from "./quota";
 import {
@@ -28,6 +29,7 @@ import {
   rrfMerge,
   type KbTrace,
   type LegRow,
+  type MergedChunk,
   type TraceDoc,
 } from "./rank";
 
@@ -146,7 +148,12 @@ export async function retrieveForQuestion(
       : Promise.resolve({ data: null }),
   ]);
 
-  const merged = rrfMerge(legRowsOf(fts?.data), legRowsOf(vec?.data));
+  /* A model named, and no document picked: that model's own documents are
+     searched on their own too, and go first (./model-first, bug 75). */
+  const codes = documentId ? [] : modelCodes(`${question} ${plan.standalone}`);
+  const ahead = codes.length ? await modelLegs(orgId, codes, plan.ftsQuery, qvec) : [];
+
+  const merged = modelAhead(ahead, rrfMerge(legRowsOf(fts?.data), legRowsOf(vec?.data)));
   if (merged.length === 0) return { chunks: [], trace: EMPTY_TRACE(plan.terms), sources: [] };
 
   /* Both legs already told us which document each chunk belongs to, so the
@@ -217,6 +224,49 @@ export async function retrieveForQuestion(
       excerpt: c.content.slice(0, EXCERPT_CHARS),
     })),
   };
+}
+
+/* The pages of the documents about the models asked of, best first: the
+   documents whose pages print a code or whose title starts one, then each
+   searched alone, both legs, for what was asked. Never throws: a model leg
+   that fails is a model leg that found nothing. */
+async function modelLegs(
+  orgId: string,
+  codes: readonly string[],
+  ftsQuery: string,
+  qvec: number[] | null
+): Promise<MergedChunk[]> {
+  try {
+    const [byCode, titles] = await Promise.all([
+      supabaseAdmin.rpc("kb_fts", { p_org: orgId, p_query: codes.join(" OR "), p_cats: null, p_k: LEG_LIMIT, p_doc: null }),
+      supabaseAdmin.from("kb_documents").select("id, title").eq("org_id", orgId).eq("status", "ready"),
+    ]);
+    const named = ((titles?.data ?? []) as { id: string; title: string | null }[])
+      .filter((d) => titleNamesModel(d.title ?? "", codes))
+      .map((d) => String(d.id));
+    const docs = [...new Set([...topDocs(legRowsOf(byCode?.data)), ...named])].slice(0, 3);
+    if (docs.length === 0) return [];
+
+    const perDoc = await Promise.all(
+      docs.map(async (doc) => {
+        const [f, v] = await Promise.all([
+          supabaseAdmin.rpc("kb_fts", { p_org: orgId, p_query: ftsQuery, p_cats: null, p_k: 8, p_doc: doc }),
+          qvec
+            ? supabaseAdmin.rpc("kb_vec", { p_org: orgId, p_qvec: JSON.stringify(qvec), p_cats: null, p_k: 8, p_doc: doc })
+            : Promise.resolve({ data: null }),
+        ]);
+        return rrfMerge(legRowsOf(f?.data), legRowsOf(v?.data));
+      })
+    );
+    /* taken in turn, a page from each, so two manuals share the top */
+    const out: MergedChunk[] = [];
+    for (let i = 0; perDoc.some((rows) => i < rows.length); i++) {
+      for (const rows of perDoc) if (rows[i]) out.push(rows[i]);
+    }
+    return out;
+  } catch {
+    return [];
+  }
 }
 
 /* One more question this month.

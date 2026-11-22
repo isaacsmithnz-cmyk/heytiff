@@ -117,6 +117,15 @@ export function chargeOf(rule: AdditionalChargeRule | undefined): string | null 
         .join(", ");
       return rule.precharged_allowance_m ? `None to ${rule.precharged_allowance_m} m, then ${rates}` : rates;
     }
+    /* a fixed amount per length band, as the book's table prints it (bug 74,
+       23 November 2026: Daikin RZA said nothing here, though its book gives
+       "None to 30 m, then 350 g to 40 m, 700 g to 50 m") */
+    case "stepped_by_length": {
+      if (rule.bands.length === 0) return null;
+      const steps = rule.bands.map((b) => `${b.add_g} g to ${b.up_to_m} m`).join(", ");
+      const on = rule.length_weights ? " (on its weighted length)" : rule.liquid_mm ? ` on ${rule.liquid_mm} liquid` : "";
+      return `None to ${rule.precharged_up_to_m} m, then ${steps}${on}`;
+    }
     default:
       return null;
   }

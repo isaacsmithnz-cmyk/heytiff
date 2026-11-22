@@ -18,6 +18,8 @@ import { fitDesignRead } from "@/lib/quotes/design-read";
 import { readAnyDesign } from "@/lib/quotes/design-read-server";
 import { askSubfloor, reviseDesignRoof } from "@/lib/studio/revise-server";
 import { quickPriceFor } from "@/lib/quotes/quick-price-server";
+import { libraryPacks } from "@/lib/library/packs-server";
+import { lookUpModels } from "@/lib/library/pack-lookup";
 import { MAX_DIARY_DAYS, readDiary } from "./diary";
 import type { Outcome, TiffTool } from "./types";
 
@@ -335,6 +337,33 @@ export const READS: readonly TiffTool[] = [
       "view. Use it for 'what keeps breaking' questions.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
     run: async (viewer) => result(await issueLog(viewer.orgId)),
+  },
+  /* The makers' data books, by model (bug 74, 23 November 2026: the Daikin
+     pack carried the RZA60's pre-charged length and Tiff had no way to read
+     it). The same packs and words as the Library's Data pack. */
+  {
+    name: "data_pack",
+    label: "Checking the data pack",
+    risk: "read",
+    gate: { capability: "tiff" },
+    description:
+      "Look up indoor and outdoor units by model code in the makers' data books: specs, " +
+      "pipe sizes, which heads pair with an outdoor, the longest run and lift, the factory " +
+      "pre-charge and the extra refrigerant by length, each with the book and page. Name " +
+      "one or more model codes as printed (on a label, a quote, a plan); naming both the " +
+      "indoor and the outdoor gives that pair alone. extraCharge is null where only the " +
+      "rule says it: read chargeRule then.",
+    inputSchema: {
+      type: "object",
+      properties: { models: str },
+      required: ["models"],
+      additionalProperties: false,
+    },
+    run: async (_viewer, input) => {
+      const found = lookUpModels(await libraryPacks(), String(input.models ?? ""));
+      if (found.units.length === 0) return result({ found: "No model in the data books matches that." });
+      return result(found);
+    },
   },
   {
     name: "kb_search",

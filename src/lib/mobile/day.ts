@@ -55,7 +55,7 @@ export type DayJob = ClockJob & {
   how: "phone" | "servicem8";
   /** the phone's stint it is, to send once */
   stintId?: string;
-  /** why you were there (site_meeting, helping), or plain labour */
+  /** why you were there (site_meeting, helping, warranty), or plain labour */
   reason?: string | null;
   /** later stints of the same job joined onto this one (joinDay) */
   joined?: string[];
@@ -69,7 +69,7 @@ export type DayJob = ClockJob & {
 type Stint = CheckIn & { reason?: string | null };
 
 /** The reasons the phone's buttons give, as kept. */
-export const REASONS = ["site_meeting", "helping"] as const;
+export const REASONS = ["site_meeting", "helping", "warranty"] as const;
 
 export type DaySummary = {
   from: string;

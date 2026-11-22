@@ -10489,45 +10489,48 @@ html:not([data-ds-display]) .fg:has(#fg-topbar) .dstudio.editing:has(> .ds-edito
 
 /* the top bar */
 .dstudio .ds-editor.clean > .ds-topbar { height: 56px; padding: 0 16px; gap: 12px; background: var(--paper); border-bottom: 1px solid var(--line); }
-.dstudio .ds-editor.clean .ds-menu-btn { width: auto; height: 32px; padding: 0 12px; border: none; box-shadow: none; background: none; border-radius: var(--r-button); font: 600 14px/20px var(--font); color: var(--ink); }
-.dstudio .ds-editor.clean .ds-menu-btn:hover { background: var(--hov); }
 .dstudio .ds-editor.clean .ds-id { flex-direction: row; justify-content: flex-start; align-items: center; gap: 8px; min-width: 0; }
 .dstudio .ds-editor.clean .ds-id > .ds-save { flex-shrink: 0; white-space: nowrap; }
-/* the job, as the Jobs list draws it (lib/workboard/jobs-list: the number in
-   its colour, the client over the kind and the suburb), the job's two doors,
-   Scope and Open job, inside its end (Isaac, 18 November 2026, then "Yes,
-   build it", 21 November 2026) */
-.dstudio .ds-editor.clean .ds-jobcard { display: flex; align-items: center; gap: 12px; height: 48px; padding: 2px 4px 2px 2px; border: 1px solid var(--edge); border-radius: var(--r-card); background: var(--paper); min-width: 0; }
-.dstudio .ds-jobcard .jl-cb { max-width: 220px; }
-.dstudio .ds-jobcard-end { display: flex; align-items: center; gap: 4px; height: 32px; padding-left: 8px; border-left: 1px solid var(--line); }
-.dstudio .ds-jobcard-end > .ds-save { white-space: nowrap; }
-.dstudio .ds-jobcard-open { display: inline-flex; align-items: center; gap: 4px; }
 .dstudio .ds-menu-name input { width: 100%; height: 30px; padding: 0 8px; border: 1px solid var(--ds-border); border-radius: var(--r-control); background: var(--paper); font: inherit; font-size: 13px; font-weight: 600; color: var(--ink); }
-/* the left flank keeps what it holds (title, Open job, Scope, Tiff's rooms):
-   equal flanks still centre Plan/3D on a wide screen, and on a 13-inch the
-   right flank gives way instead of the job's buttons running under Plan */
-.dstudio .ds-editor.clean .ds-tb-left { min-width: max-content; }
-/* a laptop under 1440 (the live walk, 21 November 2026: at 1280 Design,
-   Schematic and Summary ran over GF and View): the tabs and the plan's own
-   controls keep their width and the left flank gives way, Zones Tiff found
-   first, as the column's Zones opens the same, then the job's name and place
-   fade, and under that the tabs take a second line. A 1440 is as it was: its
-   left flank already holds its own and the right takes the rest. A wide
-   screen keeps the equal flanks above. Measured on the window beside the 208
-   sidebar, as the bar made a size container would hold its menus under the
-   plan */
-@media (max-width: 1739px) {
-  .dstudio .ds-editor.clean .ds-tb-left { flex: 0 1 auto; min-width: 0; }
-  .dstudio .ds-editor.clean .ds-centre { flex: none; }
-  .dstudio .ds-editor.clean .ds-tb-right { flex: 1 0 auto; min-width: max-content; }
-}
-@media (max-width: 1396px) {
-  /* the bar's chip alone: the plan's own rooms Tiff found are a .ds-found too */
-  .dstudio .ds-editor.clean .ds-id > .ds-found { display: none; }
-}
-@media (max-width: 1245px) {
-  .dstudio .ds-editor.clean > .ds-topbar { flex-wrap: wrap; height: auto; min-height: 56px; padding-block: 4px; row-gap: 8px; }
-}
+/* THE BAR AS AN IPAD'S (Isaac, 22 November 2026: "imagine top bar was ipad",
+   then "Yes, build it" to https://claude.ai/artifact/LRDHmN2N8ntSRqryrSyMUd):
+   the job on the left, Design, Schematic and Summary in the middle as an
+   iPad's tab bar, Scope and Menu on the right. The flanks share what's left
+   so the tabs sit in the middle; the client fades before they move, and the
+   right flank never gives way */
+.dstudio .ds-editor.clean > .ds-topbar .ds-tb-left { flex: 1 1 0; min-width: 0; }
+.dstudio .ds-editor.clean > .ds-topbar .ds-tb-right { flex: 1 1 0; min-width: max-content; gap: 8px; }
+.dstudio .ds-editor.clean > .ds-topbar .ds-centre { flex: none; }
+/* the job: its number in its colour and the client, one quiet button (rule
+   24) with the down arrow that shows it */
+.dstudio .ds-editor.clean .ds-jobtitle { position: relative; display: flex; min-width: 0; }
+.dstudio .ds-editor.clean .ds-jobtitle-btn { display: flex; align-items: center; gap: 12px; min-width: 0; height: 40px; padding: 4px 8px 4px 4px; border-radius: var(--r-button); background: none; color: var(--ink); cursor: pointer; }
+.dstudio .ds-editor.clean .ds-jobtitle-btn:hover,
+.dstudio .ds-editor.clean .ds-jobtitle-btn.on { background: var(--hov); }
+.dstudio .ds-editor.clean .ds-jobtitle-btn:focus-visible { outline: none; box-shadow: var(--ring); }
+.dstudio .ds-editor.clean .ds-jobtitle-num { align-self: center; min-height: 32px; font-size: 14px; line-height: 20px; }
+.dstudio .ds-editor.clean .ds-jobtitle-name { min-width: 0; font: 600 16px/24px var(--font); }
+.dstudio .ds-editor.clean .ds-jobtitle-chev { flex: none; display: inline-flex; margin-left: -4px; }
+/* the job, shown: a white card under it as every menu from the page is
+   (rule 36), where it is, its Status and Category as the phone's job head
+   has them, and the way to it */
+.dstudio .ds-editor.clean .ds-jobinfo { position: absolute; top: calc(100% + 8px); left: 0; z-index: 30; width: 320px; display: grid; gap: 12px; padding: 16px; border-radius: var(--r-card); background: var(--paper); box-shadow: var(--shadow-overlay); }
+.dstudio .ds-editor.clean .ds-jobinfo-site { margin: 0; font: 500 14px/20px var(--font); color: var(--q); }
+.dstudio .ds-editor.clean .ds-jobinfo-site b { font-weight: 600; color: var(--ink); }
+.dstudio .ds-editor.clean .ds-jobinfo-facts { display: flex; gap: 32px; }
+.dstudio .ds-editor.clean .ds-jobinfo-facts span { display: block; font: 500 13px/18px var(--font); color: var(--q); }
+.dstudio .ds-editor.clean .ds-jobinfo-facts b { display: block; font: 600 14px/20px var(--font); color: var(--ink); }
+.dstudio .ds-editor.clean .ds-jobinfo-open { display: flex; align-items: center; gap: 8px; height: 40px; margin: 0 -16px -16px; padding: 0 16px; border-top: 1px solid var(--line); border-radius: 0 0 var(--r-card) var(--r-card); font: 600 14px/20px var(--font); color: var(--press); }
+.dstudio .ds-editor.clean .ds-jobinfo-open:hover { background: var(--hov); }
+.dstudio .ds-editor.clean .ds-jobinfo-open:focus-visible { outline: none; box-shadow: var(--ring); }
+/* Scope, a button of its own beside Menu (rule 23), with the Overview's pink
+   file, pressed while its column is open; Menu's list opens from its right */
+.dstudio .ds-editor.clean .ds-scope-btn .pt-btn__word,
+.dstudio .ds-editor.clean .ds-menu-btn2 .pt-btn__word { display: inline-flex; align-items: center; gap: 4px; }
+.dstudio .ds-editor.clean .ds-scope-btn svg { color: var(--pink-w); }
+.dstudio .ds-editor.clean .ds-scope-btn.on,
+.dstudio .ds-editor.clean .ds-menu-btn2.on { background: var(--hov); }
+.dstudio .ds-menu-pop.ds-menu-pop--end { left: auto; right: 0; }
 .dstudio .ds-editor.clean .ds-title-input { font: 600 16px/24px var(--font); height: 32px; width: 200px; flex: 0 1 200px; min-width: 120px; padding: 0 8px; border: 1px solid transparent; border-radius: var(--r-control); background: none; color: var(--ink); }
 .dstudio .ds-editor.clean .ds-title-input:hover,
 .dstudio .ds-editor.clean .ds-title-input:focus { border-color: var(--edge); background: var(--paper); }
@@ -10566,6 +10569,10 @@ html:not([data-ds-display]) .fg:has(#fg-topbar) .dstudio.editing:has(> .ds-edito
 .dstudio .ds-editor.clean .ds-save.ds-reading-open .dot { background: var(--q); }
 .dstudio .ds-editor.clean .ds-toolbar .ds-roomfly { top: auto; bottom: calc(100% + 12px); left: 50%; transform: translateX(-50%); border: none; border-radius: var(--r-card); box-shadow: var(--shadow-overlay); }
 .dstudio .ds-editor.clean .ds-toolbar .ds-drawfly { left: 50%; }
+/* the plan's own view on the plan: Plan or 3D, the floor and View, one pill
+   at its top left under the ruler, as the tools are a pill at its foot (the
+   bar as an iPad's, 22 November 2026) */
+.dstudio .ds-editor.clean .ds-plan-top { position: absolute; top: 24px; left: 16px; z-index: 12; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 8px; border-radius: 16px; background: var(--paper); box-shadow: var(--shadow-overlay); }
 /* the tools keep clear of Help and history (the live walk, 21 November
    2026: at 1280 Undo was under Select, at 1440 Redo's end under the bar):
    centred on the plan while it has the room, else starting 12 past them,

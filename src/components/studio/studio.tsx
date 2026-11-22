@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
+  type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
@@ -127,7 +128,7 @@ import { RoomModal } from "./room-modal";
 import { ReferenceViewer } from "./reference-viewer";
 import { SimPresentMode } from "./sim-present";
 import { SimRuntime } from "@/lib/studio/sim-runtime";
-import type { JobPrefill, StudioJobHit } from "@/lib/studio/job-link";
+import { flatAddress, streetLine, type JobPrefill, type StudioJobHit } from "@/lib/studio/job-link";
 import { Fade } from "@/components/parts/fade";
 import { suggestedRooms, withChecks, type PlanReading } from "@/lib/studio/reading";
 import { designFromPlans, type JobPlanRead } from "@/lib/jobs/plans";
@@ -1194,7 +1195,7 @@ function newDesignFor(name: string, mode: "plan" | "blank", job?: JobPrefill): D
     the design keeps this one (Isaac, 21 October 2026: "open job and new tab
     button… so that you can quickly go back to the job if there isn't a tab
     already open for it"). */
-function OpenJob({ jobUuid, jobNumber, inCard = false }: { jobUuid: string; jobNumber: string | null; inCard?: boolean }) {
+function OpenJob({ jobUuid, jobNumber, inInfo = false }: { jobUuid: string; jobNumber: string | null; inInfo?: boolean }) {
   const { tabs } = useSyncExternalStore(subscribeTabs, tabsSnapshot, tabsServerSnapshot);
   const href = jobPageHref(jobUuid);
   /* the tab that holds the job goes on holding it, on the section it was left on */
@@ -1202,13 +1203,13 @@ function OpenJob({ jobUuid, jobNumber, inCard = false }: { jobUuid: string; jobN
   return (
     <Link
       href={held?.href ?? href}
-      className={`ds-save ds-reading-open${inCard ? " ds-jobcard-open" : ""}`}
+      className={inInfo ? "ds-jobinfo-open" : "ds-save ds-reading-open"}
       onClick={() => void openInTab(href, `${window.location.pathname}${window.location.search}`)}
     >
-      {inCard ? (
+      {inInfo ? (
         <>
-          Open job
           <Icon name="arrowUR" size={14} />
+          Open job in new tab
         </>
       ) : jobNumber ? (
         `Open job ${jobNumber}`
@@ -1219,15 +1220,16 @@ function OpenJob({ jobUuid, jobNumber, inCard = false }: { jobUuid: string; jobN
   );
 }
 
-/* THE JOB, AS THE JOBS LIST DRAWS IT (Isaac, 18 November 2026: "stop
-   doubling up the top left… make it one big pill like the job cards on
-   other pages, with Open job at its end opening the job in a new tab"; the
-   bar and panel mock, https://claude.ai/artifact/66ykUj2YGgQ1Y5DWWyWKa1,
-   then "Yes, build it", 21 November 2026). Its number in the 40-high block
-   of the job's colour, the client as ServiceM8 has it over the kind and the
-   suburb, and the job's two doors inside its end: Scope, and Open job. The
-   card's words arrive once the job is read; until then it is the number and
-   the client the design was made with. Out here, not in the component: the
+/* THE JOB, AS AN IPAD HEADS IT (Isaac, 22 November 2026: "imagine top bar
+   was ipad", then "actions can be menu. suburb not needed, tapping a down
+   arrow next to name shows job info and say open job in new tab", "mock it
+   accuratley now" and "Yes, build it" to
+   https://claude.ai/artifact/LRDHmN2N8ntSRqryrSyMUd). Its number in the job's
+   colour and the client, one quiet button with a down arrow; pressed, the
+   job: where it is, its Status and Category as the phone's job head has
+   them, and Open job in new tab, so the design keeps this one. The words
+   arrive once the job is read; until then it is the number and the client
+   the design was made with. The read is out here, not in the component: the
    React Compiler takes no import() inside one. */
 const readJobCard = (jobUuid: string): Promise<StudioJobHit | null> =>
   import("@/app/actions/studio")
@@ -1235,20 +1237,10 @@ const readJobCard = (jobUuid: string): Promise<StudioJobHit | null> =>
     .then((r) => r[0] ?? null)
     .catch(() => null);
 
-function JobCard({
-  jobUuid,
-  jobNumber,
-  client,
-  scopeOpen,
-  onScope,
-}: {
-  jobUuid: string;
-  jobNumber: string | null;
-  client: string;
-  scopeOpen: boolean;
-  onScope: () => void;
-}) {
+function JobTitle({ jobUuid, jobNumber, client }: { jobUuid: string; jobNumber: string | null; client: string }) {
   const [read, setRead] = useState<StudioJobHit | null>(null);
+  const [open, setOpen] = useState(false);
+  const boxRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let live = true;
     void readJobCard(jobUuid).then((hit) => {
@@ -1258,25 +1250,71 @@ function JobCard({
       live = false;
     };
   }, [jobUuid]);
+  /* shut by a press anywhere else, or Escape */
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: PointerEvent) => {
+      if (!boxRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const esc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", away);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("pointerdown", away);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [open]);
   const number = ((read ? read.jobNumber : null) ?? jobNumber ?? "").trim();
   const name = ((read ? read.clientName : null) ?? client).trim() || "Job";
-  const sub = read ? [(read.kind ?? "").trim(), (read.suburb ?? "").trim()].filter(Boolean).join(", ") : "";
+  const street = read?.address ? streetLine(read.address) : "";
+  const flat = read?.address ? flatAddress(read.address) : "";
+  const rest = street && flat.startsWith(street) ? flat.slice(street.length).replace(/^[,\s]+/, "") : "";
+  const kind = (read?.kind ?? "").trim();
+  const status = (read?.status ?? "").trim();
   return (
-    <div className="ds-jobcard">
-      <span className={`jl-card jl-card--${read?.hue ?? "grey"}`}>
-        {number ? <span className="jl-cn">{number}</span> : null}
-        <span className="jl-cb">
-          <Fade className="jl-name">{name}</Fade>
-          {sub ? <Fade className="jl-sub">{sub}</Fade> : null}
+    <div className="ds-jobtitle" ref={boxRef}>
+      <button
+        type="button"
+        className={`ds-jobtitle-btn jp-plate--${read?.hue ?? "grey"}${open ? " on" : ""}`}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        {number ? <span className="jp-num ds-jobtitle-num">{number}</span> : null}
+        <Fade className="ds-jobtitle-name">{name}</Fade>
+        <span className="ds-jobtitle-chev" aria-hidden="true">
+          <Icon name="chevD" size={16} />
         </span>
-      </span>
-      <span className="ds-jobcard-end">
-        <button type="button" className={`ds-save ds-reading-open ds-scope-go${scopeOpen ? " on" : ""}`} aria-expanded={scopeOpen} onClick={onScope}>
-          <Icon name="file" size={14} />
-          Scope
-        </button>
-        <OpenJob jobUuid={jobUuid} jobNumber={jobNumber} inCard />
-      </span>
+      </button>
+      {open && (
+        <div className="ds-jobinfo" role="dialog" aria-label={number ? `Job ${number}` : "The job"}>
+          {street ? (
+            <p className="ds-jobinfo-site">
+              <b>{street}</b>
+              {rest ? `, ${rest}` : ""}
+            </p>
+          ) : null}
+          {status || kind ? (
+            <div className="ds-jobinfo-facts">
+              {status ? (
+                <div>
+                  <span>Status</span>
+                  <b>{status}</b>
+                </div>
+              ) : null}
+              {kind ? (
+                <div>
+                  <span>Category</span>
+                  <b>{kind}</b>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+          <OpenJob jobUuid={jobUuid} jobNumber={jobNumber} inInfo />
+        </div>
+      )}
     </div>
   );
 }
@@ -2222,6 +2260,111 @@ function Editor({
   const airSystem = flow === "next" && airOpen ? doc.systems.find((x) => x.id === effectiveSystemId) : undefined;
   const airOverlay = airSystem && pack && activeFloor ? airTags(airRows(doc, pack, airSystem), activeFloor.id, airShow) : null;
 
+  /* the bar's parts. Menu: today's Menu, at the bar's left before the next
+     flow and at its right in it. The three steps: on the right before the
+     next flow, in the middle of the bar in it, an iPad's tab bar. The plan's
+     own view (Plan or 3D, the floor, View): in the middle of the bar before
+     the next flow, on the plan at its top left in it, a pill as the tools
+     are at its foot (Isaac, 22 November 2026, "Yes, build it" to
+     https://claude.ai/artifact/LRDHmN2N8ntSRqryrSyMUd) */
+  const studioMenu = (
+    <StudioMenu
+      onNew={flow === "next" ? undefined : onNew}
+      onOpen={flow === "next" ? undefined : onHome}
+      onSave={onSaveNow}
+      onEditPlans={editPlans}
+      onReference={hasReference ? () => setRefOpen(true) : undefined}
+      onStartAgain={onStartAgain}
+      onDelete={onDelete}
+      settings={doc.settings}
+      onSettings={(patch) =>
+        mutate((d) => ({ ...d, settings: { ...d.settings, ...patch } }))
+      }
+      name={flow === "next" && doc.jobLink ? doc.meta.name : undefined}
+      onName={(name) => mutate((d) => ({ ...d, meta: { ...d.meta, name } }))}
+    />
+  );
+  const steps = (
+    /* data-active drives the sliding thumb; -1 on the Plans screen, where
+       neither tab is current and the thumb fades out */
+    <nav className="ds-steps" aria-label="Workflow" data-active={TABS.findIndex((t) => t.step === step)}>
+      <span className="ds-steps-thumb" aria-hidden="true" />
+      {TABS.map((t) => (
+        <button key={t.step} className={`ds-step${step === t.step ? " active" : ""}`} onClick={() => onStep(t.step)}>
+          {t.label}
+        </button>
+      ))}
+    </nav>
+  );
+  const planView =
+    step === 1 && activeFloor ? (
+      <>
+        <PlanOr3D on={view3d} onChange={setView3d} />
+        {view3d && scene3d ? (
+          <ThreeDControls
+            scene={scene3d}
+            look={look3d}
+            onLook={setLook3d}
+            plans={doc.floors.some((f) => f.plans.length > 0)}
+            reading={reading?.state === "reading"}
+            onReadPlans={onReadPlans}
+          />
+        ) : (
+        <CanvasControls
+          onSetup={flow === "next" ? () => setSetupOpen(true) : undefined}
+          floors={doc.floors}
+          floor={activeFloor}
+          onFloor={setPickedFloorId}
+          onAddFloor={addFloor}
+          onDeleteFloor={deleteFloor}
+          onFloorHeight={(id, m) => mutate((d) => setFloorHeight(d, id, m))}
+          spaces={doc}
+          onAddSpace={(kind) => {
+            mutate((d) => addSpace(d, kind));
+            const f = floorFor(doc, kind);
+            if (f) setPickedFloorId(f.id);
+            setSelectedId(null);
+            setPickedSpace(kind);
+          }}
+          onRemoveSpace={(kind) => {
+            mutate((d) => removeSpace(d, kind));
+            setPickedSpace(null);
+          }}
+          onSpaceHeight={(kind, mm, typed) => {
+            /* kept on the job once it's typed, not at every key */
+            const patch = typed ? typedSpaceHeight(doc, kind, mm) : { heightMm: mm };
+            mutate((d) => patchSpace(d, kind, patch));
+          }}
+          onPickSpace={(kind) => {
+            const f = floorFor(doc, kind);
+            if (f) setPickedFloorId(f.id);
+            setSelectedId(null);
+            setPickedSpace(kind);
+          }}
+          tool={tool}
+          onTool={changeTool}
+          next={flow === "next" ? null : next}
+          onNext={onNext}
+          onFullscreen={flow === "next" ? () => (fullscreen ? setFullscreen(false) : toFullscreen()) : undefined}
+          fullscreen={fullscreen}
+          layers={layers}
+          onLayers={setLayers}
+          grayscale={grayscale}
+          onGrayscale={setGrayscale}
+          labelBacks={doc.settings.labelBacks === true}
+          onLabelBacks={(on) =>
+            mutate((d) => ({ ...d, settings: { ...d.settings, labelBacks: on || undefined } }))
+          }
+          legendOpen={legendOpen}
+          onLegend={setLegendOpen}
+          simFlag={simFlag}
+          simOn={simOn}
+          onToggleSim={toggleSim}
+        />
+        )}
+      </>
+    ) : null;
+
   return (
     <div className={`ds-editor${step === 1 && activeFloor ? " two-col" : ""}${flow === "next" ? " clean" : ""}${scopeOpen && doc.jobLink ? " scope-open" : ""}`}>
       {/* Tiff, bottom right, where her docked chat opens; in the next flow, on
@@ -2232,30 +2375,10 @@ function Editor({
           the leftover width equally, whatever each of them holds */}
       <header className="ds-topbar">
         <div className="ds-tb-left">
-          <StudioMenu
-            onNew={onNew}
-            onOpen={onHome}
-            onSave={onSaveNow}
-            onEditPlans={editPlans}
-            onReference={hasReference ? () => setRefOpen(true) : undefined}
-            onStartAgain={onStartAgain}
-            onDelete={onDelete}
-            settings={doc.settings}
-            onSettings={(patch) =>
-              mutate((d) => ({ ...d, settings: { ...d.settings, ...patch } }))
-            }
-            name={flow === "next" && doc.jobLink ? doc.meta.name : undefined}
-            onName={(name) => mutate((d) => ({ ...d, meta: { ...d.meta, name } }))}
-          />
+          {flow !== "next" && studioMenu}
           <div className="ds-id">
             {flow === "next" && doc.jobLink ? (
-              <JobCard
-                jobUuid={doc.jobLink.remoteId}
-                jobNumber={doc.jobLink.jobNumber}
-                client={doc.meta.client}
-                scopeOpen={scopeOpen}
-                onScope={() => setScopeOpen((o) => !o)}
-              />
+              <JobTitle jobUuid={doc.jobLink.remoteId} jobNumber={doc.jobLink.jobNumber} client={doc.meta.client} />
             ) : (
               <input
                 className="ds-title-input"
@@ -2303,14 +2426,12 @@ function Editor({
                 {saveState === "saving" ? "Saving the design" : "Saved"}
               </span>
             )}
-            {step === 1 && activeFloor?.scaleMmPerUnit != null && doc.reading?.floors[activeFloor.id]?.length ? (
-              <button
-                type="button"
-                className="ds-save ds-reading read ds-reading-open ds-found"
-                onClick={() => (flow === "next" ? setRoomsOpen(true) : setRoomsFor(activeFloor.id))}
-              >
+            {/* what Tiff found on the plans: the column's Zones opens the
+                same in the next flow, so the bar says it only before it */}
+            {flow !== "next" && step === 1 && activeFloor?.scaleMmPerUnit != null && doc.reading?.floors[activeFloor.id]?.length ? (
+              <button type="button" className="ds-save ds-reading read ds-reading-open" onClick={() => setRoomsFor(activeFloor.id)}>
                 <span className="dot" />
-                {flow === "next" ? "Zones Tiff found" : "Rooms Tiff found"}
+                Rooms Tiff found
               </button>
             ) : null}
             {/* a newer set on the job: said here while the Scope is shut, over the Scope while it's open */}
@@ -2334,74 +2455,12 @@ function Editor({
             )}
           </div>
         </div>
-        {/* the canvas controls take the centre slot — the strip above the
-            canvas is gone. Design step only; they're floor-scoped. */}
-        {step === 1 && activeFloor && (
-          <div className="ds-centre">
-          <PlanOr3D on={view3d} onChange={setView3d} />
-          {view3d && scene3d ? (
-            <ThreeDControls
-              scene={scene3d}
-              look={look3d}
-              onLook={setLook3d}
-              plans={doc.floors.some((f) => f.plans.length > 0)}
-              reading={reading?.state === "reading"}
-              onReadPlans={onReadPlans}
-            />
-          ) : (
-          <CanvasControls
-            onSetup={flow === "next" ? () => setSetupOpen(true) : undefined}
-            floors={doc.floors}
-            floor={activeFloor}
-            onFloor={setPickedFloorId}
-            onAddFloor={addFloor}
-            onDeleteFloor={deleteFloor}
-            onFloorHeight={(id, m) => mutate((d) => setFloorHeight(d, id, m))}
-            spaces={doc}
-            onAddSpace={(kind) => {
-              mutate((d) => addSpace(d, kind));
-              const f = floorFor(doc, kind);
-              if (f) setPickedFloorId(f.id);
-              setSelectedId(null);
-              setPickedSpace(kind);
-            }}
-            onRemoveSpace={(kind) => {
-              mutate((d) => removeSpace(d, kind));
-              setPickedSpace(null);
-            }}
-            onSpaceHeight={(kind, mm, typed) => {
-              /* kept on the job once it's typed, not at every key */
-              const patch = typed ? typedSpaceHeight(doc, kind, mm) : { heightMm: mm };
-              mutate((d) => patchSpace(d, kind, patch));
-            }}
-            onPickSpace={(kind) => {
-              const f = floorFor(doc, kind);
-              if (f) setPickedFloorId(f.id);
-              setSelectedId(null);
-              setPickedSpace(kind);
-            }}
-            tool={tool}
-            onTool={changeTool}
-            next={flow === "next" ? null : next}
-            onNext={onNext}
-            onFullscreen={flow === "next" ? () => (fullscreen ? setFullscreen(false) : toFullscreen()) : undefined}
-            fullscreen={fullscreen}
-            layers={layers}
-            onLayers={setLayers}
-            grayscale={grayscale}
-            onGrayscale={setGrayscale}
-            labelBacks={doc.settings.labelBacks === true}
-            onLabelBacks={(on) =>
-              mutate((d) => ({ ...d, settings: { ...d.settings, labelBacks: on || undefined } }))
-            }
-            legendOpen={legendOpen}
-            onLegend={setLegendOpen}
-            simFlag={simFlag}
-            simOn={simOn}
-            onToggleSim={toggleSim}
-          />
-          )}
-          </div>
+        {flow === "next" ? (
+          <div className="ds-centre">{steps}</div>
+        ) : (
+          /* the canvas controls take the centre slot — the strip above the
+             canvas is gone. Design step only; they're floor-scoped. */
+          planView && <div className="ds-centre">{planView}</div>
         )}
         <div className="ds-tb-right">
           {/* fullscreen rides beside the switcher: one toggle, the browser's
@@ -2416,24 +2475,23 @@ function Editor({
             <Icon name={fullscreen ? "x" : "maximize"} size={16} />
           </button>
           )}
-          {/* data-active drives the sliding thumb; -1 on the Plans screen,
-              where neither tab is current and the thumb fades out */}
-          <nav
-            className="ds-steps"
-            aria-label="Workflow"
-            data-active={TABS.findIndex((t) => t.step === step)}
-          >
-            <span className="ds-steps-thumb" aria-hidden="true" />
-            {TABS.map((t) => (
-              <button
-                key={t.step}
-                className={`ds-step${step === t.step ? " active" : ""}`}
-                onClick={() => onStep(t.step)}
-              >
-                {t.label}
-              </button>
-            ))}
-          </nav>
+          {flow !== "next" && steps}
+          {/* Scope, a button of its own beside Menu (Isaac, 22 November 2026:
+              "scop better button"), pressed while its column is open */}
+          {flow === "next" && doc.jobLink && (
+            <button
+              type="button"
+              className={`pt-btn pt-btn--32 pt-btn--second ds-scope-btn${scopeOpen ? " on" : ""}`}
+              aria-expanded={scopeOpen}
+              onClick={() => setScopeOpen((o) => !o)}
+            >
+              <span className="pt-btn__word">
+                <Icon name="file" size={14} />
+                Scope
+              </span>
+            </button>
+          )}
+          {flow === "next" && studioMenu}
         </div>
       </header>
 
@@ -2465,6 +2523,7 @@ function Editor({
         {step === 1 && (
           <DesignPanel
             doc={doc}
+            planTop={flow === "next" ? planView : undefined}
             scene3d={scene3d}
             look3d={look3d}
             onLook3d={setLook3d}
@@ -2998,8 +3057,10 @@ function StudioMenu({
   /** a design on a job: its name, typed here, as the bar shows the job */
   name?: string;
   onName?: (name: string) => void;
-  onNew: () => void;
-  onOpen: () => void;
+  /** absent in the next flow, where new designs start from the Design list
+      and the job, and the sidebar's Design is the way to the list */
+  onNew?: () => void;
+  onOpen?: () => void;
   onSave: () => void;
   onEditPlans: () => void;
   /** absent until plan pages exist — the item shows disabled */
@@ -3053,16 +3114,25 @@ function StudioMenu({
   return (
     <div className="ds-menu-wrap" ref={boxRef}>
       <button
-        className={`ds-menu-btn${open ? " on" : ""}`}
+        className={flow === "next" ? `pt-btn pt-btn--32 pt-btn--second ds-menu-btn2${open ? " on" : ""}` : `ds-menu-btn${open ? " on" : ""}`}
         onClick={() => setOpen((o) => !o)}
         aria-label="Studio menu"
         aria-haspopup="menu"
         aria-expanded={open}
       >
-        {flow === "next" ? "Menu" : <Icon name="menu" size={17} />}
+        {flow === "next" ? (
+          <span className="pt-btn__word">
+            Menu
+            <span className="ds-menu-chev" aria-hidden="true">
+              <Icon name="chevD" size={16} />
+            </span>
+          </span>
+        ) : (
+          <Icon name="menu" size={17} />
+        )}
       </button>
       {open && (
-        <div className="ds-menu-pop" role="menu">
+        <div className={`ds-menu-pop${flow === "next" ? " ds-menu-pop--end" : ""}`} role="menu">
           {name !== undefined && onName && (
             <>
               <label className="ds-menu-set-row ds-menu-name">
@@ -3072,8 +3142,8 @@ function StudioMenu({
               <div className="ds-menu-sep" />
             </>
           )}
-          {item("plus", "New", onNew)}
-          {item("folder", "Open", onOpen)}
+          {onNew && item("plus", "New", onNew)}
+          {onOpen && item("folder", "Open", onOpen)}
           {item("save", "Save", onSave)}
           <div className="ds-menu-sep" />
           {item("edit", "Edit plans", onEditPlans)}
@@ -4319,7 +4389,11 @@ function DesignPanel({
   airArm,
   airSlot,
   airBack,
+  planTop,
 }: {
+  /** the next flow: the plan's own view (Plan or 3D, the floor, View), a pill
+      at its top left as the tools are at its foot */
+  planTop?: ReactNode;
   /** the next flow: the column's slot the Air screen is drawn into, and the
       name of the screen it covers */
   airSlot?: HTMLDivElement | null;
@@ -4600,6 +4674,11 @@ function DesignPanel({
               </div>
             )}
           </div>
+          {planTop ? (
+            <div className="ds-plan-top" role="group" aria-label="The plan's view">
+              {planTop}
+            </div>
+          ) : null}
           {next && <AskTiffPill />}
         </div>
       </div>
@@ -4608,6 +4687,11 @@ function DesignPanel({
   return (
     <div className="ds-design">
       <div className="ds-canvas-col">
+        {planTop ? (
+          <div className="ds-plan-top" role="group" aria-label="The plan's view">
+            {planTop}
+          </div>
+        ) : null}
         <div className="ds-toolbar" role="toolbar" aria-label="Canvas tools" ref={setBench}>
           {/* The bench reads in workflow order: the two POINTER verbs
               (Select, Erase) together, then Zone, then the system verbs —

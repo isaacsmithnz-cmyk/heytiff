@@ -712,9 +712,10 @@ to edit it from there using TIFF").
 - **The job's Scope opens in a column on the left of the plan**
   (`.ds-scopecol`, scope-column.tsx), never a dialog over it: a scope is
   referred to while drawing, so the plan shrinks and Systems stays on the
-  right. The button is "Scope", the Overview's own word, beside Open job
-  under the design's name with the Overview's pink file; "Brief" would be
-  a second name for one thing. The column is 400 wide with a hairline on
+  right. The button is "Scope", the Overview's own word, with the
+  Overview's pink file, a second button at the bar's right beside Menu
+  (22 November 2026: "scop better button"), pressed while the column is
+  open; "Brief" would be a second name for one thing. The column is 400 wide with a hairline on
   its right and holds the Overview's Scope section word for word (JobScope,
   pink with a file, its lede, a paragraph per system with its sources,
   Added, Not ours, To clarify, Latest updates), the close cross over its
@@ -723,6 +724,21 @@ to edit it from there using TIFF").
   rewritten the one way it is today. No microphone in the column: the
   Studio's is in Tiff's pill. Its tray is Quoted and Supplied only: at 400
   wide there is no room for Side by side (11 November 2026).
+- **The bar is an iPad's** (Isaac, 22 November 2026: "imagine top bar was
+  ipad", then "actions can be menu. suburb not needed, tapping a down arrow
+  next to name shows job info and say open job in new tab scop better
+  button", "mock it accuratley now" and "Yes, build it" to
+  https://claude.ai/artifact/LRDHmN2N8ntSRqryrSyMUd). On the left, the job:
+  its number in its colour and the client, one quiet button with a down
+  arrow, and no suburb. Pressed, it shows the job in a white card: where it
+  is, its Status and Category as the phone's job head has them, and Open job
+  in new tab. In the middle, Design, Schematic and Summary, as an iPad's tab
+  bar. On the right, Scope, then Menu: today's Menu without Open (the
+  sidebar's Design is the way to the list) or New (new designs start from
+  the Design list and the job). Plan or 3D, the floor and View are the
+  plan's own, a pill on the plan at its top left as the tools are a pill at
+  its foot. Zones Tiff found isn't in the bar: the column's Zones opens the
+  same. A design on no job keeps its name in the bar, typed where it sits.
 - **The column on the right is a phone's screens** (`systems-stack.tsx`,
   `rooms-panel.tsx`, `stack.tsx`), as mocked on
   https://claude.ai/artifact/6bStBGUPe4zXDMjWbuQ52d and, in the real sheets

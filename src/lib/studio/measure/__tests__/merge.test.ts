@@ -1,5 +1,5 @@
 import type { ReadSpace, SheetReading } from "../../reading";
-import { setAside, withMeasured } from "../merge";
+import { onGaps, setAside, withMeasured } from "../merge";
 
 const sq = (name: string, x: number, y: number, kind: ReadSpace["kind"] = "room"): ReadSpace => ({
   name,
@@ -146,5 +146,28 @@ describe("rooms read from the drawing file, the picture read leading", () => {
     const out = withMeasured(pic, file([sq("Lounge", 0, 0)]), "p2");
     expect(out.spaces.map((s) => s.name)).toEqual(["Lounge", "Terrace", "Stair", "Hall"]);
     expect(out.openings).toHaveLength(1);
+  });
+});
+
+describe("doors and windows in the gaps their walls leave", () => {
+  const op = (x: number, y: number, kind: "door" | "window" = "window") => ({ kind, tag: "", a: { x: x - 20, y }, b: { x: x + 20, y }, widthMm: 900, room: "Lounge", external: true, facing: "N" });
+  const gaps = [
+    { a: { x: 100, y: 50 }, b: { x: 150, y: 50 }, t: 8 },
+    { a: { x: 300, y: 50 }, b: { x: 340, y: 50 }, t: 8 },
+  ];
+  it("each takes the nearest gap within reach, jamb to jamb, each gap once; one with none stays as read", () => {
+    const out = onGaps([op(130, 60), op(120, 70), op(600, 50)], gaps);
+    expect(out[0]).toMatchObject({ a: { x: 100, y: 50 }, b: { x: 150, y: 50 }, inGap: true });
+    /* the same gap is taken: the second, farther, stays where it was read */
+    expect(out[1]).toMatchObject({ a: { x: 100, y: 70 }, b: { x: 140, y: 70 } });
+    expect(out[1].inGap).toBeUndefined();
+    expect(out[2].inGap).toBeUndefined();
+  });
+  it("a floor read from the file carries its walls and gaps on its reading, its openings in them", () => {
+    const walls = [[[{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 8 }, { x: 0, y: 8 }]]];
+    const pic = { ...picture([sq("Lounge", 5, 5)]), openings: [op(125, 55)] };
+    const out = withMeasured(pic, { ...measured([sq("Lounge", 0, 0)]), from: "file", walls, gaps }, "p2");
+    expect(out.walled).toMatchObject({ walls, gaps });
+    expect(out.openings[0]).toMatchObject({ inGap: true, a: { x: 100, y: 50 } });
   });
 });

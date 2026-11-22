@@ -1,4 +1,4 @@
-import type { ReadLook, ReadPoint, ReadSpace, SheetReading } from "../reading";
+import type { ReadLook, ReadOpening, ReadPoint, ReadSpace, SheetReading, WallGap } from "../reading";
 import { agreement, inside } from "./rooms";
 
 /* THE MEASURED ROOMS INTO THE SHEET'S READING. A floor is still read by
@@ -11,7 +11,7 @@ import { agreement, inside } from "./rooms";
    rooms, or a pile of rooms that overlap or sit on no wall), the picture's
    rooms stay and the measured ones are set aside, said so. Pure. */
 
-export type MeasuredRooms = { /** "file": read from the drawing file (lib/studio/vector), whose unnamed spaces may be yards */ from?: "file"; spaces: ReadSpace[]; look: ReadLook[]; grid: { x: number[]; y: number[] }; rounds: number; frame?: { left: number; top: number; width: number; height: number } };
+export type MeasuredRooms = { /** "file": read from the drawing file (lib/studio/vector), whose unnamed spaces may be yards */ from?: "file"; spaces: ReadSpace[]; look: ReadLook[]; grid: { x: number[]; y: number[] }; rounds: number; frame?: { left: number; top: number; width: number; height: number }; /** the file's own walls and the gaps in them */ walls?: ReadPoint[][][]; gaps?: WallGap[] };
 
 const WALLED = new Set(["room", "wet", "cupboard", "garage"]);
 const walledIn = (spaces: readonly ReadSpace[]) => spaces.filter((s) => WALLED.has(s.kind) && (s.outline?.length ?? 0) >= 3);
@@ -34,7 +34,9 @@ export function withMeasured(picture: SheetReading | null, m: MeasuredRooms, she
   /* rooms read from the drawing file, with a picture read to lead */
   if (m.from === "file" && picture) {
     const spaces = pictureLed(picture.spaces, m.spaces);
-    return { ...picture, ...rehomed(picture, spaces), spaces, walled: { grid: m.grid, rounds: m.rounds, look: [...m.look] } };
+    const homed = rehomed(picture, spaces);
+    const walls = m.walls?.length ? { walls: m.walls, gaps: m.gaps ?? [] } : {};
+    return { ...picture, ...homed, openings: m.gaps?.length ? onGaps(homed.openings, m.gaps) : homed.openings, spaces, walled: { grid: m.grid, rounds: m.rounds, look: [...m.look], ...walls } };
   }
   const why = setAside(picture, m);
   if (why && picture) return { ...picture, walled: { grid: m.grid, rounds: m.rounds, look: [{ kind: "readers", room: "", said: `The rooms were also measured off the walls, and that read was set aside: ${why}.` }] } };
@@ -241,4 +243,45 @@ export function pictureLed(picture: readonly ReadSpace[], file: readonly ReadSpa
   });
   for (const f of file) if (!used.has(f) && f.named && has(f) && !out.some((p) => has(p) && overlapOf(p.outline, f.outline) >= 0.3)) out.push(f);
   return out;
+}
+
+/* ── doors and windows set in the walls' own gaps ── */
+
+/** EACH DOOR AND WINDOW IN THE GAP ITS WALL LEAVES FOR IT. The picture read
+    places an opening by eye; the file's wall has the gap itself, jamb to
+    jamb. Each opening takes the nearest gap within reach of its middle
+    (four wall thicknesses, about a metre), each gap once, the nearest
+    opening first; its ends become the gap's jambs, and its width the gap's
+    where the read gave none. One with no gap in reach stays as read. Pure. */
+export function onGaps(openings: readonly ReadOpening[], gaps: readonly WallGap[]): ReadOpening[] {
+  const mid = (a: Pt, b: Pt) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+  const toSeg = (p: Pt, a: Pt, b: Pt) => {
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const t = dx || dy ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy))) : 0;
+    return Math.hypot(p.x - a.x - t * dx, p.y - a.y - t * dy);
+  };
+  const pairs: { o: number; g: number; d: number }[] = [];
+  openings.forEach((o, i) => {
+    if (o.kind === "skylight") return;
+    const m = mid(o.a, o.b);
+    gaps.forEach((g, j) => {
+      const d = toSeg(m, g.a, g.b);
+      if (d <= Math.max(4 * g.t, 8)) pairs.push({ o: i, g: j, d });
+    });
+  });
+  pairs.sort((a, b) => a.d - b.d);
+  const gapOf = new Map<number, number>();
+  const taken = new Set<number>();
+  for (const p of pairs) {
+    if (gapOf.has(p.o) || taken.has(p.g)) continue;
+    gapOf.set(p.o, p.g);
+    taken.add(p.g);
+  }
+  return openings.map((o, i) => {
+    const j = gapOf.get(i);
+    if (j === undefined) return o;
+    const g = gaps[j];
+    return { ...o, a: g.a, b: g.b, inGap: true };
+  });
 }

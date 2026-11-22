@@ -4,7 +4,8 @@ import { ductPaint } from "./duct-size";
 import type { GrilleMount, GrilleStyle } from "./grilles";
 import { inside, type ReadPoint, type ReadSpace, type SheetReading, type SiteSurfaceKind, type SpaceKind } from "./reading";
 import { finishInside, roofFinishFor, stairFinishOf, type RoofFinish, type SurfaceFinish } from "./finishes";
-import { framingOf, roofHeightAt, roofMesh, type Member, type Mesh, type RoofRect } from "./roof3d";
+import { faceMesh, framingOf, roofHeightAt, roofMesh, seatAt, type Member, type Mesh, type RoofRect } from "./roof3d";
+import { riseOf } from "./vector/roof";
 import { frameOf, furnish, within, type Piece3D, type ReadPiece } from "./furnish3d";
 import { snapOpenings, waysIn } from "./tidy3d";
 import { outlineOf } from "./floor-spaces";
@@ -763,8 +764,29 @@ export function sceneOf(doc: DesignDocument, unitRow?: (model: string) => UnitRo
     const b = boxOf(pts)!;
     const rect = { ...b, base: mm(f.y0 + part.eaveMm / 1000), part, floorId: f.id };
     rects.push(rect);
+    /* a roof read off the roof plan's lines is built from its faces, not these boxes */
+    if (roofRead?.faces?.length) continue;
     const { faces, fills } = roofMesh(rect);
     roofs.push({ floorId: f.id, existing: part.existing, faces, fills, finish: roofFinishFor(part, roofRead?.material ?? "") });
+  }
+  /* THE ROOF'S OWN FACES (lib/studio/vector/roof.ts): each at its pitch from
+     its eave, the eave a rafter's seat over the top of the wall under it and
+     its overhang's fall lower at the eave line the plan draws */
+  for (const face of roofRead?.faces ?? []) {
+    const f = floorById.get(face.floorId);
+    const floor = doc.floors.find((x) => x.id === face.floorId);
+    const sheet = floor?.plans.find((p) => p.id === face.sheetId);
+    const k = floor?.scaleMmPerUnit;
+    if (!f || !sheet || !k || face.outline.length < 3) continue;
+    const mv = shift(moves.get(f.id)!);
+    const rise = riseOf(face.outline.map((p) => [p.x, p.y] as [number, number]), [face.fall.x, face.fall.y], face.pitchDeg);
+    const t = Math.tan((face.pitchDeg * Math.PI) / 180);
+    const eave = f.y0 + face.eaveMm / 1000 + seatAt(face.pitchDeg) - (face.overhangMm / 1000) * t;
+    const pts = face.outline.map((p, i): [number, number, number] => {
+      const [x, z] = mv([((sheet.x + p.x) * k) / 1000, ((sheet.y + p.y) * k) / 1000]);
+      return [x, eave + (rise[i] * k) / 1000, z];
+    });
+    roofs.push({ floorId: f.id, existing: face.existing, faces: faceMesh(pts), fills: { verts: [], tris: [] }, finish: roofFinishFor({ source: "", existing: face.existing }, roofRead?.material ?? "") });
   }
   for (const f of floors) {
     const rakes = (roofRead?.raked ?? []).filter((r) => r.floorId === f.id);
@@ -774,8 +796,10 @@ export function sceneOf(doc: DesignDocument, unitRow?: (model: string) => UnitRo
     const rakedBoxes = rakedSpaces.map((x) => boxOf(x.s.pts)!);
     const isRaked = (x: number, z: number) => rakedBoxes.some((b) => x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1);
     /* an existing roof's timber isn't on the drawings and isn't ours to draw */
-    for (const r of rects.filter((q) => q.floorId === f.id && !q.part.existing))
-      for (const m of framingOf(r, isRaked)) framing.push({ ...m, floorId: f.id });
+    /* framing is set out on the read's boxes; under a roof built from its own faces it would stand in the wrong places, so it is left out */
+    if (!roofRead?.faces?.length)
+      for (const r of rects.filter((q) => q.floorId === f.id && !q.part.existing))
+        for (const m of framingOf(r, isRaked)) framing.push({ ...m, floorId: f.id });
     const flat = f.spaces
       .filter((s) => WALLED.has(s.kind) && s.kind !== "stair" && !rakedSpaces.some((x) => x.s === s))
       .map((s) => ({ pts: s.pts, y: mm(f.y0 + f.ceiling) }));

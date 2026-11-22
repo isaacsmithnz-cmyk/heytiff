@@ -139,6 +139,7 @@ export function withJobPlans(
             ...base.roof,
             levels: base.roof.levels.filter((l) => ids.has(l.floorId)),
             parts: base.roof.parts.filter((p) => ids.has(p.floorId)),
+            ...(base.roof.faces ? { faces: base.roof.faces.filter((f) => ids.has(f.floorId)) } : {}),
             raked: base.roof.raked.filter((r) => ids.has(r.floorId)),
           }
         : base.roof;

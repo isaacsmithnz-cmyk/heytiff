@@ -131,6 +131,26 @@ export type ReadRoofPart = {
   source: string;
 };
 
+/** A face of the roof as the roof plan draws it (lib/studio/vector/roof.ts):
+    its outline, pitch and fall off the drawing's own lines, on the sheet of
+    the floor whose walls carry it. */
+export type ReadRoofFace = {
+  floorId: string;
+  sheetId: string;
+  /** its outline at the eave line, in that sheet's pixels */
+  outline: ReadPoint[];
+  pitchDeg: number;
+  /** which way it falls on the sheet, a unit vector downhill */
+  fall: ReadPoint;
+  /** the top of the walls under its eave, above that floor's level, mm: the read's of the roof part it sits in, else that floor's ceiling */
+  eaveMm: number;
+  /** how far its eave line stands out past the wall under it, mm, measured off the file's walls; 0 where none was met */
+  overhangMm: number;
+  existing: boolean;
+  /** the roof plan's page in the set */
+  page: number;
+};
+
 export type ReadLevel = { floorId: string; ceilingMm: number; floorZoneMm: number; source: string };
 
 export type ReadRake = { floorId: string; room: string; lowMm: number; highMm: number };
@@ -142,6 +162,10 @@ export type RoofReading = {
   material: string;
   /** what the set says about the roof space, for the installer */
   roofSpace: string;
+  /** the roof's faces off the roof plan's own lines, where it draws them so they read (none before 23 November 2026); the 3D builds the roof from these instead of `parts` */
+  faces?: ReadRoofFace[];
+  /** the roof plan's printed pitches that weren't built as faces: their lines didn't close, their arrow wasn't plain, or they didn't meet their neighbours at one height */
+  facesLeft?: number;
   /** the subfloor, where the set draws or names one; absent when it doesn't (or was read before 15 November 2026) */
   subfloor?: ReadSubfloor;
 };

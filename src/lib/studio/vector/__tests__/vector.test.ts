@@ -1,6 +1,6 @@
 import { fillsOf, type FillOps } from "../fills";
 import { wallsOf } from "../walls";
-import { bridged, enclose, gapsOf, outlined, rasterise, reopen, simplify } from "../enclose";
+import { bridged, enclose, gapsOf, joins, outlined, rasterise, simplify } from "../enclose";
 import { roomWord, vectorRooms } from "../read";
 import { lineWalls } from "../lines";
 import { facesOf, snapped } from "../snap";
@@ -241,40 +241,93 @@ describe("two rooms' names in one space", () => {
 });
 
 describe("two nibs facing each other across one room", () => {
-  it("are no doorway: a 9 m room with a nib each side and 6.2 m between them is one room, with no gap read there", () => {
-    /* at 94 mm a point the living room is 96 points (9 m) across; a nib 13 long down from its top wall and up from its bottom, near its right side */
-    const nib = (y0: number, y1: number) => ({ colour: "#808080", rings: [[[224, y0], [228, y0], [228, y1], [224, y1]] as [number, number][]] });
+  /* a nib down from the living room's top wall and one up from its bottom, near its right side */
+  const nib = (y0: number, y1: number) => ({ colour: "#808080", rings: [[[224, y0], [228, y0], [228, y1], [224, y1]] as [number, number][]] });
+  it("may be no doorway: at a known scale, a 9 m room with 6.2 m between its nibs is offered as one room with the space past them, both kept apart and the gap kept until the read by picture says", () => {
+    /* at 94 mm a point the living room is 96 points (9 m) across */
     const r = vectorRooms({ fills: [...threeRooms(), nib(54, 67), nib(133, 146)], width: 400, height: 300, words: roomWords, mmPerPt: 94, rasterScale: 2 });
     if ("none" in r) throw new Error(r.none);
-    expect(r.spaces.map((s) => s.name)).toEqual(["Bed 1", "Living", "Ensuite"]);
-    const xs = r.spaces[1].outline.map((p) => p.x);
+    expect(r.spaces.map((s) => s.name)).toEqual(["Bed 1", "Living", "Unnamed space", "Ensuite"]);
+    expect(r.joins).toHaveLength(1);
+    const [j] = r.joins;
+    expect([j.into, j.from]).toEqual([1, [2]]);
+    const xs = j.outline.map((p) => p.x);
     expect([Math.min(...xs), Math.max(...xs)]).toEqual([304, 496]);
-    expect(r.gaps.filter((g) => g.a.x > 440 && g.a.x < 464)).toEqual([]);
+    expect(j.gaps.map((g) => r.gaps[g])).toEqual([{ a: { x: 452, y: 134 }, b: { x: 452, y: 266 }, t: 8 }]);
   });
-  it("are opened again only past a doorway's width, between a named space and a smaller one with no name of its own", () => {
-    /* a 30 by 20 grid walled round: a nib from the top and one from the bottom at x 12, and a wall at x 20 with a door 3 high */
-    const W = 30;
-    const H = 20;
+  it("are never offered at an unknown scale: a doorway can't be told from a room's width, so a 2.1 m pair of doors stays a doorway as it does at 1:100", () => {
+    const fills = [...threeRooms(), nib(54, 70), nib(130, 146)];
+    for (const mmPerPt of [35.28, null]) {
+      const r = vectorRooms({ fills, width: 400, height: 300, words: roomWords, mmPerPt, rasterScale: 2 });
+      if ("none" in r) throw new Error(r.none);
+      expect(r.spaces.map((s) => s.name)).toEqual(["Bed 1", "Living", "Unnamed space", "Ensuite"]);
+      expect(r.joins).toEqual([]);
+      expect(r.gaps).toContainEqual({ a: { x: 452, y: 140 }, b: { x: 452, y: 260 }, t: 8 });
+    }
+    /* the 6.2 m between nibs too: with no scale, nothing is offered */
+    const wide = vectorRooms({ fills: [...threeRooms(), nib(54, 67), nib(133, 146)], width: 400, height: 300, words: roomWords, mmPerPt: null, rasterScale: 2 });
+    if ("none" in wide) throw new Error(wide.none);
+    expect(wide.joins).toEqual([]);
+  });
+
+  /* a grid walled round, with a wall 2 thick top to bottom at each x in `at`, left open from y to y over each of its `open` */
+  const grid = (W: number, H: number, at: number[], open: [number, number][][]) => {
     const g = new Uint8Array(W * H);
     for (let x = 0; x < W; x++) g[x] = g[(H - 1) * W + x] = 1;
     for (let y = 0; y < H; y++) {
       g[y * W] = g[y * W + W - 1] = 1;
-      if (y <= 3 || y >= 15) g[y * W + 12] = g[y * W + 13] = 1;
-      if (y < 8 || y > 10) g[y * W + 20] = g[y * W + 21] = 1;
+      at.forEach((x, k) => {
+        if (open[k].every(([a, b]) => y < a || y > b)) g[y * W + x] = g[y * W + x + 1] = 1;
+      });
     }
-    const read = (names: number[]) => {
-      const e = enclose(g, W, H, 14, 3);
-      const id = (x: number) => e.label[5 * W + x];
-      reopen(e, g, 5, (s) => names.map(id).includes(s));
-      return e.spaces.map((s) => s.n).sort((a, b) => a - b);
-    };
-    /* left 11 wide, middle 6, right 7: each 18 high */
-    expect(read([])).toEqual([108, 126, 198]);
-    /* the middle with no name, smaller than the named left: one room through the nibs' 11-pixel gap; the door to the right stays shut */
-    expect(read([5, 25])).toEqual([126, 108 + 198 + 22]);
-    /* both named, or the one with no name the larger: as they were */
-    expect(read([5, 16, 25])).toEqual([108, 126, 198]);
-    expect(read([16, 25])).toEqual([108, 126, 198]);
+    return g;
+  };
+  const offered = (g: Uint8Array, W: number, H: number, names: number[], widest = 14) => {
+    const e = enclose(g, W, H, widest, 3);
+    const id = (x: number) => e.label[5 * W + x];
+    return { e, id, joins: joins(e, g, 5, (s) => names.map(id).includes(s)) };
+  };
+  it("are offered past a doorway's width only, between a named space and a smaller one with no name of its own", () => {
+    /* 30 by 20: nibs at x 12 leaving 11 between them, and a wall at x 20 with a door 3 high */
+    const W = 30;
+    const H = 20;
+    const g = grid(W, H, [12, 20], [[[4, 14]], [[8, 10]]]);
+    expect(offered(g, W, H, []).joins).toEqual([]);
+    /* the middle with no name, smaller than the named left: one room through the nibs' gap, round the nibs; the door to the right isn't among its gaps */
+    const { e, id, joins: got } = offered(g, W, H, [5, 25]);
+    expect(got).toEqual([
+      {
+        into: id(5),
+        from: [id(16)],
+        outline: [[1, 1], [12, 1], [12, 4], [14, 4], [14, 1], [20, 1], [20, 19], [14, 19], [14, 15], [12, 15], [12, 19], [1, 19]],
+        gaps: [gapsOf(g, e.wall, W, H).findIndex((p) => p.a[0] === 13)],
+      },
+    ]);
+    /* nothing is opened: the spaces are as they were */
+    expect(e.spaces.map((s) => s.n).sort((a, b) => a - b)).toEqual([108, 126, 198]);
+    /* both named, or the one with no name the larger: none */
+    expect(offered(g, W, H, [5, 16, 25]).joins).toEqual([]);
+    expect(offered(g, W, H, [16, 25]).joins).toEqual([]);
+  });
+  it("aren't offered where the space with no name opens that wide onto two named rooms: which it is part of would be a guess, whichever comes first on the sheet", () => {
+    /* left 11 wide, middle 6, right 17, and the same the other way round: nibs either side of the middle */
+    for (const [l, r] of [
+      [11, 17],
+      [17, 11],
+    ]) {
+      const W = l + 6 + r + 6;
+      const g = grid(W, 20, [1 + l, 3 + l + 6], [[[4, 14]], [[4, 14]]]);
+      expect(offered(g, W, 20, [5, W - 5]).joins).toEqual([]);
+    }
+  });
+  it("open every wide gap between the two: a pier between two openings stands inside the room, not on a strip of wall the outline wraps round", () => {
+    /* 30 by 40: a wall at x 12 from the top to y 3, a pier from 18 to 21, and from 36 to the bottom, 14 open each side of the pier */
+    const W = 30;
+    const H = 40;
+    const g = grid(W, H, [12], [[[4, 17], [22, 35]]]);
+    const { e, id, joins: got } = offered(g, W, H, [20], 20);
+    expect(gapsOf(g, e.wall, W, H)).toHaveLength(2);
+    expect(got).toEqual([{ into: id(20), from: [id(5)], outline: [[1, 1], [12, 1], [12, 4], [14, 4], [14, 1], [29, 1], [29, 39], [14, 39], [14, 36], [12, 36], [12, 39], [1, 39]], gaps: [0, 1] }]);
   });
 });
 

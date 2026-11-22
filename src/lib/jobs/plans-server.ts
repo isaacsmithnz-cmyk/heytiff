@@ -406,7 +406,7 @@ async function measureFloor(bytes: Uint8Array, p: JobPlanPage, deadline: number,
       const ratio = known ? null : mmPerPointOf(v.words.map((w) => ({ ...w, at: { x: w.at.x / K, y: w.at.y / K } })), { width: v.width, height: v.height });
       const mmPerPt = known ? known * v.rasterScale : (ratio?.mmPerPt ?? null);
       const read = vectorRooms({ fills: v.fills, lines: v.lines, width: v.width, height: v.height, words: v.words, mmPerPt, rasterScale: v.rasterScale });
-      if (!("none" in read)) return { spaces: read.spaces, look: read.look, grid: read.grid, rounds: read.rounds, frame: read.frame, from: "file", walls: read.walls, gaps: read.gaps };
+      if (!("none" in read)) return { spaces: read.spaces, look: read.look, grid: read.grid, rounds: read.rounds, frame: read.frame, from: "file", walls: read.walls, gaps: read.gaps, joins: read.joins };
       why = read.none;
     }
   }

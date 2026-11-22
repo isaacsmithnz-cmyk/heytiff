@@ -1,4 +1,4 @@
-import type { ReadLook, ReadOpening, ReadPoint, ReadSpace, SheetReading, WallGap } from "../reading";
+import type { ReadLook, ReadOpening, ReadPoint, ReadSpace, SheetReading, SpaceJoin, WallGap } from "../reading";
 import { agreement, inside } from "./rooms";
 
 /* THE MEASURED ROOMS INTO THE SHEET'S READING. A floor is still read by
@@ -11,7 +11,7 @@ import { agreement, inside } from "./rooms";
    rooms, or a pile of rooms that overlap or sit on no wall), the picture's
    rooms stay and the measured ones are set aside, said so. Pure. */
 
-export type MeasuredRooms = { /** "file": read from the drawing file (lib/studio/vector), whose unnamed spaces may be yards */ from?: "file"; spaces: ReadSpace[]; look: ReadLook[]; grid: { x: number[]; y: number[] }; rounds: number; frame?: { left: number; top: number; width: number; height: number }; /** the file's own walls and the gaps in them */ walls?: ReadPoint[][][]; gaps?: WallGap[] };
+export type MeasuredRooms = { /** "file": read from the drawing file (lib/studio/vector), whose unnamed spaces may be yards */ from?: "file"; spaces: ReadSpace[]; look: ReadLook[]; grid: { x: number[]; y: number[] }; rounds: number; frame?: { left: number; top: number; width: number; height: number }; /** the file's own walls and the gaps in them */ walls?: ReadPoint[][][]; gaps?: WallGap[]; /** a named room and the unnamed spaces it may be one room with (vector/read.ts) */ joins?: SpaceJoin[] };
 
 const WALLED = new Set(["room", "wet", "cupboard", "garage"]);
 const walledIn = (spaces: readonly ReadSpace[]) => spaces.filter((s) => WALLED.has(s.kind) && (s.outline?.length ?? 0) >= 3);
@@ -33,16 +33,26 @@ export function setAside(picture: SheetReading | null, m: MeasuredRooms): string
 export function withMeasured(picture: SheetReading | null, m: MeasuredRooms, sheetId: string): SheetReading {
   /* rooms read from the drawing file, with a picture read to lead */
   if (m.from === "file" && picture) {
-    const spaces = pictureLed(picture.spaces, m.spaces);
+    const { spaces, opened } = pictureLed(picture.spaces, m.spaces, m.joins);
+    /* a gap inside a room the picture read shows whole is no door's or window's place */
+    const gaps = (m.gaps ?? []).filter((_, i) => !opened.includes(i));
     const homed = rehomed(picture, spaces);
-    const walls = m.walls?.length ? { walls: m.walls, gaps: m.gaps ?? [] } : {};
-    return { ...picture, ...homed, openings: m.gaps?.length ? onGaps(homed.openings, m.gaps) : homed.openings, spaces, walled: { grid: m.grid, rounds: m.rounds, look: [...m.look], ...walls } };
+    const walls = m.walls?.length ? { walls: m.walls, gaps } : {};
+    return { ...picture, ...homed, openings: gaps.length ? onGaps(homed.openings, gaps) : homed.openings, spaces, walled: { grid: m.grid, rounds: m.rounds, look: [...m.look], ...walls } };
   }
   const why = setAside(picture, m);
   if (why && picture) return { ...picture, walled: { grid: m.grid, rounds: m.rounds, look: [{ kind: "readers", room: "", said: `The rooms were also measured off the walls, and that read was set aside: ${why}.` }] } };
   const look = [...m.look];
   /* nothing to fall back on: the measured rooms stand, and why they are doubted is said */
   if (why) look.push({ kind: "readers", room: "", said: `The measured rooms are doubtful (${why}), and the read by picture failed, so there was nothing to check them against.` });
+  /* a named room that opens wider than a doorway onto a space with no name
+     may be one room with it, and only the read by picture could say: with
+     none, it is the part the plan names, and that is said */
+  if (!picture)
+    for (const j of m.joins ?? []) {
+      const name = m.spaces[j.into]?.name;
+      if (name) look.push({ kind: "label", room: name, said: `${name}: it opens wider than a doorway onto a space the plan gives no name, which may be part of it. There was no read by picture to tell, so it is only the part the plan names.` });
+    }
   /* SHE NAMES ONLY WHAT SHE IS SHOWN. Her picture is the part of the sheet
      the found walls stand on, so where only some of a building's walls were
      found (new walls in colour, a garage in outline across the yard) the
@@ -225,24 +235,40 @@ const boxed = (a: readonly Pt[], b: readonly Pt[]) => {
 /* plainly one room: the file's space and the picture's room share this much of their area */
 const SAME_ROOM = 0.8;
 
-export function pictureLed(picture: readonly ReadSpace[], file: readonly ReadSpace[]): ReadSpace[] {
+export function pictureLed(picture: readonly ReadSpace[], file: readonly ReadSpace[], joins: readonly SpaceJoin[] = []): { spaces: ReadSpace[]; opened: number[] } {
   const NAMES = new Set([...WALLED, "circulation", "other"]);
   const has = (s: ReadSpace) => (s.outline?.length ?? 0) >= 3;
   const used = new Set<ReadSpace>();
+  /* the file's gaps a room taken whole runs through */
+  const opened: number[] = [];
   const out: ReadSpace[] = picture.map((p) => {
     if (!NAMES.has(p.kind) || !has(p)) return p;
-    let best: { s: ReadSpace; o: number } | null = null;
+    let best: { outline: ReadPoint[]; o: number; takes: ReadSpace[]; gaps: number[] } | null = null;
     for (const f of file) {
       if (used.has(f) || !has(f) || !boxed(p.outline, f.outline)) continue;
       const o = overlapOf(p.outline, f.outline);
-      if (o >= SAME_ROOM && (!best || o > best.o)) best = { s: f, o };
+      if (o >= SAME_ROOM && (!best || o > best.o)) best = { outline: f.outline, o, takes: [f], gaps: [] };
+    }
+    /* A NAMED SPACE AND THE UNNAMED ONES IT OPENS ONTO WIDE (two nibs across
+       one room, or a robe, a hall or a courtyard behind wide sliders) are one
+       room only where this picture room says so: it is more nearly all of
+       them than the named one alone, and no other room the picture read
+       stands in the unnamed part. Else they stay apart, as the file read them */
+    for (const j of joins) {
+      const parts = [j.into, ...j.from].map((i) => file[i]);
+      if (parts.some((f) => !f || used.has(f) || !has(f)) || !boxed(p.outline, j.outline)) continue;
+      const o = overlapOf(p.outline, j.outline);
+      if (o < SAME_ROOM || (best && o <= best.o) || o <= overlapOf(p.outline, parts[0].outline)) continue;
+      if (picture.some((q) => q !== p && has(q) && parts.slice(1).some((f) => inside(mean(q.outline)!, f.outline)))) continue;
+      best = { outline: j.outline, o, takes: parts, gaps: j.gaps };
     }
     if (!best) return p;
-    used.add(best.s);
-    return { ...p, outline: best.s.outline };
+    for (const f of best.takes) used.add(f);
+    opened.push(...best.gaps);
+    return { ...p, outline: best.outline };
   });
   for (const f of file) if (!used.has(f) && f.named && has(f) && !out.some((p) => has(p) && overlapOf(p.outline, f.outline) >= 0.3)) out.push(f);
-  return out;
+  return { spaces: out, opened };
 }
 
 /* ── doors and windows set in the walls' own gaps ── */

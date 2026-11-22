@@ -402,39 +402,73 @@ export function gapsOf(wall: Uint8Array, shut: Uint8Array, W: number, H: number)
   return out;
 }
 
-/** TWO NIBS FACING EACH OTHER ACROSS ONE ROOM ARE NO DOORWAY (a 9 m room
+/** A named space and the unnamed ones it may be one room with: their ids,
+    their outline taken together through the gaps between them, and those
+    gaps' places among `gapsOf`'s. */
+export type Join = { into: number; from: number[]; outline: [number, number][]; gaps: number[] };
+
+/** TWO NIBS FACING EACH OTHER ACROSS ONE ROOM MAY BE NO DOORWAY (a 9 m room
     with a nib each side and 6 m between them came back as two spaces, and
     the half with no name of its own was dropped or taken for the room).
-    A gap `bridged` closed wider than `wider` (a doorway at its widest) is
-    opened again where it parts a space `named` says has a name from a
-    smaller closed one that has none, and the two are one space. Both named,
-    neither, or the one with no name the larger, it stays shut: a hall or a
-    yard the plan doesn't name isn't made part of a room. `wall` is the grid
-    before any gap was closed. `e` is changed in place: its grids are a
-    sheet's size. */
-export function reopen(e: Enclosed, wall: Uint8Array, wider: number, named: (id: number) => boolean): void {
+    Where a gap `bridged` closed wider than `wider` (a doorway at its widest)
+    parts a space `named` says has a name from a smaller closed one that has
+    none, the two may be one room, and this says so. It opens nothing: the
+    walls alone can't tell that from a robe, a hall or a courtyard behind
+    wide sliders, so merge.ts takes it only where the read by picture shows
+    it. An unnamed space that opens that wide onto two named ones is offered
+    to neither, since which it belongs to would be a guess; both named,
+    neither, or the one with no name the larger, nothing is offered, so a
+    hall or a yard the plan doesn't name isn't made part of a room. Every
+    wide gap between the spaces offered together is among its gaps, so a
+    pier between two openings stands inside the room, not on a strip of
+    wall. `wall` is the grid before any gap was closed. */
+export function joins(e: Enclosed, wall: Uint8Array, wider: number, named: (id: number) => boolean): Join[] {
   const W = e.width;
   const H = e.height;
   const byId = new Map(e.spaces.map((s) => [s.id, s]));
   const at = (x: number, y: number) => byId.get(x >= 0 && y >= 0 && x < W && y < H ? e.label[y * W + x] : -1);
-  for (const { px, box, along } of closedRuns(wall, e.wall, W, H)) {
-    const [x0, y0, x1, y1] = box;
-    if (!along || (along === "x" ? x1 - x0 + 1 : y1 - y0 + 1) <= wider) continue;
+  /* each gap wider than a doorway between two closed spaces, and its place among gapsOf's */
+  const wide: { run: Closed; gap: number; a: Space; b: Space }[] = [];
+  let gap = -1;
+  for (const run of closedRuns(wall, e.wall, W, H)) {
+    if (!run.along) continue;
+    gap++;
+    const [x0, y0, x1, y1] = run.box;
+    if ((run.along === "x" ? x1 - x0 + 1 : y1 - y0 + 1) <= wider) continue;
     /* the floor either side of the gap, at its middle */
     const cx = Math.floor((x0 + x1 + 1) / 2);
     const cy = Math.floor((y0 + y1 + 1) / 2);
-    const [a, b] = along === "x" ? [at(cx, y0 - 1), at(cx, y1 + 1)] : [at(x0 - 1, cy), at(x1 + 1, cy)];
-    if (!a || !b || a === b || a.open || b.open || named(a.id) === named(b.id)) continue;
-    const [into, from] = named(a.id) ? [a, b] : [b, a];
-    if (from.n >= into.n) continue;
-    for (let y = from.box[1]; y <= from.box[3]; y++) for (let x = from.box[0]; x <= from.box[2]; x++) if (e.label[y * W + x] === from.id) e.label[y * W + x] = into.id;
-    for (const i of px) {
-      e.wall[i] = 0;
-      e.label[i] = into.id;
-    }
-    into.n += from.n + px.length;
-    into.box = [Math.min(into.box[0], from.box[0], x0), Math.min(into.box[1], from.box[1], y0), Math.max(into.box[2], from.box[2], x1), Math.max(into.box[3], from.box[3], y1)];
-    byId.delete(from.id);
+    const [a, b] = run.along === "x" ? [at(cx, y0 - 1), at(cx, y1 + 1)] : [at(x0 - 1, cy), at(x1 + 1, cy)];
+    if (a && b && a !== b && !a.open && !b.open) wide.push({ run, gap, a, b });
   }
-  e.spaces = e.spaces.filter((s) => byId.has(s.id));
+  /* the named spaces each unnamed one opens onto that wide, over all its gaps */
+  const onto = new Map<Space, Set<Space>>();
+  for (const { a, b } of wide) {
+    if (!named(a.id) && named(b.id)) onto.set(a, (onto.get(a) ?? new Set<Space>()).add(b));
+    if (!named(b.id) && named(a.id)) onto.set(b, (onto.get(b) ?? new Set<Space>()).add(a));
+  }
+  const into = new Map<Space, Space[]>();
+  for (const [u, ns] of onto) {
+    const [n] = ns;
+    if (ns.size === 1 && u.n < n.n) into.set(n, [...(into.get(n) ?? []), u]);
+  }
+  return [...into].map(([n, from]) => {
+    const ids = new Set([n, ...from].map((s) => s.id));
+    const runs = wide.filter((w) => ids.has(w.a.id) && ids.has(w.b.id));
+    /* their floor and the gaps between them, on a grid the size of their box */
+    const boxes = [n.box, ...from.map((s) => s.box), ...runs.map((w) => w.run.box)];
+    const x0 = Math.min(...boxes.map((b) => b[0]));
+    const y0 = Math.min(...boxes.map((b) => b[1]));
+    const w = Math.max(...boxes.map((b) => b[2])) - x0 + 1;
+    const h = Math.max(...boxes.map((b) => b[3])) - y0 + 1;
+    const local = new Int32Array(w * h).fill(-1);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (ids.has(e.label[(y + y0) * W + x + x0])) local[y * w + x] = 0;
+    for (const { run } of runs) for (const i of run.px) local[(((i / W) | 0) - y0) * w + (i % W) - x0] = 0;
+    return {
+      into: n.id,
+      from: from.map((s) => s.id),
+      outline: outlineOf(local, w, 0, [0, 0, w - 1, h - 1]).map(([x, y]): [number, number] => [x + x0, y + y0]),
+      gaps: runs.map((r) => r.gap),
+    };
+  });
 }

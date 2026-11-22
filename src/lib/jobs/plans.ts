@@ -17,7 +17,7 @@ import type { Floor, PlanImport, PlanImportSource } from "@/lib/studio/document"
 import { newId } from "@/lib/studio/document";
 import { defaultFloorName, placeSheets, type UploadedSheet } from "@/lib/studio/plans";
 import type { TrimRect } from "@/lib/studio/plan-trim";
-import type { MeasuredScale, PlanReading, PlanWord, ReadLook, ReadPoint, ReadSpace, SheetReading, WallGap } from "@/lib/studio/reading";
+import type { MeasuredScale, PlanReading, PlanWord, ReadLook, ReadPoint, ReadSpace, SheetReading, SpaceJoin, WallGap } from "@/lib/studio/reading";
 import { area, scaleFromWritten, suggestedRooms } from "@/lib/studio/reading";
 export { scaleFromWritten };
 import { andList } from "@/lib/swms/library";
@@ -118,7 +118,7 @@ export type JobPlan = {
 };
 
 /** A floor's rooms measured off its drawing's walls, in the raster's pixels; or `none`, with why. */
-export type PageWalled = { spaces: ReadSpace[]; look: ReadLook[]; grid: { x: number[]; y: number[] }; rounds: number; /** the part of the sheet that was measured, in the raster's pixels */ frame?: { left: number; top: number; width: number; height: number }; /** "file": its walls read from the drawing file itself (lib/studio/vector); else measured off its picture */ from?: "file"; /** the file's own walls and the gaps in them, in the raster's pixels */ walls?: ReadPoint[][][]; gaps?: WallGap[] } | { none: string };
+export type PageWalled = { spaces: ReadSpace[]; look: ReadLook[]; grid: { x: number[]; y: number[] }; rounds: number; /** the part of the sheet that was measured, in the raster's pixels */ frame?: { left: number; top: number; width: number; height: number }; /** "file": its walls read from the drawing file itself (lib/studio/vector); else measured off its picture */ from?: "file"; /** the file's own walls and the gaps in them, in the raster's pixels */ walls?: ReadPoint[][][]; gaps?: WallGap[]; /** a named room and the unnamed spaces it may be one room with, for the read by picture to settle */ joins?: SpaceJoin[] } | { none: string };
 
 /** A read's place: the pages drawn small, the floors found among them,
     the floors drawn in full, then each floor read with the roof and the site. */

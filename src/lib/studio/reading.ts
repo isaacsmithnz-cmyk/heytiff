@@ -36,6 +36,12 @@ export type ReadSpace = {
 /** A gap in a wall the drawing file draws: a door's or a window's place. */
 export type WallGap = { a: ReadPoint; b: ReadPoint; t: number };
 
+/** A room the drawing file names and the closed spaces with no name it opens
+    onto wider than a doorway, which may be one room with it (vector/enclose.ts
+    `joins`): their places among the file's spaces, their outline taken
+    together, and the places among its gaps of the gaps between them. */
+export type SpaceJoin = { into: number; from: number[]; outline: ReadPoint[]; gaps: number[] };
+
 export type ReadOpening = {
   kind: "door" | "window" | "skylight";
   tag: string;

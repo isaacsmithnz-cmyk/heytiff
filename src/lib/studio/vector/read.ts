@@ -1,8 +1,8 @@
-import type { ReadLook, ReadPoint, ReadSpace, SpaceKind } from "../reading";
+import type { ReadLook, ReadPoint, ReadSpace, SpaceJoin, SpaceKind } from "../reading";
 import type { Fill, Line } from "./fills";
 import { wallsOf, type Walls } from "./walls";
 import { lineWalls } from "./lines";
-import { enclose, gapsOf, outlined, parted, rasterise, reopen } from "./enclose";
+import { enclose, gapsOf, joins, outlined, parted, rasterise } from "./enclose";
 
 /* A FLOOR'S ROOMS READ FROM THE DRAWING FILE ITSELF (Isaac, 22 November 2026:
    "I need the plans accurate to design it"; "build the new way"). The walls
@@ -45,6 +45,8 @@ export type VectorRooms = {
   walls: ReadPoint[][][];
   /** the gaps in them a door or a window leaves: each jamb's middle, and the wall's thickness there */
   gaps: { a: ReadPoint; b: ReadPoint; t: number }[];
+  /** a named room and the unnamed spaces it opens onto past a doorway's width, which may be one room with it: for the read by picture to say (merge.ts) */
+  joins: SpaceJoin[];
   /** what the read found, for the kept test and the log */
   found: { colours: string[]; rooms: number; named: number; labels: number; landed: number };
 };
@@ -143,7 +145,7 @@ export function vectorRooms(input: VectorInput): VectorRooms | { none: string } 
       why ||= r.none;
       return null;
     }
-    return sure ? r : { ...r, walls: [], gaps: [] };
+    return sure ? r : { ...r, walls: [], gaps: [], joins: r.joins.map((j) => ({ ...j, gaps: [] })) };
   };
   if (filled) best = tried(filled, true);
   const others: Walls[] = [];
@@ -212,11 +214,16 @@ function roomsBetween(walls: Walls, input: VectorInput): VectorRooms | { none: s
     inSpace.set(id, l);
   }
   /* a gap wider than a doorway that parts a named room from a smaller space
-     with no name of its own is two nibs across one room: opened again */
-  reopen(e, grid, tee, (id) => inSpace.has(id));
+     with no name of its own may be two nibs across one room: said, for the
+     read by picture to settle. Only at a known scale: with none, a doorway
+     can't be told from a room's width, so a 1.8 m pair of doors would be
+     taken for nibs */
+  const joined = mmPerPx ? joins(e, grid, tee, (id) => inSpace.has(id)) : [];
 
-  type Kept ={ n: number; outline: () => [number, number][]; names: string[]; strong: number };
+  type Kept = { n: number; outline: () => [number, number][]; names: string[]; strong: number };
   const keep: Kept[] = [];
+  /* each space kept whole, by its place in `keep` */
+  const kept = new Map<number, number>();
   for (const s of e.spaces) {
     if (s.open) continue;
     if (s.n > buildingArea * 0.35) continue;
@@ -243,6 +250,7 @@ function roomsBetween(walls: Walls, input: VectorInput): VectorRooms | { none: s
         continue;
       }
     }
+    kept.set(s.id, keep.length);
     keep.push({ n: s.n, outline: () => outlined(e, s), names, strong });
   }
   const landed = keep.reduce((n, k) => n + k.strong, 0);
@@ -286,9 +294,17 @@ function roomsBetween(walls: Walls, input: VectorInput): VectorRooms | { none: s
   const inBox = (r: readonly [number, number][]) => r.some(([x, y]) => x * K >= bx0 - pad && x * K <= bx1 + pad && y * K >= by0 - pad && y * K <= by1 + pad);
   const wallShapes = walls.shapes.map((rings) => rings.filter(inBox).map((r) => r.map(([x, y]) => ({ x: tenth(x * K), y: tenth(y * K) })))).filter((rings) => rings.length);
   const gaps = gapsOf(grid, e.wall, W, H).map((g) => ({ a: { x: tenth(g.a[0]), y: tenth(g.a[1]) }, b: { x: tenth(g.b[0]), y: tenth(g.b[1]) }, t: tenth(g.t) }));
+  /* offered only where each space is a room of its own here: one parted or dropped leaves nothing to join */
+  const offered = joined.flatMap((j) => {
+    const into = kept.get(j.into);
+    const from = j.from.flatMap((id) => kept.get(id) ?? []);
+    if (into === undefined || from.length < j.from.length) return [];
+    return [{ into, from, outline: j.outline.map(([x, y]) => ({ x: Math.round(x * to), y: Math.round(y * to) })), gaps: j.gaps }];
+  });
   return {
     walls: wallShapes,
     gaps,
+    joins: offered,
     spaces,
     look,
     grid: { x: [], y: [] },

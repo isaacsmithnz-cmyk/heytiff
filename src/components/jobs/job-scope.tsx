@@ -134,7 +134,7 @@ export function JobScope({
       </JobSection>
     ) : supplied && view === "side" && sideBySide ? (
       <JobSection name="Scope" icon="file" hue="pink" className="jov-summary jsc-sidecard" action={tray}>
-        <SideBySide scope={scope} supplied={supplied} quotedLine={scope.quoted ? quotedLine(scope.quoted) : null} suppliedLine={suppliedLine} />
+        <SideBySide scope={scope} supplied={supplied} quotedName={quotedName} quotedLine={scope.quoted ? quotedLine(scope.quoted) : null} suppliedLine={suppliedLine} />
       </JobSection>
     ) : (
       <JobSection name={quotedName} line={scope.quoted ? quotedLine(scope.quoted) : null} icon="file" hue="pink" className="jov-summary" action={tray}>
@@ -328,7 +328,9 @@ function SuppliedBody({ supplied, differs }: { supplied: SuppliedScope; differs:
 
 /** The two scopes a row per area, the quoted on the left: each area as
     either names it, in the order they come, and the fine print last. */
-function SideBySide({ scope, supplied, quotedLine, suppliedLine }: { scope: JobScopeRead; supplied: SuppliedScope; quotedLine: string | null; suppliedLine: string | null }) {
+/* its left column is named as the card is: "Scope" until something is quoted
+   (bug 71, 22 November 2026, 3570: "we haven't quoted anything") */
+function SideBySide({ scope, supplied, quotedName, quotedLine, suppliedLine }: { scope: JobScopeRead; supplied: SuppliedScope; quotedName: string; quotedLine: string | null; suppliedLine: string | null }) {
   const areas: string[] = [];
   for (const a of [...scope.systems.map((s) => s.area), ...supplied.systems.map((s) => s.area)]) if (!areas.some((x) => areaKey(x) === areaKey(a))) areas.push(a);
   const said = (s: { kind: string; text: string; from: string[] } | undefined) =>
@@ -348,7 +350,7 @@ function SideBySide({ scope, supplied, quotedLine, suppliedLine }: { scope: JobS
       <div className="jsc-siderow jsc-sidetop">
         <span />
         <span className="jsc-sidecell">
-          <b className="jsc-sidename">Quoted scope</b>
+          <b className="jsc-sidename">{quotedName}</b>
           {quotedLine && <span className="jsc-from">{quotedLine}</span>}
         </span>
         <span className="jsc-sidecell">

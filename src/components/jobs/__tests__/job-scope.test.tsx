@@ -199,6 +199,16 @@ describe("two scopes: what was supplied and what's quoted (11 November 2026)", (
     expect(rows[rows.length - 1]).toHaveTextContent("Fine printHeld to the supplied fine print");
   });
 
+  it("heads the side by side's left column Scope until something's quoted (bug 71, 3570)", () => {
+    const { unmount } = render(<JobScope scope={both()} />);
+    fireEvent.click(screen.getByRole("radio", { name: "Side by side" }));
+    expect(screen.getByRole("region", { name: "Scope" }).querySelector(".jsc-sidetop")).toHaveTextContent(/^ScopeSupplied scope/);
+    unmount();
+    render(<JobScope scope={{ ...both(), quoted: { on: "Wed 11 Nov", version: 1 } } as Parameters<typeof JobScope>[0]["scope"]} />);
+    fireEvent.click(screen.getByRole("radio", { name: "Side by side" }));
+    expect(document.querySelector(".jsc-sidetop")).toHaveTextContent(/^Quoted scope/);
+  });
+
   it("switches on the Scope tab's brief, side by side in its column, the rail left out", () => {
     render(<JobScope scope={both()} part="brief" />);
     fireEvent.click(screen.getByRole("radio", { name: "Side by side" }));

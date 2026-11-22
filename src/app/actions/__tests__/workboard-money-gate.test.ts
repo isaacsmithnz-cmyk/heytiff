@@ -78,7 +78,7 @@ const MONEY_WRITES: [string, () => Promise<{ ok: boolean }>][] = [
   ["setProjectBudget", () => setProjectBudget("p-1", { cents: 1_250_000, source: "manual" })],
   ["setProjectBudget (clearing)", () => setProjectBudget("p-1", { cents: null })],
   ["addVariation", () => addVariation("p-1", { title: "Extra head", amountCents: 180_000 })],
-  ["decideVariation", () => decideVariation("v-1", "approved", "Sarah Bowden")],
+  ["decideVariation", () => decideVariation("v-1", "approved", "Sarah Sample")],
   ["removeVariation", () => removeVariation("v-1")],
   ["addClaim", () => addClaim("p-1", { label: "Deposit", amountCents: 500_000 })],
   ["setClaimPaid", () => setClaimPaid("c-1", true, "2026-09-27")],
@@ -89,7 +89,7 @@ beforeEach(() => {
   reads.length = 0;
   writes.length = 0;
   rows = {
-    projects: { id: "p-1", name: "Bowden St", status: "active", defects_task_id: null },
+    projects: { id: "p-1", name: "Sample St", status: "active", defects_task_id: null },
     project_variations: { id: "v-1", project_id: "p-1", status: "pending" },
     project_claims: { id: "c-1", project_id: "p-1", source: "manual" },
   };

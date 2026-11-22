@@ -19,7 +19,7 @@ jest.mock("@/lib/auth0", () => ({ auth0: { getSession: jest.fn(async () => (orgI
 const resolveJobCard = jest.fn(async (_org: string, id: string) => ({ parentRemoteId: id, focusRemoteId: null as string | null }));
 jest.mock("@/lib/workboard/all-jobs-query", () => ({ resolveJobCard: (o: string, id: string) => resolveJobCard(o, id) }));
 /* this org's mirror holds one job */
-const openMirrorJob = jest.fn(async (id: string) => (id === "j-3209" ? { id, number: "3209", clientName: "Richards Building" } : null));
+const openMirrorJob = jest.fn(async (id: string) => (id === "j-3209" ? { id, number: "3209", clientName: "Rowland Building" } : null));
 /* what the card reads first, made here beside the row */
 const readMirrorJob = jest.fn(async (id: string) => ({ detail: { remoteId: id }, focusRemoteId: null, cards: 1 }));
 const readJobRecord = jest.fn(async (_id: string): Promise<{ ourNotes: never[] } | null> => ({ ourNotes: [] }));

@@ -40,7 +40,7 @@ const page = (over: Partial<SchedulePage> = {}): SchedulePage => ({
   canBlock: false,
   ...over,
 });
-const JOB: PanelJob = { uuid: "j-3450", number: "3450", client: "BRC Build", site: "Kingsford", kind: "Install", hue: "purple", state: "Waiting on a day", tone: "look", toBook: true, words: "3450 brc build kingsford install" };
+const JOB: PanelJob = { uuid: "j-3450", number: "3450", client: "QRS Build", site: "Fakesford", kind: "Install", hue: "purple", state: "Waiting on a day", tone: "look", toBook: true, words: "3450 qrs build fakesford install" };
 
 const requestFullscreen = jest.fn(() => Promise.resolve());
 beforeAll(() => {
@@ -120,11 +120,11 @@ describe("Jobs, to drag", () => {
   it("(F) are the board's own cards: the number in a box of the job's colour, the client, the site, the kind", async () => {
     render(<ScheduleBoard data={page()} />);
     const jobs = screen.getByRole("complementary", { name: "Jobs" });
-    const card = await waitFor(() => within(jobs).getByRole("button", { name: /BRC Build/ }));
+    const card = await waitFor(() => within(jobs).getByRole("button", { name: /QRS Build/ }));
     expect(card).toHaveClass("sc-card", "sc-card--purple");
     expect(card.querySelector(".sc-cn")).toHaveTextContent("3450");
-    expect(card.querySelector(".sc-c1")).toHaveTextContent("BRC Build");
-    expect(card.querySelector(".sc-c2")).toHaveTextContent("Kingsford");
+    expect(card.querySelector(".sc-c1")).toHaveTextContent("QRS Build");
+    expect(card.querySelector(".sc-c2")).toHaveTextContent("Fakesford");
     expect(card.querySelector(".sc-c3")).toHaveTextContent("Install");
     expect(card).toHaveAttribute("draggable", "true");
   });
@@ -159,7 +159,7 @@ describe("Block out time", () => {
     expect(group.compareDocumentPosition(search) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     cleanup();
     render(<ScheduleBoard data={page({ canBlock: false })} />);
-    await screen.findByRole("button", { name: "3450 BRC Build" });
+    await screen.findByRole("button", { name: "3450 QRS Build" });
     expect(screen.queryByRole("list", { name: "Blocked out" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Block out time" })).toBeNull();
   });
@@ -186,12 +186,12 @@ describe("a weekend day", () => {
 
   it("is bookable but outside standard hours: nobody's line says free", async () => {
     render(<ScheduleBoard data={page({ day: SAT, today: SAT, days: [SAT], payloads: [sat()] })} />);
-    await screen.findByRole("button", { name: "3450 BRC Build" });
+    await screen.findByRole("button", { name: "3450 QRS Build" });
     expect(document.querySelectorAll(".sc-row")).toHaveLength(1);
     expect(screen.queryByText("Free all day")).toBeNull();
     cleanup();
     render(<ScheduleBoard data={page({ payloads: [{ ...sat(), dayISO: DAY }] })} />);
-    await screen.findByRole("button", { name: "3450 BRC Build" });
+    await screen.findByRole("button", { name: "3450 QRS Build" });
     expect(screen.getByText("Free all day")).toBeInTheDocument();
   });
 

@@ -46,7 +46,7 @@ import { andWords, daysWords, lengthRange } from "@/lib/workboard/visit-words";
 
 export type VisitJob = FormJob;
 
-/** "Job 3209, Richards Building, North Narrabeen", as Search names a job. */
+/** "Job 3209, Rowland Building, North Pretendale", as Search names a job. */
 export const visitJobLabel = (j: { number: string | null; clientName: string | null; suburb: string | null }) =>
   [j.number ? `Job ${j.number}` : "Job", j.clientName, j.suburb].filter(Boolean).join(", ");
 

@@ -231,13 +231,13 @@ describe("the feed's own rows", () => {
 });
 
 describe("the words", () => {
-  /* the walk of 26 October 2026: ServiceM8's text part read "Luke Ingold61457301636" */
+  /* the walk of 26 October 2026: ServiceM8's text part read "Luke Ingold61491570158" */
   it("keeps a signature's lines apart, as its HTML has them", () => {
     expect(
       htmlToText(
-        'Regards,</span><br /><br /><font size="2">Luke Ingold</font><div><font size="2"><span>61457301636</span><br /><span>Operations Manager</span></font></div><img src="x">',
+        'Regards,</span><br /><br /><font size="2">Luke Ingold</font><div><font size="2"><span>61491570158</span><br /><span>Operations Manager</span></font></div><img src="x">',
       ),
-    ).toBe("Regards,\n\nLuke Ingold\n61457301636\nOperations Manager");
+    ).toBe("Regards,\n\nLuke Ingold\n61491570158\nOperations Manager");
   });
 
   it("reads the source's own line breaks as spaces, entities as their characters, and three breaks as two", () => {
@@ -262,8 +262,8 @@ describe("the words", () => {
   });
 
   it("matches a contact's number however it is written", () => {
-    expect(phoneKey("+61410585813")).toBe("0410585813");
-    expect(phoneKey("0410 585 813")).toBe("0410585813");
+    expect(phoneKey("+61491570159")).toBe("0491570159");
+    expect(phoneKey("0491 570 159")).toBe("0491570159");
     expect(phoneKey(null)).toBeNull();
   });
 });

@@ -320,7 +320,7 @@ const CLEARLY_BETTER = 1.1;
 /** How far to move a floor so it stands over the ground floor.
 
     A STAIR IS IN THE SAME PLACE ON BOTH FLOORS, so where both have one it
-    decides (6 Bishops Ave, 28 October 2026: its two plans sit 4.4 m apart
+    decides (6 Nostrud Ave, 28 October 2026: its two plans sit 4.4 m apart
     on their sheets yet still overlapped by more than half, so the first
     floor stood 4.4 m out over the ground). Every stair below against every
     stair above, since an outdoor stair or an old one kept is a stair too,
@@ -335,7 +335,7 @@ export function lineUp(ground: Raw, other: Raw): XZ {
   const asDrawn = standing(below, above, [0, 0]);
   let most = asDrawn * CLEARLY_BETTER;
   /* A stair a metre out of register stands the floor as well as the drawing does
-     (90 O'Brien St, 9 November 2026: its first floor, narrower than the ground,
+     (90 Dreamer St, 9 November 2026: its first floor, narrower than the ground,
      stood over it either way, and its flight came up a metre beside its well).
      Where the two stairs don't already sit over each other, putting them so
      wins whenever it stands the floor near as well as the drawing does. */
@@ -369,7 +369,7 @@ const shift = ([dx, dz]: XZ) => (p: XZ): XZ => [p[0] + dx, p[1] + dz];
 export type UnitRow = { form_factor: string; height_mm?: number | null };
 
 /* where a unit sits, from the unit itself: its kind off the pack and its
-   plane, not its system's type (7 Cutler's bulkhead heads were drawn as wall
+   plane, not its system's type (7 Ipsum's bulkhead heads were drawn as wall
    splits). `top` is the unit's top, from the floor it serves. */
 const HIGH_WALL_TOP_M = 2.1;
 export function indoorHeight(form: string, underFloor: boolean, base: number, ceiling: number, h: number): number {
@@ -886,8 +886,8 @@ export const middleOf = centroid;
 
    A STAIR THAT TURNS BACK (Isaac, 9 November 2026: "staircases going into
    walls"): where its bottom and its top are at the same end (the hall
-   below, the landing above, both at the stair's south end, 90 O'Brien St
-   and 27 Milroy Ave), it is a U: up one half to a landing at the far end,
+   below, the landing above, both at the stair's south end, 90 Dreamer St
+   and 27 Proident Ave), it is a U: up one half to a landing at the far end,
    back along the other half. Drawn straight, it rose into the outside
    wall. The half it starts up is the one her outline fills at its foot. */
 export function flightsOf(floors: Floor3D[]) {

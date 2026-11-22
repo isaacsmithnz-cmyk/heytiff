@@ -1589,10 +1589,10 @@ describe("the Design step", () => {
   });
 
   it("lists the job's designs, each opening in the Studio", async () => {
-    answering({ designs: [{ id: "dsn_1", name: "6 Bishops Avenue", updatedAt: "2026-10-27T03:00:00Z" }], noDesign: null });
+    answering({ designs: [{ id: "dsn_1", name: "6 Nostrud Avenue", updatedAt: "2026-10-27T03:00:00Z" }], noDesign: null });
     render(<QuoteLinesFace job="job-3406" price={price} onPriced={jest.fn()} />);
     const group = await screen.findByRole("region", { name: "Design" });
-    expect(within(group).getByText("6 Bishops Avenue")).toBeInTheDocument();
+    expect(within(group).getByText("6 Nostrud Avenue")).toBeInTheDocument();
     expect(within(group).getByRole("link", { name: "Open design" })).toHaveAttribute("href", "/dashboard/studio?design=dsn_1");
     expect(within(group).queryByRole("button", { name: "Price without a design" })).toBeNull();
   });
@@ -1623,7 +1623,7 @@ describe("the Design step", () => {
    quote has what's changing written in; starting version 2 asks Tiff to
    price it, and it comes off Since the quote */
 describe("after it's sent", () => {
-  const study = { text: "Concealed fan coil unit next to the Study", from: "Anna Vaughan's email, Tue 3 Nov" };
+  const study = { text: "Concealed fan coil unit next to the Study", from: "Anna Kettlewell's email, Tue 3 Nov" };
   const brief = { description: "", lede: "", systems: [], added: [study], notOurs: [], clarify: [], updates: [], undoSaid: "", stamp: "s", writtenAt: "", canUndo: false, sincePriced: [study], quoted: { on: "Wed 28 Oct", version: 1 }, accepted: false };
   const session = { ok: true, on: true, working: false, spentUsd: 0, me: "u-isaac", names: {}, events: [], questions: {} };
   beforeEach(() => {
@@ -1644,11 +1644,11 @@ describe("after it's sent", () => {
     const dialog = within(await screen.findByRole("dialog", { name: "Update the quote" }));
     /* who it went to and the day, then where version 2 goes; nobody named on the job is the customer */
     expect(dialog.getByText("Version 1 went to the customer on Wed 28 Oct and stays as it was sent. Version 2 starts from it and goes out through Mark ready to send and Send to ServiceM8.")).toBeInTheDocument();
-    expect(dialog.getByLabelText("What to change")).toHaveValue("Concealed fan coil unit next to the Study (Anna Vaughan's email, Tue 3 Nov).");
+    expect(dialog.getByLabelText("What to change")).toHaveValue("Concealed fan coil unit next to the Study (Anna Kettlewell's email, Tue 3 Nov).");
     await act(async () => {
       fireEvent.click(dialog.getByRole("button", { name: "Start version 2" }));
     });
-    expect(posted).toContainEqual(expect.objectContaining({ op: "version", what: "Concealed fan coil unit next to the Study (Anna Vaughan's email, Tue 3 Nov)." }));
+    expect(posted).toContainEqual(expect.objectContaining({ op: "version", what: "Concealed fan coil unit next to the Study (Anna Kettlewell's email, Tue 3 Nov)." }));
     await waitFor(() => expect(posted).toContainEqual(expect.objectContaining({ url: "/api/workboard/quote-session", message: "Price what's been added: Concealed fan coil unit next to the Study." })));
     await waitFor(() => expect(posted).toContainEqual(expect.objectContaining({ url: "/api/workboard/job-scope", off: [study.text], into: 2 })));
   });
@@ -1662,7 +1662,7 @@ describe("after it's sent", () => {
     expect(screen.getAllByRole("button", { name: "Update quote" })).toHaveLength(1);
     fireEvent.click(within(screen.getByRole("region", { name: "1 added since it was sent" })).getByRole("button", { name: "Update quote" }));
     expect(within(screen.getByRole("dialog", { name: "Update the quote" })).getByLabelText("What to change")).toHaveValue(
-      "Concealed fan coil unit next to the Study (Anna Vaughan's email, Tue 3 Nov).",
+      "Concealed fan coil unit next to the Study (Anna Kettlewell's email, Tue 3 Nov).",
     );
   });
 

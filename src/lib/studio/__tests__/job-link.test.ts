@@ -16,24 +16,24 @@ const hit = (over: Partial<StudioJobHit> = {}): StudioJobHit => ({
   jobNumber: "3151",
   clientName: "Diamond Air",
   status: "Work Order",
-  address: "12/3 Wallace St\nWaverley NSW 2024",
-  suburb: "Waverley",
+  address: "12/3 Eiusmod St\nFakehurst NSW 2024",
+  suburb: "Fakehurst",
   description: "Supply and installation of a 12.5kW ducted system",
   ...over,
 });
 
 describe("streetLine", () => {
   it("takes the first line and nothing else", () => {
-    expect(streetLine("12/3 Wallace St\nWaverley NSW 2024")).toBe("12/3 Wallace St");
+    expect(streetLine("12/3 Eiusmod St\nFakehurst NSW 2024")).toBe("12/3 Eiusmod St");
   });
 
   it("drops ServiceM8's trailing comma", () => {
-    // a real row: "260 Birrell St,\nBondi Junction NSW 2022"
-    expect(streetLine("260 Birrell St,\nBondi Junction NSW 2022")).toBe("260 Birrell St");
+    // a real row: "260 Veniam St,\nFictonia Junction NSW 2022"
+    expect(streetLine("260 Veniam St,\nFictonia Junction NSW 2022")).toBe("260 Veniam St");
   });
 
   it("skips a leading blank line rather than returning empty", () => {
-    expect(streetLine("\n  \n7 Dans Avenue\nCoogee NSW 2034")).toBe("7 Dans Avenue");
+    expect(streetLine("\n  \n7 Yarn Avenue\nTestcove NSW 2034")).toBe("7 Yarn Avenue");
   });
 
   it("is empty for no address at all", () => {
@@ -43,9 +43,9 @@ describe("streetLine", () => {
 
   /* 3446 and 3448, 28 October 2026: an address typed in one box */
   it("takes what's before the suburb from an address on one line", () => {
-    expect(streetLine("111 Goodlet St, Surry Hills NSW 2010, Australia")).toBe("111 Goodlet St");
-    expect(streetLine("4/48 Avoca Street, Randwick NSW, Australia")).toBe("4/48 Avoca Street");
-    expect(streetLine("Unit 4, 48 Avoca Street, Randwick NSW 2031")).toBe("Unit 4, 48 Avoca Street");
+    expect(streetLine("111 Mollit St, Sample Hills NSW 2010, Australia")).toBe("111 Mollit St");
+    expect(streetLine("4/48 Dolore Street, Madeupton NSW, Australia")).toBe("4/48 Dolore Street");
+    expect(streetLine("Unit 4, 48 Dolore Street, Madeupton NSW 2031")).toBe("Unit 4, 48 Dolore Street");
     expect(streetLine("Shop 3, 1200 Botany Rd, Mascot 2020")).toBe("Shop 3, 1200 Botany Rd");
     expect(streetLine("1234 Pacific Highway, Pymble NSW 2073")).toBe("1234 Pacific Highway");
   });
@@ -58,14 +58,14 @@ describe("streetLine", () => {
 
 describe("flatAddress", () => {
   it("joins the lines with commas for a one-line field", () => {
-    expect(flatAddress("2 Spring St\nPaddington NSW 2021")).toBe(
-      "2 Spring St, Paddington NSW 2021"
+    expect(flatAddress("2 Fable St\nFauxington NSW 2021")).toBe(
+      "2 Fable St, Fauxington NSW 2021"
     );
   });
 
   it("never doubles a comma ServiceM8 already left", () => {
-    expect(flatAddress("260 Birrell St,\nBondi Junction NSW 2022")).toBe(
-      "260 Birrell St, Bondi Junction NSW 2022"
+    expect(flatAddress("260 Veniam St,\nFictonia Junction NSW 2022")).toBe(
+      "260 Veniam St, Fictonia Junction NSW 2022"
     );
   });
 
@@ -76,7 +76,7 @@ describe("flatAddress", () => {
 
 describe("jobSubtitle", () => {
   it("says who, where and what state — never the number", () => {
-    expect(jobSubtitle(hit())).toBe("Diamond Air, Waverley, Work Order");
+    expect(jobSubtitle(hit())).toBe("Diamond Air, Fakehurst, Work Order");
   });
 
   it("closes the gaps rather than printing empty separators", () => {
@@ -88,18 +88,18 @@ describe("prefillFromJob", () => {
   it("names the design after the street and carries the three meta fields", () => {
     expect(prefillFromJob(hit())).toEqual({
       remoteId: "job-1",
-      name: "12/3 Wallace St",
+      name: "12/3 Eiusmod St",
       jobNumber: "3151",
       client: "Diamond Air",
-      site: "12/3 Wallace St, Waverley NSW 2024",
+      site: "12/3 Eiusmod St, Fakehurst NSW 2024",
     });
   });
 
   it("falls back to the client when the job has no address", () => {
-    const fill = prefillFromJob(hit({ address: null, suburb: "Bondi" }));
+    const fill = prefillFromJob(hit({ address: null, suburb: "Fictonia" }));
     expect(fill.name).toBe("Diamond Air");
     // the suburb is all the site there is, but it is not nothing
-    expect(fill.site).toBe("Bondi");
+    expect(fill.site).toBe("Fictonia");
   });
 
   it("falls back to the job number when there is neither", () => {

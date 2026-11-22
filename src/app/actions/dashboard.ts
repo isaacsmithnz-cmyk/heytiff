@@ -520,7 +520,7 @@ export async function readTaskForEdit(taskId: string): Promise<{ ok: true; task:
   };
   const jobUuid = (data.sm8_job_uuid as string | null) ?? null;
   const label = jobUuid ? await jobLabelOf(ctx.orgId, jobUuid) : null;
-  /* the job its words name ("Proceed with 3450 Kingsford", "#2845"),
+  /* the job its words name ("Proceed with 3450 Fakesford", "#2845"),
      offered. A bare number is a job only when a name follows it or a # or
      "job" comes before it: "140 single-phase outdoor" is a unit, and it
      offered job #140 (Isaac, 28 October 2026). */

@@ -178,8 +178,8 @@ beforeEach(() => {
     { org_id: ORG, uuid: ALEX_SM8, first: "Alex", last: "Sample", active: 1 },
   ];
   fake.db.sm8_jobs = [
-    { org_id: ORG, uuid: JOB, active: 1, status: "Work Order", generated_job_id: "9001", job_address: "2 Spring St\nWaverton NSW 2060", geo_city: "Waverton" },
-    { org_id: ORG, uuid: OTHER_JOB, active: 1, status: "Work Order", generated_job_id: "9002", job_address: "88 Kirribilli Ave,\nKirribilli NSW 2061", geo_city: "Kirribilli" },
+    { org_id: ORG, uuid: JOB, active: 1, status: "Work Order", generated_job_id: "9001", job_address: "2 Fable St\nWaverton NSW 2060", geo_city: "Waverton" },
+    { org_id: ORG, uuid: OTHER_JOB, active: 1, status: "Work Order", generated_job_id: "9002", job_address: "88 Exampleton Ave,\nExampleton NSW 2061", geo_city: "Exampleton" },
   ];
   fake.db.sm8_job_activities = [];
   fake.db.sm8_writes = [];
@@ -209,7 +209,7 @@ describe("a move", () => {
     expect(push).toHaveBeenCalledTimes(1);
     expect(push).toHaveBeenCalledWith(ORG, ["staff-alex"], {
       title: "Sam Tester moved you to 9002",
-      body: "88 Kirribilli Ave, Kirribilli · 7:00 to 3:00",
+      body: "88 Exampleton Ave, Exampleton · 7:00 to 3:00",
       path: `/job?id=${OTHER_JOB}`,
     });
     expect(answer.ok && answer.undo).toEqual({ do: "move", activity: c.remote_uuid, to: JOB, start: at(TOMORROW, "07:00"), end: at(TOMORROW, "15:00") });

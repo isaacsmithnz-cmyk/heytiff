@@ -1,5 +1,5 @@
 /* ONE SET OF DRAWINGS, ONE SCALE AND ONE NORTH (Isaac, 29 October 2026:
-   7 Cutler asked for its scale and its north twice, once a floor, though
+   7 Ipsum asked for its scale and its north twice, once a floor, though
    both floors are pages of the same A1 set at the same size).
 
    An architect's PDF prints its scale in the title block, "1:50 @ A1", and

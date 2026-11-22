@@ -20,7 +20,7 @@ CSS = v3.CSS + """
 .o-purple .st.info{color:var(--purple-w)} .o-purple .dt.info{background:var(--purple)}
 """
 
-JOBS = [("3342", "Rifkin, Julian", '<span class="st good">On site</span>'),
+JOBS = [("3342", "Fairweather, Jules", '<span class="st good">On site</span>'),
         ("3361", "Okafor, Ada", '<span class="st info">Quote to write</span>'),
         ("3323", "Northgate Realty", '<span class="st look">Waiting on a day</span>'),
         ("3401", "Tran, Mai", '<span class="st info">New enquiry</span>'),

@@ -35,7 +35,7 @@ export function factsKept(said: string, tidied: string): boolean {
 }
 
 /* An @ that starts a word, with what can carry a handle after it; an @
-   inside an address ("susie@peterson.com") names nobody and is left. */
+   inside an address ("susie@hollowell.com") names nobody and is left. */
 const MENTION = /(^|[^a-z0-9._%+-])@([a-z0-9.'-]+)/gi;
 
 /** The note with every @ that isn't a known handle taken off its word. */

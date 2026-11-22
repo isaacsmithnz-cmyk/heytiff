@@ -187,7 +187,7 @@ describe("the words around the fields", () => {
     normaliseDraft(base({ pricingMode: mode, options: [{ name: "Downstairs", lines: ["x"] }, { name: "Upstairs", lines: ["y"] }] }))!;
 
   it("builds one title pattern from the address, without state and postcode", () => {
-    expect(proposalTitle("37 Taleeban Rd\nRiverview NSW 2066")).toBe("Air Conditioning Scope – 37 Taleeban Rd, Riverview");
+    expect(proposalTitle("37 Officia Rd\nFakeview NSW 2066")).toBe("Air Conditioning Scope – 37 Officia Rd, Fakeview");
     expect(proposalTitle(null)).toBe("Air Conditioning Scope");
   });
 

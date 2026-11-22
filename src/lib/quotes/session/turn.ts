@@ -180,7 +180,7 @@ export const FILE_SEEN = "The file itself isn't kept once you've looked at it: w
 /** The conversation without the files she's already seen. A photo or a PDF
     rides in the one request after she asks to look at it, and is then
     dropped: kept, a drawing set was sent again every round and stored in
-    the session, 11 MB on 27 Milroy (16 October), and the turn after it
+    the session, 11 MB on 27 Proident (16 October), and the turn after it
     never finished. */
 export function withoutFiles(messages: readonly Msg[]): Msg[] {
   return messages.map((m) => {

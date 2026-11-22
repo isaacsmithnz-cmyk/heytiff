@@ -17,7 +17,7 @@ const summary = (over: Partial<SwmsSummary> = {}): SwmsSummary => ({
   versionId: "v-2",
   version: 2,
   issuedAt: "2026-09-16T07:42:00",
-  responsible: "Troy Porter",
+  responsible: "Troy Northam",
   signed: 1,
   total: 3,
   waitingOn: ["Dane Whitmore", "Kai Lindqvist"],
@@ -248,14 +248,14 @@ it("puts the tender folder an email pointed to under From the client, opening in
   const url = "https://watershedmanly-my.sharepoint.com/:f:/g/personal/x/abc?e=1";
   const open = jest.spyOn(window, "open").mockImplementation(() => null);
   face({
-    links: [{ url, name: "260917 Tender Issue", what: "OneDrive folder", emailId: "e1", from: "Shaheer Khan" }],
+    links: [{ url, name: "260917 Tender Issue", what: "OneDrive folder", emailId: "e1", from: "Sami Crestfield" }],
     documents: [item({ remoteId: "c1", name: "Plans rev C.pdf", origin: "Emailed in" })],
     onPick: () => {},
     picked: new Set(),
   });
   const client = group("From the client");
   expect(within(client).getAllByRole("listitem").map((li) => li.querySelector(".pt-row-name")?.textContent)).toEqual(["260917 Tender Issue", "Plans rev C.pdf"]);
-  expect(within(rowOf("260917 Tender Issue")).getByText("OneDrive folder, from Shaheer Khan's email")).toBeInTheDocument();
+  expect(within(rowOf("260917 Tender Issue")).getByText("OneDrive folder, from Sami Crestfield's email")).toBeInTheDocument();
   expect(within(rowOf("260917 Tender Issue")).queryByRole("checkbox")).toBeNull();
   await userEvent.click(screen.getByRole("button", { name: "260917 Tender Issue" }));
   expect(open).toHaveBeenCalledWith(url, "_blank", "noopener,noreferrer");
@@ -325,7 +325,7 @@ it("files the SWMS under Compliance as a row that opens it, with who it's still 
   /* revised, without a number someone new to the job never saw the start of */
   expect(within(row).queryByText(/version/)).toBeNull();
   expect(
-    within(row).getByText("Revised Wed 16 Sept, Troy Porter in charge, 1 of 3 signed on, waiting on Dane Whitmore and Kai Lindqvist")
+    within(row).getByText("Revised Wed 16 Sept, Troy Northam in charge, 1 of 3 signed on, waiting on Dane Whitmore and Kai Lindqvist")
   ).toBeInTheDocument();
   await userEvent.click(within(row).getByRole("button", { name: "Safe Work Method Statement" }));
   expect(onOpenSwms).toHaveBeenCalledWith(expect.objectContaining({ versionId: "v-2" }));
@@ -336,7 +336,7 @@ it("files the SWMS under Compliance as a row that opens it, with who it's still 
 
 it("says a first one was issued", () => {
   face({ swms: [summary({ version: 1 })] });
-  expect(screen.getByText(/^Issued Wed 16 Sept, Troy Porter in charge, /)).toBeInTheDocument();
+  expect(screen.getByText(/^Issued Wed 16 Sept, Troy Northam in charge, /)).toBeInTheDocument();
 });
 
 it("offers Sign on only to someone with something to sign", () => {
@@ -372,12 +372,12 @@ it("lists several people who raised issues the way a person would", () => {
         issues: [
           { name: "Dane Whitmore", issue: "a" },
           { name: "Kai Lindqvist", issue: "b" },
-          { name: "Piers Montgomery", issue: "c" },
+          { name: "Piers Underhill", issue: "c" },
         ],
       }),
     ],
   });
-  expect(screen.getByText("3 issues raised, by Dane Whitmore, Kai Lindqvist and Piers Montgomery")).toBeInTheDocument();
+  expect(screen.getByText("3 issues raised, by Dane Whitmore, Kai Lindqvist and Piers Underhill")).toBeInTheDocument();
 });
 
 /* ── the business's papers ─────────────────────────────────────────────── */
@@ -623,26 +623,26 @@ it("keeps a certificate with the SWMS and the licences, never in Files", () => {
 
 import type { JobPlanRead } from "@/lib/jobs/plans";
 
-const suttor: JobMediaItem = {
-  remoteId: "att-suttor",
-  name: "90 bondi BEACH- Suttor.pdf",
+const fictor: JobMediaItem = {
+  remoteId: "att-fictor",
+  name: "90 fictonia BEACH- Fictor.pdf",
   fileType: ".pdf",
   kind: "document",
   origin: "Emailed in",
   takenAt: "2026-10-22 07:47:08",
-  url: "https://example.invalid/suttor.pdf",
+  url: "https://example.invalid/fictor.pdf",
   width: null,
   height: null,
   fromClaim: null,
 };
-const photoDoc: JobMediaItem = { ...suttor, remoteId: "doc:d-2", documentId: "d-2", name: "image.png", fileType: ".png", origin: null, addedBy: "Isaac Smith", url: "https://example.invalid/image.png" };
+const photoDoc: JobMediaItem = { ...fictor, remoteId: "doc:d-2", documentId: "d-2", name: "image.png", fileType: ".png", origin: null, addedBy: "Isaac Smith", url: "https://example.invalid/image.png" };
 
 const readPlan = (over: Partial<JobPlanRead> = {}): JobPlanRead => ({
   id: "jplan_1",
   jobUuid: "job-1",
   documentId: null,
-  attachmentId: "att-suttor",
-  name: suttor.name,
+  attachmentId: "att-fictor",
+  name: fictor.name,
   sourceRef: "org/o/plan_src.pdf",
   sourceKind: "pdf",
   pageCount: 4,
@@ -662,10 +662,10 @@ const readPlan = (over: Partial<JobPlanRead> = {}): JobPlanRead => ({
 });
 
 it("lists a plan in Plans, first, with the floors Tiff found under it and Read on its right, and not in From the client too", () => {
-  face({ documents: [suttor, photoDoc], plans: [readPlan()], designs: [{ id: "d1", name: "90 O'Brien Street", mode: "plan", floorCount: 2, systemCount: 1, updatedAt: "2026-10-22T01:09:47Z" }] });
+  face({ documents: [fictor, photoDoc], plans: [readPlan()], designs: [{ id: "d1", name: "90 Dreamer Street", mode: "plan", floorCount: 2, systemCount: 1, updatedAt: "2026-10-22T01:09:47Z" }] });
   const groups = screen.getAllByRole("region").map((g) => g.getAttribute("aria-label"));
   expect(groups.slice(0, 3)).toEqual(["Plans", "Drawings", "Files"]);
-  const row = within(group("Plans")).getByText(suttor.name).closest(".pt-row") as HTMLElement;
+  const row = within(group("Plans")).getByText(fictor.name).closest(".pt-row") as HTMLElement;
   expect(row).toHaveTextContent("Emailed in, Thu 22 Oct. Ground floor and Level 1, read on Mon 9 Nov. Used by 2 designs");
   expect(within(row).getByText("Read")).toBeInTheDocument();
   expect(within(row).getByRole("img", { name: "Ground floor, page 3" })).toHaveAttribute("src", "https://example.invalid/t3.jpg");
@@ -676,8 +676,8 @@ it("lists a plan in Plans, first, with the floors Tiff found under it and Read o
 });
 
 it("says Tiff is reading a plan just added, and what needs a look", () => {
-  face({ documents: [suttor], plans: [readPlan({ state: "reading", reading: null, readAt: null, pages: [], thumbs: {}, usedBy: 0 })], today: "2026-11-09" });
-  const row = within(group("Plans")).getByText(suttor.name).closest(".pt-row") as HTMLElement;
+  face({ documents: [fictor], plans: [readPlan({ state: "reading", reading: null, readAt: null, pages: [], thumbs: {}, usedBy: 0 })], today: "2026-11-09" });
+  const row = within(group("Plans")).getByText(fictor.name).closest(".pt-row") as HTMLElement;
   expect(row).toHaveTextContent("Added to Plans by Isaac Smith today");
   expect(within(row).getByText("Reading the plans")).toBeInTheDocument();
   expect(within(row).queryByRole("img")).toBeNull();
@@ -685,18 +685,18 @@ it("says Tiff is reading a plan just added, and what needs a look", () => {
 
 it("puts Add plans first in Add, and opens it on the job's files with a tick each", async () => {
   const onAddPlans = jest.fn(async () => null);
-  face({ documents: [suttor, photoDoc], plans: [], onAddPlans, onUpload: async () => null });
+  face({ documents: [fictor, photoDoc], plans: [], onAddPlans, onUpload: async () => null });
   const menu = await addMenu();
   const items = within(menu).getAllByRole("menuitem").map((i) => i.textContent);
   expect(items[0]).toBe("Add plans");
   expect(items[1]).toBe("Upload a file");
   await userEvent.click(within(menu).getByRole("menuitem", { name: "Add plans" }));
   const dialog = await screen.findByRole("dialog", { name: "Add plans" });
-  expect(within(dialog).getByRole("checkbox", { name: `Add ${suttor.name}` })).not.toBeChecked();
+  expect(within(dialog).getByRole("checkbox", { name: `Add ${fictor.name}` })).not.toBeChecked();
   expect(within(dialog).getByRole("button", { name: "Add plans" })).toBeDisabled();
-  await userEvent.click(within(dialog).getByRole("checkbox", { name: `Add ${suttor.name}` }));
+  await userEvent.click(within(dialog).getByRole("checkbox", { name: `Add ${fictor.name}` }));
   await userEvent.click(within(dialog).getByRole("button", { name: "Add 1 plan" }));
-  await waitFor(() => expect(onAddPlans).toHaveBeenCalledWith([{ attachmentId: "att-suttor" }]));
+  await waitFor(() => expect(onAddPlans).toHaveBeenCalledWith([{ attachmentId: "att-fictor" }]));
   await waitFor(() => expect(screen.queryByRole("dialog", { name: "Add plans" })).toBeNull());
 });
 
@@ -711,10 +711,10 @@ it("offers no Add plans while nothing on the job can be read as one and nothing 
 
 const sketchRoom = (name: string) => ({ name, named: true, kind: "room" as const, outline: [], written: "", existing: false, openTo: "", stair: "" });
 it("keeps a set a later one replaced, grey, saying by which and that a design still uses it, with nothing under it", () => {
-  const issueH: JobMediaItem = { ...suttor, remoteId: "att-h", name: "Tender Issue H.pdf" };
+  const issueH: JobMediaItem = { ...fictor, remoteId: "att-h", name: "Tender Issue H.pdf" };
   const h = readPlan({ id: "jplan_h", attachmentId: "att-h", name: issueH.name, addedAt: "2026-12-02T01:00:00Z", usedBy: 0 });
-  face({ documents: [suttor, issueH], plans: [h, readPlan()] });
-  const old = within(group("Plans")).getByText(suttor.name).closest(".pt-row") as HTMLElement;
+  face({ documents: [fictor, issueH], plans: [h, readPlan()] });
+  const old = within(group("Plans")).getByText(fictor.name).closest(".pt-row") as HTMLElement;
   expect(old).toHaveTextContent("Replaced by Tender Issue H.pdf on Wed 2 Dec, and kept: 2 designs still use it");
   expect(within(old).getByText("Replaced")).toBeInTheDocument();
   expect(within(old).queryByRole("img")).toBeNull();
@@ -735,8 +735,8 @@ const sketch = (over: Partial<JobPlanRead["pages"][number]> = {}): JobPlanRead =
 it("says Scale needed on a plan with no scale to be had, and sets it from two points and a length", async () => {
   const onPageForScale = jest.fn(async () => ({ url: "https://example.invalid/p1.png", width: 2000, height: 1200, at: null }));
   const onSetScale = jest.fn(async () => null);
-  face({ documents: [suttor], plans: [sketch()], onPageForScale, onSetScale });
-  const row = within(group("Plans")).getByText(suttor.name).closest(".pt-row") as HTMLElement;
+  face({ documents: [fictor], plans: [sketch()], onPageForScale, onSetScale });
+  const row = within(group("Plans")).getByText(fictor.name).closest(".pt-row") as HTMLElement;
   expect(within(row).getByText("Scale needed")).toBeInTheDocument();
   expect(row).toHaveTextContent("No scale on the plan, so the rooms have no sizes");
   await userEvent.click(within(row).getByRole("button", { name: "Set scale" }));
@@ -763,8 +763,8 @@ it("offers Check scale on a scale resting on one figure, opened on her figure, a
   const at = { a: { x: 200, y: 600 }, b: { x: 944, y: 600 }, mm: 7440 };
   const onPageForScale = jest.fn(async () => ({ url: "https://example.invalid/p1.png", width: 2000, height: 1200, at }));
   const onSetScale = jest.fn(async () => "The scale couldn't be saved. Try again.");
-  face({ documents: [suttor], plans: [sketch({ measured: { mmPerPx: 10, from: "the 7440 mm printed on it", sure: false, at } })], onPageForScale, onSetScale });
-  const row = within(group("Plans")).getByText(suttor.name).closest(".pt-row") as HTMLElement;
+  face({ documents: [fictor], plans: [sketch({ measured: { mmPerPx: 10, from: "the 7440 mm printed on it", sure: false, at } })], onPageForScale, onSetScale });
+  const row = within(group("Plans")).getByText(fictor.name).closest(".pt-row") as HTMLElement;
   expect(within(row).getByText("Read")).toBeInTheDocument();
   expect(row).toHaveTextContent("Scaled off one printed figure, the 7440 mm");
   await userEvent.click(within(row).getByRole("button", { name: "Check scale" }));
@@ -776,11 +776,11 @@ it("offers Check scale on a scale resting on one figure, opened on her figure, a
 });
 
 it("asks nothing of a plan whose scale is sure, and offers no button where it can't be saved", () => {
-  face({ documents: [suttor], plans: [sketch({ measured: { mmPerPx: 10, from: "the 7440, 3300 and 2400 mm printed on it", sure: true } })], onPageForScale: async () => null, onSetScale: async () => null });
+  face({ documents: [fictor], plans: [sketch({ measured: { mmPerPx: 10, from: "the 7440, 3300 and 2400 mm printed on it", sure: true } })], onPageForScale: async () => null, onSetScale: async () => null });
   expect(screen.queryByRole("button", { name: "Set scale" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Check scale" })).toBeNull();
   cleanup();
-  face({ documents: [suttor], plans: [sketch()] });
+  face({ documents: [fictor], plans: [sketch()] });
   expect(screen.getByText("Scale needed")).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Set scale" })).toBeNull();
 });
@@ -788,8 +788,8 @@ it("asks nothing of a plan whose scale is sure, and offers no button where it ca
 it("offers Choose floors on a set she isn't sure of, opening Plans on it, and saves the floor picked", async () => {
   const onChooseFloors = jest.fn(async () => null);
   const unsure = readPlan({ state: "check", said: "Page 4 has no rooms on it, so it may not be a floor plan", thumbs: { 3: "https://example.invalid/t3.jpg", 4: "https://example.invalid/t4.jpg" } });
-  face({ documents: [suttor], plans: [unsure], onChooseFloors });
-  const row = within(group("Plans")).getByText(suttor.name).closest(".pt-row") as HTMLElement;
+  face({ documents: [fictor], plans: [unsure], onChooseFloors });
+  const row = within(group("Plans")).getByText(fictor.name).closest(".pt-row") as HTMLElement;
   expect(within(row).getByText("Check the read")).toBeInTheDocument();
   await userEvent.click(within(row).getByRole("button", { name: "Choose floors" }));
   const dialog = await screen.findByRole("dialog", { name: "Plans" });
@@ -805,18 +805,18 @@ it("offers Choose floors on a set she isn't sure of, opening Plans on it, and sa
 });
 
 it("offers no Choose floors on a plan she read sure, or where it can't be saved", () => {
-  face({ documents: [suttor], plans: [readPlan()], onChooseFloors: async () => null });
+  face({ documents: [fictor], plans: [readPlan()], onChooseFloors: async () => null });
   expect(screen.queryByRole("button", { name: "Choose floors" })).toBeNull();
   cleanup();
-  face({ documents: [suttor], plans: [readPlan({ state: "check", said: "x" })] });
+  face({ documents: [fictor], plans: [readPlan({ state: "check", said: "x" })] });
   expect(screen.queryByRole("button", { name: "Choose floors" })).toBeNull();
 });
 
 it("offers Read again on a set that couldn't be read, and says why where it can't be", async () => {
   /* 3570, 20 November 2026: a set that failed before a fix had no way back but adding it anew */
   const onReadPlanAgain = jest.fn(async () => null as string | null);
-  face({ documents: [suttor], plans: [readPlan({ state: "failed", said: "Failed to fetch", reading: null, pages: [] })], onReadPlanAgain });
-  const row = within(group("Plans")).getByText(suttor.name).closest(".pt-row") as HTMLElement;
+  face({ documents: [fictor], plans: [readPlan({ state: "failed", said: "Failed to fetch", reading: null, pages: [] })], onReadPlanAgain });
+  const row = within(group("Plans")).getByText(fictor.name).closest(".pt-row") as HTMLElement;
   expect(within(row).getByText("Not read")).toBeInTheDocument();
   /* the reason whole, on a line of its own under the row, never faded at its edge */
   expect(row.querySelector(".jpl-below .pt-row-line")).toHaveTextContent("Couldn't be read: Failed to fetch");
@@ -828,8 +828,8 @@ it("offers Read again on a set that couldn't be read, and says why where it can'
 });
 
 it("shows how far she's got under a plan being read", () => {
-  face({ documents: [suttor], plans: [readPlan({ state: "reading", reading: null, pages: [], progress: { step: "drawing", done: 11, total: 27 } })] });
-  const row = within(group("Plans")).getByText(suttor.name).closest(".pt-row") as HTMLElement;
+  face({ documents: [fictor], plans: [readPlan({ state: "reading", reading: null, pages: [], progress: { step: "drawing", done: 11, total: 27 } })] });
+  const row = within(group("Plans")).getByText(fictor.name).closest(".pt-row") as HTMLElement;
   const bar = within(row).getByRole("progressbar", { name: "Reading the plans" });
   expect(bar).toHaveAttribute("aria-valuetext", "Drawing page 12 of 27");
   expect(within(row).getByText("Drawing page 12 of 27")).toBeInTheDocument();
@@ -837,26 +837,26 @@ it("shows how far she's got under a plan being read", () => {
 
 it("offers Read again on a plan that read, but not on one being read, or where it can't be asked", () => {
   /* a set read on an older reader is read again whole (3570, 20 November 2026) */
-  face({ documents: [suttor], plans: [readPlan()], onReadPlanAgain: async () => null });
+  face({ documents: [fictor], plans: [readPlan()], onReadPlanAgain: async () => null });
   expect(screen.getByRole("button", { name: "Read again" })).toBeInTheDocument();
   cleanup();
-  face({ documents: [suttor], plans: [readPlan({ state: "reading", reading: null, pages: [] })], onReadPlanAgain: async () => null });
+  face({ documents: [fictor], plans: [readPlan({ state: "reading", reading: null, pages: [] })], onReadPlanAgain: async () => null });
   expect(screen.queryByRole("button", { name: "Read again" })).toBeNull();
   cleanup();
-  face({ documents: [suttor], plans: [readPlan({ state: "failed", said: "x", reading: null, pages: [] })] });
+  face({ documents: [fictor], plans: [readPlan({ state: "failed", said: "x", reading: null, pages: [] })] });
   expect(screen.queryByRole("button", { name: "Read again" })).toBeNull();
 });
 
 /* the plans on Scope, the papers on Files (Isaac, 15 November 2026: "Plans move too") */
 it("draws the plans alone on Scope, with Add plans, and Files without them", async () => {
   const onAddPlans = jest.fn(async () => null);
-  const first = face({ documents: [suttor, photoDoc], plans: [readPlan()], onAddPlans, onUpload: async () => null, part: "plans" });
+  const first = face({ documents: [fictor, photoDoc], plans: [readPlan()], onAddPlans, onUpload: async () => null, part: "plans" });
   expect(screen.getByRole("heading", { name: "Plans" })).toBeInTheDocument();
-  expect(screen.getByText(suttor.name)).toBeInTheDocument();
+  expect(screen.getByText(fictor.name)).toBeInTheDocument();
   expect(screen.queryByText("image.png")).toBeNull();
   expect(screen.getByRole("button", { name: "Add plans" })).toBeInTheDocument();
   first.unmount();
-  face({ documents: [suttor, photoDoc], plans: [readPlan()], onAddPlans, onUpload: async () => null, part: "papers" });
+  face({ documents: [fictor, photoDoc], plans: [readPlan()], onAddPlans, onUpload: async () => null, part: "papers" });
   expect(screen.queryByRole("region", { name: "Plans" })).toBeNull();
   const items = within(await addMenu()).getAllByRole("menuitem").map((i) => i.textContent);
   expect(items).not.toContain("Add plans");

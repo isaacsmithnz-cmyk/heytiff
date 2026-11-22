@@ -160,7 +160,7 @@ describe("sheet placement + allocation", () => {
     expect(floors[0].level).toBe(0);
   });
 
-  describe("a new floor is named by its plan as it is named at commit (6 Bishops Ave, 2026-10-15)", () => {
+  describe("a new floor is named by its plan as it is named at commit (6 Nostrud Ave, 2026-10-15)", () => {
     const two = uploadsFor([sheet("Page 4", 4), sheet("Page 5", 5)], [3, 4]);
 
     it("a page renamed after it was placed commits under its new name", () => {
@@ -687,7 +687,7 @@ describe("splitFloorOffSheet", () => {
     const split = (d: DesignDocument, other: SheetRegion = top) => run({ keep: bottom, other }, d);
 
     it("an outdoor placed in the top half before the split ends up on the new floor", () => {
-      // 48 Thorne St: the outdoor stayed behind on the faded half, out of reach
+      // 48 Laborum St: the outdoor stayed behind on the faded half, out of reach
       const d = mk();
       d.objects.push(point("odu", "unit", 1500, 200, { role: "odu" }));
       expect(floorOf(split(d), "odu")).toBe("flr_new");

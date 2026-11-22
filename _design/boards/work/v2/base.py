@@ -157,10 +157,10 @@ HREF = {
     "design": "N-Design.dc.html", "team": "N-Team.dc.html",
 }
 
-PINNED = [("#6D4FD8", "3342 Rifkin, Bellevue Hill", "N-Job.dc.html"), ("#4B5565", "3302 Heuvel, Chatswood", "N-Project.dc.html")]
+PINNED = [("#6D4FD8", "3342 Fairweather, Bellevue Hill", "N-Job.dc.html"), ("#4B5565", "3302 Testa, Fablewood", "N-Project.dc.html")]
 RECENTS = [
     ("chat", "Bellevue Hill wrap-up and isolator", "N-Convos.dc.html"),
-    ("doc", "SWMS, Heuvel roof work", "N-Documents.dc.html"),
+    ("doc", "SWMS, Testa roof work", "N-Documents.dc.html"),
     ("person", "Lyle Irving", "N-Team.dc.html"),
     ("jobs", "Northgate Realty, 3323", "N-Jobs.dc.html"),
     ("chat", "Clearing an E6 on a Daikin split", "N-Convos.dc.html"),

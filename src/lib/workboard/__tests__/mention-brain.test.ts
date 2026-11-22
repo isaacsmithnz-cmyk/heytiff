@@ -104,7 +104,7 @@ const ask: AskInput = {
   text: "Please call Mary to discuss",
   asker: "Lyle Irving",
   person: "Isaac Smith",
-  job: "2041 Wollstonecraft",
+  job: "2041 Testcraft",
   at: "2026-09-21 13:42:10",
   before: [],
   tasks: [],
@@ -113,19 +113,19 @@ const ask: AskInput = {
 const reply: ReplyInput = {
   ask: "Please call Mary to discuss",
   kind: "do",
-  task: "Call Mary about 2041 Wollstonecraft",
+  task: "Call Mary about 2041 Testcraft",
   others: [],
   asker: "Lyle Irving",
   person: "Isaac Smith",
-  job: "2041 Wollstonecraft",
+  job: "2041 Testcraft",
   replies: [{ text: "calling her this afternoon", at: "2026-09-22 15:10:00" }],
 };
 
 describe("reading an ask", () => {
   it("goes to the router's model with its own small schema, the ask's prompt, and the note quoted", async () => {
-    answer = { kind: "do", title: "Call Mary about 2041 Wollstonecraft", due_date: "" };
+    answer = { kind: "do", title: "Call Mary about 2041 Testcraft", due_date: "" };
     const read = await readAsk(ask);
-    expect(read).toEqual({ ok: true, read: { kind: "do", title: "Call Mary about 2041 Wollstonecraft", dueDate: null } });
+    expect(read).toEqual({ ok: true, read: { kind: "do", title: "Call Mary about 2041 Testcraft", dueDate: null } });
 
     expect(sent).toHaveLength(1);
     const body = sent[0];
@@ -134,7 +134,7 @@ describe("reading an ask", () => {
     expect(body.system).toBe(askSystemPrompt("Isaac"));
     expect(body.messages).toEqual([{ role: "user", content: askContent(ask) }]);
     expect(body.messages[0].content).toContain("<<<\nPlease call Mary to discuss\n>>>");
-    expect(body.messages[0].content).toContain("Job: 2041 Wollstonecraft");
+    expect(body.messages[0].content).toContain("Job: 2041 Testcraft");
     // the day it was written, with its weekday, so "Friday" has one answer
     expect(body.messages[0].content).toContain("Written: Monday 21 September 2026 (2026-09-21)");
   });
@@ -158,16 +158,16 @@ describe("reading an ask", () => {
         { who: "Lyle Irving", text: "Please call Mary to discuss" },
         { who: "Isaac Smith", text: "calling her this afternoon" },
       ],
-      tasks: ["Call Mary about 2041 Wollstonecraft"],
+      tasks: ["Call Mary about 2041 Testcraft"],
     });
     expect(content).toContain(
       "Earlier in this conversation, oldest first:\n- Lyle Irving: Please call Mary to discuss\n- Isaac Smith: calling her this afternoon",
     );
-    expect(content).toContain("Tasks already made from this conversation:\n- Call Mary about 2041 Wollstonecraft");
+    expect(content).toContain("Tasks already made from this conversation:\n- Call Mary about 2041 Testcraft");
     expect(askSystemPrompt("Isaac")).toMatch(/only repeats\s+or chases an ask this\s+conversation already made a task of/);
   });
 
-  /* The real read of 2026-09-26: Alex's note on 2778 Queenscliff asked
+  /* The real read of 2026-09-26: Alex's note on 2778 Mockcliff asked
      Lyle for one thing and Isaac for another, and was read (quoted, with
      the addressing out) as one task for Isaac with Lyle's half in it. The
      reader here gives that bad reading unless the request says who each
@@ -175,10 +175,10 @@ describe("reading an ask", () => {
   it("reads a note written to several people as each part to its own, and titles only what it asks of the person", async () => {
     const both = {
       kind: "do",
-      title: "Send warranty documents with the invoice and pass House by Rivers contact to David for 2778 Queenscliff",
+      title: "Send warranty documents with the invoice and pass House by Rivers contact to David for 2778 Mockcliff",
       due_date: "",
     };
-    const his = { kind: "do", title: "Send House by Rivers contact to David for 2778 Queenscliff", due_date: "" };
+    const his = { kind: "do", title: "Send House by Rivers contact to David for 2778 Mockcliff", due_date: "" };
     respond = (b) =>
       /only what it\s+asks of Isaac is their task, and what it asks of anyone else never goes\s+into the title/.test(b.system) &&
       b.messages[0].content.includes("Lyle when you send invoice")
@@ -187,7 +187,7 @@ describe("reading an ask", () => {
     const read = await readAsk({
       ...ask,
       asker: "Alex Morozoff",
-      job: "2778 Queenscliff",
+      job: "2778 Mockcliff",
       at: "2026-05-19 14:01:58",
       text:
         "Lyle when you send invoice can you please send through warranty stuff\n\n" +
@@ -204,7 +204,7 @@ describe("reading an ask", () => {
     expect(sent[0].messages[0].content).toContain('To: Mary Anne Smith ("Mary Anne")');
   });
 
-  /* The same read: David's report from 1383 Darling Point ("2x Drains need
+  /* The same read: David's report from 1383 Pretend Point ("2x Drains need
      to be fit off … Chris needs to talk to the plumber") asked Isaac
      nothing, and was filed as "Fit off 2x drains". */
   it("reads a report from the job — what was done, what's still to do, what someone else will do — as asking nothing", async () => {
@@ -213,11 +213,11 @@ describe("reading an ask", () => {
         b.system,
       ) && /never make them a task out\s+of work the writer or someone else will do/.test(b.system)
         ? { kind: "none", title: "", due_date: "" }
-        : { kind: "do", title: "Fit off 2x drains at 1383 Darling Point", due_date: "" };
+        : { kind: "do", title: "Fit off 2x drains at 1383 Pretend Point", due_date: "" };
     const read = await readAsk({
       ...ask,
       asker: "David Hanby",
-      job: "1383 Darling Point",
+      job: "1383 Pretend Point",
       at: "2026-07-21 15:13:53",
       text:
         "2x Drains need to be fit off , I had no hose with me and Chris needs to talk to the plumber about the " +
@@ -228,7 +228,7 @@ describe("reading an ask", () => {
 
   /* The re-check of 2026-09-26: the same report as the settle reads it
      now, "Isaac" in front as David addressed it, was filed as "Fit off 2
-     drains at 1383 Darling Point" on all three reads, though the same words
+     drains at 1383 Pretend Point" on all three reads, though the same words
      without the name came back none. The name only says who it is to; the
      reader here takes it for an order unless the prompt says so. */
   it("never takes the person's name at the head of a report for an ask of them", async () => {
@@ -237,24 +237,24 @@ describe("reading an ask", () => {
         b.system,
       )
         ? { kind: "none", title: "", due_date: "" }
-        : { kind: "do", title: "Fit off 2 drains at 1383 Darling Point", due_date: "" };
+        : { kind: "do", title: "Fit off 2 drains at 1383 Pretend Point", due_date: "" };
     const text =
       "Isaac \n2x Drains need to be fit off , I had no hose with me and Chris needs to talk to the plumber about the " +
       "drain in the laundry first , I fit off the temporary wall control into the cabinet";
-    const read = await readAsk({ ...ask, asker: "David Hanby", first: "Isaac", job: "1383 Darling Point", at: "2026-07-21 15:13:53", text });
+    const read = await readAsk({ ...ask, asker: "David Hanby", first: "Isaac", job: "1383 Pretend Point", at: "2026-07-21 15:13:53", text });
     expect(read).toEqual({ ok: true, read: { kind: "none", title: "", dueDate: null } });
     // the note is read as written, the name in front kept
     expect(sent[0].messages[0].content).toContain(`<<<\n${text}\n>>>`);
   });
 
-  /* Kept a task by the same change: David's report on 2543 Kirribilli, to
+  /* Kept a task by the same change: David's report on 2543 Exampleton, to
      Isaac alone, said the access panels "we still need to purchase" and
      their sizes, and the real reads made it "Order access panels". A name
      in front no longer makes a report an ask, so the reader here gives it
      none unless the prompt says what is still to be bought is theirs to
      order. */
   it("still makes a task of materials a report says are still to be bought, with nobody named to buy them", async () => {
-    const order = { kind: "do", title: "Order access panels for 2543 Kirribilli - 3 x 450x450, 2 x 300x300", due_date: "" };
+    const order = { kind: "do", title: "Order access panels for 2543 Exampleton - 3 x 450x450, 2 x 300x300", due_date: "" };
     respond = (b) =>
       /Materials a report says are still to be bought for the\s+job, with nobody named to buy them, are theirs to order: that is do\./.test(b.system)
         ? order
@@ -263,7 +263,7 @@ describe("reading an ask", () => {
       ...ask,
       asker: "David Hanby",
       first: "Isaac",
-      job: "2543 Kirribilli",
+      job: "2543 Exampleton",
       at: "2026-04-09 15:34:17",
       text:
         "Isaac \nAll the access panels have been cut out and I have installed timber on 4 sides of each hole to " +
@@ -367,29 +367,29 @@ describe("what kind of failure it was", () => {
 describe("in English, checked", () => {
   it("repairs a title that came back in another language, and files the English", async () => {
     queue = [
-      { kind: "do", title: "Llamar a Mary sobre el trabajo de 2041 Wollstonecraft", due_date: "" },
-      { translations: ["Call Mary about the job at 2041 Wollstonecraft."] },
+      { kind: "do", title: "Llamar a Mary sobre el trabajo de 2041 Testcraft", due_date: "" },
+      { translations: ["Call Mary about the job at 2041 Testcraft."] },
     ];
     const read = await readAsk(ask);
     expect(read).toEqual({
       ok: true,
-      read: { kind: "do", title: "Call Mary about the job at 2041 Wollstonecraft", dueDate: null },
+      read: { kind: "do", title: "Call Mary about the job at 2041 Testcraft", dueDate: null },
     });
     expect(sent).toHaveLength(2);
-    expect(sent[1].messages[0].content).toContain("Llamar a Mary sobre el trabajo de 2041 Wollstonecraft");
+    expect(sent[1].messages[0].content).toContain("Llamar a Mary sobre el trabajo de 2041 Testcraft");
   });
 
   it("makes no second request for a title already in English", async () => {
-    answer = { kind: "do", title: "Call Mary about 2041 Wollstonecraft", due_date: "" };
+    answer = { kind: "do", title: "Call Mary about 2041 Testcraft", due_date: "" };
     await readAsk(ask);
     expect(sent).toHaveLength(1);
   });
 
   it("keeps the words it had when the repair fails", async () => {
-    queue = [{ kind: "do", title: "Llamar a Mary sobre el trabajo de 2041 Wollstonecraft", due_date: "" }, 500];
+    queue = [{ kind: "do", title: "Llamar a Mary sobre el trabajo de 2041 Testcraft", due_date: "" }, 500];
     expect(await readAsk(ask)).toEqual({
       ok: true,
-      read: { kind: "do", title: "Llamar a Mary sobre el trabajo de 2041 Wollstonecraft", dueDate: null },
+      read: { kind: "do", title: "Llamar a Mary sobre el trabajo de 2041 Testcraft", dueDate: null },
     });
   });
 
@@ -415,9 +415,9 @@ describe("shaping an ask", () => {
   });
 
   it("keeps a question as a question, and drops the title and day of a none", () => {
-    expect(shapeAsk({ kind: "question", title: "Tell Lyle how many fans for 3294 Rozelle", due_date: "" }, ask.at)).toEqual({
+    expect(shapeAsk({ kind: "question", title: "Tell Lyle how many fans for 3294 Mockzelle", due_date: "" }, ask.at)).toEqual({
       kind: "question",
-      title: "Tell Lyle how many fans for 3294 Rozelle",
+      title: "Tell Lyle how many fans for 3294 Mockzelle",
       dueDate: null,
     });
     expect(shapeAsk({ kind: "none", title: "Thank Lyle", due_date: "2026-09-22" }, ask.at)).toEqual({
@@ -431,8 +431,8 @@ describe("shaping an ask", () => {
     const long = shapeAsk({ kind: "do", title: `Call   Mary\nabout ${"x".repeat(300)}.`, due_date: "" }, ask.at);
     expect(long.title.length).toBe(TITLE_MAX);
     expect(long.title).toMatch(/^Call Mary about x+…$/);
-    expect(shapeAsk({ kind: "do", title: "Call Mary about 2041 Wollstonecraft.", due_date: "" }, ask.at).title).toBe(
-      "Call Mary about 2041 Wollstonecraft",
+    expect(shapeAsk({ kind: "do", title: "Call Mary about 2041 Testcraft.", due_date: "" }, ask.at).title).toBe(
+      "Call Mary about 2041 Testcraft",
     );
   });
 
@@ -459,7 +459,7 @@ describe("reading your replies", () => {
     const body = sent[0];
     expect(body.output_config.format).toEqual({ type: "json_schema", schema: REPLY_SCHEMA });
     expect(body.system).toBe(replySystemPrompt());
-    expect(body.messages[0].content).toContain("The task it became: Call Mary about 2041 Wollstonecraft");
+    expect(body.messages[0].content).toContain("The task it became: Call Mary about 2041 Testcraft");
     expect(body.messages[0].content).toContain(
       "Reply 1, written Tuesday 22 September 2026 (2026-09-22):\n<<<\ncalling her this afternoon\n>>>",
     );
@@ -482,8 +482,8 @@ describe("reading your replies", () => {
   });
 
   it("names the conversation's other open tasks, so a reply about one of them is not about this one", () => {
-    const content = replyContent({ ...reply, others: ["Quote the ducting for 2041 Wollstonecraft"] });
-    expect(content).toContain("Their other open tasks from this conversation:\n- Quote the ducting for 2041 Wollstonecraft");
+    const content = replyContent({ ...reply, others: ["Quote the ducting for 2041 Testcraft"] });
+    expect(content).toContain("Their other open tasks from this conversation:\n- Quote the ducting for 2041 Testcraft");
     expect(replyContent(reply)).not.toContain("other open tasks");
     expect(replySystemPrompt()).toMatch(/none: the replies are about something else, such as one of the other tasks/);
   });

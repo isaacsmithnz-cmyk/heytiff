@@ -157,8 +157,8 @@ def mark_svg(color="#fff"):
 def sidebar(home_on=True, convo_on=False):
     nav = [("home", "Home", "3"), ("chat", "Conversations", ""), ("jobs", "Jobs", ""), ("cal", "Schedule", ""), ("doc", "Documents", ""), ("lib", "Library", ""), ("design", "Design", ""), ("team", "Team", "")]
     rows = "".join(f'<a class="sr{" on" if (k == "home" and home_on) else ""}" href="#">{ico(k)}{n}{f"<span class=r>{c}</span>" if c else ""}</a>' for k, n, c in nav)
-    pinned = "".join(f'<a class="rc" href="#"><span class="sq" style="background:{c}"></span><span class="tx">{x}</span></a>' for c, x in [("#6D4FD8", "3342 Rifkin, Bellevue Hill"), ("#4B5565", "3302 Heuvel, Chatswood")])
-    rec_items = [("chat", "Riverview brief"), ("doc", "SWMS, Heuvel roof work"), ("person", "Lyle Irving"), ("jobs", "Northgate Realty, 3323"), ("chat", "Clearing an E6 on a Daikin split")]
+    pinned = "".join(f'<a class="rc" href="#"><span class="sq" style="background:{c}"></span><span class="tx">{x}</span></a>' for c, x in [("#6D4FD8", "3342 Fairweather, Bellevue Hill"), ("#4B5565", "3302 Testa, Fablewood")])
+    rec_items = [("chat", "Fakeview brief"), ("doc", "SWMS, Testa roof work"), ("person", "Lyle Irving"), ("jobs", "Northgate Realty, 3323"), ("chat", "Clearing an E6 on a Daikin split")]
     rec = "".join(f'<a class="rc{" on" if (convo_on and n == 0) else ""}" href="#">{ico(k)}<span class="tx">{x}</span></a>' for n, (k, x) in enumerate(rec_items))
     return f'''<aside class="sd">
   <div class="br">{mark_svg()}<b>Hey<span>Tiff</span></b><span style="flex:1"></span><span class="qd">{ico("panel")}</span></div>
@@ -176,14 +176,14 @@ TODAY = [
     ("done", "7:30 to 8:30", "#B4C5EE", "Kingsford Bakery, Job 2380", "Service, you", '<span class="s ok" style="font-weight:600">Done</span>'),
     ("now", "9:00 to 11:30", "#6D4FD8", "Bellevue Hill, Job 3342", "Two Daikin splits, Lyle and Callum", '<span class="s ok" style="font-weight:600">On now</span>'),
     ("task", "By 12:30", "#B6BCC6", "Order the grilles", "Task, for Bellevue Hill", '<span class="tk"></span>'),
-    ("", "12:45 to 1:45", "#3D8620", "Alexandria, Job 1042", "Meridian Data, service, Dan", ""),
-    ("", "2:45 to 4:00", "#8A6A00", "Randwick, Job 3271", "Randwick Dental, service, you", ""),
+    ("", "12:45 to 1:45", "#3D8620", "Exampleria, Job 1042", "Meridian Data, service, Dan", ""),
+    ("", "2:45 to 4:00", "#8A6A00", "Madeupton, Job 3271", "Madeupton Dental, service, you", ""),
 ]
 TODO = [
     ("dot", "#e0264f", "Hilux XQG 41B rego", "Runs out today", "Renew", True),
     ("dot", "#F0A431", "Kingsford Bakery, 2380", "Finished, ready to invoice", "Invoice", False),
     ("dot", "#F0A431", "Timesheets, last week", "4 to approve, 150.5 hours", "Review", False),
-    ("dot", "#2554d8", "Quote to write: Riverview", "Brief saved yesterday, 8:40 am", "Quote", False),
+    ("dot", "#2554d8", "Quote to write: Fakeview", "Brief saved yesterday, 8:40 am", "Quote", False),
     ("task", "", "Ring the Hilux dealer", "From your note yesterday", None, False),
 ]
 
@@ -237,10 +237,10 @@ def convo(phone=False):
     def t(body, working=False):
         return f'<div class="msg-t">{tiff(tsize, working)}<div class="bd">{body}</div></div>'
     return "".join([
-        me("Just been to Riverview. They want a split in the main bedroom, back to back with the study. Don't have time to quote it now, save that as the brief.", "Spoken, 8:40 am"),
+        me("Just been to Fakeview. They want a split in the main bedroom, back to back with the study. Don't have time to quote it now, save that as the brief.", "Spoken, 8:40 am"),
         t('<p>That sounds like Ada Okafor\'s place at 12 River Rd. Is it job 3361?</p><div style="display:flex;gap:8px;flex-wrap:wrap"><span class="bt ink">Yes, 3361 Okafor</span><span class="bt">A new job</span></div>'),
         me("Yes, 3361"),
-        t(f'<p>Saved as the brief on 3361 Okafor, Riverview. The quote is waiting in your To do.</p><div class="res">{ico("doc", "ic", "color:#5f6a79")}<div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px;line-height:20px">Brief, 3361 Okafor</div><div class="s">Split in the main bedroom, back to back with the study</div></div><a class="lk" href="#">Open the quote</a></div><div class="s" style="display:flex;gap:16px"><a class="lk" href="#">Undo</a></div>'),
+        t(f'<p>Saved as the brief on 3361 Okafor, Fakeview. The quote is waiting in your To do.</p><div class="res">{ico("doc", "ic", "color:#5f6a79")}<div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px;line-height:20px">Brief, 3361 Okafor</div><div class="s">Split in the main bedroom, back to back with the study</div></div><a class="lk" href="#">Open the quote</a></div><div class="s" style="display:flex;gap:16px"><a class="lk" href="#">Undo</a></div>'),
         me("Also remind me to ring the Hilux dealer at 2"),
         t('<p class="q">Making a task for 2:00 pm</p>', True),
     ])
@@ -250,7 +250,7 @@ def desk_convo():
     return f'''<div class="hz" style="width:1440px;height:900px">{MARK_DEFS}
 {sidebar(home_on=False, convo_on=True)}
 <main class="pg">
-  <div class="hdr"><span style="font-weight:600">Riverview brief</span><span style="flex:1"></span><span class="q">Tuesday 13 October, 8:41 am</span></div>
+  <div class="hdr"><span style="font-weight:600">Fakeview brief</span><span style="flex:1"></span><span class="q">Tuesday 13 October, 8:41 am</span></div>
   <div style="flex:1;min-height:0;overflow:hidden">
     <div class="col" style="display:flex;flex-direction:column;gap:24px;padding-top:16px">{convo()}</div>
   </div>
@@ -290,7 +290,7 @@ def phone_convo():
     return f'''<div class="hz phn">{MARK_DEFS}
 {phone_top()}
 <div class="mpg">
-  <div class="mhdr"><span style="font-weight:600">Riverview brief</span><span style="flex:1"></span><span class="q">8:41 am</span></div>
+  <div class="mhdr"><span style="font-weight:600">Fakeview brief</span><span style="flex:1"></span><span class="q">8:41 am</span></div>
   <div class="mbody" style="display:flex;flex-direction:column;gap:16px;padding-top:4px;justify-content:flex-end">{convo(True)}</div>
   {phone_box("Reply to Tiff")}
 </div>

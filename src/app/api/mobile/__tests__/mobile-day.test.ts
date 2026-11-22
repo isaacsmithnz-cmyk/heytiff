@@ -140,7 +140,7 @@ test("the morning reminder's days: the days you're rostered on, less public holi
   employment = "Full-time";
 });
 
-/* 993, 3 Farran Street: a quote from January 2025 nobody closed, next door
+/* 993, 3 Cillum Street: a quote from January 2025 nobody closed, next door
    to Isaac's own house, put him "at" it on 29 October 2026. An open job is a
    place to drop in at only with a change or a visit in the last or next 60
    days. */
@@ -155,7 +155,7 @@ test("an open job counts as somewhere you dropped in only with some life in it",
   expect(hasLife({ uuid: "no-date", edit_date: null }, from, none)).toBe(false);
 });
 
-/* 1352, 9/6 Holbrook Avenue: Completed on 3 November 2026, and Isaac's 15 minutes there on
+/* 1352, 9/6 Dolor Avenue: Completed on 3 November 2026, and Isaac's 15 minutes there on
    the 16th went on nothing. A job finished within the last 60 days is still a place. */
 test("a job finished lately is still somewhere you dropped in", () => {
   const [from] = recentWindow("2026-11-16");
@@ -167,11 +167,11 @@ test("a job finished lately is still somewhere you dropped in", () => {
 /* ADD A JOB (Isaac, 17 November 2026, "Build it"): a stop the phone missed goes on the day
    by hand, never over another job's time, and takes its time from the office it covers. */
 test("a job added by hand can't run over another job's time", () => {
-  const cremorne = { checked_in_at: "2026-11-16T01:00:00.000Z", checked_out_at: "2026-11-16T04:30:00.000Z" };
+  const testmorne = { checked_in_at: "2026-11-16T01:00:00.000Z", checked_out_at: "2026-11-16T04:30:00.000Z" };
   const now = Date.parse("2026-11-16T06:00:00.000Z");
-  expect(overlapsAny([cremorne], "2026-11-16T04:45:00.000Z", "2026-11-16T05:00:00.000Z", now)).toBe(false);
-  expect(overlapsAny([cremorne], "2026-11-16T04:30:00.000Z", "2026-11-16T04:45:00.000Z", now)).toBe(false);
-  expect(overlapsAny([cremorne], "2026-11-16T04:15:00.000Z", "2026-11-16T04:45:00.000Z", now)).toBe(true);
+  expect(overlapsAny([testmorne], "2026-11-16T04:45:00.000Z", "2026-11-16T05:00:00.000Z", now)).toBe(false);
+  expect(overlapsAny([testmorne], "2026-11-16T04:30:00.000Z", "2026-11-16T04:45:00.000Z", now)).toBe(false);
+  expect(overlapsAny([testmorne], "2026-11-16T04:15:00.000Z", "2026-11-16T04:45:00.000Z", now)).toBe(true);
   /* one still open runs to now */
   expect(overlapsAny([{ checked_in_at: "2026-11-16T05:00:00.000Z", checked_out_at: null }], "2026-11-16T05:30:00.000Z", "2026-11-16T05:45:00.000Z", now)).toBe(true);
 });

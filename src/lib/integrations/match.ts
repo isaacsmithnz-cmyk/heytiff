@@ -89,10 +89,10 @@ export function normName(v: string | null | undefined): string {
     .trim();
 }
 
-/** A company's name without what only the paperwork adds: an email's "JT
-    Construct Pty Ltd" is the client kept as "JT Construct" (Isaac, 30 October
-    2026: "JT construct is already a client"). Only the legal ending goes, so
-    "JT Construct" and "JT Developments" stay two companies. */
+/** A company's name without what only the paperwork adds: an email's "QX
+    Construct Pty Ltd" is the client kept as "QX Construct" (Isaac, 30 October
+    2026: "QX construct is already a client"). Only the legal ending goes, so
+    "QX Construct" and "QX Developments" stay two companies. */
 export function companyKey(v: string | null | undefined): string {
   const name = normName(v);
   return name.replace(/(?:\s+(?:pty|proprietary|ltd|limited|p l|pl|inc|incorporated|llc))+$/, "") || name;
@@ -112,7 +112,7 @@ export function oneCompanyNamed<T extends { name: string | null }>(companies: re
 
 /** The one company whose name has the same words in any order, for when
     oneCompanyNamed finds none: ServiceM8 keeps many a person surname first,
-    so "Watters, Lisa" is Lisa Watters (Isaac, 10 November 2026). Never for a
+    so "Ashdown, Lisa" is Lisa Ashdown (Isaac, 10 November 2026). Never for a
     one-word name, which has no order, and null when two would do. */
 export function oneCompanyNamedAnyOrder<T extends { name: string | null }>(companies: readonly T[], name: string): T | null {
   const key = nameKey(name);

@@ -25,16 +25,16 @@ describe("the closest standard finish to what a drawing writes", () => {
 });
 
 describe("a roof part's covering", () => {
-  const bishops =
+  const nostrud =
     "Existing main hip roof: tiles, retained (provisional sum to strip, re-sark and retile). Front verandah: metal sheet, to be replaced with Colorbond corrugated. New rear house roof RF-01: Colorbond Kliplock at 3 deg behind brick parapets.";
 
   it("takes the part's own note first", () => {
-    expect(roofFinishFor({ source: "A100 RF-01 (new house main roof, Colorbond Kliplock at 3 deg)", existing: false }, bishops)).toBe("metal");
-    expect(roofFinishFor({ source: "A100 RF-02 concrete canopy/planter roof with waterproof membrane", existing: false }, bishops)).toBe("flat");
+    expect(roofFinishFor({ source: "A100 RF-01 (new house main roof, Colorbond Kliplock at 3 deg)", existing: false }, nostrud)).toBe("metal");
+    expect(roofFinishFor({ source: "A100 RF-02 concrete canopy/planter roof with waterproof membrane", existing: false }, nostrud)).toBe("flat");
   });
 
   it("else what the read says of the kept roof, or of the new one", () => {
-    expect(roofFinishFor({ source: "A103 elevations (ridge RL 92300)", existing: true }, bishops)).toBe("tiled");
+    expect(roofFinishFor({ source: "A103 elevations (ridge RL 92300)", existing: true }, nostrud)).toBe("tiled");
     expect(roofFinishFor({ source: "Sheet 7 Section BB", existing: false }, "New concrete roof tiles over foil sarking. The separate garage gets Colorbond.")).toBe("tiled");
   });
 

@@ -3,7 +3,7 @@ import type { ReadOpening, SheetReading } from "./reading";
 /* THE DOOR AND WINDOW SCHEDULE. A set gives every window and door a mark on
    its plans (GW.21, W1.3, D04) and its size on a schedule sheet: a table of
    marks, a legend of types with the marks of each listed under it (3570's
-   A901), or elevations with their sizes drawn on (Cutler). The floor read
+   A901), or elevations with their sizes drawn on (Ipsum). The floor read
    finds each opening's mark and guesses its width; the schedule gives its
    width, its height and its sill, so its glass and its place in the wall are
    the architect's, not a 1.2 m guess (the outside study of 3570, 22 November

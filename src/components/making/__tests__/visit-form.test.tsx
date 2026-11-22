@@ -38,7 +38,7 @@ jest.mock("@/app/actions/palette", () => ({
     clients: [],
     projects: [],
     photos: [],
-    jobs: [{ remoteId: "0b1e0b1e-0000-4000-8000-00000000d009", jobNumber: "3350", clientName: "Rifkin", suburb: "Bellevue Hill" }],
+    jobs: [{ remoteId: "0b1e0b1e-0000-4000-8000-00000000d009", jobNumber: "3350", clientName: "Fairweather", suburb: "Bellevue Hill" }],
   })),
 }));
 
@@ -52,7 +52,7 @@ const SAM = "5a0e5a0e-0000-4000-8000-00000000a001";
 const ALEX = "5a0e5a0e-0000-4000-8000-00000000a002";
 const DAY = "2026-10-07";
 const VERB: VerbView = { verbId: "p", presses: ["p"], at: "2026-10-05T22:00:00.000Z", status: null, bookings: [] };
-const LABEL = "Job 3342, Richards Building, North Narrabeen";
+const LABEL = "Job 3342, Rowland Building, North Pretendale";
 
 const live = (over: Partial<Extract<BookInContext, { ok: true }>["bookings"][number]> = {}) => ({
   uuid: "7e7e7e7e-0000-4000-8000-000000000001",

@@ -709,7 +709,7 @@ describe("sending files to ServiceM8", () => {
         granted: ["attachment"],
         recent: [
           { id: "w1", kind: "attachment", name: "Public liability.pdf", jobNumber: "2380", status: "sent", attempts: 1, error: null, at: "2026-09-23T02:00:00Z", by: "Isaac Smith" },
-          { id: "w2", kind: "attachment", name: "Plan.pdf", jobNumber: "2381", status: "failed", attempts: 1, error: "ServiceM8 said the file is too big.", at: "2026-09-22T02:00:00Z", by: "Troy Porter" },
+          { id: "w2", kind: "attachment", name: "Plan.pdf", jobNumber: "2381", status: "failed", attempts: 1, error: "ServiceM8 said the file is too big.", at: "2026-09-22T02:00:00Z", by: "Troy Northam" },
         ],
       }),
     });
@@ -719,7 +719,7 @@ describe("sending files to ServiceM8", () => {
     expect(screen.getByText("Sent").closest(".pt-state")).toHaveClass("pt-state--good");
     expect(screen.getByText("Job 2380, Isaac Smith, Wed 23 Sept")).toBeInTheDocument();
     expect(screen.getByText("Not sent").closest(".pt-state")).toHaveClass("pt-state--wrong");
-    expect(screen.getByText("Job 2381, Troy Porter, Tue 22 Sept. ServiceM8 said the file is too big.")).toBeInTheDocument();
+    expect(screen.getByText("Job 2381, Troy Northam, Tue 22 Sept. ServiceM8 said the file is too big.")).toBeInTheDocument();
   });
 
   it("says who paused it and how many are waiting", () => {
@@ -929,7 +929,7 @@ describe("sending more than files", () => {
           { id: "b1", kind: "booking", name: "Booking", jobNumber: "3370", status: "sent", attempts: 1, error: "ServiceM8 kept a different time for this booking. HeyTiff switched bookings off.", at, by: "Isaac Smith" },
           { id: "b2", kind: "booking", name: "Quote made a Work Order", jobNumber: "288", status: "sent", attempts: 1, error: null, at, by: "Isaac Smith" },
           // a file that went never says a reason, as before
-          { id: "f1", kind: "attachment", name: "Plan.pdf", jobNumber: "2380", status: "sent", attempts: 1, error: "left over", at, by: "Troy Porter" },
+          { id: "f1", kind: "attachment", name: "Plan.pdf", jobNumber: "2380", status: "sent", attempts: 1, error: "left over", at, by: "Troy Northam" },
         ],
       }),
     });
@@ -939,7 +939,7 @@ describe("sending more than files", () => {
       screen.getByText("Job 3370, Isaac Smith, Sun 27 Sept. ServiceM8 kept a different time for this booking. HeyTiff switched bookings off.")
     ).toBeInTheDocument();
     expect(screen.getByText("Job 288, Isaac Smith, Sun 27 Sept")).toBeInTheDocument();
-    expect(screen.getByText("Job 2380, Troy Porter, Sun 27 Sept")).toBeInTheDocument();
+    expect(screen.getByText("Job 2380, Troy Northam, Sun 27 Sept")).toBeInTheDocument();
   });
 
   it("(F) counts waiting bookings apart in the disconnect confirm, and says today's words with none", async () => {

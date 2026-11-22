@@ -21,7 +21,7 @@ leaderboard picks the shortlist; this picks the vendor.
 It also scores the right thing. **`routed` is the headline number** — every hard
 expectation met, so the note needed no human rescue. A transcript that mangles
 "condensate" but still lands on job 337 assigned to Lyle routes perfectly. One
-that's 98% word-perfect but hears "Wyndham" as "Windham" files work against the
+that's 98% word-perfect but hears "Fabulum" as "Febulum" files work against the
 wrong site. Word error rate averages those two together and tells you nothing;
 it's reported for comparison with published figures, and it is not the verdict.
 
@@ -52,10 +52,10 @@ becomes the case id.
   "conditions": "van idling, windows down, driving",
   "speaker": "Lyle",
   "language": "en",
-  "truth": "Finished the two upstairs heads at 36 Wyndham Street, condensate line's still to run, Lyle needs to order three 600 grills by Friday for job 337.",
+  "truth": "Finished the two upstairs heads at 36 Fabulum Street, condensate line's still to run, Lyle needs to order three 600 grills by Friday for job 337.",
   "expect": {
     "job": "337",
-    "site": "36 Wyndham Street",
+    "site": "36 Fabulum Street",
     "people": ["Lyle"],
     "terms": ["condensate", "grills"]
   }
@@ -86,7 +86,7 @@ toward. Pools are filled in priority order (`people`, `sites`, `clients`,
 ```json
 {
   "people": ["Lyle", "Mick", "Dave"],
-  "sites": ["Wyndham Street", "Papakura", "Karaka"],
+  "sites": ["Fabulum Street", "Papakura", "Karaka"],
   "clients": ["Harrison", "Smith and Sons"],
   "equipment": ["PUMY-SP112", "Bosch 5000"],
   "vocab": ["condensate", "penetrations", "grilles", "commissioning"]
@@ -112,7 +112,7 @@ synthetic cases:
 ```
 ── scribe_v2 · bare ──
   FAILED van-01             WER   3.7% · terms 2/2  [Lyle · van idling, windows down]
-           ✗ wyndham street → "windermere street" (0.65)
+           ✗ fabulum street → "windermere street" (0.65)
   ROUTED roof-02            WER   0.0% · terms 1/1  [Mick · roof, wind]
   ROUTED plant-03           WER  20.0% · terms 0/2  [Dave · plant room, compressor]
            · PUMY-SP112 → "pumice p112" (0.64)

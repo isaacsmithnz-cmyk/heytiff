@@ -40,7 +40,7 @@ class FlakyStore implements DesignStore {
 async function newDesign(user: ReturnType<typeof userEvent.setup>, store: DesignStore) {
   render(<Studio store={store} />);
   await user.click(await screen.findByText("New design"));
-  await user.type(screen.getByPlaceholderText(/Design name/), "Farran St");
+  await user.type(screen.getByPlaceholderText(/Design name/), "Cillum St");
   await user.click(screen.getByRole("button", { name: "Start with a blank canvas" }));
 }
 
@@ -65,7 +65,7 @@ describe("save status → retry", () => {
 
     // the server goes away, and an edit's autosave fails
     store.fail = true;
-    await user.type(screen.getByDisplayValue("Farran St"), "!");
+    await user.type(screen.getByDisplayValue("Cillum St"), "!");
     const retry = await screen.findByRole("button", { name: /Saved locally/ });
 
     // the way back is right there, on the thing that told you about it
@@ -85,7 +85,7 @@ describe("save status → retry", () => {
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
 
     store.fail = true;
-    await user.type(screen.getByDisplayValue("Farran St"), "!");
+    await user.type(screen.getByDisplayValue("Cillum St"), "!");
     await screen.findByRole("button", { name: /Saved locally/ });
 
     // the browser says the network is back — no click, no edit
@@ -108,7 +108,7 @@ describe("save status → retry", () => {
         jest.advanceTimersByTime(1_000);
       });
       store.fail = true;
-      await user.type(screen.getByDisplayValue("Farran St"), "!");
+      await user.type(screen.getByDisplayValue("Cillum St"), "!");
       await act(async () => {
         jest.advanceTimersByTime(700); // the autosave debounce fails
       });
@@ -149,7 +149,7 @@ describe("save status → retry", () => {
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
 
     store.fail = true;
-    await user.type(screen.getByDisplayValue("Farran St"), "!");
+    await user.type(screen.getByDisplayValue("Cillum St"), "!");
     await user.click(await screen.findByRole("button", { name: /Saved locally/ }));
 
     // still amber, still pressable — the local buffer still has the work

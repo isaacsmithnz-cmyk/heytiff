@@ -131,18 +131,18 @@ def expenses_body():
   <section style="flex:1;min-height:0;padding:8px 32px;overflow:hidden">
     <div class="gh"><h3 class="h16">Waiting on a decision</h3><span class="n">2</span></div>
     <table class="tbl" style="table-layout:fixed">{head}<tbody>
-      {r("LI", "Lyle Irving", "Copper fittings and flux", "Reece, Friday 9 October", "3342 Rifkin", "$86.40", "Own money, receipt read", ad)}
+      {r("LI", "Lyle Irving", "Copper fittings and flux", "Reece, Friday 9 October", "3342 Fairweather", "$86.40", "Own money, receipt read", ad)}
       {r("DW", "Dan Walsh", "Fuel, 52.3 litres", "Ampol Botany, Thursday 8 October", "Hilux XQG 41B", "$112.80", "Own money, receipt read", ad)}
     </tbody></table>
     <div class="gh"><h3 class="h16">Approved, to pay back</h3><span class="n">2, $213.40</span></div>
     <table class="tbl" style="table-layout:fixed">{ecols}<tbody>
       {r("CA", "Callum Ahn", "Drill bits", "Bunnings, Tuesday 6 October", "Workshop", "$34.90", "Approved Wednesday 7 October", '<span class="btn sm">Mark paid</span>')}
-      {r("KL", "Kai Lee", "Parking and tolls", "Week of 28 September", "3302 Heuvel", "$178.50", "Approved Friday 2 October", '<span class="btn sm">Mark paid</span>')}
+      {r("KL", "Kai Lee", "Parking and tolls", "Week of 28 September", "3302 Testa", "$178.50", "Approved Friday 2 October", '<span class="btn sm">Mark paid</span>')}
     </tbody></table>
     <div class="gh"><h3 class="h16">On the company card</h3><span class="n">3 this week, no approval needed</span></div>
     <table class="tbl" style="table-layout:fixed">{ecols}<tbody>
       {r("IS", "Isaac Smith", "Fuel, 61.0 litres", "BP Rosebery, Monday 12 October", "Ranger YHT 22C", "$131.75", "", "")}
-      {r("LI", "Lyle Irving", "Pipe and lagging", "Reece, Thursday 8 October", "3342 Rifkin", "$412.10", "", "")}
+      {r("LI", "Lyle Irving", "Pipe and lagging", "Reece, Thursday 8 October", "3342 Fairweather", "$412.10", "", "")}
       {r("MP", "Mia Park", "Printer toner", "Officeworks, Wednesday 7 October", "Office", "$89.00", "", "")}
     </tbody></table>
   </section>

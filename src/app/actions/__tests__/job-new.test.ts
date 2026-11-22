@@ -38,7 +38,7 @@ describe.each(["1", "attachment,note", "attachment,note,booking", "attachment,no
   it("answers every action before the session or the database", async () => {
     expect(await searchNewJobClients("Built")).toEqual([]);
     expect(await searchClientSites(U, "")).toEqual([]);
-    expect(await matchPreviousSite("41 Waverley St")).toBeNull();
+    expect(await matchPreviousSite("41 Fakehurst St")).toBeNull();
     expect(await readNewJobCategories()).toEqual([]);
     expect(
       await createNewJob({ pressId: U, clientName: "x", client: { kind: "existing", uuid: U }, jobAddress: "a", description: "b", categoryUuid: null, contact: null, via: null, next: null })

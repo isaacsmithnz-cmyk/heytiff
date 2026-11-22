@@ -145,7 +145,7 @@ export type DiaryConversation = {
   /** `${jobUuid}:${askerUuid}`. */
   key: string;
   jobUuid: string;
-  /** "2041 Wollstonecraft", or null when the mirror has no such job. */
+  /** "2041 Testcraft", or null when the mirror has no such job. */
   jobLabel: string | null;
   /** Live in ServiceM8. A deleted job keeps its conversation and gets no
       Reply: nothing goes to a job its business deleted (#809). */
@@ -209,7 +209,7 @@ export type DiaryFeed = {
   syncedAt: string | null;
 };
 
-/** "2041 Wollstonecraft" — the job number and the suburb, whichever exist. */
+/** "2041 Testcraft" — the job number and the suburb, whichever exist. */
 export function jobDoorLabel(generatedId: string | null, city: string | null): string | null {
   const parts = [generatedId, city].map((p) => (p ?? "").trim()).filter(Boolean);
   return parts.length ? parts.join(" ") : null;

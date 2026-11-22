@@ -1,6 +1,6 @@
 /* THE PAPER'S WORDS, AND CALLOUTS KEPT CLEAR OF THEM (the next flow; scope 1
    of the Studio rework, "one layout keeps labels clear of each other on
-   both"). 7 Cutler printed its PEA-M125HAA callout under the note
+   both"). 7 Ipsum printed its PEA-M125HAA callout under the note
    "Underfloor Ducted for GF and Study. Location TBC": both were put by hand
    when the canvas drew them a third of their printed size, so nobody saw
    them meet.

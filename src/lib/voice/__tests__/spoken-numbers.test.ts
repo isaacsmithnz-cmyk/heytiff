@@ -37,8 +37,8 @@ describe("spokenToDigits", () => {
   });
 
   it("handles a street number followed by a street name", () => {
-    expect(spokenToDigits("working at thirty six wyndham street")).toBe(
-      "working at 36 wyndham street",
+    expect(spokenToDigits("working at thirty six fabulum street")).toBe(
+      "working at 36 fabulum street",
     );
   });
 
@@ -59,8 +59,8 @@ describe("spokenToDigits", () => {
   });
 
   it("handles several separate numbers in one sentence", () => {
-    expect(spokenToDigits("two heads at thirty six wyndham for job three three seven")).toBe(
-      "2 heads at 36 wyndham for job 337",
+    expect(spokenToDigits("two heads at thirty six fabulum for job three three seven")).toBe(
+      "2 heads at 36 fabulum for job 337",
     );
   });
 
@@ -69,7 +69,7 @@ describe("spokenToDigits", () => {
   });
 
   it("leaves digits already written as digits alone", () => {
-    expect(spokenToDigits("job 337 at 36 wyndham street")).toBe("job 337 at 36 wyndham street");
+    expect(spokenToDigits("job 337 at 36 fabulum street")).toBe("job 337 at 36 fabulum street");
   });
 });
 
@@ -83,8 +83,8 @@ describe("spokenToDigits in the other languages", () => {
   });
 
   it("reads a street number as a cardinal", () => {
-    expect(spokenToDigits("treinta y seis calle wyndham")).toBe("36 calle wyndham");
-    expect(spokenToDigits("ba mươi sáu wyndham")).toBe("36 wyndham");
+    expect(spokenToDigits("treinta y seis calle fabulum")).toBe("36 calle fabulum");
+    expect(spokenToDigits("ba mươi sáu fabulum")).toBe("36 fabulum");
   });
 
   it("multiplies the digit in hand, not the running total", () => {

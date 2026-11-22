@@ -207,12 +207,12 @@ describe("stacking a person's day", () => {
 
   it("puts a booking that overlaps another on a line of its own, and marks both", () => {
     /* Callum on 22 October: 3225 6 to 9, 3118 7 to 3, 3118 again 9:45 to 1:45 */
-    const st = stackDay([blk(360, 540, { key: "pagewood" }), blk(420, 900, { key: "long" }), blk(585, 825, { key: "short" })]);
+    const st = stackDay([blk(360, 540, { key: "placewood" }), blk(420, 900, { key: "long" }), blk(585, 825, { key: "short" })]);
     expect(st.lines).toBe(2);
-    expect(st.line.get("pagewood")).toBe(0);
+    expect(st.line.get("placewood")).toBe(0);
     expect(st.line.get("long")).toBe(1);
     expect(st.line.get("short")).toBe(0);
-    expect([...st.clash].sort()).toEqual(["long", "pagewood", "short"]);
+    expect([...st.clash].sort()).toEqual(["long", "placewood", "short"]);
   });
 
   it("says one line for an empty day", () => {

@@ -7,8 +7,8 @@ import type { JobScopeRead } from "@/lib/jobs/job-scope";
    Isaac, 28 October 2026), and its latest updates. */
 
 const scope = (over: Partial<JobScopeRead> = {}): JobScopeRead => ({
-  description: "Four systems for the Carney Residence.",
-  lede: "Four systems for the Carney Residence, from Anna Vaughan Architects' tender set (30 Sep).",
+  description: "Four systems for the Larkspur Residence.",
+  lede: "Four systems for the Larkspur Residence, from Anna Kettlewell Architects' tender set (30 Sep).",
   systems: [
     { area: "Ground floor", kind: "ducted, under the floor", text: "Living/Dining, Kids Play, Guest Bed. Fan coil under the living room.", from: ["A200", "A202"] },
     { area: "Studio", kind: "split system", text: "Living and bedroom. No size given.", from: [] },
@@ -80,7 +80,7 @@ it("says it's reading a new note above the brief it still shows, with no Undo me
 });
 
 describe("after it's sent", () => {
-  const study = { text: "Concealed fan coil unit next to the Study", from: "Anna Vaughan's email, Tue 3 Nov" };
+  const study = { text: "Concealed fan coil unit next to the Study", from: "Anna Kettlewell's email, Tue 3 Nov" };
   const sent = (over: Partial<JobScopeRead> = {}) =>
     scope({ added: [...scope().added, study], sincePriced: [study], quoted: { on: "Wed 28 Oct", version: 1 }, ...over });
 
@@ -215,10 +215,10 @@ describe("two scopes: what was supplied and what's quoted (11 November 2026)", (
 /* ON THE SCOPE TAB (mock A, 14 November 2026): the brief on the left, from
    its second sentence, and Since the quote and Latest updates on the right */
 it("draws the brief alone from its second sentence, and the rail alone", () => {
-  const { unmount } = render(<JobScope scope={scope({ lede: "Four systems for the Carney Residence. From the tender set (30 Sep)." })} part="brief" />);
+  const { unmount } = render(<JobScope scope={scope({ lede: "Four systems for the Larkspur Residence. From the tender set (30 Sep)." })} part="brief" />);
   const s = screen.getByRole("region", { name: "Scope" });
   expect(s).toHaveTextContent("From the tender set (30 Sep).");
-  expect(s).not.toHaveTextContent("Four systems for the Carney Residence.");
+  expect(s).not.toHaveTextContent("Four systems for the Larkspur Residence.");
   expect(screen.queryByRole("region", { name: "Latest updates" })).toBeNull();
   unmount();
   render(<JobScope scope={scope()} part="rail" />);

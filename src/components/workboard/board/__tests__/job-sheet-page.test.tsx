@@ -100,9 +100,9 @@ const row = (): AllJobRow => ({
   id: JOB,
   number: "3209",
   numberSystem: "sm8",
-  clientName: "Richards Building",
+  clientName: "Rowland Building",
   title: "Mitsubishi Electric VRF",
-  suburb: "North Narrabeen",
+  suburb: "North Pretendale",
   categoryName: "Install",
   categoryColour: "#2E68FF",
   statusLabel: "Work Order",
@@ -119,11 +119,11 @@ const detail = (over: Partial<MirrorJobDetail> = {}): MirrorJobDetail => ({
   remoteId: JOB,
   jobNumber: "3209",
   status: "Work Order",
-  clientName: "Richards Building",
+  clientName: "Rowland Building",
   description: "Mitsubishi Electric VRF",
   workDone: null,
-  address: "59 Woorarra Avenue\nNorth Narrabeen",
-  suburb: "North Narrabeen",
+  address: "59 Aliquip Avenue\nNorth Pretendale",
+  suburb: "North Pretendale",
   geoLine: null,
   categoryName: "Install",
   categoryColour: "#2E68FF",
@@ -262,12 +262,12 @@ describe("the job's page head", () => {
     await ready();
     const h1 = screen.getByRole("heading", { level: 1 });
     /* the client, as Schedule and Jobs name a job; the address is Site's */
-    expect(h1).toHaveTextContent(/^Richards Building$/);
+    expect(h1).toHaveTextContent(/^Rowland Building$/);
     const plate = container.querySelector(".jp-plate")!;
     expect(plate).toHaveClass("jp-plate--blue");
     expect(plate.querySelector(".jp-num")).toHaveTextContent(/^3209$/);
     /* the site is under the name, on every tab (Isaac, 16 November 2026: the map as the head's hero) */
-    expect(container.querySelector(".jp-head .jp-site")).toHaveTextContent(/Woorarra/);
+    expect(container.querySelector(".jp-head .jp-site")).toHaveTextContent(/Aliquip/);
     /* no grey line of stage or kind, and no breadcrumb: one word back */
     expect(container.querySelector(".jp-line, .jp-facts, .jp-stage")).toBeNull();
     expect(container.querySelector(".jp-head")).not.toHaveTextContent(/Work order|Job 3209|Accepted/);

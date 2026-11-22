@@ -47,7 +47,7 @@ export function tokenFromRecipients(recipients: readonly (string | null | undefi
   return null;
 }
 
-/** "Matt Glass <matt@truecut.com.au>" → its address, lower case; a bare
+/** "Matt Juniper <matt@plumbline.example>" → its address, lower case; a bare
     address as it is. */
 export function addressOf(from: string | null | undefined): string | null {
   const s = (from ?? "").trim();
@@ -55,7 +55,7 @@ export function addressOf(from: string | null | undefined): string | null {
   return m ? m[1]!.toLowerCase() : null;
 }
 
-/** "Matt Glass <matt@truecut.com.au>" → "Matt Glass"; null with no name. */
+/** "Matt Juniper <matt@plumbline.example>" → "Matt Juniper"; null with no name. */
 export function nameOf(from: string | null | undefined): string | null {
   const m = /^\s*"?([^"<]+?)"?\s*</.exec(from ?? "");
   return m ? m[1]!.trim() || null : null;

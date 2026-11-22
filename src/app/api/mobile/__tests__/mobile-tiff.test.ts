@@ -62,7 +62,7 @@ jest.mock("@/lib/mobile/tiff-files", () => ({
 const kept: { op: string; owner: unknown; upsert?: unknown; remove?: unknown }[] = [];
 jest.mock("@/lib/tiff/threads-server", () => ({
   nameKeptThreads: async () => undefined,
-  readThreads: async (owner: unknown) => (kept.push({ op: "read", owner }), { kept: true, threads: [{ id: "t-1", title: "Stanmore", updatedAt: 1, messages: [] }] }),
+  readThreads: async (owner: unknown) => (kept.push({ op: "read", owner }), { kept: true, threads: [{ id: "t-1", title: "Placeholm", updatedAt: 1, messages: [] }] }),
   writeThreads: async (owner: unknown, upsert: unknown, remove: unknown) => (kept.push({ op: "write", owner, upsert, remove }), true),
 }));
 
@@ -101,7 +101,7 @@ afterAll(() => {
 });
 
 it("answers in the web's own words for the verified person, the phone's screen for 'take me there', and nothing only the web can do", async () => {
-  const res = await ask(req("tiff", { question: "When is Stanmore booked?" }, "auth0|lyle"));
+  const res = await ask(req("tiff", { question: "When is Placeholm booked?" }, "auth0|lyle"));
   expect(res.headers.get("content-type")).toContain("application/x-ndjson");
   expect(await lines(res)).toEqual([
     { t: "tool", name: "jobs.search", label: "Looking at jobs" },
@@ -110,7 +110,7 @@ it("answers in the web's own words for the verified person, the phone's screen f
     { t: "screen", path: "/job?id=j-2935", label: "Job 2935" },
     { t: "done" },
   ]);
-  expect(asked).toEqual(["viewer org-diamond auth0|lyle", 'answer org-diamond "When is Stanmore booked?"']);
+  expect(asked).toEqual(["viewer org-diamond auth0|lyle", 'answer org-diamond "When is Placeholm booked?"']);
 });
 
 it("reads what was attached for the verified person, and with no words asks her to have a look", async () => {
@@ -129,7 +129,7 @@ it("refuses without a token check, with nothing to ask about, or a question it c
 
 it("reads and keeps the verified person's own conversations, behind tiff", async () => {
   const read = await threads(req("tiff/threads", undefined, "auth0|lyle", "GET"));
-  expect(await read.json()).toEqual({ threads: [{ id: "t-1", title: "Stanmore", updatedAt: 1, messages: [] }] });
+  expect(await read.json()).toEqual({ threads: [{ id: "t-1", title: "Placeholm", updatedAt: 1, messages: [] }] });
   const thread = { id: "t-2", title: "Coil", updatedAt: Date.now(), messages: [{ role: "user", text: "hi", at: Date.now() }] };
   expect((await keep(req("tiff/threads", { upsert: [thread], userSub: "auth0|someone-else" }, "auth0|lyle"))).status).toBe(200);
   expect(kept.map((k) => k.owner)).toEqual([

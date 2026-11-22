@@ -79,7 +79,7 @@ const siteOfJob = (j: JobRow): Site | null => siteOf(j.job_address, j.geo_city);
 
 const UNIT_LEAD = /^\s*(?:(?:unit|u|apartment|apt|flat|suite|shop|villa|townhouse)\s*[0-9]+[a-z]?\s*[,/]?\s*|[a-z]?[0-9]+[a-z]?\s*\/\s*)/i;
 
-/** "106 Kirribilli Avenue" out of "2/106 Kirribilli Avenue\nKirribilli NSW 2061":
+/** "106 Exampleton Avenue" out of "2/106 Exampleton Avenue\nExampleton NSW 2061":
     the building, without the unit. */
 export function buildingStreet(address: string | null): string {
   const first = (address ?? "").replace(/\r/g, "").split("\n")[0] ?? "";
@@ -87,7 +87,7 @@ export function buildingStreet(address: string | null): string {
   return street.replace(UNIT_LEAD, "").replace(/\s+/g, " ").trim();
 }
 
-/** "Kirribilli NSW 2061": ServiceM8's geocoded place, else the address's second line. */
+/** "Exampleton NSW 2061": ServiceM8's geocoded place, else the address's second line. */
 function placeOf(j: JobRow): string {
   const geo = [j.geo_city, j.geo_state, j.geo_postcode].map((s) => (s ?? "").trim()).filter(Boolean).join(" ");
   if (geo) return geo;

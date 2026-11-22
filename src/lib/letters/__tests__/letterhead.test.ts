@@ -5,7 +5,7 @@ const FACTS: LetterheadFacts = {
   brand: { name: "Diamond Air Solutions", logoUrl: null, color: null, abn: "14603285409", phone: "02 9000 0000", email: "a@b.com", website: null },
   legalName: "DAS PTY LTD",
   acn: "603285409",
-  address: ["12 Example Street", "Paddington NSW 2021"],
+  address: ["12 Example Street", "Fauxington NSW 2021"],
   licences: ["Contractor licence 315890C"],
 };
 
@@ -13,7 +13,7 @@ it("prints the details the letterhead shows, in order, from the business's own f
   expect(letterheadLines(FACTS, STANDARD_LETTERHEAD)).toEqual([
     "ABN 14 603 285 409",
     "12 Example Street",
-    "Paddington NSW 2021",
+    "Fauxington NSW 2021",
     "02 9000 0000",
     "a@b.com",
     "Contractor licence 315890C",
@@ -27,6 +27,6 @@ it("adds the legal name and ACN when ticked, and the legal name only when it dif
 });
 
 it("joins the address as it prints", () => {
-  expect(addressLinesOf({ address: "12 Example Street", suburb: "Paddington", state: "NSW", postcode: "2021" })).toEqual(["12 Example Street", "Paddington NSW 2021"]);
+  expect(addressLinesOf({ address: "12 Example Street", suburb: "Fauxington", state: "NSW", postcode: "2021" })).toEqual(["12 Example Street", "Fauxington NSW 2021"]);
   expect(addressLinesOf({})).toEqual([]);
 });

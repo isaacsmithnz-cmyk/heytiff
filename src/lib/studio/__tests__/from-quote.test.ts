@@ -29,8 +29,8 @@ const room = (id: string, name: string, x: number): DesignObject =>
   }) as unknown as DesignObject;
 
 /* 3516's plan and quote, 17 November 2026 */
-function waitara(): DesignDocument {
-  const d = createDesign({ name: "12/8-10 Park Ave", mode: "plan" });
+function mockville(): DesignDocument {
+  const d = createDesign({ name: "12/8-10 Example Ave", mode: "plan" });
   return {
     ...d,
     floors: [{ id: "gf", name: "Ground floor", level: 0, scaleMmPerUnit: 15, northDeg: 0, northPos: null, plans: [] }],
@@ -73,7 +73,7 @@ describe("the quote's codes as the book's models", () => {
 
 describe("From the quote", () => {
   test("each option's units, every head against its room, never the robe", () => {
-    const [one, two] = quotedOptions(waitara(), pack, QUOTE, [0]);
+    const [one, two] = quotedOptions(mockville(), pack, QUOTE, [0]);
     expect(one).toMatchObject({ name: "Option 1", accepted: true, kind: "multi", outdoor: { model: "MXZ-4F80VGD" } });
     expect(one.heads.map((h) => [h.room, h.model, h.roomId])).toEqual([
       ["Living", "MSZ-AP50VGD2", "liv"],
@@ -85,7 +85,7 @@ describe("From the quote", () => {
   });
 
   test("Add to design makes the multi on the quoted outdoor, named as the quote names it", () => {
-    const d = waitara();
+    const d = mockville();
     const [one] = quotedOptions(d, pack, QUOTE, [0]);
     expect(canAddQuoted(one)).toBe(true);
     const out = addQuotedOption(d, pack, "worst-of-both", one);
@@ -104,7 +104,7 @@ describe("From the quote", () => {
   });
 
   test("once added, an option is in the design and offered no more, by its heading or its whole name", () => {
-    const d = waitara();
+    const d = mockville();
     const [one, two] = quotedOptions(d, pack, QUOTE, [], { 0: "Mitsubishi Electric multi 8 kW: 5 kW living, 2.5 kW each bedroom" });
     expect(quotedInDesign(d, one)).toBe(false);
     const added = addQuotedOption(d, pack, "worst-of-both", one).doc;
@@ -117,7 +117,7 @@ describe("From the quote", () => {
   });
 
   test("a head with no room to go in is said, and left off", () => {
-    const d = { ...waitara(), objects: waitara().objects.filter((o) => o.id !== "b3") };
+    const d = { ...mockville(), objects: mockville().objects.filter((o) => o.id !== "b3") };
     const [one] = quotedOptions(d, pack, QUOTE, []);
     expect(one.heads[3]).toMatchObject({ room: "Bed 3", roomId: null });
     const sys = addQuotedOption(d, pack, "worst-of-both", one).doc.systems[0];

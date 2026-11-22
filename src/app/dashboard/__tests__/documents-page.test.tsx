@@ -47,8 +47,8 @@ const swms = (n: number, over: Partial<OrgSwmsSummary> = {}): OrgSwmsSummary => 
 function dataFor(over: Partial<DocumentsData> = {}): DocumentsData {
   return {
     rows: [
-      swmsRow(swms(0, { signed: 2, waitingOn: ["Sam Ikpeba"] }), { label: "3342 Rifkin, Bellevue Hill", hue: "blue" }, day),
-      swmsRow(swms(1), { label: "3302 Heuvel, Chatswood", hue: "purple" }, day),
+      swmsRow(swms(0, { signed: 2, waitingOn: ["Sam Ikpeba"] }), { label: "3342 Fairweather, Bellevue Hill", hue: "blue" }, day),
+      swmsRow(swms(1), { label: "3302 Testa, Fablewood", hue: "purple" }, day),
       swmsRow(swms(2), null, day),
       swmsRow(swms(3, { kind: "service" }), null, day),
       certRow(

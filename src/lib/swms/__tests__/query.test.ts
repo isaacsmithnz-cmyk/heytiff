@@ -31,7 +31,7 @@ beforeEach(() => {
     organizations: [{ id: ORG, primary_owner_user_id: "auth0|isaac" }],
     staff_profiles: [
       { org_id: ORG, id: "isaac", user_id: "auth0|isaac", first_name: "Isaac", last_name: "Smith", job_title: "Owner", status: "Active" },
-      { org_id: ORG, id: "troy", first_name: "Troy", last_name: "Porter", job_title: "Supervisor", status: "Active" },
+      { org_id: ORG, id: "troy", first_name: "Troy", last_name: "Northam", job_title: "Supervisor", status: "Active" },
       { org_id: ORG, id: "dane", first_name: "Dane", last_name: "Whitmore", job_title: null, status: "Active" },
     ],
     swms: [
@@ -99,7 +99,7 @@ describe("raisedIssues", () => {
 
   it("tells whoever is in charge what was raised on their latest version", async () => {
     expect(await raisedIssues(ORG, "troy")).toEqual([
-      { versionId: "v2", jobNumber: "2601", site: "14 Attunga Road, Miranda NSW 2228", issues: [{ name: "Troy Porter", issue: "No anchor on the rear ridge" }] },
+      { versionId: "v2", jobNumber: "2601", site: "14 Attunga Road, Miranda NSW 2228", issues: [{ name: "Troy Northam", issue: "No anchor on the rear ridge" }] },
     ]);
   });
 
@@ -121,7 +121,7 @@ describe("raisedIssues", () => {
   });
 
   it("carries the same issue onto the job card", async () => {
-    expect((await listJobSwms(ORG, "job-1"))[0].issues).toEqual([{ name: "Troy Porter", issue: "No anchor on the rear ridge" }]);
+    expect((await listJobSwms(ORG, "job-1"))[0].issues).toEqual([{ name: "Troy Northam", issue: "No anchor on the rear ridge" }]);
   });
 
   /* A CORRECTION CHANGES NOTHING ABOUT THE WORK, so it cannot be what answers
@@ -129,7 +129,7 @@ describe("raisedIssues", () => {
   it("keeps an issue a correction carried, and drops one a new method answered", async () => {
     mockDb.tables.swms_versions.push({ ...version("v3", "s-1", 3), material: false, issued_at: "2026-09-13T07:42:00.000Z" });
     mockDb.tables.swms_people.push(person("p3-troy", "v3", { staff: "troy" }));
-    expect((await listJobSwms(ORG, "job-1"))[0].issues).toEqual([{ name: "Troy Porter", issue: "No anchor on the rear ridge" }]);
+    expect((await listJobSwms(ORG, "job-1"))[0].issues).toEqual([{ name: "Troy Northam", issue: "No anchor on the rear ridge" }]);
     expect(await raisedIssues(ORG, "troy")).toHaveLength(1);
 
     mockDb.tables.swms_versions[3].material = true;
@@ -143,8 +143,8 @@ describe("raisedIssues", () => {
     expect((await listJobSwms(ORG, "job-1"))[0].issues).toEqual([]);
     expect(await raisedIssues(ORG, "troy")).toEqual([]);
     /* and the document still says what was raised, and who sorted it */
-    const troy = (await loadSwmsDocument(ORG, "v2"))?.people.find((p) => p.name === "Troy Porter");
-    expect(troy?.signon).toMatchObject({ issue: "No anchor on the rear ridge", issueCleared: { by: "Troy Porter", at: "2026-09-16T08:05:00.000Z" } });
+    const troy = (await loadSwmsDocument(ORG, "v2"))?.people.find((p) => p.name === "Troy Northam");
+    expect(troy?.signon).toMatchObject({ issue: "No anchor on the rear ridge", issueCleared: { by: "Troy Northam", at: "2026-09-16T08:05:00.000Z" } });
   });
 });
 
@@ -170,7 +170,7 @@ describe("listOrgSwms", () => {
 describe("listJobSwms", () => {
   it("summarises the job's SWMS at its latest version, with who it's still waiting on", async () => {
     expect(await listJobSwms(ORG, "job-1")).toEqual([
-      { swmsId: "s-1", versionId: "v2", version: 2, issuedAt: "2026-09-12T07:42:00.000Z", responsible: "Troy Porter", signed: 1, total: 3, waitingOn: ["Dane Whitmore", "Kai Lindqvist"], issues: [], viewerCanSign: false, viewerSigned: false },
+      { swmsId: "s-1", versionId: "v2", version: 2, issuedAt: "2026-09-12T07:42:00.000Z", responsible: "Troy Northam", signed: 1, total: 3, waitingOn: ["Dane Whitmore", "Kai Lindqvist"], issues: [], viewerCanSign: false, viewerSigned: false },
     ]);
   });
 
@@ -210,10 +210,10 @@ describe("listJobSwms", () => {
 describe("loadSwmsDocument", () => {
   it("reads a version with its people, their sign-ons and every version before it", async () => {
     const doc = await loadSwmsDocument(ORG, "v2");
-    expect(doc).toMatchObject({ version: 2, latest: true, responsible: "Troy Porter", siteCheckedBy: "Troy Porter" });
+    expect(doc).toMatchObject({ version: 2, latest: true, responsible: "Troy Northam", siteCheckedBy: "Troy Northam" });
     expect(doc?.job).toMatchObject({ number: "2601", jurisdiction: "NSW" });
     expect(doc?.people.map((p) => [p.name, p.role, p.team, !!p.signon])).toEqual([
-      ["Troy Porter", "Supervisor", true, true],
+      ["Troy Northam", "Supervisor", true, true],
       ["Dane Whitmore", "", true, false],
       ["Kai Lindqvist", "", false, false],
     ]);
@@ -241,15 +241,15 @@ describe("loadSwmsDocument", () => {
   /* a sign-on given on someone else's phone says whose, whoever they are */
   it("names the phone a sign-on was given on", async () => {
     mockDb.tables.swms_signons[0].signed_by_staff_id = "dane";
-    const troy = (await loadSwmsDocument(ORG, "v2"))?.people.find((p) => p.name === "Troy Porter");
+    const troy = (await loadSwmsDocument(ORG, "v2"))?.people.find((p) => p.name === "Troy Northam");
     expect(troy?.signon?.onPhoneOf).toBe("Dane Whitmore");
   });
 
   it("says nobody briefed the person in charge", async () => {
     const people = (await loadSwmsDocument(ORG, "v2"))?.people;
-    expect(people?.find((p) => p.name === "Troy Porter")?.signon?.briefedBy).toBeNull();
+    expect(people?.find((p) => p.name === "Troy Northam")?.signon?.briefedBy).toBeNull();
     const dane = (await loadSwmsDocument(ORG, "w1"))?.people.find((p) => p.name === "Dane Whitmore");
-    expect(dane?.signon?.briefedBy).toBe("Troy Porter");
+    expect(dane?.signon?.briefedBy).toBe("Troy Northam");
   });
 
   it("knows nothing about another workspace's version", async () => {

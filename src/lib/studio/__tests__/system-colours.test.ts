@@ -90,7 +90,7 @@ describe("a design's systems onto the palette", () => {
 
 describe("opening a design", () => {
   const withSystems = (systems: DesignSystem[]): DesignDocument => ({
-    ...createDesign({ name: "Cutler", mode: "plan" }),
+    ...createDesign({ name: "Ipsum", mode: "plan" }),
     systems,
   });
 

@@ -98,7 +98,7 @@ const ACTIONS: [string, () => Promise<unknown>][] = [
   ["loadStudioDesign", () => loadStudioDesign("d-1")],
   ["saveStudioDesign", () => saveStudioDesign({})],
   ["deleteStudioDesign", () => deleteStudioDesign("d-1")],
-  ["searchStudioJobs", () => searchStudioJobs("wallace")],
+  ["searchStudioJobs", () => searchStudioJobs("eiusmod")],
   ["readStudioJobs", () => readStudioJobs(["j-1"])],
   ["listStudioJobs", () => listStudioJobs(0, 6)],
   ["createPlanUpload", () => createPlanUpload("png")],

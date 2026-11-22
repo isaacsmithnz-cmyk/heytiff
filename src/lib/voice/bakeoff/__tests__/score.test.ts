@@ -11,7 +11,7 @@ import {
 
 describe("normalise", () => {
   it("puts both sides in the same shape so formatting is not counted as error", () => {
-    expect(normalise("Thirty-six Wyndham Street.")).toBe(normalise("36 wyndham street"));
+    expect(normalise("Thirty-six Fabulum Street.")).toBe(normalise("36 fabulum street"));
   });
 
   it("keeps apostrophes inside words", () => {
@@ -42,7 +42,7 @@ describe("wordErrorRate", () => {
 
 describe("similarity", () => {
   it("scores a near-miss high and an unrelated word low", () => {
-    expect(similarity("wyndham", "windham")).toBeGreaterThan(0.8);
+    expect(similarity("fabulum", "febulum")).toBeGreaterThan(0.8);
     expect(similarity("lyle", "bunnings")).toBeLessThan(0.3);
   });
 
@@ -65,7 +65,7 @@ describe("findPhrase", () => {
   });
 
   it("reports what was heard instead when it misses", () => {
-    const m = findPhrase("we went to smith and sons today", "wyndham");
+    const m = findPhrase("we went to smith and sons today", "fabulum");
     expect(m.hit).toBe(false);
     expect(m.closest).not.toBe("");
   });
@@ -82,30 +82,30 @@ describe("findPhrase", () => {
 
 describe("findSite", () => {
   it("requires the street number exactly and allows the name to be approximate", () => {
-    const [number, street] = findSite("working at 36 windham street today", "36 Wyndham Street");
+    const [number, street] = findSite("working at 36 febulum street today", "36 Fabulum Street");
     expect(number.hit).toBe(true);
     expect(street.hit).toBe(true);
   });
 
   it("fails a wrong street number even when the name is perfect", () => {
     // 36 and 38 are different houses; fuzzy-matching them is worse than useless.
-    const [number] = findSite("working at 38 wyndham street", "36 Wyndham Street");
+    const [number] = findSite("working at 38 fabulum street", "36 Fabulum Street");
     expect(number.hit).toBe(false);
   });
 
   it("matches a spoken street number against digits", () => {
-    const [number] = findSite("working at thirty six wyndham street", "36 Wyndham Street");
+    const [number] = findSite("working at thirty six fabulum street", "36 Fabulum Street");
     expect(number.hit).toBe(true);
   });
 });
 
 describe("scoreCase", () => {
-  const truth = "at 36 Wyndham Street for job 337, Lyle needs to order the grills";
+  const truth = "at 36 Fabulum Street for job 337, Lyle needs to order the grills";
 
   it("is routable when every hard expectation survives", () => {
     const score = scoreCase("c1", truth, truth, {
       job: "337",
-      site: "36 Wyndham Street",
+      site: "36 Fabulum Street",
       people: ["Lyle"],
       terms: ["grills"],
     });
@@ -117,7 +117,7 @@ describe("scoreCase", () => {
     const heard = "at 36 Kingston Street for job 337, Lyle needs to order the grills";
     const score = scoreCase("c2", truth, heard, {
       job: "337",
-      site: "36 Wyndham Street",
+      site: "36 Fabulum Street",
       people: ["Lyle"],
     });
     expect(score.routable).toBe(false);
@@ -125,10 +125,10 @@ describe("scoreCase", () => {
   });
 
   it("stays routable when only a trade term is mangled", () => {
-    const heard = "at 36 Wyndham Street for job 337, Lyle needs to order the girls";
+    const heard = "at 36 Fabulum Street for job 337, Lyle needs to order the girls";
     const score = scoreCase("c3", truth, heard, {
       job: "337",
-      site: "36 Wyndham Street",
+      site: "36 Fabulum Street",
       people: ["Lyle"],
       terms: ["grills"],
     });
@@ -137,7 +137,7 @@ describe("scoreCase", () => {
   });
 
   it("counts a job number as heard whichever way it was spoken", () => {
-    const heard = "at 36 Wyndham Street for job three three seven, Lyle needs the grills";
+    const heard = "at 36 Fabulum Street for job three three seven, Lyle needs the grills";
     expect(scoreCase("c4", truth, heard, { job: "337" }).routable).toBe(true);
   });
 });

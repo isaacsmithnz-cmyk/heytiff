@@ -60,7 +60,7 @@ const images: PlanImages = {
 };
 
 function open(onDone = jest.fn()) {
-  const doc = { ...createDesign({ name: "Frogmore", mode: "plan" }), floors: [floor, { ...floor, id: "f2", name: "Level 1", level: 1, plans: [] }] };
+  const doc = { ...createDesign({ name: "Pariatur", mode: "plan" }), floors: [floor, { ...floor, id: "f2", name: "Level 1", level: 1, plans: [] }] };
   render(<RoomsFromPlan doc={doc} floor={floor} sheets={sheets} planImages={images} onDone={onDone} onClose={jest.fn()} />);
   return { onDone, list: () => within(screen.getByRole("complementary", { name: "Rooms" })) };
 }

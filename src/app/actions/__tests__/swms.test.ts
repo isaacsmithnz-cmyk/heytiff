@@ -46,9 +46,9 @@ beforeEach(() => {
   mockMe = "troy";
   Object.assign(mockDb.tables, {
     sm8_jobs: [{ org_id: ORG, uuid: "job-1", generated_job_id: "2601", company_uuid: "co-1", job_address: "14 Attunga Road, Miranda NSW 2228", geo_state: "NSW", job_description: "Supply and install a 5.0 kW split system", active: 1 }],
-    sm8_companies: [{ org_id: ORG, uuid: "co-1", name: "M. and J. Rowe" }],
+    sm8_companies: [{ org_id: ORG, uuid: "co-1", name: "M. and J. Lockwood" }],
     staff_profiles: [
-      staff("troy", "Troy", "Porter"),
+      staff("troy", "Troy", "Northam"),
       staff("dane", "Dane", "Whitmore"),
       staff("sam", "Sam", "Ikpeba"),
       staff("lena", "Lena", "Vukovic", "Inactive"),
@@ -79,9 +79,9 @@ const written = (table: string) => mockDb.tables[table] ?? [];
 describe("swmsWizardContext", () => {
   it("opens on the job, the active team with who's booked first, and the library's state", async () => {
     const ctx = await swmsWizardContext("job-1");
-    expect(ctx?.job).toMatchObject({ number: "2601", clientName: "M. and J. Rowe", jurisdiction: "NSW" });
+    expect(ctx?.job).toMatchObject({ number: "2601", clientName: "M. and J. Lockwood", jurisdiction: "NSW" });
     expect(ctx?.team.map((t) => [t.name, t.booked])).toEqual([
-      ["Troy Porter", true],
+      ["Troy Northam", true],
       ["Dane Whitmore", false],
       ["Sam Ikpeba", false],
     ]);
@@ -126,7 +126,7 @@ describe("issueSwms", () => {
     const content = v.content as SwmsContent;
     expect(content.work).toBe("Supply and install a 5.0 kW split system");
     expect(content.categories.map((c) => c.n)).toEqual([1, 10, 11, 16]);
-    expect(content.emergency.firstAider).toBe("Troy Porter");
+    expect(content.emergency.firstAider).toBe("Troy Northam");
     expect(JSON.stringify(content.steps)).toContain("licensed electrician — Sam Ikpeba");
     expect(content.riskScores).toBeNull();
 
@@ -239,7 +239,7 @@ describe("issueSwms", () => {
     await signOnSwms({ personId: idOf("troy"), pathData: "M10 20 L30 40 L50 35" });
     await signOnSwms({ personId: idOf("Kai Lindqvist"), pathData: "M10 20 L30 40 L50 35" });
     const prev = await swmsPrevious(versionId);
-    expect(prev).toMatchObject({ version: 1, electricianName: "Sam Ikpeba", firstAiderName: "Troy Porter", responsibleStaffId: "troy" });
+    expect(prev).toMatchObject({ version: 1, electricianName: "Sam Ikpeba", firstAiderName: "Troy Northam", responsibleStaffId: "troy" });
     expect(prev?.outsiders).toEqual([{ name: "Kai Lindqvist", company: "Lindqvist Plumbing" }]);
     expect(prev).toMatchObject({ signedStaffIds: ["troy"], signedOutsideNames: ["kai lindqvist"] });
   });

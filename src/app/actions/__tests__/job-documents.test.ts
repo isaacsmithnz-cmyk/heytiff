@@ -121,14 +121,14 @@ describe("putting an upload on a job", () => {
 
   it("keeps no second copy of a file already on the job, and says so", async () => {
     /* 3570, 19 November 2026: Luke's plan set went on twice, two minutes apart */
-    docRow = landed({ file_name: "307 Coonawarra Rd_CDC.pdf", size_bytes: 11271429 });
+    docRow = landed({ file_name: "307 Deserunt Rd_CDC.pdf", size_bytes: 11271429 });
     twinRow = { id: "d-1" };
-    expect(await attachJobDocument("d-9", "job-1")).toEqual({ ok: false, error: "307 Coonawarra Rd_CDC.pdf is already on this job." });
+    expect(await attachJobDocument("d-9", "job-1")).toEqual({ ok: false, error: "307 Deserunt Rd_CDC.pdf is already on this job." });
     const twinRead = ops.find((o) => o.filters.some(([op]) => op === "neq"))!;
     expect(twinRead.filters).toEqual(
       expect.arrayContaining([
         ["eq", "sm8_job_uuid", "job-1"],
-        ["eq", "file_name", "307 Coonawarra Rd_CDC.pdf"],
+        ["eq", "file_name", "307 Deserunt Rd_CDC.pdf"],
         ["eq", "size_bytes", 11271429],
         ["neq", "id", "d-9"],
       ]),

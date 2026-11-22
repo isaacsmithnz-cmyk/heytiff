@@ -330,7 +330,7 @@ function objectInRegion(o: DesignObject, sheet: PlanSheet, region: SheetRegion):
 
 /** Keep `keep` on this floor and give `other` to a new floor. One document
     change, so it is one undo step.
-    What is already drawn in the `other` area goes with it (48 Thorne St: the
+    What is already drawn in the `other` area goes with it (48 Laborum St: the
     outdoor was placed before the split, stayed on the old floor on the faded
     half of the page, and no pipe could reach it from the floor it was on).
     Both floors show the sheet in the same place, so nothing moves on the page;
@@ -542,7 +542,7 @@ export function removePageFromRows(rows: BuilderRow[], pageIdx: number): Builder
   );
 }
 
-/** Each new floor named by its plans as they are named NOW (6 Bishops Ave,
+/** Each new floor named by its plans as they are named NOW (6 Nostrud Ave,
     2026-10-15: the upper floor was committed "Ground Floor" while its card on
     the stack read "First Floor"). A row took its name from the page dropped
     to make it, at the moment of the drop, so a page renamed after placing,

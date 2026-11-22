@@ -152,7 +152,7 @@ const job = (uuidOf: string, status: string, over: Row = {}): Row => ({
   category_uuid: null,
   queue_uuid: null,
   job_address: null,
-  geo_city: "Rose Bay",
+  geo_city: "Example Bay",
   job_description: "Service the units",
   date: "2026-09-30 09:00:00",
   quote_date: null,

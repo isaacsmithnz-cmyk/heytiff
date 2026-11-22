@@ -183,7 +183,7 @@ export type ListRollupRow = {
   id: string;
   title: string;
   sub: string;
-  /** The stretch of `sub` set in bold ("Oldest **3050 Oatley**, …"), or null. */
+  /** The stretch of `sub` set in bold ("Oldest **3050 Fakeley**, …"), or null. */
   strong: string | null;
   verb: Verb | null;
   rows: ListRow[];
@@ -325,14 +325,14 @@ function dayOf(stamp: string, tz: string | null): string {
   return zonedParts(stamp, tz)?.day ?? stamp.slice(0, 10);
 }
 
-/** "Job 3323, Randwick" — its number and where. */
+/** "Job 3323, Madeupton" — its number and where. */
 function jobTitle(job: AllJobsMirrorJob): string {
   const place = job.suburb?.trim() || job.clientName?.trim() || null;
   if (job.jobNumber) return place ? `Job ${job.jobNumber}, ${place}` : `Job ${job.jobNumber}`;
   return place ?? "A won job";
 }
 
-/** "3050 Oatley" — the same, said in passing. */
+/** "3050 Fakeley" — the same, said in passing. */
 function jobShort(job: AllJobsMirrorJob): string {
   const place = job.suburb?.trim() || job.clientName?.trim() || null;
   return [job.jobNumber, place].filter(Boolean).join(" ") || "job";

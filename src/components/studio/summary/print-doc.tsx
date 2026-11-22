@@ -215,7 +215,7 @@ export function PrintDoc({
 
      A browser prints its own furniture — the date, the document title, the
      page URL, "1/1" — INTO the page margin, and nowhere else. Isaac's copy of
-     85 West St came out with all four on a sheet a customer was meant to
+     85 Placeholder St came out with all four on a sheet a customer was meant to
      receive. With no margin there is nowhere to put them, verified by
      rendering with the header/footer switch explicitly on.
 

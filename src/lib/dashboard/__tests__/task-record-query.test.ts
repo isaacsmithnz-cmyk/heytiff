@@ -235,13 +235,13 @@ describe("about", () => {
       { org_id: ORG, action: "task", task_id: tid(1), sm8_note_uuid: "note-1", sm8_job_uuid: "job-1", acted_by: null, acted_at: "2026-09-21T04:00:00Z" },
     ];
     rows.sm8_job_notes = [
-      { org_id: ORG, uuid: "note-1", note: "@isaacsmith grilles for susie@peterson.com", edit_by_staff_uuid: "sm8-lyle", create_date: "2026-09-21 13:42:10" },
+      { org_id: ORG, uuid: "note-1", note: "@isaacsmith grilles for susie@hollowell.com", edit_by_staff_uuid: "sm8-lyle", create_date: "2026-09-21 13:42:10" },
     ];
     rows.sm8_staff = [
       { org_id: ORG, uuid: "sm8-lyle", first: "Lyle", last: "Irving" },
       { org_id: ORG, uuid: "sm8-me", first: "Isaac", last: "Smith" },
     ];
-    rows.sm8_jobs = [{ org_id: ORG, uuid: "job-1", generated_job_id: "2041", geo_city: "Wollstonecraft" }];
+    rows.sm8_jobs = [{ org_id: ORG, uuid: "job-1", generated_job_id: "2041", geo_city: "Testcraft" }];
     const rec = await loadTasksFace(ctx({ mineUuid: "sm8-me" }, "workboard"), NOW);
     expect(rec.about[tid(1)]).toMatchObject({
       source: "sm8",
@@ -250,8 +250,8 @@ describe("about", () => {
       actedBy: null,
       said: { day: "2026-09-21", time: "1:42 pm" },
       // quoted as the diary quotes it: who it was to goes, an address stays whole
-      words: "grilles for susie@peterson.com",
-      job: { label: "2041 Wollstonecraft", uuid: "job-1" },
+      words: "grilles for susie@hollowell.com",
+      job: { label: "2041 Testcraft", uuid: "job-1" },
     });
     expect(of("job_note_actions")[0].eq).toEqual({ org_id: ORG, action: "task" });
     // the roster, once, for every handle there is: not one read per writer
@@ -286,7 +286,7 @@ describe("about", () => {
       { org_id: ORG, uuid: "sm8-leo", first: "Leo", last: "Park" },
       { org_id: ORG, uuid: "sm8-me", first: "Isaac", last: "Smith" },
     ];
-    rows.sm8_jobs = [{ org_id: ORG, uuid: "job-1", generated_job_id: "2041", geo_city: "Wollstonecraft" }];
+    rows.sm8_jobs = [{ org_id: ORG, uuid: "job-1", generated_job_id: "2041", geo_city: "Testcraft" }];
     const rec = await loadTasksFace(ctx({ mineUuid: "sm8-me" }, "workboard"), NOW);
     expect(rec.about[tid(1)]).toMatchObject({
       source: "sm8",
@@ -295,7 +295,7 @@ describe("about", () => {
       actedBy: null,
       said: { day: "2026-09-21", time: "1:42 pm" },
       words: "please call Mary",
-      job: { label: "2041 Wollstonecraft", uuid: "job-1" },
+      job: { label: "2041 Testcraft", uuid: "job-1" },
     });
     expect(rec.about[tid(2)].source).toBe("typed");
     // one read for every task, of the asks that were read
@@ -330,7 +330,7 @@ describe("about", () => {
       {
         org_id: ORG,
         uuid: "note-1",
-        note: "Hi @isaacsmith, can you ask @lyleirving to email @bobsmith at bob@peterson.com",
+        note: "Hi @isaacsmith, can you ask @lyleirving to email @bobsmith at bob@hollowell.com",
         edit_by_staff_uuid: "sm8-leo",
         create_date: "2026-09-21 13:42:10",
       },
@@ -343,7 +343,7 @@ describe("about", () => {
     const rec = await loadTasksFace(ctx({ mineUuid: "sm8-me" }, "workboard"), NOW);
     expect(rec.about[tid(1)]).toMatchObject({
       askerName: "Leo Park",
-      words: "Hi, can you ask Lyle to email @bobsmith at bob@peterson.com",
+      words: "Hi, can you ask Lyle to email @bobsmith at bob@hollowell.com",
     });
   });
 
@@ -358,16 +358,16 @@ describe("about", () => {
       note("n3", [tid(3)], { target_kind: "visit", target_id: "v1" }),
     ];
     rows.sm8_jobs = [
-      { org_id: ORG, uuid: "job-1", generated_job_id: "2041", geo_city: "Wollstonecraft" },
-      { org_id: ORG, uuid: "job-2", generated_job_id: "3271", geo_city: "Mosman" },
+      { org_id: ORG, uuid: "job-1", generated_job_id: "2041", geo_city: "Testcraft" },
+      { org_id: ORG, uuid: "job-2", generated_job_id: "3271", geo_city: "Sampleton" },
     ];
     rows.maintenance_visits = [{ org_id: ORG, id: "v1", agreement_id: "a1", job_number: "1042", job_no: null }];
     rows.maintenance_agreements = [{ org_id: ORG, id: "a1", label: "Quarterly service", client_name: "Bayview Apartments" }];
     rows.projects = [{ org_id: ORG, id: "p1", name: "Fit-out", client_name: "Harbour St", defects_task_id: tid(4) }];
 
     const rec = await loadTasksFace(ctx({}, "workboard"), NOW);
-    expect(rec.about[tid(1)].job).toEqual({ label: "2041 Wollstonecraft", uuid: "job-1" });
-    expect(rec.about[tid(2)].job).toEqual({ label: "3271 Mosman", uuid: "job-2" });
+    expect(rec.about[tid(1)].job).toEqual({ label: "2041 Testcraft", uuid: "job-1" });
+    expect(rec.about[tid(2)].job).toEqual({ label: "3271 Sampleton", uuid: "job-2" });
     // a visit has words and no door
     expect(rec.about[tid(3)].job).toEqual({ label: "Job 1042, Bayview Apartments", uuid: null });
     expect(rec.about[tid(4)]).toMatchObject({
@@ -400,7 +400,7 @@ describe("about", () => {
       { org_id: THEM, uuid: "sm8-lyle", first: "Their", last: "Person" },
     ];
     rows.sm8_jobs = [
-      { org_id: ORG, uuid: "job-1", generated_job_id: "2041", geo_city: "Wollstonecraft" },
+      { org_id: ORG, uuid: "job-1", generated_job_id: "2041", geo_city: "Testcraft" },
       { org_id: THEM, uuid: "job-1", generated_job_id: "9999", geo_city: "Elsewhere" },
     ];
     rows.projects = [
@@ -423,7 +423,7 @@ describe("about", () => {
       askerName: "Lyle Irving",
       said: { day: "2026-09-21", time: "1:42 pm" },
       words: "grilles for Susie",
-      job: { label: "2041 Wollstonecraft", uuid: "job-1" },
+      job: { label: "2041 Testcraft", uuid: "job-1" },
       events: [],
     });
     expect(rec.about[tid(2)]).toMatchObject({ source: "project", project: "Fit-out", job: { label: "Harbour St, Fit-out", uuid: null } });

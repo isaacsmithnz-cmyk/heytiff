@@ -56,11 +56,11 @@ class FakePlanImages implements PlanImages {
 /* a design on job 3151 with a floor, a room on a system, its unit, and Tiff's reading */
 function drawn(): DesignDocument {
   const d = createDesign({
-    name: "Farran St",
+    name: "Cillum St",
     mode: "blank",
     jobNumber: "3151",
     client: "Diamond Air",
-    site: "12 Farran St",
+    site: "12 Cillum St",
     job: { remoteId: "j-3151", jobNumber: "3151" },
     now: "2026-10-01T00:00:00.000Z",
   });
@@ -157,9 +157,9 @@ describe("the Studio menu's Start again and Delete design", () => {
     await waitFor(() => expect(stored(doc.id)!.systems).toHaveLength(0));
     const cleared = stored(doc.id)!;
     expect(cleared.id).toBe(doc.id);
-    expect(cleared.meta.name).toBe("Farran St");
+    expect(cleared.meta.name).toBe("Cillum St");
     expect(cleared.meta.createdAt).toBe(doc.meta.createdAt);
-    expect([cleared.meta.jobNumber, cleared.meta.client, cleared.meta.site]).toEqual(["3151", "Diamond Air", "12 Farran St"]);
+    expect([cleared.meta.jobNumber, cleared.meta.client, cleared.meta.site]).toEqual(["3151", "Diamond Air", "12 Cillum St"]);
     expect(cleared.jobLink).toEqual(doc.jobLink);
     expect(cleared.floors).toEqual(doc.floors);
     expect(cleared.objects).toEqual([{ ...doc.objects[0], systemId: null }]);
@@ -210,7 +210,7 @@ describe("the Studio menu's Start again and Delete design", () => {
     [...store.held].reverse().forEach((go) => go());
     await waitFor(() => expect(store.server?.systems).toHaveLength(0));
     expect(store.server!.id).toBe(doc.id);
-    expect(store.server!.meta.name).toBe("Farran St!");
+    expect(store.server!.meta.name).toBe("Cillum St!");
     await new Promise((r) => setTimeout(r, 700));
     expect(store.server!.objects).toHaveLength(1);
     expect(store.server!.systems).toHaveLength(0);
@@ -221,7 +221,7 @@ describe("the Studio menu's Start again and Delete design", () => {
     const user = await openOn(doc);
     await menuPick(user, "Delete design");
 
-    const ask = screen.getByRole("dialog", { name: "Delete Farran St?" });
+    const ask = screen.getByRole("dialog", { name: "Delete Cillum St?" });
     expect(ask).toHaveTextContent("The design, its floors and its systems go for good.");
     await user.click(within(ask).getByRole("button", { name: "Delete design" }));
 

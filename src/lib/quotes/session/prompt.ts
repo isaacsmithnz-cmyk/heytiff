@@ -56,7 +56,7 @@ export function sessionSystemPrompt(opts: { writeUpFirst?: boolean } = {}): stri
         ]
       : []),
     "- Do every lookup you can at once: search the book for all the parts you need, and read every data pack, in the same step, several tools together. Each step re-reads the whole quote, so fewer steps is a faster, cheaper quote.",
-    /* Isaac, 2026-10-17, on 27 Milroy ("check design tool"): "I think Tiff
+    /* Isaac, 2026-10-17, on 27 Proident ("check design tool"): "I think Tiff
        can already read the studio design. Or can she not?" She couldn't.
        28 October 2026, after 3406: the quote goes Brief, Scope, Design,
        Priced, so the scope decides what goes in and the design measures it.

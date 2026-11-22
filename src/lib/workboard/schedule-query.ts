@@ -39,7 +39,7 @@ export type SchedulePayload = {
       day. An ARRAY, not a Set: this payload crosses a server action's
       serialisation boundary, and the component rebuilds the Set on arrival. */
   onSite: string[];
-  /** job uuid → the first line of its site address ("2 Spring St"), for the
+  /** job uuid → the first line of its site address ("2 Fable St"), for the
       day's jobs that have one. A record beside the rows, not a field on
       them: `AllJobsMirrorJob` is the one row shape every sheet opens on, and
       a street line is only what Home's day panel says under Where. */

@@ -65,7 +65,7 @@ def new_menu():
     items = [("jobs", "Job"), ("dollar", "Quote"), ("task", "Task"), ("cal", "Event"), ("receipt", "Expense"), ("sun", "Leave")]
     rows = "".join(mi(i, t) for i, t in items)
     return f'''<div class="ov mn" style="left:262px;top:64px;width:280px">
-<div class="ctx">{v3.dot("Blue")}<span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">For 3342 Rifkin, Bellevue Hill</span><span class="x">{ico("x")}</span></div><div class="mdv"></div>
+<div class="ctx">{v3.dot("Blue")}<span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">For 3342 Fairweather, Bellevue Hill</span><span class="x">{ico("x")}</span></div><div class="mdv"></div>
 {rows}<div class="mdv"></div>{mi("doc", "Document", "", f'<span class="r">{ico("right")}</span>')}{mi("dots", "More", "", f'<span class="r">{ico("right")}</span>')}</div>'''
 
 

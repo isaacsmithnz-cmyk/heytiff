@@ -140,9 +140,9 @@ beforeEach(() => {
   /* off unless asked for; its own tests turn it on */
   delete process.env.PLANS_MEASURED;
   fetchMock.mockClear();
-  tables.documents = [{ org_id: "org-1", id: "d-1", file_name: "307 Coonawarra Rd_CDC.pdf", storage_ref: "org-1/d-1.pdf", mime_type: "application/pdf", size_bytes: 11271429, sm8_job_uuid: "job-3570", uploaded_at: "2026-11-19T21:47:52Z" }];
+  tables.documents = [{ org_id: "org-1", id: "d-1", file_name: "307 Deserunt Rd_CDC.pdf", storage_ref: "org-1/d-1.pdf", mime_type: "application/pdf", size_bytes: 11271429, sm8_job_uuid: "job-3570", uploaded_at: "2026-11-19T21:47:52Z" }];
   tables.job_plans = [
-    { id: "jplan_1", org_id: "org-1", job_uuid: "job-3570", document_id: "d-1", attachment_id: null, name: "307 Coonawarra Rd_CDC.pdf", source_ref: "org/org-1/plan_1.pdf", source_kind: "pdf", kind: null, page_count: 0, pages: [], reading: null, state: "reading", said: null, added_by: null, added_at: "2026-11-19T21:48:04Z", read_at: null, claimed_at: null, progress: null },
+    { id: "jplan_1", org_id: "org-1", job_uuid: "job-3570", document_id: "d-1", attachment_id: null, name: "307 Deserunt Rd_CDC.pdf", source_ref: "org/org-1/plan_1.pdf", source_kind: "pdf", kind: null, page_count: 0, pages: [], reading: null, state: "reading", said: null, added_by: null, added_at: "2026-11-19T21:48:04Z", read_at: null, claimed_at: null, progress: null },
   ];
 });
 

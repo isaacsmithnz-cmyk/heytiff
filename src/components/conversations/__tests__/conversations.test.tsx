@@ -171,8 +171,8 @@ describe("Inbox", () => {
   const OTHER = "6a3e5b78-0003-41de-bc30-08d2572017a0";
   const row = (over: Partial<InboxEmail> = {}): InboxEmail => ({
     id: EID,
-    subject: "Request for quotation – 2 Krui Street, Fairlight",
-    from: "Shaheer Khan",
+    subject: "Request for quotation – 2 Tempor Street, Demoford",
+    from: "Sami Crestfield",
     by: "Isaac",
     mine: true,
     at: at(9, 0),
@@ -190,10 +190,10 @@ describe("Inbox", () => {
       aboutJob: false,
       jobNumbers: [],
       notJobWhy: "",
-      summary: "JT Construct is asking for a quote.",
-      client: "JT Construct Pty Ltd",
-      contact: { first: "Shaheer", last: "Khan", mobile: "", phone: "", email: "" },
-      site: "2 Krui Street, Fairlight",
+      summary: "QX Construct is asking for a quote.",
+      client: "QX Construct Pty Ltd",
+      contact: { first: "Sami", last: "Crestfield", mobile: "", phone: "", email: "" },
+      site: "2 Tempor Street, Demoford",
       due: "",
       scope: ["Price the ducted system"],
       excluded: [],
@@ -208,8 +208,8 @@ describe("Inbox", () => {
     jobNumber: null,
     fromName: null,
     receivedAt: new Date(at(9, 0)).toISOString(),
-    subject: "Fwd: Request for quotation – 2 Krui Street, Fairlight",
-    body: "---------- Forwarded message ---------\nFrom: Shaheer Khan <s@jt.example>\nDate: Fri, 9 Oct 2026 at 13:02\nTo: <i@da.example>\n\nHi,\n\nPlease quote the attached.",
+    subject: "Fwd: Request for quotation – 2 Tempor Street, Demoford",
+    body: "---------- Forwarded message ---------\nFrom: Sami Crestfield <s@qx.example>\nDate: Fri, 9 Oct 2026 at 13:02\nTo: <i@da.example>\n\nHi,\n\nPlease quote the attached.",
     ...over,
   });
   const inbox = (rows: InboxEmail[], open: string | null = null) => props({ inbox: rows, initial: { view: "inbox", open } });
@@ -233,9 +233,9 @@ describe("Inbox", () => {
     );
     const list = screen.getByRole("list", { name: "Emails to Tiff" });
     const rows = within(list).getAllByRole("button");
-    expect(rows[0]).toHaveTextContent("Request for quotation – 2 Krui Street, Fairlight");
+    expect(rows[0]).toHaveTextContent("Request for quotation – 2 Tempor Street, Demoford");
     expect(rows[0]).toHaveTextContent("Not made yet");
-    expect(rows[0]).toHaveTextContent("From Shaheer Khan, forwarded by you at 9:00 am");
+    expect(rows[0]).toHaveTextContent("From Sami Crestfield, forwarded by you at 9:00 am");
     expect(rows[1]).toHaveTextContent("Not a job");
     expect(rows[1]).toHaveTextContent(/From Reece Accounts, forwarded by Alex on /);
     expect(tab(/^Inbox/)).toHaveClass("pt-vtab--look");
@@ -245,10 +245,10 @@ describe("Inbox", () => {
   it("opens the newest at its decision: whose it was, Create job, her read, and the builder's own email without the forward's header", async () => {
     render(<Conversations {...inbox([row()])} />);
     expect(await screen.findByRole("button", { name: "Create job" })).toBeInTheDocument();
-    const pane = screen.getByRole("region", { name: "Request for quotation – 2 Krui Street, Fairlight" });
-    expect(within(pane).getByRole("heading", { level: 2, name: "Request for quotation – 2 Krui Street, Fairlight" })).toBeInTheDocument();
-    expect(within(pane).getByText("From Shaheer Khan at JT Construct Pty Ltd, forwarded by you today at 9:00 am")).toBeInTheDocument();
-    expect(within(pane).getByText(/JT Construct is asking for a quote\./)).toBeInTheDocument();
+    const pane = screen.getByRole("region", { name: "Request for quotation – 2 Tempor Street, Demoford" });
+    expect(within(pane).getByRole("heading", { level: 2, name: "Request for quotation – 2 Tempor Street, Demoford" })).toBeInTheDocument();
+    expect(within(pane).getByText("From Sami Crestfield at QX Construct Pty Ltd, forwarded by you today at 9:00 am")).toBeInTheDocument();
+    expect(within(pane).getByText(/QX Construct is asking for a quote\./)).toBeInTheDocument();
     expect(within(pane).getByRole("heading", { name: "New job" })).toBeInTheDocument();
     expect(within(pane).getByText(/Please quote the attached\./)).toBeInTheDocument();
     expect(within(pane).queryByText(/Forwarded message/)).toBeNull();
@@ -265,7 +265,7 @@ describe("Inbox", () => {
           ...email().proposal,
           isJob: false,
           aboutJob: true,
-          jobs: [{ uuid: "u-3402", number: "3402", address: "40 Westbourne Street", client: "Truecut", status: "Quote", found: "number" }],
+          jobs: [{ uuid: "u-3402", number: "3402", address: "40 Aliqua Street", client: "Plumbline", status: "Quote", found: "number" }],
         },
       })
     );
@@ -295,7 +295,7 @@ describe("Inbox", () => {
     await user.type(screen.getByRole("textbox", { name: "Ask Tiff" }), "how many zones?{Enter}");
     expect(asks[0].question).toBe("how many zones?");
     expect(asks[0].history[0].text).toContain("Please quote the attached.");
-    expect(asks[0].history[1].text).toContain("JT Construct is asking for a quote.");
+    expect(asks[0].history[1].text).toContain("QX Construct is asking for a quote.");
     expect(await screen.findByText("P8 is a piping temperature fault.")).toBeInTheDocument();
     await waitFor(() => expect(stored().find((t) => t.id === `email-${EID}`)!.messages).toHaveLength(4));
     await user.click(tab(/^Chats/));

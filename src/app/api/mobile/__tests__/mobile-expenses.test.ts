@@ -68,7 +68,7 @@ jest.mock("@/app/actions/expense-ai", () => ({
 jest.mock("@/app/actions/fleet-ai", () => ({
   readFuelReceipt: async () => {
     asked.push("read fuel");
-    return { ok: true, litres: 62.4, cost: 121.5, station: "Ampol Alexandria", date: "2026-10-27", gst: 11.05, abn: "40004201307" };
+    return { ok: true, litres: 62.4, cost: 121.5, station: "Ampol Exampleria", date: "2026-10-27", gst: 11.05, abn: "40004201307" };
   },
 }));
 jest.mock("@/app/actions/expenses", () => ({
@@ -162,7 +162,7 @@ describe("the phone's expense claims", () => {
     const r = await fileClaim(ctx, {
       description: "Copper fittings, flux and silfos",
       supplier: "Reece",
-      jobLabel: "#3215, Jay Matthews",
+      jobLabel: "#3215, Jay Oakhurst",
       category: "materials",
       amount: "96.80",
       gstAmount: 8.8,
@@ -176,7 +176,7 @@ describe("the phone's expense claims", () => {
       `submit ${JSON.stringify({
         job: null,
         expenseDate: "2026-10-27",
-        description: "Copper fittings, flux and silfos, for #3215, Jay Matthews",
+        description: "Copper fittings, flux and silfos, for #3215, Jay Oakhurst",
         category: "materials",
         amount: 96.8,
         gstAmount: 8.8,
@@ -197,7 +197,7 @@ describe("the phone's expense claims", () => {
       cost: 121.5,
       gst: 11.05,
       abn: "40 004 201 307",
-      supplier: "Ampol Alexandria",
+      supplier: "Ampol Exampleria",
       purchasedOn: "2026-10-27",
       paidWith: "own",
       receiptDocumentId: "doc-1",
@@ -212,7 +212,7 @@ describe("the phone's expense claims", () => {
         cost: 121.5,
         gst: 11.05,
         abn: "40004201307",
-        station: "Ampol Alexandria",
+        station: "Ampol Exampleria",
         purchasedOn: "2026-10-27",
         receiptDocumentId: "doc-1",
         paidWith: "own",

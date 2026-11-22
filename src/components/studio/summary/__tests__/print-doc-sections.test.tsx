@@ -12,7 +12,7 @@ import { ALL_SECTIONS, type PrintModel, type SheetSections } from "@/lib/studio/
 import { PrintDoc } from "../print-doc";
 
 function modelWith(sections: SheetSections): PrintModel {
-  const doc = createDesign({ name: "85 West St", mode: "blank", now: "2026-08-20T00:00:00.000Z" });
+  const doc = createDesign({ name: "85 Placeholder St", mode: "blank", now: "2026-08-20T00:00:00.000Z" });
   return {
     options: {
       sections,

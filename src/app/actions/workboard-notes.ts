@@ -1636,7 +1636,7 @@ export async function fileNote(
   const variationLines: string[] = [];
   for (const [index, v] of draft.variations.entries()) {
     if (!v.on) continue;
-    /* WITH ITS LINES (Isaac, 17 November 2026, Dan Brad's job: "Allow 1
+    /* WITH ITS LINES (Isaac, 17 November 2026, Dan Moorcroft's job: "Allow 1
        hour for the tap and 2 hours for the ceiling fans as a variation"):
        on a quote nothing's accepted on yet, they go on the quote itself;
        on a variation started, onto its draft. Still to price either way. */

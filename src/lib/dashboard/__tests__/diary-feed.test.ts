@@ -27,9 +27,9 @@ const people = [ISAAC, LYLE, MICHAEL, SMITHY];
 const me = { uuid: ISAAC.uuid, handle: ISAAC.handle };
 
 const JOBS = new Map([
-  ["j-2041", { label: "2041 Wollstonecraft", live: true }],
-  ["j-3294", { label: "3294 Rozelle", live: true }],
-  ["j-2749", { label: "2749 Woolloomooloo", live: false }],
+  ["j-2041", { label: "2041 Testcraft", live: true }],
+  ["j-3294", { label: "3294 Mockzelle", live: true }],
+  ["j-2749", { label: "2749 Exampleloo", live: false }],
 ]);
 
 let n = 0;
@@ -54,7 +54,7 @@ describe("buildConversations", () => {
     expect(c).toMatchObject({
       key: "j-2041:u-lyle",
       jobUuid: "j-2041",
-      jobLabel: "2041 Wollstonecraft",
+      jobLabel: "2041 Testcraft",
       jobLive: true,
       asker: { name: "Lyle Irving", first: "Lyle", handle: "lyleirving" },
       askNoteUuid: "n1",
@@ -280,7 +280,7 @@ describe("buildConversations", () => {
       note("j-2749", LYLE.uuid, "2026-09-09 10:00:00", "@isaacsmith can you advise Holly"),
       note("j-9999", LYLE.uuid, "2026-09-10 10:00:00", "@isaacsmith and this one"),
     ]);
-    expect(out.find((c) => c.jobUuid === "j-2749")).toMatchObject({ jobLabel: "2749 Woolloomooloo", jobLive: false });
+    expect(out.find((c) => c.jobUuid === "j-2749")).toMatchObject({ jobLabel: "2749 Exampleloo", jobLive: false });
     expect(out.find((c) => c.jobUuid === "j-9999")).toMatchObject({ jobLabel: null, jobLive: false });
   });
 
@@ -395,7 +395,7 @@ describe("diaryFeed", () => {
 
 describe("the small helpers", () => {
   it("jobDoorLabel says the number and the suburb, whichever exist", () => {
-    expect(jobDoorLabel("2041", "Wollstonecraft")).toBe("2041 Wollstonecraft");
+    expect(jobDoorLabel("2041", "Testcraft")).toBe("2041 Testcraft");
     expect(jobDoorLabel("2041", null)).toBe("2041");
     expect(jobDoorLabel(null, " ")).toBeNull();
   });

@@ -290,7 +290,7 @@ export async function materialsAllowance(orgId: string, jobUuid: string): Promis
   return Math.round((data as { qty: number | string; cost_cents: number | string }[]).reduce((s, r) => s + Number(r.qty) * Number(r.cost_cents), 0));
 }
 
-/** A job as a purchase names it, and keeps: "1352, 9/6 Holbrook Avenue", the
+/** A job as a purchase names it, and keeps: "1352, 9/6 Dolor Avenue", the
     phone's own way (booking-push). Null when the job isn't this org's. */
 export async function jobLabelFor(orgId: string, jobUuid: string): Promise<string | null> {
   const { data } = await supabaseAdmin.from("sm8_jobs").select("generated_job_id, job_address").eq("org_id", orgId).eq("uuid", jobUuid).maybeSingle();

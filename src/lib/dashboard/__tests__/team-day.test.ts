@@ -9,8 +9,8 @@ const block = (over: Partial<ScheduleBlock> = {}): ScheduleBlock => ({
   key: "act-1",
   remoteId: "job-3479",
   jobNumber: "3479",
-  clientName: "Dan Brad",
-  suburb: "Glebe",
+  clientName: "Dan Moorcroft",
+  suburb: "Mockglen",
   status: "Work Order",
   categoryName: "Install",
   categoryColour: null,
@@ -30,11 +30,11 @@ describe("teamDayOf", () => {
     lane("s-alex", "Alex Morozoff", [block({ onSite: true })]),
     lane("s-leo", "Leo Watanabe", [block({ key: "act-2" })]),
     lane("s-michael", "Michael Diamond", [
-      block({ key: "act-3", remoteId: "job-3432", jobNumber: "3432", clientName: "Sutcliffe, Will", suburb: "Paddington", closure: "done", startMin: 420, endMin: 480 }),
-      block({ key: "act-4", remoteId: "job-3538", jobNumber: "3538", clientName: "Halliday, Jo", suburb: "Clovelly", startMin: 780, endMin: 840 }),
+      block({ key: "act-3", remoteId: "job-3432", jobNumber: "3432", clientName: "Dunmore, Will", suburb: "Fauxington", closure: "done", startMin: 420, endMin: 480 }),
+      block({ key: "act-4", remoteId: "job-3538", jobNumber: "3538", clientName: "Greystone, Jo", suburb: "Samplevelly", startMin: 780, endMin: 840 }),
     ]),
-    lane("s-isaac", "Isaac Smith", [block({ key: "act-5", remoteId: "job-2359", jobNumber: "2359", clientName: "Dryridge Estate", suburb: "Megalong Valley", categoryName: "Service Call", startMin: 720, endMin: 900 })]),
-    lane("s-alexl", "Alex Lorenz", [block({ key: "act-6", remoteId: "job-3392", jobNumber: "3392", status: "Unsuccessful", suburb: "Bondi Beach", startMin: 660, endMin: 720, onSite: true })]),
+    lane("s-isaac", "Isaac Smith", [block({ key: "act-5", remoteId: "job-2359", jobNumber: "2359", clientName: "Highfield Estate", suburb: "Pretend Valley", categoryName: "Service Call", startMin: 720, endMin: 900 })]),
+    lane("s-alexl", "Alex Lorenz", [block({ key: "act-6", remoteId: "job-3392", jobNumber: "3392", status: "Unsuccessful", suburb: "Fictonia Beach", startMin: 660, endMin: 720, onSite: true })]),
   ];
   const day = teamDayOf(
     { lanes },
@@ -43,11 +43,11 @@ describe("teamDayOf", () => {
 
   it("(F) has each job once, in start order, with everyone booked on it by first name and the viewer as you", () => {
     expect(day.jobs.map((j) => j.number)).toEqual(["3432", "3479", "3392", "2359", "3538"]);
-    const glebe = day.jobs.find((j) => j.number === "3479")!;
-    expect(glebe.people).toEqual(["Alex", "Leo"]);
-    expect(glebe.time).toBe("7:00");
-    expect(glebe.at).toEqual({ lat: -33.88, lng: 151.186 });
-    expect(glebe.href).toBe("/dashboard/jobs/job-3479");
+    const mockglen = day.jobs.find((j) => j.number === "3479")!;
+    expect(mockglen.people).toEqual(["Alex", "Leo"]);
+    expect(mockglen.time).toBe("7:00");
+    expect(mockglen.at).toEqual({ lat: -33.88, lng: 151.186 });
+    expect(mockglen.href).toBe("/dashboard/jobs/job-3479");
     const mine = day.jobs.find((j) => j.number === "2359")!;
     expect(mine.people).toEqual(["you"]);
     expect(mine.mine).toBe(true);
@@ -71,9 +71,9 @@ describe("teamDayOf", () => {
 
   it("(F) says nothing of where a day ahead is up to, and puts nobody on site", () => {
     const ahead = teamDayOf({ lanes }, { dayISO: "2026-11-18", today: false, nowMin: 748, mine: null });
-    const glebe = ahead.jobs.find((j) => j.number === "3479")!;
-    expect(glebe.state).toBeNull();
-    expect(glebe.here).toEqual([]);
+    const mockglen = ahead.jobs.find((j) => j.number === "3479")!;
+    expect(mockglen.state).toBeNull();
+    expect(mockglen.here).toEqual([]);
     expect(ahead.jobs.find((j) => j.number === "2359")!.people).toEqual(["Isaac"]);
     expect(ahead.linked).toBe(false);
   });
@@ -88,10 +88,10 @@ describe("teamDayOf", () => {
   });
 
   it("writes a job's line: the suburb and who's on it; on You, the kind and the suburb", () => {
-    const glebe = day.jobs.find((j) => j.number === "3479")!;
-    expect(teamLine(glebe, "team")).toBe("Glebe, with Alex and Leo");
-    expect(teamLine(glebe, "you")).toBe("Install, Glebe");
-    expect(teamLine({ ...glebe, people: [] }, "team")).toBe("Glebe, nobody booked");
+    const mockglen = day.jobs.find((j) => j.number === "3479")!;
+    expect(teamLine(mockglen, "team")).toBe("Mockglen, with Alex and Leo");
+    expect(teamLine(mockglen, "you")).toBe("Install, Mockglen");
+    expect(teamLine({ ...mockglen, people: [] }, "team")).toBe("Mockglen, nobody booked");
   });
 });
 
@@ -127,49 +127,49 @@ describe("homeDays", () => {
 });
 
 describe("the map's geometry", () => {
-  const glebe: LatLng = { lat: -33.88, lng: 151.186 };
-  const coogee: LatLng = { lat: -33.92, lng: 151.255 };
-  const cremorne: LatLng = { lat: -33.829, lng: 151.227 };
-  const megalong: LatLng = { lat: -33.726, lng: 150.238 };
+  const mockglen: LatLng = { lat: -33.88, lng: 151.186 };
+  const testcove: LatLng = { lat: -33.92, lng: 151.255 };
+  const testmorne: LatLng = { lat: -33.829, lng: 151.227 };
+  const pretend: LatLng = { lat: -33.726, lng: 150.238 };
 
   it("(F) sets a job far from the rest aside, and none on a day of only far ones", () => {
-    expect(farOnes([glebe, coogee, cremorne, megalong])).toEqual([false, false, false, true]);
-    expect(farOnes([megalong])).toEqual([false]);
+    expect(farOnes([mockglen, testcove, testmorne, pretend])).toEqual([false, false, false, true]);
+    expect(farOnes([pretend])).toEqual([false]);
   });
 
   it("(F) fits the near jobs on the map with room to spare, as close in as that allows", () => {
-    const v = fitView([glebe, coogee, cremorne], 640, 368);
+    const v = fitView([mockglen, testcove, testmorne], 640, 368);
     expect(v.zoom).toBe(12);
-    for (const p of [glebe, coogee, cremorne]) {
+    for (const p of [mockglen, testcove, testmorne]) {
       const at = pixelOf(v, p, 640, 368);
       expect(at.x).toBeGreaterThanOrEqual(32);
       expect(at.x).toBeLessThanOrEqual(608);
       expect(at.y).toBeGreaterThanOrEqual(36 - 0.5);
       expect(at.y).toBeLessThanOrEqual(368 - 8 + 0.5);
     }
-    expect(fitView([glebe, coogee, cremorne, megalong], 640, 368).zoom).toBeLessThan(12);
+    expect(fitView([mockglen, testcove, testmorne, pretend], 640, 368).zoom).toBeLessThan(12);
   });
 
   it("(F) puts a job off the map on the edge facing it", () => {
-    const v = fitView([glebe, coogee, cremorne], 640, 368);
-    const far = pixelOf(v, megalong, 640, 368);
+    const v = fitView([mockglen, testcove, testmorne], 640, 368);
+    const far = pixelOf(v, pretend, 640, 368);
     expect(far.x).toBeLessThan(0);
     expect(edgeOf(far, 640, 368).edge).toBe("left");
   });
 
   it("moves the view with a drag: what was under the hand stays under it", () => {
-    const v = fitView([glebe, coogee, cremorne], 640, 360);
-    const before = pixelOf(v, glebe, 640, 360);
-    const after = pixelOf(panned(v, 100, -40), glebe, 640, 360);
+    const v = fitView([mockglen, testcove, testmorne], 640, 360);
+    const before = pixelOf(v, mockglen, 640, 360);
+    const after = pixelOf(panned(v, 100, -40), mockglen, 640, 360);
     expect(Math.round(after.x - before.x)).toBe(100);
     expect(Math.round(after.y - before.y)).toBe(-40);
   });
 
   it("(F) closes in on the jobs: after Show all, + keeps the day's jobs on the map, never the empty country in its middle", () => {
-    const all = [glebe, coogee, cremorne, megalong];
+    const all = [mockglen, testcove, testmorne, pretend];
     let v = fitView(all, 640, 368);
     for (let i = 0; i < 2; i++) v = zoomedToward(v, 1, all, 640, 368);
-    for (const p of [glebe, coogee, cremorne]) {
+    for (const p of [mockglen, testcove, testmorne]) {
       const at = pixelOf(v, p, 640, 368);
       expect(at.x).toBeGreaterThanOrEqual(0);
       expect(at.x).toBeLessThanOrEqual(640);
@@ -180,12 +180,12 @@ describe("the map's geometry", () => {
 
   it("closes in on all the jobs when none is on the map, and goes out where it is", () => {
     const away = { lat: -34.5, lng: 150.0, zoom: 11 };
-    const v = zoomedToward(away, 1, [glebe, coogee, cremorne], 640, 368);
+    const v = zoomedToward(away, 1, [mockglen, testcove, testmorne], 640, 368);
     expect(v.zoom).toBe(12);
-    const at = pixelOf(v, coogee, 640, 368);
+    const at = pixelOf(v, testcove, 640, 368);
     expect(at.x).toBeGreaterThan(0);
     expect(at.x).toBeLessThan(640);
-    expect(zoomedToward(away, -1, [glebe], 640, 368)).toEqual({ ...away, zoom: 10 });
+    expect(zoomedToward(away, -1, [mockglen], 640, 368)).toEqual({ ...away, zoom: 10 });
   });
 
   it("joins jobs too close to read into one", () => {

@@ -2,8 +2,8 @@ import type { Line, Ring } from "./fills";
 import type { Walls } from "./walls";
 
 /* WALLS DRAWN IN LINES. Many plans don't fill their walls: a wall is its two
-   faces, two dark lines a wall's thickness apart (Warners, 3570's lower
-   ground, Cutler's existing walls, hatched between). Two such lines that run
+   faces, two dark lines a wall's thickness apart (Folklore, 3570's lower
+   ground, Ipsum's existing walls, hatched between). Two such lines that run
    the same way, face each other across 70 to 650 mm and overlap for longer
    than the wall is thick are one wall. Stair treads, a bench's edges, a
    dimension line and its neighbour pair up too; they are kept out by

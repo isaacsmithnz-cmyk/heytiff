@@ -1,7 +1,7 @@
 import { boxOf, type Fill, type Ring } from "./fills";
 
 /* WHICH FILLS ARE THE WALLS. A plan fills its walls in one shade (3570 grey
-   #808080, Frogmore black with its new walls yellow, Cutler's new walls
+   #808080, Pariatur black with its new walls yellow, Ipsum's new walls
    #7f7f7f) and fills other things too: paving, hatching, a legend's boxes,
    the title block. A wall is a long thin shape: as thick as a wall is (70 to
    650 mm of building) and far longer than it is thick. The darkest colour
@@ -96,7 +96,7 @@ export function wallsOf(fills: readonly Fill[], mmPerPt: number | null): Walls |
   const first = candidates.filter((c) => c.length >= most * 0.25).sort((a, b) => lightness(a.colour) - lightness(b.colour))[0];
   const thick = [...first.walls.map((p) => p.thick)].sort((a, b) => a - b)[Math.floor(first.walls.length / 2)];
   /* another colour whose shapes are mostly walls joins it, where it meets
-     those walls or carries a real share of the walling itself (Frogmore's
+     those walls or carries a real share of the walling itself (Pariatur's
      new walls in yellow beside its existing ones in black). A grey that
      doesn't meet them is paving or a roof's hatching (3570's level 1) */
   const chosen = [first];

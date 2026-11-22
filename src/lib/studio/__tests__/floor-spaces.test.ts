@@ -50,7 +50,7 @@ const sheet = (id: string, spaces: SheetReading["spaces"]): SheetReading => ({
 const space = (name: string, kind: SheetReading["spaces"][number]["kind"], outline: Point[]) => ({ name, named: true, kind, outline, written: "", existing: false, openTo: "", stair: "" });
 
 function design(): DesignDocument {
-  const d = createDesign({ name: "7 Cutler Rd", mode: "residential" as never });
+  const d = createDesign({ name: "7 Ipsum Rd", mode: "residential" as never });
   /* two rooms with a 200 mm wall between them (20 units at 10 mm), a balcony off one, a garage and a garden */
   const reading: PlanReading = {
     at: "2026-11-15T00:00:00Z",

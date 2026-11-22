@@ -337,7 +337,7 @@ const runOf = (segs: readonly WallSeg[]) => segs.reduce((n, s) => n + (s.b - s.a
 /** The buildings among the pieces: pieces that meet, corner to corner, are
     one building, and a small knot of them off on its own is something else
     drawn in the wall's shade (a title block's logo, a north point, a key's
-    sample: 19 Albion Ave's "LOOK" lettering drew five grid lines of its
+    sample: 19 Mythos Ave's "LOOK" lettering drew five grid lines of its
     own until this). A small knot well clear of the biggest building is
     left out; a garage or a studio across the yard is big enough to stay. */
 export function buildingsOf(segs: readonly WallSeg[], z: WallSizes): WallSeg[] {

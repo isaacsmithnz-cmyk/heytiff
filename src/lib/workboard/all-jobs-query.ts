@@ -493,7 +493,7 @@ export type MirrorJobDetail = {
   workDone: string | null;
   address: string | null;
   suburb: string | null;
-  /** "Rose Bay NSW 2029" — the geo columns joined, for a job with no written
+  /** "Example Bay NSW 2029" — the geo columns joined, for a job with no written
       address. Never appended to one that has: job_address usually already
       carries the suburb line, and doubling it would read as two addresses. */
   geoLine: string | null;
@@ -1853,7 +1853,7 @@ async function foldClaimsIntoParents(
 
 /* ── the kind of street is not a word to find ──
 
-   "7 cutler street" found nothing: 2845 is at 7 Cutler Rd, and every word
+   "7 ipsum street" found nothing: 2845 is at 7 Ipsum Rd, and every word
    typed has to land, "street" with them (Isaac, 11 November 2026). Which
    kind of street it is says nothing the number and the name don't, and is
    as often written short (St, Rd) or misremembered, so beside other words
@@ -1872,7 +1872,7 @@ export function withoutStreetTypes(words: string[]): string[] {
 
 /* ── several words: every one has to land ──
 
-   "hr constructions mosman" is a client's name and a suburb. Asked as one
+   "hr constructions sampleton" is a client's name and a suburb. Asked as one
    phrase it matched nothing, because no one field holds all three words: the
    name lives on the client, the suburb on the job. So each word has to land
    in SOME field — the rule the board's own box has always run
@@ -1901,7 +1901,7 @@ const MAX_CLIENT_GROUPS = 8;
 const nameStartsWord = (w: string) => `name.ilike.${w}%,name.ilike.% ${w}%`;
 /** The job's own fields, where a word the client's name did not cover must be:
     its number, what it is, its suburb, and its street (Isaac, 28 October
-    2026: "19 union" found nothing, though 3260 is at 19 Union St). */
+    2026: "19 fiction" found nothing, though 3260 is at 19 Fiction St). */
 const jobFieldsHold = (w: string) =>
   `generated_job_id.ilike.${w}%,job_description.ilike.%${w}%,geo_city.ilike.%${w}%,job_address.ilike.%${w}%`;
 

@@ -1,8 +1,8 @@
 /* The scorecard. Pure string building — the runner prints what this returns.
 
    Written to be read by someone deciding whether to ship, which means the
-   failures come first and every miss shows what was heard INSTEAD. "Wyndham →
-   'windham'" tells you the keyterm list needs the street; a bare ✗ tells you
+   failures come first and every miss shows what was heard INSTEAD. "Fabulum →
+   'febulum'" tells you the keyterm list needs the street; a bare ✗ tells you
    nothing and gets ignored. */
 
 import type { CaseScore, Match, RunSummary } from "./score";

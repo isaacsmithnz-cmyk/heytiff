@@ -18,32 +18,32 @@ import {
 import { filesNothing, onlyMoves, storedProposal } from "../note-draft";
 import { appliedOf, takesBack, undoSummary } from "../note-applied";
 
-/* Isaac, 2 November 2026: "Move Lisa and Mossman, uh, my booking this
+/* Isaac, 2 November 2026: "Move Lisa and Sampletton, uh, my booking this
    afternoon to Friday, seven AM", on a Monday. */
 const TODAY = "2026-11-02";
 
 const booking = (over: Partial<MoveBooking> = {}): MoveBooking => ({
-  uuid: "act-mosman",
+  uuid: "act-sampleton",
   jobUuid: "job-3488",
   staffUuid: "sm8-isaac",
   staffName: "",
   start: "2026-11-02 15:00:00",
   end: "2026-11-02 16:00:00",
-  place: "6/40 Raglan St, Mosman",
-  match: "3488 Lisa Brown 6/40 Raglan St Mosman",
+  place: "6/40 Lorem St, Sampleton",
+  match: "3488 Lisa Brown 6/40 Lorem St Sampleton",
   ...over,
 });
 
 const MINE: MoveBooking[] = [
   booking({ uuid: "act-early", jobUuid: "job-3375", start: "2026-11-02 07:00:00", end: "2026-11-02 11:00:00", place: "12 Pittwater Rd, Manly", match: "3375 Hall 12 Pittwater Rd Manly" }),
   booking(),
-  booking({ uuid: "act-thu", jobUuid: "job-3401", start: "2026-11-05 09:00:00", end: "2026-11-05 12:00:00", place: "3 Ocean St, Bondi", match: "3401 Ng 3 Ocean St Bondi" }),
+  booking({ uuid: "act-thu", jobUuid: "job-3401", start: "2026-11-05 09:00:00", end: "2026-11-05 12:00:00", place: "3 Figment St, Fictonia", match: "3401 Ng 3 Figment St Fictonia" }),
 ];
 
 const move = (over: Partial<ProposedMove> = {}): ProposedMove => ({
   whoId: null,
   whoHint: "",
-  words: "Lisa in Mossman",
+  words: "Lisa in Sampletton",
   fromDay: TODAY,
   fromStart: "",
   fromPart: "afternoon",
@@ -54,19 +54,19 @@ const move = (over: Partial<ProposedMove> = {}): ProposedMove => ({
 
 describe("finding the booking named", () => {
   it("finds the one he said, misheard names and all, never the chip's job", () => {
-    expect(bookingsThatFit(move(), MINE).map((b) => b.uuid)).toEqual(["act-mosman"]);
-    // "Mossman" alone, any day: the words pick it
-    expect(bookingsThatFit(move({ fromDay: "", fromPart: "day", words: "Mossman" }), MINE).map((b) => b.uuid)).toEqual(["act-mosman"]);
+    expect(bookingsThatFit(move(), MINE).map((b) => b.uuid)).toEqual(["act-sampleton"]);
+    // "Sampletton" alone, any day: the words pick it
+    expect(bookingsThatFit(move({ fromDay: "", fromPart: "day", words: "Sampletton" }), MINE).map((b) => b.uuid)).toEqual(["act-sampleton"]);
   });
 
   it("reads 'my 3pm' as the clock, and the part of the day when no clock is said", () => {
-    expect(bookingsThatFit(move({ words: "", fromDay: "", fromPart: "day", fromStart: "15:00" }), MINE).map((b) => b.uuid)).toEqual(["act-mosman"]);
-    expect(bookingsThatFit(move({ words: "", fromDay: "", fromPart: "day", fromStart: "03:00" }), MINE).map((b) => b.uuid)).toEqual(["act-mosman"]);
+    expect(bookingsThatFit(move({ words: "", fromDay: "", fromPart: "day", fromStart: "15:00" }), MINE).map((b) => b.uuid)).toEqual(["act-sampleton"]);
+    expect(bookingsThatFit(move({ words: "", fromDay: "", fromPart: "day", fromStart: "03:00" }), MINE).map((b) => b.uuid)).toEqual(["act-sampleton"]);
     expect(bookingsThatFit(move({ words: "", fromPart: "morning" }), MINE).map((b) => b.uuid)).toEqual(["act-early"]);
   });
 
   it("offers every one that fits when the words don't tell them apart, and guesses at none", () => {
-    expect(bookingsThatFit(move({ words: "my booking", fromPart: "day" }), MINE).map((b) => b.uuid)).toEqual(["act-early", "act-mosman"]);
+    expect(bookingsThatFit(move({ words: "my booking", fromPart: "day" }), MINE).map((b) => b.uuid)).toEqual(["act-early", "act-sampleton"]);
     // nothing said to tell them apart: none, rather than a guess
     expect(bookingsThatFit(move({ words: "my booking", fromDay: "", fromPart: "day" }), MINE)).toEqual([]);
     // a place nobody's booked at: the day's both still fit, so she asks which
@@ -102,22 +102,22 @@ describe("what Tiff says", () => {
   const to = { start: "2026-11-06 07:00:00", end: "2026-11-06 08:00:00" };
 
   it("asks before anything moves, from and to", () => {
-    expect(moveQuestion(b, to, true, TODAY)).toBe("Move your visit at 6/40 Raglan St, Mosman from today 3:00 to 4:00 pm to Friday 7:00 to 8:00 am?");
-    expect(moveQuestion({ ...b, staffName: "Leo" }, to, false, TODAY)).toBe("Move Leo's visit at 6/40 Raglan St, Mosman from today 3:00 to 4:00 pm to Friday 7:00 to 8:00 am?");
-    expect(bookingLabel(b, TODAY)).toBe("Today 3:00 to 4:00 pm, 6/40 Raglan St, Mosman");
+    expect(moveQuestion(b, to, true, TODAY)).toBe("Move your visit at 6/40 Lorem St, Sampleton from today 3:00 to 4:00 pm to Friday 7:00 to 8:00 am?");
+    expect(moveQuestion({ ...b, staffName: "Leo" }, to, false, TODAY)).toBe("Move Leo's visit at 6/40 Lorem St, Sampleton from today 3:00 to 4:00 pm to Friday 7:00 to 8:00 am?");
+    expect(bookingLabel(b, TODAY)).toBe("Today 3:00 to 4:00 pm, 6/40 Lorem St, Sampleton");
   });
 
   it("says moved, or that it's on its way, and when nothing fits", () => {
-    expect(movedLine(b, to, true, TODAY, false)).toBe("Moved. Your visit at 6/40 Raglan St, Mosman is Friday 7:00 to 8:00 am now.");
-    expect(movedLine(b, to, true, TODAY, true)).toBe("Moving it. Your visit at 6/40 Raglan St, Mosman is Friday 7:00 to 8:00 am now, once ServiceM8 has it.");
+    expect(movedLine(b, to, true, TODAY, false)).toBe("Moved. Your visit at 6/40 Lorem St, Sampleton is Friday 7:00 to 8:00 am now.");
+    expect(movedLine(b, to, true, TODAY, true)).toBe("Moving it. Your visit at 6/40 Lorem St, Sampleton is Friday 7:00 to 8:00 am now, once ServiceM8 has it.");
     expect(noneFitLine({ words: "Parramatta" }, true, "")).toContain('I couldn\'t find "Parramatta" in your bookings');
     expect(noneFitLine({ words: "" }, false, "Leo")).toContain("which of Leo's bookings");
   });
 
   it("takes the button, a plain yes for one, or a plain no", () => {
     const ask = { index: 0, question: "Move …?", options: [{ label: MOVE_IT, booking: b, to }, { label: NOT_NOW, booking: null, to: null }] };
-    expect(moveAnswer(ask, "Move the visit")?.booking?.uuid).toBe("act-mosman");
-    expect(moveAnswer(ask, "yep")?.booking?.uuid).toBe("act-mosman");
+    expect(moveAnswer(ask, "Move the visit")?.booking?.uuid).toBe("act-sampleton");
+    expect(moveAnswer(ask, "yep")?.booking?.uuid).toBe("act-sampleton");
     expect(moveAnswer(ask, "Not now")?.booking).toBeNull();
     expect(moveAnswer(ask, "no, leave it")?.booking).toBeNull();
     expect(moveAnswer(ask, "the blue one")).toBeNull();
@@ -144,7 +144,7 @@ describe("on the note", () => {
   it("is on the record with what puts it back, and Undo counts it", () => {
     const made = {
       index: 0,
-      from: { uuid: "act-mosman", start: "2026-11-02 15:00:00", end: "2026-11-02 16:00:00" },
+      from: { uuid: "act-sampleton", start: "2026-11-02 15:00:00", end: "2026-11-02 16:00:00" },
       to: { start: "2026-11-06 07:00:00", end: "2026-11-06 08:00:00" },
       undo: { do: "time", activity: "act-new", start: "2026-11-02 15:00:00", end: "2026-11-02 16:00:00" },
       line: "Moved.",

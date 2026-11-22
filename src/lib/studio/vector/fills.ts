@@ -1,6 +1,6 @@
 /* THE FILLED SHAPES OF A VECTOR PDF PAGE, out of pdf.js's operator list. A
    wall on an architect's plan is a filled shape: on 3570 (an A1 CDC set) a
-   grey box masked by a clip whose outline IS the wall, on Frogmore a plain
+   grey box masked by a clip whose outline IS the wall, on Pariatur a plain
    filled outline. Each fill comes back with its colour and its outlines in
    the page's own points (y down, the page's top-left the origin), so what is
    read off them is the architect's geometry, not a picture of it (Isaac, 22
@@ -106,7 +106,7 @@ export function fillsOf(fnArray: ArrayLike<number>, argsArray: ArrayLike<unknown
 }
 
 /** Every filled shape and every straight stroked line on the page (a plan
-    that draws its walls in lines: Warners, 3570's lower ground, Cutler's
+    that draws its walls in lines: Folklore, 3570's lower ground, Ipsum's
     existing walls), in page points with y down. */
 export function shapesOf(fnArray: ArrayLike<number>, argsArray: ArrayLike<unknown>, O: FillOps, base: readonly number[]): { fills: Fill[]; lines: Line[] } {
   let m = [...base] as M;

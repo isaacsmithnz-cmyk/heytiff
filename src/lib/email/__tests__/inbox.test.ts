@@ -9,9 +9,9 @@ const proposal = (over: Partial<EmailProposal> = {}) =>
     jobNumbers: [],
     notJobWhy: "",
     summary: "",
-    client: "JT Construct Pty Ltd",
-    contact: { first: "Shaheer", last: "Khan", mobile: "", phone: "", email: "" },
-    site: "2 Krui Street, Fairlight",
+    client: "QX Construct Pty Ltd",
+    contact: { first: "Sami", last: "Crestfield", mobile: "", phone: "", email: "" },
+    site: "2 Tempor Street, Demoford",
     due: "",
     scope: [],
     excluded: [],
@@ -44,13 +44,13 @@ describe("the rows", () => {
       "auth0|isaac",
       names
     );
-    expect(a).toMatchObject({ id: "new", subject: "Request for quotation", from: "Shaheer Khan", by: "Isaac", mine: true, kind: "new" });
+    expect(a).toMatchObject({ id: "new", subject: "Request for quotation", from: "Sami Crestfield", by: "Isaac", mine: true, kind: "new" });
     expect(b).toMatchObject({ id: "old", by: "Alex", mine: false });
   });
 
   it("names the company when there's no contact, and no one when it can't tell", () => {
     const [a] = inboxOf([row({ proposal: proposal({ contact: { first: "", last: "", mobile: "", phone: "", email: "" } }) })], null, names);
-    expect(a!.from).toBe("JT Construct Pty Ltd");
+    expect(a!.from).toBe("QX Construct Pty Ltd");
     const [b] = inboxOf([row({ proposal: null, sender_sub: null, state: "failed" })], null, names);
     expect(b).toMatchObject({ from: null, by: null, kind: "none" });
   });
@@ -59,7 +59,7 @@ describe("the rows", () => {
     expect(inboxOf([row({ state: "refused" })], null, names)).toEqual([]);
   });
 
-  /* Krui Street, 29 October 2026: the failed read sat beside the one that worked */
+  /* Tempor Street, 29 October 2026: the failed read sat beside the one that worked */
   it("drops a forward that couldn't be read once the same person's later forward of it was", () => {
     const failed = row({ id: "failed", state: "failed", received_at: "2026-10-29T06:03:00Z", proposal: null });
     expect(inboxOf([row({ id: "worked" }), failed], "auth0|isaac", names).map((e) => e.id)).toEqual(["worked"]);
@@ -97,31 +97,31 @@ describe("the grey lines", () => {
   const yesterday = new Date(2026, 9, 29, 19, 48).getTime();
 
   it("says it on a row", () => {
-    expect(inboxLine({ from: "Shaheer Khan", by: "Isaac", mine: true, at: yesterday }, now)).toBe("From Shaheer Khan, forwarded by you yesterday");
-    expect(inboxLine({ from: "Matt Glass", by: "Alex", mine: false, at: yesterday }, now)).toBe("From Matt Glass, forwarded by Alex yesterday");
+    expect(inboxLine({ from: "Sami Crestfield", by: "Isaac", mine: true, at: yesterday }, now)).toBe("From Sami Crestfield, forwarded by you yesterday");
+    expect(inboxLine({ from: "Matt Juniper", by: "Alex", mine: false, at: yesterday }, now)).toBe("From Matt Juniper, forwarded by Alex yesterday");
     expect(inboxLine({ from: null, by: "Alex", mine: false, at: yesterday }, now)).toBe("Forwarded by Alex yesterday");
     expect(inboxLine({ from: null, by: null, mine: false, at: yesterday }, now)).toBe("Forwarded yesterday");
   });
 
   it("says it in full over an open email", () => {
-    expect(inboxHeadLine({ by: "Isaac", mine: true, at: yesterday }, proposal(), now)).toBe("From Shaheer Khan at JT Construct Pty Ltd, forwarded by you yesterday at 7:48 pm");
-    expect(inboxHeadLine({ by: "Alex", mine: false, at: new Date(2026, 9, 30, 14, 12).getTime() }, proposal({ client: "" }), now)).toBe("From Shaheer Khan, forwarded by Alex today at 2:12 pm");
+    expect(inboxHeadLine({ by: "Isaac", mine: true, at: yesterday }, proposal(), now)).toBe("From Sami Crestfield at QX Construct Pty Ltd, forwarded by you yesterday at 7:48 pm");
+    expect(inboxHeadLine({ by: "Alex", mine: false, at: new Date(2026, 9, 30, 14, 12).getTime() }, proposal({ client: "" }), now)).toBe("From Sami Crestfield, forwarded by Alex today at 2:12 pm");
     expect(inboxHeadLine({ by: null, mine: false, at: yesterday }, null, now)).toBe("Forwarded yesterday at 7:48 pm");
   });
 });
 
 describe("the builder's own email", () => {
-  const KRUI =
-    "---------- Forwarded message ---------\nFrom: Shaheer Khan <shaheer@jtconstruct.com.au>\nDate: Fri, 9 Oct 2026 at 13:02\nSubject: Request for quotation – 2 Krui Street, Fairlight - Air\nconditioning and ventilation\nTo: <isaac@diamondairsolutions.com.au>\n\n\nHi,\n\n" +
+  const TEMPOR =
+    "---------- Forwarded message ---------\nFrom: Sami Crestfield <sami@qxconstruct.example>\nDate: Fri, 9 Oct 2026 at 13:02\nSubject: Request for quotation – 2 Tempor Street, Demoford - Air\nconditioning and ventilation\nTo: <isaac@diamondairsolutions.com.au>\n\n\nHi,\n\n" +
     "Please provide an itemised quotation for your trade using the attached\nscope and relevant plans.\n\n" +
     "Tender link: 260917 Tender Issue\n<https://watershedmanly-my.sharepoint.com/:f:/g/personal/x/abc?e=1>\n\n" +
-    "*Quotation required by:* 21/10/26\n\nPlease include:\n\n   -\n\n   Price excluding GST, GST and total including GST.\n   -\n\n   Labour, materials, plant and provisional allowances separately where\n   practical.\n\nRegards,\nShaheer";
+    "*Quotation required by:* 21/10/26\n\nPlease include:\n\n   -\n\n   Price excluding GST, GST and total including GST.\n   -\n\n   Labour, materials, plant and provisional allowances separately where\n   practical.\n\nRegards,\nSami";
 
   it("takes the forward's header off, keeps when it was sent, and reads as written", () => {
-    const { words, sent } = emailWords(KRUI);
+    const { words, sent } = emailWords(TEMPOR);
     expect(sent).toBe("Fri, 9 Oct 2026 at 13:02");
     expect(words).toBe(
-      "Hi,\n\nPlease provide an itemised quotation for your trade using the attached scope and relevant plans.\n\nTender link: 260917 Tender Issue\n\nQuotation required by: 21/10/26\n\nPlease include:\n\n- Price excluding GST, GST and total including GST.\n- Labour, materials, plant and provisional allowances separately where practical.\n\nRegards,\nShaheer"
+      "Hi,\n\nPlease provide an itemised quotation for your trade using the attached scope and relevant plans.\n\nTender link: 260917 Tender Issue\n\nQuotation required by: 21/10/26\n\nPlease include:\n\n- Price excluding GST, GST and total including GST.\n- Labour, materials, plant and provisional allowances separately where practical.\n\nRegards,\nSami"
     );
   });
 

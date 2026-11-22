@@ -41,7 +41,7 @@ export type NoteScope = {
       signal; it never breaks anything. */
   staffFirstNames: string[];
   /** What on the screen Tiff is being asked about, said with the screen's
-      name: Design's open design ("the design 23 Hope Street"), so "can a
+      name: Design's open design ("the design 23 Rumour Street"), so "can a
       ducted unit fit in the roof void?" is asked of that one. */
   screenDetail?: string;
 };

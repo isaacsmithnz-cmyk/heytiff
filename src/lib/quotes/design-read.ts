@@ -17,7 +17,7 @@ import { KIND_WORD, servedRoomIds, systemKind, zoneIdsOf } from "@/lib/studio/zo
 import { dayOf } from "./session/job-sources";
 import { READ_BUDGET } from "./session/read-fit";
 
-/* WHAT TIFF READS OF A STUDIO DESIGN (Isaac, 2026-10-17, on 27 Milroy: "I
+/* WHAT TIFF READS OF A STUDIO DESIGN (Isaac, 2026-10-17, on 27 Proident: "I
    think Tiff can already read the studio design. Or can she not?" She
    couldn't: she saw a design only as a PDF someone had put on the job, and
    then only as a picture).

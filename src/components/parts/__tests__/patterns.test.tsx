@@ -46,8 +46,8 @@ afterEach(() => {
 
 describe("Fade (rule 50)", () => {
   it("is plain text that fits, with the whole of it in the page and no tooltip", () => {
-    render(<Fade>Fujitsu ducted, 27 Milroy Street</Fade>);
-    const el = screen.getByText("Fujitsu ducted, 27 Milroy Street");
+    render(<Fade>Fujitsu ducted, 27 Proident Street</Fade>);
+    const el = screen.getByText("Fujitsu ducted, 27 Proident Street");
     expect(el).toHaveClass("pt-fade");
     expect(el).not.toHaveClass("pt-fade--on");
     expect(el).not.toHaveAttribute("title");
@@ -84,7 +84,7 @@ describe("Row (rule 39)", () => {
   it("holds lead, dot, name, line and end in that order, in a list", () => {
     render(
       <RowList label="Today's visits">
-        <Row lead="9:00 am" dot="blue" name="Install at Milroy" line="Sam and Alex" end="Booked" />
+        <Row lead="9:00 am" dot="blue" name="Install at Proident" line="Sam and Alex" end="Booked" />
       </RowList>,
     );
     const list = screen.getByRole("list", { name: "Today's visits" });
@@ -94,7 +94,7 @@ describe("Row (rule 39)", () => {
     expect(row).not.toHaveClass("pt-row--click");
     const parts = Array.from(row.children).map((c) => c.className);
     expect(parts).toEqual(["pt-row-lead", "pt-dot pt-dot--blue", "pt-row-text", "pt-row-end"]);
-    expect(row.querySelector(".pt-row-name")).toHaveTextContent("Install at Milroy");
+    expect(row.querySelector(".pt-row-name")).toHaveTextContent("Install at Proident");
     expect(row.querySelector(".pt-row-line")).toHaveTextContent("Sam and Alex");
     expect(row.querySelectorAll(".pt-fade")).toHaveLength(2);
     expect(screen.queryByRole("link")).toBeNull();

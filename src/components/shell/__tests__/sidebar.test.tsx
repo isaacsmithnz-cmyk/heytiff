@@ -175,11 +175,11 @@ describe("New", () => {
 
   it("fills in the job when it opens on a job's page, named as its tab is", () => {
     mockPath = "/dashboard/jobs/abc-123";
-    namePage("/dashboard/jobs/abc-123", { label: "3209 Richards" });
+    namePage("/dashboard/jobs/abc-123", { label: "3209 Rowland" });
     draw(userAs("staff"));
     act(() => screen.getByRole("button", { name: "New" }).click());
     fireEvent.click(screen.getByRole("menuitem", { name: "Task" }));
-    expect(taskForm).toHaveBeenLastCalledWith({ uuid: "abc-123", label: "3209 Richards" });
+    expect(taskForm).toHaveBeenLastCalledWith({ uuid: "abc-123", label: "3209 Rowland" });
     mockPath = "/dashboard/team";
   });
 
@@ -210,7 +210,7 @@ describe("Pinned (rule 6)", () => {
           <Sidebar
             user={userAs("staff")}
             pins={[
-              { ref: { kind: "job", id: "j1" }, title: "Job 3342", sub: "Rifkin, Bellevue Hill" },
+              { ref: { kind: "job", id: "j1" }, title: "Job 3342", sub: "Fairweather, Bellevue Hill" },
               { ref: { kind: "visit", id: "v1" }, title: "Quarterly service", sub: null },
             ]}
           />
@@ -218,7 +218,7 @@ describe("Pinned (rule 6)", () => {
       </RecordsContext.Provider>,
     );
     const pinned = screen.getByRole("region", { name: "Pinned" });
-    expect(within(pinned).getByRole("link", { name: "Job 3342, Rifkin, Bellevue Hill" })).toHaveAttribute("href", "/dashboard/jobs/j1");
+    expect(within(pinned).getByRole("link", { name: "Job 3342, Fairweather, Bellevue Hill" })).toHaveAttribute("href", "/dashboard/jobs/j1");
     fireEvent.click(within(pinned).getByRole("button", { name: "Quarterly service" }));
     expect(open).toHaveBeenCalledWith({ kind: "visit", id: "v1" });
   });
@@ -237,7 +237,7 @@ describe("Recents (rule 6)", () => {
       step: jest.fn(),
       reload: jest.fn(),
       toast: jest.fn(),
-      recent: [{ key: "job.j-7", ref: { kind: "job" as const, id: "j-7" }, title: "Job 3209", sub: "Richards Building" }],
+      recent: [{ key: "job.j-7", ref: { kind: "job" as const, id: "j-7" }, title: "Job 3209", sub: "Rowland Building" }],
     };
     render(
       <WindowsContext.Provider value={windows}>
@@ -247,7 +247,7 @@ describe("Recents (rule 6)", () => {
       </WindowsContext.Provider>,
     );
     const recents = screen.getByRole("region", { name: "Recents" });
-    expect(within(recents).getByRole("link", { name: "Job 3209, Richards Building" })).toHaveAttribute("href", "/dashboard/jobs/j-7");
+    expect(within(recents).getByRole("link", { name: "Job 3209, Rowland Building" })).toHaveAttribute("href", "/dashboard/jobs/j-7");
   });
 });
 

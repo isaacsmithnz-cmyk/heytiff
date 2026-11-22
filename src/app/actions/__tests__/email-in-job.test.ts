@@ -1,6 +1,6 @@
 /** @jest-environment node */
 /* Create job from an email: a builder's job goes on the builder, its address
-   on the job, never on a new site named by its address (3533 on JT
+   on the job, never on a new site named by its address (3533 on QX
    Construct; Isaac, 17 November 2026: "I think Tiff just made the job
    wrong"). */
 const createNewJob = jest.fn();
@@ -22,10 +22,10 @@ import { createJobFromEmail } from "../email-in-job";
 const read = (over: Record<string, unknown> = {}) => ({
   isJob: true,
   aboutJob: false,
-  client: "JT Construct",
-  clientMatch: { uuid: "jt", name: "JT Construct", builder: true },
+  client: "QX Construct",
+  clientMatch: { uuid: "qx", name: "QX Construct", builder: true },
   siteMatch: null,
-  site: "2 Krui Street, Fairlight",
+  site: "2 Tempor Street, Demoford",
   contact: { first: "", last: "", mobile: "", phone: "", email: "" },
   summary: "Ducted air conditioning.",
   scope: [],
@@ -45,14 +45,14 @@ it("puts a builder's new job on the builder, with the site as the job's address"
   matchedNow.mockResolvedValue(read());
   expect(await createJobFromEmail("e-1")).toEqual({ ok: true, jobUuid: "j-1", number: "3533" });
   const sent = createNewJob.mock.calls[0][0];
-  expect(sent.client).toEqual({ kind: "existing", uuid: "jt" });
-  expect(sent.jobAddress).toBe("2 Krui Street, Fairlight");
+  expect(sent.client).toEqual({ kind: "existing", uuid: "qx" });
+  expect(sent.jobAddress).toBe("2 Tempor Street, Demoford");
 });
 
 it("still puts it on a site of theirs the email's address matches", async () => {
-  matchedNow.mockResolvedValue(read({ siteMatch: { uuid: "pagewood", name: "Pagewood Hotel", address: "1 Hotel St, Pagewood", parentName: "JT Construct" } }));
+  matchedNow.mockResolvedValue(read({ siteMatch: { uuid: "placewood", name: "Placewood Hotel", address: "1 Hotel St, Placewood", parentName: "QX Construct" } }));
   await createJobFromEmail("e-1");
   const sent = createNewJob.mock.calls[0][0];
-  expect(sent.client).toEqual({ kind: "existing", uuid: "pagewood" });
-  expect(sent.jobAddress).toBe("1 Hotel St, Pagewood");
+  expect(sent.client).toEqual({ kind: "existing", uuid: "placewood" });
+  expect(sent.jobAddress).toBe("1 Hotel St, Placewood");
 });

@@ -154,7 +154,7 @@ const workOrder = (uuid: string, over: Row = {}): Row => ({
   status: "Work Order",
   active: 1,
   company_uuid: null,
-  geo_city: "Oatley",
+  geo_city: "Fakeley",
   category_uuid: null,
   job_description: "Supply and install\n a split system",
   date: "2026-09-01 09:00:00",
@@ -253,16 +253,16 @@ describe("won work orders, never booked", () => {
 
   it("builds the same mirror row the board opens the card on: client, category, one line", async () => {
     rows.sm8_jobs = [workOrder("won", { company_uuid: "c1", category_uuid: "k1" })];
-    rows.sm8_companies = [{ org_id: ORG, uuid: "c1", name: "Coogee Strata" }];
+    rows.sm8_companies = [{ org_id: ORG, uuid: "c1", name: "Testcove Strata" }];
     rows.sm8_categories = [{ org_id: ORG, uuid: "k1", name: "Install ", colour: "e7b5ff" }];
     const [{ job }] = (await loadJobsToBook(ORG, DAY, opts)).wins;
     expect(job).toEqual({
       remoteId: "won",
       jobNumber: "WON",
       status: "Work Order",
-      clientName: "Coogee Strata",
+      clientName: "Testcove Strata",
       description: "Supply and install a split system",
-      suburb: "Oatley",
+      suburb: "Fakeley",
       categoryName: "Install",
       categoryColour: "#e7b5ff",
       date: "2026-09-01 09:00:00",

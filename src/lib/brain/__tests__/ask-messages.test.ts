@@ -65,10 +65,10 @@ describe("where they are (universal Tiff 1D)", () => {
   /* Design's open design rode inside the screen's name, which the route
      takes only by the nav's own words, so it was dropped whole and Tiff never
      knew which design was open; with no block at all she once wrote one of
-     her own, for a design that doesn't exist (7 Cutler Rd, 21 October). */
+     her own, for a design that doesn't exist (7 Ipsum Rd, 21 October). */
   it("says the screen's own detail beside its name", () => {
-    expect(pageBlock({ screen: "Design", detail: 'the design "7 Cutler Rd" (id dsn_mvh5155atv8ju5)' })).toBe(
-      '<where-they-are>On the Design, the design "7 Cutler Rd" (id dsn_mvh5155atv8ju5).</where-they-are>'
+    expect(pageBlock({ screen: "Design", detail: 'the design "7 Ipsum Rd" (id dsn_mvh5155atv8ju5)' })).toBe(
+      '<where-they-are>On the Design, the design "7 Ipsum Rd" (id dsn_mvh5155atv8ju5).</where-they-are>'
     );
   });
 

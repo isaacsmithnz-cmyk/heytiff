@@ -510,7 +510,7 @@ describe("installer scenarios: upload → floors", () => {
     );
   });
 
-  it("a page renamed after it is stacked commits under the name its card shows (6 Bishops Ave, 2026-10-15)", async () => {
+  it("a page renamed after it is stacked commits under the name its card shows (6 Nostrud Ave, 2026-10-15)", async () => {
     pdfToPages.mockResolvedValue([page("Page 1", 1), page("Page 2", 2)]);
     const user = await openPlanJob(new CountingPlanImages());
 

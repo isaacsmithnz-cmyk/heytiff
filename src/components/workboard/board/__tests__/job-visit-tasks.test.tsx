@@ -22,7 +22,7 @@ jest.mock("@/components/notes/dictation", () => {
   };
 });
 
-/* Isaac's mock of 25 October 2026, frames 1 to 4 (job 2043 JT Construct):
+/* Isaac's mock of 25 October 2026, frames 1 to 4 (job 2043 QX Construct):
    "now I think we're ready to build" */
 
 const task = (id: string, name: string, over: Partial<JobTask> = {}): JobTask => ({
@@ -111,7 +111,7 @@ const mount = (over: Partial<Parameters<typeof JobVisits>[0]> = {}) =>
     <JobVisits
       job="job-1"
       visible
-      client="JT Construct"
+      client="QX Construct"
       zone="Australia/Sydney"
       coming={COMING}
       previous={PAST}
@@ -220,7 +220,7 @@ describe("on the day", () => {
     fireEvent.click(onTheDay().getByRole("button", { name: "Started" }));
     fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "Issue" }));
     const dialog = within(screen.getByRole("dialog", { name: "An issue with this task" }));
-    expect(dialog.getByText("Charge and commission the PUMY-P200. Thu 5 Nov, JT Construct.")).toBeInTheDocument();
+    expect(dialog.getByText("Charge and commission the PUMY-P200. Thu 5 Nov, QX Construct.")).toBeInTheDocument();
     expect(dialog.getByRole("button", { name: "Save issue" })).toBeDisabled();
     fireEvent.change(dialog.getByLabelText("What's wrong"), { target: { value: "No gas on site" } });
     const file = new File(["x"], "b.jpg", { type: "image/jpeg" });
@@ -242,7 +242,7 @@ describe("on the day", () => {
   it("takes what's wrong said, where voice is on, and saves it on the task", async () => {
     render(
       <NoteScopeProvider voiceEnabled>
-        <JobVisits job="job-1" visible client="JT Construct" zone="Australia/Sydney" coming={COMING} previous={PAST} workOrderDate="2026-08-01 00:00:00" onBook={onBook} onOpen={onOpen} />
+        <JobVisits job="job-1" visible client="QX Construct" zone="Australia/Sydney" coming={COMING} previous={PAST} workOrderDate="2026-08-01 00:00:00" onBook={onBook} onOpen={onOpen} />
       </NoteScopeProvider>,
     );
     await screen.findByText("1 of 4 done");
@@ -410,8 +410,8 @@ it("reads nothing until the section is open, and still reads after it was left b
   const { rerender } = mount({ visible: false });
   await settle();
   expect(fetchMock).not.toHaveBeenCalled();
-  rerender(<JobVisits job="job-1" visible client="JT Construct" zone="Australia/Sydney" coming={COMING} previous={PAST} workOrderDate="2026-08-01 00:00:00" onOpen={onOpen} />);
-  rerender(<JobVisits job="job-1" visible={false} client="JT Construct" zone="Australia/Sydney" coming={COMING} previous={PAST} workOrderDate="2026-08-01 00:00:00" onOpen={onOpen} />);
+  rerender(<JobVisits job="job-1" visible client="QX Construct" zone="Australia/Sydney" coming={COMING} previous={PAST} workOrderDate="2026-08-01 00:00:00" onOpen={onOpen} />);
+  rerender(<JobVisits job="job-1" visible={false} client="QX Construct" zone="Australia/Sydney" coming={COMING} previous={PAST} workOrderDate="2026-08-01 00:00:00" onOpen={onOpen} />);
   await act(async () => land({ json: async () => answer() }));
   expect(fetchMock).toHaveBeenCalledTimes(1);
   expect(await screen.findByText("1 of 4 done")).toBeInTheDocument();
@@ -433,9 +433,9 @@ describe("a visit, pressed", () => {
   it("says when and for whom, who's going with what they are, where its booking stands, and its two doors", () => {
     const cancel = jest.fn();
     const change = jest.fn();
-    render(<VisitDialog visit={COMING[0]!} jobLine="Job 2043, JT Construct" state={<span>Booked in ServiceM8</span>} onClose={() => {}} onCancel={cancel} onChange={change} />);
+    render(<VisitDialog visit={COMING[0]!} jobLine="Job 2043, QX Construct" state={<span>Booked in ServiceM8</span>} onClose={() => {}} onCancel={cancel} onChange={change} />);
     const d = within(screen.getByRole("dialog", { name: "Thu 5 Nov, 7am to 3pm" }));
-    expect(d.getByText("Job 2043, JT Construct")).toBeInTheDocument();
+    expect(d.getByText("Job 2043, QX Construct")).toBeInTheDocument();
     const going = within(d.getByRole("list", { name: "Who's going" }));
     expect(going.getAllByRole("listitem").map((li) => li.textContent)).toEqual(["LJLouis JonesHVAC", "LMLeonardo MartinsHVAC", "DHDavid HannSkilled TA"]);
     expect(d.getByText("Booked in ServiceM8")).toBeInTheDocument();
@@ -447,7 +447,7 @@ describe("a visit, pressed", () => {
   });
 
   it("offers neither door where neither is this viewer's", () => {
-    render(<VisitDialog visit={COMING[1]!} jobLine="Job 2043, JT Construct" state={null} onClose={() => {}} />);
+    render(<VisitDialog visit={COMING[1]!} jobLine="Job 2043, QX Construct" state={null} onClose={() => {}} />);
     const d = within(screen.getByRole("dialog", { name: "Mon 9 Nov, 7am to 3pm" }));
     expect(d.queryByRole("button")).toBeNull();
   });

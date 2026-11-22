@@ -79,7 +79,7 @@ import { POST } from "../design-to-job/route";
 
 const post = (body: unknown) =>
   POST(new Request("http://localhost:3000/api/studio/design-to-job", { method: "POST", body: JSON.stringify(body) }));
-const BODY = { designId: "dsn_1", name: "85 West St", jobUuid: "job-1", options: { sections: { picklist: false } } };
+const BODY = { designId: "dsn_1", name: "85 Placeholder St", jobUuid: "job-1", options: { sections: { picklist: false } } };
 
 beforeEach(() => {
   orgId = "org-1";
@@ -93,7 +93,7 @@ beforeEach(() => {
 
 it("files the PDF on the job card, then sends it to ServiceM8", async () => {
   const r = await (await post(BODY)).json();
-  expect(r).toMatchObject({ ok: true, fileName: "85 West St.pdf" });
+  expect(r).toMatchObject({ ok: true, fileName: "85 Placeholder St.pdf" });
   expect(calls).toEqual([
     "insert documents job_document job-1",
     "upload org/org-1/job_document/doc-9.pdf",
@@ -107,7 +107,7 @@ it("files the PDF on the job card, then sends it to ServiceM8", async () => {
 it("puts it on the card but never sends for someone without workboard_manage", async () => {
   ctx = { ...ctx!, company: false };
   const r = await (await post(BODY)).json();
-  expect(r).toEqual({ ok: true, fileName: "85 West St.pdf", sm8: null });
+  expect(r).toEqual({ ok: true, fileName: "85 Placeholder St.pdf", sm8: null });
   expect(send).not.toHaveBeenCalled();
 });
 

@@ -38,7 +38,7 @@ jest.mock("@/components/workboard/board/job-quote-send", () => ({ JobQuoteSend: 
 import { JobPriceTab } from "../job-price-tab";
 
 const JOB = "a3539c01-9527-42a6-893b-24376269efbb";
-const detail = { jobNumber: "3408", status: "Work Order", clientName: "Sharon Doyle", address: "1 Example St\nManly NSW 2095", geoLine: null, visits: [], workDone: null } as unknown as ComponentProps<typeof JobPriceTab>["detail"];
+const detail = { jobNumber: "3408", status: "Work Order", clientName: "Sharon Ironside", address: "1 Example St\nManly NSW 2095", geoLine: null, visits: [], workDone: null } as unknown as ComponentProps<typeof JobPriceTab>["detail"];
 const facts = (over: Record<string, unknown> = {}) => ({ lines: 3, options: 1, toConfirm: 0, changedAt: null, talked: true, drafted: false, approved: false, version: 1, sent: null, accepted: [], ...over });
 const landing = { name: "Return visit", startedAt: null, who: null, approvedBy: null, acceptedAt: null, totalCents: 77_500, money: true, versions: [], variations: [] };
 

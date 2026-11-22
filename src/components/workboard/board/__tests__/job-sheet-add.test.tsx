@@ -122,7 +122,7 @@ const row = (): AllJobRow => ({
   numberSystem: "sm8",
   clientName: "Sample Client Pty Ltd",
   title: "Install a split",
-  suburb: "Rose Bay",
+  suburb: "Example Bay",
   categoryName: "Install",
   categoryColour: "#e7b5ff",
   statusLabel: "Work Order",
@@ -143,8 +143,8 @@ const detail = (over: Partial<MirrorJobDetail> = {}): MirrorJobDetail => ({
   description: "Install a split",
   workDone: null,
   address: null,
-  suburb: "Rose Bay",
-  geoLine: "Rose Bay NSW 2029",
+  suburb: "Example Bay",
+  geoLine: "Example Bay NSW 2029",
   categoryName: "Install",
   categoryColour: "#e7b5ff",
   purchaseOrder: null,
@@ -376,7 +376,7 @@ describe("the job's Add", () => {
       expect(await screen.findByRole("dialog", { name: "Add a cost" })).toBeInTheDocument();
       expect(push).not.toHaveBeenCalled();
       expect(costForm).toHaveBeenLastCalledWith(
-        expect.objectContaining({ job: { kind: "sm8", id: JOB, label: "Job 3400, Sample Client Pty Ltd, Rose Bay" } }),
+        expect.objectContaining({ job: { kind: "sm8", id: JOB, label: "Job 3400, Sample Client Pty Ltd, Example Bay" } }),
       );
       await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
       expect(screen.queryByRole("dialog", { name: "Add a cost" })).toBeNull();

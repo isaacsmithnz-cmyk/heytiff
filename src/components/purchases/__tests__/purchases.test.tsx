@@ -10,7 +10,7 @@ jest.mock("@/app/actions/purchases", () => ({
   addPurchase: jest.fn(),
   placePurchaseLines: (...a: unknown[]) => placePurchaseLines(...a),
   pricePurchaseLine: jest.fn(),
-  recentJobsForPurchase: async () => [{ jobUuid: "j-3304", label: "3304, 88 Kirribilli Avenue" }],
+  recentJobsForPurchase: async () => [{ jobUuid: "j-3304", label: "3304, 88 Exampleton Avenue" }],
 }));
 jest.mock("@/app/actions/workboard", () => ({ searchAllJobs: async () => [] }));
 jest.mock("@/lib/documents/upload-client", () => ({ uploadFile: jest.fn() }));
@@ -64,7 +64,7 @@ beforeEach(() => placePurchaseLines.mockReset());
 
 it("ticks lines onto a job, comes back to them stamped, then stocks the rest", async () => {
   const user = userEvent.setup();
-  render(<AddPurchase resume={reece(lines)} job={{ jobUuid: "j-1352", label: "1352, Holbrook" }} onClose={() => {}} />);
+  render(<AddPurchase resume={reece(lines)} job={{ jobUuid: "j-1352", label: "1352, Dolor" }} onClose={() => {}} />);
   const d = within(screen.getByRole("dialog"));
   expect(d.getByText("Reece, invoice 7729 4410, Thu 29 Oct. Bought by Leo Watanangura.")).toBeTruthy();
   expect(d.getByText("From the price book")).toBeTruthy();
@@ -77,8 +77,8 @@ it("ticks lines onto a job, comes back to them stamped, then stocks the rest", a
   placePurchaseLines.mockResolvedValueOnce({
     ok: true,
     purchase: reece([
-      { ...lines[0], wentTo: "job", jobUuid: "j-1352", jobLabel: "1352, 9/6 Holbrook Avenue" },
-      { ...lines[1], wentTo: "job", jobUuid: "j-1352", jobLabel: "1352, 9/6 Holbrook Avenue" },
+      { ...lines[0], wentTo: "job", jobUuid: "j-1352", jobLabel: "1352, 9/6 Dolor Avenue" },
+      { ...lines[1], wentTo: "job", jobUuid: "j-1352", jobLabel: "1352, 9/6 Dolor Avenue" },
       lines[2],
     ]),
   });
@@ -87,26 +87,26 @@ it("ticks lines onto a job, comes back to them stamped, then stocks the rest", a
   expect(which.getByText("Two lines, $426.20")).toBeTruthy();
   expect(which.getByText("This job")).toBeTruthy();
   await act(async () => {});
-  expect(which.getByText("3304, 88 Kirribilli Avenue")).toBeTruthy();
-  await user.click(which.getByRole("button", { name: "1352, Holbrook" }));
+  expect(which.getByText("3304, 88 Exampleton Avenue")).toBeTruthy();
+  await user.click(which.getByRole("button", { name: "1352, Dolor" }));
   expect(placePurchaseLines).toHaveBeenCalledWith("p1", ["a", "b"], { jobUuid: "j-1352" });
 
   const back = within(screen.getByRole("dialog"));
-  expect(back.getAllByText("1352, 9/6 Holbrook Avenue")).toHaveLength(2);
-  expect(back.getByText("Added to 1352, Holbrook")).toBeTruthy();
+  expect(back.getAllByText("1352, 9/6 Dolor Avenue")).toHaveLength(2);
+  expect(back.getByText("Added to 1352, Dolor")).toBeTruthy();
   /* the spring nuts still have no price, so there's nothing yet to stock */
   expect((back.getByRole("button", { name: "Stock the rest" }) as HTMLButtonElement).disabled).toBe(true);
 });
 
 it("says where it all went, and what the docket did to the book", () => {
   const done = reece([
-    { ...lines[0], wentTo: "job", jobUuid: "j-1352", jobLabel: "1352, 9/6 Holbrook Avenue" },
-    { ...lines[1], wentTo: "job", jobUuid: "j-1352", jobLabel: "1352, 9/6 Holbrook Avenue" },
+    { ...lines[0], wentTo: "job", jobUuid: "j-1352", jobLabel: "1352, 9/6 Dolor Avenue" },
+    { ...lines[1], wentTo: "job", jobUuid: "j-1352", jobLabel: "1352, 9/6 Dolor Avenue" },
     { ...lines[2], cents: 1890, wentTo: "stock" },
   ]);
   render(<AddPurchase resume={done} onClose={() => {}} />);
   const d = within(screen.getByRole("dialog", { name: "Where it went" }));
-  expect(d.getByText("1352, 9/6 Holbrook Avenue")).toBeTruthy();
+  expect(d.getByText("1352, 9/6 Dolor Avenue")).toBeTruthy();
   expect(d.getByText("$426.20")).toBeTruthy();
   expect(d.getByText("Stock")).toBeTruthy();
   expect(d.getByText("Price up, $268.40 to $273.87")).toBeTruthy();
@@ -114,8 +114,8 @@ it("says where it all went, and what the docket did to the book", () => {
 });
 
 it("lists a purchase with where it went, its book and its figure; one still open says so", () => {
-  const row = purchaseRow(reece([{ ...lines[0], wentTo: "job", jobUuid: "j", jobLabel: "1352, 9/6 Holbrook Avenue" }, lines[1]]));
-  expect(row).toMatchObject({ wentTo: "1352, 9/6 Holbrook Avenue", wentNote: "One line still to put somewhere", open: 1, cents: 42620 });
+  const row = purchaseRow(reece([{ ...lines[0], wentTo: "job", jobUuid: "j", jobLabel: "1352, 9/6 Dolor Avenue" }, lines[1]]));
+  expect(row).toMatchObject({ wentTo: "1352, 9/6 Dolor Avenue", wentNote: "One line still to put somewhere", open: 1, cents: 42620 });
   expect(row.book).toEqual({ text: "One price up", tone: "or" });
   render(<TeamPurchases data={{ rows: [row], open: null }} adding={false} onAdded={() => {}} />);
   expect(screen.getByRole("link", { name: "Reece" }).getAttribute("href")).toBe("/dashboard/team?view=purchases&purchase=p1");

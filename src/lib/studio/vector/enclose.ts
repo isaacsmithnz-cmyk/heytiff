@@ -78,7 +78,7 @@ export function bridged(wall: Uint8Array, W: number, H: number, widest: number, 
           /* two wall ends facing each other, one wall's band: a door or a window.
              A wall end facing a wall that runs across it is left open: on a
              real plan that is more often a yard or a porch than a window hard
-             against an inside wall (Frogmore, 3570, 22 November 2026) */
+             against an inside wall (Pariatur, 3570, 22 November 2026) */
           const aThin = a1 - a0 <= thin;
           const bThin = b1 - b0 <= thin;
           const shut =

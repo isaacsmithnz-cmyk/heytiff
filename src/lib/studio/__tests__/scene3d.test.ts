@@ -134,7 +134,7 @@ describe("floors stack", () => {
     expect(lineUp(ground, upper)).toEqual([0, 0]);
   });
 
-  /* 90 O'Brien St (9 November 2026): the first floor, narrower than the ground,
+  /* 90 Dreamer St (9 November 2026): the first floor, narrower than the ground,
      stood over it as drawn and with its stair over the stair below; as drawn
      won, and its flight came up a metre beside its well */
   it("stair over stair when they're out of register and the floor stands as well either way", () => {
@@ -143,13 +143,13 @@ describe("floors stack", () => {
     expect(lineUp(ground, upper)).toEqual([1, 0]);
   });
 
-  /* 6 Bishops Ave (28 October 2026: "the ground floor and first floor were
+  /* 6 Nostrud Ave (28 October 2026: "the ground floor and first floor were
      misaligned"): Tiff's reading of its two plans, each its own sheet at its
      own scale, the first floor drawn 4.4 m nearer the top of its page. The
      two still overlapped by more than half, so it stood where it was drawn.
      Its stairs, its old stair kept and an outdoor one among them, put it
      over the ground. */
-  it("stair over stair even where the plans overlap (6 Bishops Ave)", () => {
+  it("stair over stair even where the plans overlap (6 Nostrud Ave)", () => {
     const at = (k: number, rows: [string, ReadSpace["kind"], number, number, number, number, boolean?][]) => ({
       floor: floor("x", 0),
       openings: [],

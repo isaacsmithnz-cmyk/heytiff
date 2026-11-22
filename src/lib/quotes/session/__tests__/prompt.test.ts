@@ -85,7 +85,7 @@ it("asks the crew and days she worked out as a question, not in passing", () => 
   expect(sessionSystemPrompt()).toMatch(/Then ask the crew and days as a question \(ask\), every visit's in it and what you worked out its put: nothing moves a quote more\./);
 });
 
-/* Isaac, 2026-10-17, on 27 Milroy ("check design tool"): "I think Tiff can
+/* Isaac, 2026-10-17, on 27 Proident ("check design tool"): "I think Tiff can
    already read the studio design. Or can she not?" She couldn't. 28 October
    2026, after 3406: the scope decides what goes in, the design measures it */
 it("reads the job's Studio design first, takes its measurements, and asks before it changes what the scope puts in", () => {
@@ -97,7 +97,7 @@ it("reads the job's Studio design first, takes its measurements, and asks before
   expect(p).toMatch(/The design outranks the airflow guide and the business's usual, never the person's word in this conversation\./);
   expect(p).not.toMatch(/over a guess from the brief/);
   /* the same for every business */
-  expect(p).not.toMatch(/Diamond Air|Milroy/);
+  expect(p).not.toMatch(/Diamond Air|Proident/);
 });
 
 /* the bench, 16 October: a code the pack hasn't got, and she swapped the AP35 for the dearer EF35 the pack has */

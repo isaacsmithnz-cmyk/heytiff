@@ -88,9 +88,9 @@ function wire() {
 
 const base: CustomerForm = {
   jobUuid: JOB,
-  company: { uuid: CO, name: "Pagewood Hotel", address: "1 Pagewood Rd" },
+  company: { uuid: CO, name: "Placewood Hotel", address: "1 Placewood Rd" },
   billingAddress: "Cliff Rd, Watsons Bay",
-  contacts: [{ uuid: P1, first: "Jeff", last: "Fletcher", mobile: "0411", phone: "", email: "", type: "JOB" }],
+  contacts: [{ uuid: P1, first: "Jeff", last: "Ashby", mobile: "0411", phone: "", email: "", type: "JOB" }],
 };
 
 async function save(after: CustomerForm) {
@@ -111,9 +111,9 @@ beforeEach(() => {
   calls.length = 0;
   nextDelete = "ok";
   records = new Map<string, Row>([
-    [`company:${CO}`, { uuid: CO, name: "Pagewood Hotel", address: "1 Pagewood Rd", active: 1 }],
+    [`company:${CO}`, { uuid: CO, name: "Placewood Hotel", address: "1 Placewood Rd", active: 1 }],
     [`job:${JOB}`, { uuid: JOB, status: "Work Order", billing_address: "Cliff Rd, Watsons Bay", active: 1 }],
-    [`jobcontact:${P1}`, { uuid: P1, job_uuid: JOB, first: "Jeff", last: "Fletcher", type: "JOB", active: 1 }],
+    [`jobcontact:${P1}`, { uuid: P1, job_uuid: JOB, first: "Jeff", last: "Ashby", type: "JOB", active: 1 }],
   ]);
   fake.db.integration_connections = [
     {
@@ -149,11 +149,11 @@ afterAll(() => {
 
 describe("a customer save goes to ServiceM8", () => {
   it("sends each record only what changed — and the one field each update needs, as it stands live", async () => {
-    await save({ ...base, company: { uuid: CO, name: "Pagewood Hotel", address: "2 Pagewood Rd" }, billingAddress: "1 Pagewood Rd" });
+    await save({ ...base, company: { uuid: CO, name: "Placewood Hotel", address: "2 Placewood Rd" }, billingAddress: "1 Placewood Rd" });
     await run();
     expect(calls).toEqual([
-      { what: "update", path: "company", body: { address: "2 Pagewood Rd", name: "Pagewood Hotel" } },
-      { what: "update", path: "job", body: { billing_address: "1 Pagewood Rd", status: "Work Order" } },
+      { what: "update", path: "company", body: { address: "2 Placewood Rd", name: "Placewood Hotel" } },
+      { what: "update", path: "job", body: { billing_address: "1 Placewood Rd", status: "Work Order" } },
     ]);
     expect(rows().map((r) => r.status)).toEqual(["sent", "sent"]);
   });
@@ -191,7 +191,7 @@ describe("a customer save goes to ServiceM8", () => {
 
   it("doesn't change a record ServiceM8 no longer has", async () => {
     records.get(`company:${CO}`)!.active = 0;
-    await save({ ...base, company: { uuid: CO, name: "New name", address: "1 Pagewood Rd" } });
+    await save({ ...base, company: { uuid: CO, name: "New name", address: "1 Placewood Rd" } });
     await run();
     expect(calls).toEqual([]);
     expect(rows()[0]).toMatchObject({ status: "cancelled", last_error: CUSTOMER_WORDS.row.gone });

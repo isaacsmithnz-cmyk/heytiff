@@ -22,10 +22,10 @@ jest.mock("../site-notes-read", () => ({
 const detail = (over: Partial<MirrorJobDetail> = {}) =>
   ({
     jobNumber: "3385",
-    address: "8/36 Abbott Road\nSeven Hills NSW 2147",
-    suburb: "Seven Hills",
+    address: "8/36 Laboris Road\nDummy Hills NSW 2147",
+    suburb: "Dummy Hills",
     geoLine: null,
-    contacts: [{ name: "Damian", type: "JOB", phone: "0403183628", altPhone: null, email: null }],
+    contacts: [{ name: "Damian", type: "JOB", phone: "0491570006", altPhone: null, email: null }],
     purchaseOrder: null,
     ...over,
   }) as unknown as MirrorJobDetail;
@@ -44,30 +44,30 @@ it("reads Next visit first, then the stages, then the contacts, and no money or 
 
 /* important text never fades: an email is shown whole, and not underlined */
 it("shows a contact's email whole", () => {
-  render(<JobFacts {...base} detail={detail({ contacts: [{ name: "Sharon", type: "JOB", phone: null, altPhone: null, email: "sharoninclovelly@gmail.com" }] } as never)} />);
-  const mail = cell("Contact").getByText("sharoninclovelly@gmail.com");
-  expect(mail).toHaveAttribute("href", "mailto:sharoninclovelly@gmail.com");
+  render(<JobFacts {...base} detail={detail({ contacts: [{ name: "Sharon", type: "JOB", phone: null, altPhone: null, email: "sharon@ironside.example" }] } as never)} />);
+  const mail = cell("Contact").getByText("sharon@ironside.example");
+  expect(mail).toHaveAttribute("href", "mailto:sharon@ironside.example");
   expect(mail).toHaveClass("jov-mail");
 });
 
 /* THE SITE IN THE HEAD (Isaac, 16 November 2026, A): the address's first line bold over the rest */
 it("puts the address's first line in bold over the rest, and falls back to the geo line", () => {
   const { container, unmount } = render(<JobSiteWords detail={detail()} jobUuid={null} />);
-  expect(screen.getByText("8/36 Abbott Road").tagName).toBe("B");
-  expect(container.querySelector(".jp-addr")).toHaveTextContent("Seven Hills NSW 2147");
+  expect(screen.getByText("8/36 Laboris Road").tagName).toBe("B");
+  expect(container.querySelector(".jp-addr")).toHaveTextContent("Dummy Hills NSW 2147");
   expect(container).not.toHaveTextContent(/3385/);
   unmount();
-  render(<JobSiteWords detail={detail({ address: null, geoLine: "Rose Bay NSW 2029" })} jobUuid={null} />);
-  expect(screen.getByText("Rose Bay NSW 2029")).toBeInTheDocument();
+  render(<JobSiteWords detail={detail({ address: null, geoLine: "Example Bay NSW 2029" })} jobUuid={null} />);
+  expect(screen.getByText("Example Bay NSW 2029")).toBeInTheDocument();
 });
 
 it("makes the head's map the directions to the site, in a new tab, its wide picture from our own route", () => {
-  render(<JobHeadMap jobUuid="job-3385" hue="purple" address={"8/36 Abbott Road\nSeven Hills NSW 2147"} />);
-  const go = screen.getByRole("link", { name: "Directions to 8/36 Abbott Road, Seven Hills NSW 2147" });
-  expect(go).toHaveAttribute("href", directionsHref("8/36 Abbott Road\nSeven Hills NSW 2147"));
+  render(<JobHeadMap jobUuid="job-3385" hue="purple" address={"8/36 Laboris Road\nDummy Hills NSW 2147"} />);
+  const go = screen.getByRole("link", { name: "Directions to 8/36 Laboris Road, Dummy Hills NSW 2147" });
+  expect(go).toHaveAttribute("href", directionsHref("8/36 Laboris Road\nDummy Hills NSW 2147"));
   expect(go).toHaveAttribute("target", "_blank");
   expect(go.querySelector("img")).toHaveAttribute("src", "/api/workboard/job-map?job=job-3385&hue=purple&shape=head");
-  expect(directionsHref("8/36 Abbott Road\nSeven Hills NSW 2147")).toBe("https://www.google.com/maps/dir/?api=1&destination=8%2F36%20Abbott%20Road%2C%20Seven%20Hills%20NSW%202147");
+  expect(directionsHref("8/36 Laboris Road\nDummy Hills NSW 2147")).toBe("https://www.google.com/maps/dir/?api=1&destination=8%2F36%20Laboris%20Road%2C%20Dummy%20Hills%20NSW%202147");
 });
 
 /* bug 52 (Isaac, 20 November 2026: "map misaligned"): the map's card is the
@@ -77,7 +77,7 @@ it("asks for the head's picture at the size its card stands at", () => {
   const w = jest.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(380);
   const h = jest.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(164);
   try {
-    render(<JobHeadMap jobUuid="job-3521" hue="orange" address="14/8 Example Crescent, Fairlight NSW" />);
+    render(<JobHeadMap jobUuid="job-3521" hue="orange" address="14/8 Example Crescent, Demoford NSW" />);
     const img = screen.getByRole("link", { name: /Directions to/ }).querySelector("img");
     expect(img).toHaveAttribute("src", "/api/workboard/job-map?job=job-3521&hue=orange&shape=head&w=380&h=164");
     expect(img).toHaveAttribute("width", "380");
@@ -97,15 +97,15 @@ it("puts who to ring in Contact a line each, their numbers and email dropping do
   const c = cell("Contact");
   const who = c.getByRole("button", { name: /Damian\s*Job contact/ });
   expect(who).toHaveAttribute("aria-expanded", "false");
-  expect(c.queryByRole("link", { name: "0403 183 628" })).toBeNull();
+  expect(c.queryByRole("link", { name: "0491 570 006" })).toBeNull();
   expect(screen.getByRole("region", { name: "Contact" }).querySelector(".pt-initials--24")).toHaveTextContent("D");
   await userEvent.click(who);
   expect(who).toHaveAttribute("aria-expanded", "true");
-  const tel = c.getByRole("link", { name: "0403 183 628" });
-  expect(tel).toHaveAttribute("href", "tel:0403183628");
+  const tel = c.getByRole("link", { name: "0491 570 006" });
+  expect(tel).toHaveAttribute("href", "tel:0491570006");
   expect(tel).toHaveClass("jov-tel");
   await userEvent.click(who);
-  expect(c.queryByRole("link", { name: "0403 183 628" })).toBeNull();
+  expect(c.queryByRole("link", { name: "0491 570 006" })).toBeNull();
   await userEvent.click(c.getByRole("button", { name: "Edit" }));
   expect(onEditContact).toHaveBeenCalled();
 });
@@ -135,14 +135,14 @@ it("opens Visits from Next visit", async () => {
   expect(onVisits).toHaveBeenCalled();
 });
 
-/* the walk of 25 October 2026: it read 0403183628 */
+/* the walk of 25 October 2026: it read 0491570006 */
 it("writes a number as Australians write it, and anything else as given", () => {
-  expect(phoneWords("0403183628")).toBe("0403 183 628");
-  expect(phoneWords("0403-183-628")).toBe("0403 183 628");
+  expect(phoneWords("0491570006")).toBe("0491 570 006");
+  expect(phoneWords("0491-570-006")).toBe("0491 570 006");
   expect(phoneWords("0298765432")).toBe("02 9876 5432");
   expect(phoneWords("(02) 9876 5432")).toBe("02 9876 5432");
   expect(phoneWords("1300 123 456")).toBe("1300 123 456");
-  expect(phoneWords("+61 403 183 628")).toBe("+61 403 183 628");
+  expect(phoneWords("+61 491 570 006")).toBe("+61 491 570 006");
   expect(phoneWords("0412 345 678 / 9999 a/h")).toBe("0412 345 678 / 9999 a/h");
 });
 
@@ -175,16 +175,16 @@ it("offers Site notes beside the site, marked only when the site has notes", asy
 });
 
 it("lays a one-line address over two lines at its last comma (3533)", () => {
-  expect(addressLines("2 Krui Street, Fairlight")).toEqual(["2 Krui Street", "Fairlight"]);
-  expect(addressLines("Unit 2, 106 Kirribilli Ave, Kirribilli NSW 2061")).toEqual(["Unit 2, 106 Kirribilli Ave", "Kirribilli NSW 2061"]);
-  expect(addressLines("910/226 Victoria St\nPotts Point NSW 2011")).toEqual(["910/226 Victoria St", "Potts Point NSW 2011"]);
-  expect(addressLines("Fairlight")).toEqual(["Fairlight"]);
+  expect(addressLines("2 Tempor Street, Demoford")).toEqual(["2 Tempor Street", "Demoford"]);
+  expect(addressLines("Unit 2, 106 Exampleton Ave, Exampleton NSW 2061")).toEqual(["Unit 2, 106 Exampleton Ave", "Exampleton NSW 2061"]);
+  expect(addressLines("910/226 Imaginary St\nMock Point NSW 2011")).toEqual(["910/226 Imaginary St", "Mock Point NSW 2011"]);
+  expect(addressLines("Demoford")).toEqual(["Demoford"]);
 });
 
 it("leaves ServiceM8's country off, so the street isn't put over \"Australia\" (a quote's head)", () => {
-  expect(addressLines("14/8 Example Crescent, Fairlight NSW, Australia")).toEqual(["14/8 Example Crescent", "Fairlight NSW"]);
-  expect(addressLines("910/226 Victoria St\nPotts Point NSW 2011\nAustralia")).toEqual(["910/226 Victoria St", "Potts Point NSW 2011"]);
-  expect(withoutCountry("14/8 Example Crescent, Fairlight NSW, Australia")).toBe("14/8 Example Crescent, Fairlight NSW");
+  expect(addressLines("14/8 Example Crescent, Demoford NSW, Australia")).toEqual(["14/8 Example Crescent", "Demoford NSW"]);
+  expect(addressLines("910/226 Imaginary St\nMock Point NSW 2011\nAustralia")).toEqual(["910/226 Imaginary St", "Mock Point NSW 2011"]);
+  expect(withoutCountry("14/8 Example Crescent, Demoford NSW, Australia")).toBe("14/8 Example Crescent, Demoford NSW");
   expect(withoutCountry("12 Australia Street, Camperdown NSW 2050")).toBe("12 Australia Street, Camperdown NSW 2050");
   expect(withoutCountry("Camperdown NSW 2050, Australia ")).toBe("Camperdown NSW 2050");
   expect(withoutCountry("5 Hay Street, Perth, Western Australia")).toBe("5 Hay Street, Perth, Western Australia");

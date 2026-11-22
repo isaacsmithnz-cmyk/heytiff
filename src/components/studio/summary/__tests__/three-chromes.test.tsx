@@ -195,7 +195,7 @@ describe("a system with nothing on it", () => {
       { id: "s1", type: "split", brand: "mitsubishi-electric", colour: "#2E68FF", name: "System 1", settings: {} },
     ];
     /* an outdoor placed, no indoor, and a room nothing serves — exactly the
-       shape "85 West St" was in */
+       shape "85 Placeholder St" was in */
     d.objects = [
       {
         id: "odu1",

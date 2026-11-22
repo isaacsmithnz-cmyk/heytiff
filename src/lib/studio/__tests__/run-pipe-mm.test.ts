@@ -31,7 +31,7 @@ const run = (id: string, to: string, props: Record<string, unknown> = {}): Desig
 
 /* 3516's multi: an MXZ-4F71VGD with the living room's AP50 and a bedroom's AP25 */
 function multi(): DesignDocument {
-  const d = createDesign({ name: "Waitara", mode: "plan" });
+  const d = createDesign({ name: "Mockville", mode: "plan" });
   return {
     ...d,
     systems: [{ id: "s1", name: "System 1", type: "multi", brand: "mitsubishi-electric", colour: "#15803D", settings: {} } as unknown as DesignDocument["systems"][number]],

@@ -5,7 +5,7 @@ import { PLAN_FILL_MM } from "../export";
    canvas is the sheet's own, the one the PDF draws it at, until the plan is
    past twice its printed size */
 describe("words on the canvas at the size they print", () => {
-  /* 7 Cutler's ground floor: the A1 sheet's padded width over REF_W */
+  /* 7 Ipsum's ground floor: the A1 sheet's padded width over REF_W */
   const u = 2.92;
 
   test("at Fit and at print size the canvas uses the sheet's unit, as the PDF does", () => {

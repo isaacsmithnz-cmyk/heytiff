@@ -179,10 +179,10 @@ describe("createAgreement", () => {
 describe("spawnAgreementFromProject — with New agreement's fields", () => {
   const project = {
     id: "p-1",
-    name: "Bowden St ducted",
-    client_name: "The Bowdens",
+    name: "Sample St ducted",
+    client_name: "The Samples",
     client_remote_id: null,
-    site_label: "14 Bowden St",
+    site_label: "14 Sample St",
     site_address: null,
     agreement_id: null,
   };
@@ -193,7 +193,7 @@ describe("spawnAgreementFromProject — with New agreement's fields", () => {
     expect(res).toEqual({ ok: true, id: "a-new" });
     expect(inserts[0]).toMatchObject({
       table: "maintenance_agreements",
-      payload: { label: "Bowden St ducted", client_name: "The Bowdens", site_label: "14 Bowden St", we_installed: true, interval_months: 6 },
+      payload: { label: "Sample St ducted", client_name: "The Samples", site_label: "14 Sample St", we_installed: true, interval_months: 6 },
     });
     expect(updates.find((u) => u.table === "projects")?.patch).toMatchObject({ agreement_id: "a-new" });
   });
@@ -205,15 +205,15 @@ describe("spawnAgreementFromProject — with New agreement's fields", () => {
       anchorDate: "2027-02-01",
       label: "Ducted, quarterly",
       siteLabel: "Upstairs",
-      billingContact: "sarah@bowden.au",
+      billingContact: "sarah@sample.au",
       techsNeeded: 2,
       weInstalled: false,
     });
     expect(inserts[0].payload).toMatchObject({
       label: "Ducted, quarterly",
-      client_name: "The Bowdens",
+      client_name: "The Samples",
       site_label: "Upstairs",
-      billing_contact: "sarah@bowden.au",
+      billing_contact: "sarah@sample.au",
       techs_needed: 2,
       we_installed: false,
     });

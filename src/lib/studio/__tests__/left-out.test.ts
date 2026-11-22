@@ -13,8 +13,8 @@ const room = (id: string, name: string, extra: Record<string, unknown> = {}): De
   }) as unknown as DesignObject;
 
 /* 3516 as he had it: four rooms on a multi, a robe and the laundry not air conditioned */
-function waitara(): DesignDocument {
-  const d = createDesign({ name: "12/8-10 Park Ave", mode: "plan" });
+function mockville(): DesignDocument {
+  const d = createDesign({ name: "12/8-10 Example Ave", mode: "plan" });
   return {
     ...d,
     floors: [{ id: "gf", name: "Ground floor", level: 0, scaleMmPerUnit: 10, northDeg: 0, northPos: null, plans: [{ id: "sht", imageRef: "org/o/gf.png", pageNumber: null, name: "GF", width: 1000, height: 800, x: 0, y: 0 }] }],
@@ -25,26 +25,26 @@ function waitara(): DesignDocument {
 
 describe("leaving rooms out", () => {
   test("a room no system has comes off the design, kept, and nothing else moves", () => {
-    const d = leaveOut(waitara(), ["robe", "wm"]);
+    const d = leaveOut(mockville(), ["robe", "wm"]);
     expect(d.objects.map((o) => o.id)).toEqual(["bed1"]);
     expect(leftOutRooms(d).map((o) => o.id)).toEqual(["robe", "wm"]);
   });
 
   test("a room on a system stays", () => {
-    const d = waitara();
+    const d = mockville();
     expect(canLeaveOut(d, "bed1")).toBe(false);
     expect(leaveOut(d, ["bed1"])).toBe(d);
   });
 
   test("put back brings one home as it was", () => {
-    const out = leaveOut(waitara(), ["robe", "wm"]);
+    const out = leaveOut(mockville(), ["robe", "wm"]);
     const d = putBack(out, ["robe"]);
-    expect(d.objects.find((o) => o.id === "robe")).toEqual(waitara().objects.find((o) => o.id === "robe"));
+    expect(d.objects.find((o) => o.id === "robe")).toEqual(mockville().objects.find((o) => o.id === "robe"));
     expect(leftOutRooms(d).map((o) => o.id)).toEqual(["wm"]);
   });
 
   test("Tiff never offers a room left out again", () => {
-    const base = waitara();
+    const base = mockville();
     const read = {
       ...base,
       reading: {

@@ -42,7 +42,7 @@ const context = (over: Partial<CertWizardContext> = {}): CertWizardContext => ({
     address: "Lv 3 Suite 4/44-54 Example Road, Suburb, NSW, 2015",
     description: JOB_3326,
     companyUuid: "co-1",
-    clientName: "Helix Venture Studio Pty Ltd",
+    clientName: "Vertex Venture Studio Pty Ltd",
     completedOn: "2026-09-25",
   },
   reading: readQuote(JOB_3326),
@@ -164,9 +164,9 @@ describe("the make", () => {
 describe("what the quote says about itself", () => {
   const job1383 = () =>
     context({
-      job: { uuid: "job-1", number: "1383", address: "74/10 Etham Avenue\nDarling Point NSW 2027", description: JOB_1383, companyUuid: "co-1", clientName: "Reed Developments", completedOn: "2026-08-04" },
+      job: { uuid: "job-1", number: "1383", address: "74/10 Fugiat Avenue\nPretend Point NSW 2027", description: JOB_1383, companyUuid: "co-1", clientName: "Sampson Developments", completedOn: "2026-08-04" },
       reading: readQuote(JOB_1383),
-      building: suggestBuilding("74/10 Etham Avenue"),
+      building: suggestBuilding("74/10 Fugiat Avenue"),
     });
 
   it("says when the quote's stated total and its rows don't agree, and updates as rows change", async () => {
@@ -428,9 +428,9 @@ describe("where the exhaust goes", () => {
   it("asks whether every exhaust fan discharges outdoors, and won't issue until it's answered", async () => {
     certWizardContext.mockImplementation(async () =>
       context({
-        job: { uuid: "job-1", number: "2933", address: "8/119 McEvoy St\nAlexandria NSW 2015", description: JOB_2933, companyUuid: "co-1", clientName: "RCC", completedOn: "2026-07-16" },
+        job: { uuid: "job-1", number: "2933", address: "8/119 Oddment St\nExampleria NSW 2015", description: JOB_2933, companyUuid: "co-1", clientName: "QRC", completedOn: "2026-07-16" },
         reading: readQuote(JOB_2933),
-        building: suggestBuilding("8/119 McEvoy St"),
+        building: suggestBuilding("8/119 Oddment St"),
       })
     );
     open();
@@ -452,9 +452,9 @@ describe("serial numbers", () => {
   it("are an option: ticked, every unit gets a serial box", async () => {
     certWizardContext.mockImplementation(async () =>
       context({
-        job: { uuid: "job-1", number: "2933", address: "8/119 McEvoy St\nAlexandria NSW 2015", description: JOB_2933, companyUuid: "co-1", clientName: "RCC", completedOn: "2026-07-16" },
+        job: { uuid: "job-1", number: "2933", address: "8/119 Oddment St\nExampleria NSW 2015", description: JOB_2933, companyUuid: "co-1", clientName: "QRC", completedOn: "2026-07-16" },
         reading: readQuote(JOB_2933),
-        building: suggestBuilding("8/119 McEvoy St"),
+        building: suggestBuilding("8/119 Oddment St"),
       })
     );
     open();
@@ -503,9 +503,9 @@ describe("a fan's airflow", () => {
   it("is asked for only when somebody ticks it, and then needs a figure", async () => {
     certWizardContext.mockImplementation(async () =>
       context({
-        job: { uuid: "job-1", number: "2933", address: "8/119 McEvoy St\nAlexandria NSW 2015", description: JOB_2933, companyUuid: "co-1", clientName: "RCC", completedOn: "2026-07-16" },
+        job: { uuid: "job-1", number: "2933", address: "8/119 Oddment St\nExampleria NSW 2015", description: JOB_2933, companyUuid: "co-1", clientName: "QRC", completedOn: "2026-07-16" },
         reading: readQuote(JOB_2933),
-        building: suggestBuilding("8/119 McEvoy St"),
+        building: suggestBuilding("8/119 Oddment St"),
       })
     );
     open();

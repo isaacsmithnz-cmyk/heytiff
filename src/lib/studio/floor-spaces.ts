@@ -73,7 +73,7 @@ export const heightOf = (mm: number | null): number | null => (mm != null && Num
 /* ── the floor's outline ─────────────────────────────────────────────── */
 
 /* what stands over a subfloor: the rooms, and a balcony or deck built out
-   from them (Cutler's outdoor units go under its balcony); not a garden,
+   from them (Ipsum's outdoor units go under its balcony); not a garden,
    a courtyard or a garage on its slab, and not a stair (a stair inside is a
    hole in the outline anyway; one outside sticks out of it) */
 const RAISED = /\b(balcony|deck|verandah|veranda|porch)\b/i;

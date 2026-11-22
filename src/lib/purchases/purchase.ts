@@ -141,7 +141,7 @@ export const totalCents = (lines: Pick<PurchaseLine, "qty" | "cents">[]): number
 export const isClear = (lines: Pick<PurchaseLine, "wentTo">[]): boolean => lines.every((l) => l.wentTo !== "open");
 
 /** Where the lines went, one group a job and one for stock, in the order
-    they went: "1352 Holbrook Ave, four lines, $638.10". */
+    they went: "1352 Dolor Ave, four lines, $638.10". */
 export type WentGroup = { key: string; wentTo: "job" | "stock"; jobUuid: string | null; label: string; lines: number; cents: number };
 export function whereItWent(lines: PurchaseLine[]): WentGroup[] {
   const groups = new Map<string, WentGroup>();

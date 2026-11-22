@@ -307,11 +307,11 @@ describe("schema versioning + migrations", () => {
 describe("createDesign — the job it came from", () => {
   it("records the mirror row, not just the number people read", () => {
     const d = createDesign({
-      name: "12/3 Wallace St",
+      name: "12/3 Eiusmod St",
       mode: "blank",
       jobNumber: "3151",
       client: "Diamond Air",
-      site: "12/3 Wallace St, Waverley NSW 2024",
+      site: "12/3 Eiusmod St, Fakehurst NSW 2024",
       job: { remoteId: "sm8-uuid-1", jobNumber: "3151" },
       now: "2026-08-14T00:00:00.000Z",
     });

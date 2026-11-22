@@ -93,7 +93,7 @@ beforeEach(() => {
 
 it("reads the mentions of the viewer's own handle, from the link, and nobody else's", async () => {
   tables.asks = [row("n1", "j-2041", "u-lyle", "2026-09-21 13:42:10", "@isaacsmith Please call Mary")];
-  tables.sm8_jobs = [{ uuid: "j-2041", generated_job_id: "2041", geo_city: "Wollstonecraft", active: 1 }];
+  tables.sm8_jobs = [{ uuid: "j-2041", generated_job_id: "2041", geo_city: "Testcraft", active: 1 }];
 
   const out = await listMyMentions("org-1", "u-isaac", "2026-09-25");
 
@@ -107,7 +107,7 @@ it("reads the mentions of the viewer's own handle, from the link, and nobody els
 
   expect(out).toHaveLength(1);
   expect(out[0]).toMatchObject({
-    jobLabel: "2041 Wollstonecraft",
+    jobLabel: "2041 Testcraft",
     jobLive: true,
     asker: { name: "Lyle Irving" },
     messages: [{ text: "Please call Mary" }],
@@ -254,9 +254,9 @@ describe("your replies from HeyTiff", () => {
 
 it("says a job ServiceM8 deleted isn't live, so it gets no Reply", async () => {
   tables.asks = [row("n1", "j-2749", "u-lyle", "2026-09-09 10:00:00", "@isaacsmith can you advise Holly")];
-  tables.sm8_jobs = [{ uuid: "j-2749", generated_job_id: 2749, geo_city: "Woolloomooloo", active: 0 }];
+  tables.sm8_jobs = [{ uuid: "j-2749", generated_job_id: 2749, geo_city: "Exampleloo", active: 0 }];
   const [c] = await listMyMentions("org-1", "u-isaac", "2026-09-25");
-  expect(c).toMatchObject({ jobLabel: "2749 Woolloomooloo", jobLive: false });
+  expect(c).toMatchObject({ jobLabel: "2749 Exampleloo", jobLive: false });
 });
 
 /* Only the copy saying so makes a job gone: a read that failed, or a job
@@ -283,10 +283,10 @@ it("keeps a job the copy holds no row for live, and names the one it does", asyn
     row("n2", "j-2041", "u-lyle", "2026-09-21 13:42:10", "@isaacsmith Please call Mary"),
     row("n1", "j-2749", "u-lyle", "2026-09-09 10:00:00", "@isaacsmith can you advise Holly"),
   ];
-  tables.sm8_jobs = [{ uuid: "j-2041", generated_job_id: 2041, geo_city: "Wollstonecraft", active: 1 }];
+  tables.sm8_jobs = [{ uuid: "j-2041", generated_job_id: 2041, geo_city: "Testcraft", active: 1 }];
   const out = await listMyMentions("org-1", "u-isaac", "2026-09-25");
   expect(out.map((c) => [c.jobUuid, c.jobLive, c.jobLabel])).toEqual([
-    ["j-2041", true, "2041 Wollstonecraft"],
+    ["j-2041", true, "2041 Testcraft"],
     ["j-2749", true, null],
   ]);
 });

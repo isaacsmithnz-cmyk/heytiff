@@ -212,7 +212,7 @@ STAYS = ["Notes on a job, project, agreement or person", "Quote lines, options a
 
 TYPE = [
     ("32 / 700", "One big figure", "At most one per screen", '<span style="font-size:32px;line-height:40px;font-weight:700;letter-spacing:-.4px">$697,300</span>'),
-    ("24 / 600", "Screen title", "Jobs, Schedule, a job's name", '<span style="font-size:24px;line-height:32px;font-weight:600;letter-spacing:-.2px">Rifkin, Julian</span>'),
+    ("24 / 600", "Screen title", "Jobs, Schedule, a job's name", '<span style="font-size:24px;line-height:32px;font-weight:600;letter-spacing:-.2px">Fairweather, Jules</span>'),
     ("16 / 600", "Section heading", "Today, To do, Details", '<span style="font-size:16px;line-height:24px;font-weight:600">Today</span>'),
     ("16 / 400", "Reading and writing", "The box, notes, messages, Tiff's answers", '<span style="font-size:16px;line-height:24px">Lyle needs the Bellevue Hill head on the ute.</span>'),
     ("14 / 400", "Body", "Rows, fields, the sidebar; buttons at 600", '<span style="font-size:14px;line-height:20px">Kingsford Bakery, 2380</span><span class="st" style="margin-left:16px;font-weight:600;font-size:14px;height:32px">Open job</span>'),

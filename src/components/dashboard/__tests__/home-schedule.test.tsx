@@ -16,7 +16,7 @@ const job = (id: string, client: string, mine = true): TeamJob => ({
   id,
   number: id,
   client,
-  suburb: "Glebe",
+  suburb: "Mockglen",
   kind: "Install",
   hue: "blue" as TeamJob["hue"],
   people: ["you"],

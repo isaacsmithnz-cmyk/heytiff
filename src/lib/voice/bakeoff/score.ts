@@ -3,7 +3,7 @@
    WHY NOT WER: the leaderboards rank on it and it is the wrong question for us.
    A note that mangles "condensate" but still lands on job 337 assigned to Lyle
    routes perfectly and the tech never notices. A note that is 98% word-perfect
-   but hears "Wyndham" as "Windham" files a commissioning entry against the
+   but hears "Fabulum" as "Febulum" files a commissioning entry against the
    wrong site. Those two failures are not the same size, and any single
    percentage that averages them tells you nothing about whether to ship.
 
@@ -73,7 +73,7 @@ export function wordErrorRate(truth: string, hypothesis: string): number {
 }
 
 /** 1 = identical, 0 = nothing in common. Character-level, for near-miss
-    reporting: "Wyndham" heard as "Windham" scores 0.86 — one letter out, and
+    reporting: "Fabulum" heard as "Febulum" scores 0.86 — one letter out, and
     obviously the same street once you see it written down. */
 export function similarity(a: string, b: string): number {
   const x = [...a];
@@ -115,7 +115,7 @@ export function findPhrase(hypothesis: string, expected: string): Match {
   return { expected, hit: best.score >= MATCH_THRESHOLD, ...best };
 }
 
-/* A site is "36 Wyndham Street". The street NUMBER has to be exact — 36 and 38
+/* A site is "36 Fabulum Street". The street NUMBER has to be exact — 36 and 38
    are different houses and fuzzy matching them is worse than useless — while
    the street name is allowed to be heard imperfectly, because the resolver
    ranks it against a real list of streets and will recover it. Checking them
@@ -142,7 +142,7 @@ export function findSite(hypothesis: string, site: string): Match[] {
 export type Expectations = {
   /** Human job number as spoken, e.g. "337". */
   job?: string;
-  /** Street address of the site, e.g. "36 Wyndham Street". */
+  /** Street address of the site, e.g. "36 Fabulum Street". */
   site?: string;
   /** Names that must resolve to people — first names as actually said. */
   people?: string[];

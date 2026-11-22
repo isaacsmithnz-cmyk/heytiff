@@ -97,7 +97,7 @@ describe("buildJobAttention", () => {
       inputs({
         flags: [{ id: "f-1", message: "Flag 1", severity: "warn" as const, raised: "2026-08-12" }],
         tasks: [
-          { id: "t-1", title: "Send quote to Lisa Watters", assignee: "Isaac Smith", dueDate: "2026-11-09", noteText: null },
+          { id: "t-1", title: "Send quote to Lisa Ashdown", assignee: "Isaac Smith", dueDate: "2026-11-09", noteText: null },
         ],
       })
     );

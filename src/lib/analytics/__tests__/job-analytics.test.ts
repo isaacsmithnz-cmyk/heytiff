@@ -447,7 +447,7 @@ describe("what the live account taught the rules", () => {
     expect(kind("Fw: Fresh Air Supply / Lossnay System Quote")).toBe("ventilation");
     expect(kind("Underfloor ventallation")).toBe("ventilation");
     // not what they seem
-    expect(kind("Fw: 14 Boundary Street, Bronte: Quote Notes: Downstairs (3 Units)")).toBeNull();
+    expect(kind("Fw: 14 Legend Street, Testbeach: Quote Notes: Downstairs (3 Units)")).toBeNull();
     expect(kind("split level apartment, looking for whole property solution")).toBeNull();
     expect(kind("BTO required to split air flow to new room - 10' and 12' Duct")).toBeNull();
     expect(kind("Disconnect split temporarily.")).toBeNull();

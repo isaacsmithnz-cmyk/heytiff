@@ -114,9 +114,9 @@ jest.mock("@/lib/workboard/query", () => ({ sm8VendorOf: async () => ({ tz: "Aus
 import { buildConversations, type MentionNote } from "../diary-feed";
 let notes: MentionNote[] = [];
 const JOBS = new Map([
-  ["j-2041", { label: "2041 Wollstonecraft", live: true }],
-  ["j-3294", { label: "3294 Rozelle", live: true }],
-  ["j-2749", { label: "2749 Woolloomooloo", live: true }],
+  ["j-2041", { label: "2041 Testcraft", live: true }],
+  ["j-3294", { label: "3294 Mockzelle", live: true }],
+  ["j-2749", { label: "2749 Exampleloo", live: true }],
 ]);
 const listMyMentions = jest.fn(async (_org: string, mine: string, today: string) => {
   const me = PEOPLE.find((p) => p.uuid === mine)!;
@@ -139,7 +139,7 @@ let clock = Date.parse("2026-09-25T00:00:00Z");
 let readTakes = 0;
 let askAnswer: (a: AskArgs) => { ok: true; read: unknown } | Failure = () => ({
   ok: true,
-  read: { kind: "do", title: "Call Mary about 2041 Wollstonecraft", dueDate: null },
+  read: { kind: "do", title: "Call Mary about 2041 Testcraft", dueDate: null },
 });
 let replyAnswer: (a: ReplyArgs) => { ok: true; read: unknown } | Failure = () => readingAs("none");
 let keyed = true;
@@ -247,7 +247,7 @@ beforeEach(() => {
     job_note_actions: [],
     tasks: [],
   };
-  askAnswer = () => ({ ok: true, read: { kind: "do", title: "Call Mary about 2041 Wollstonecraft", dueDate: null } });
+  askAnswer = () => ({ ok: true, read: { kind: "do", title: "Call Mary about 2041 Testcraft", dueDate: null } });
   replyAnswer = () => readingAs("none");
   readAsk.mockClear();
   readReply.mockClear();
@@ -260,14 +260,14 @@ afterEach(() => jest.restoreAllMocks());
 
 describe("one task per ask", () => {
   it("makes the ask one task on the list of the person asked, and records it", async () => {
-    askAnswer = () => ({ ok: true, read: { kind: "do", title: "Call Mary about 2041 Wollstonecraft", dueDate: "2026-09-22" } });
+    askAnswer = () => ({ ok: true, read: { kind: "do", title: "Call Mary about 2041 Testcraft", dueDate: "2026-09-22" } });
     const out = await settle();
 
     expect(out).toMatchObject({ reads: 1, tasks: 1, failed: 0 });
     expect(tasksTable()).toEqual([
       expect.objectContaining({
         org_id: ORG,
-        title: "Call Mary about 2041 Wollstonecraft",
+        title: "Call Mary about 2041 Testcraft",
         assigned_to: "s-isaac",
         due_date: "2026-09-22",
         status: "open",
@@ -295,12 +295,12 @@ describe("one task per ask", () => {
         person: "Isaac Smith",
         first: "Isaac",
         asker: "Lyle Irving",
-        job: "2041 Wollstonecraft",
+        job: "2041 Testcraft",
       }),
     );
   });
 
-  /* The real read of 2026-09-26: Alex's note on 2778 Queenscliff asked
+  /* The real read of 2026-09-26: Alex's note on 2778 Mockcliff asked
      Lyle for one thing and Isaac for another. Given the diary's quote, the
      addressing out, the reader couldn't tell whose each was and filed both
      as one task for Isaac. The reader here does the same with anything
@@ -315,7 +315,7 @@ describe("one task per ask", () => {
           "@isaacsmith can you send house by rivers contact to David as he needs a good builder",
       ),
     ];
-    const his = "Send House by Rivers contact to David for 2041 Wollstonecraft";
+    const his = "Send House by Rivers contact to David for 2041 Testcraft";
     askAnswer = (a) => ({
       ok: true,
       read: {
@@ -323,7 +323,7 @@ describe("one task per ask", () => {
         title:
           a.text.includes("Lyle when you send invoice") && a.text.includes("Isaac can you send house by rivers")
             ? his
-            : "Send warranty documents with the invoice and House by Rivers contact to David for 2041 Wollstonecraft",
+            : "Send warranty documents with the invoice and House by Rivers contact to David for 2041 Testcraft",
         dueDate: null,
       },
     });
@@ -354,11 +354,11 @@ describe("one task per ask", () => {
     });
   });
 
-  /* The same read: "@IsaacSmith" alone on 2872 Kurraba Point, quoted as
+  /* The same read: "@IsaacSmith" alone on 2872 Excepteur Point, quoted as
      nothing, still cost a read. The reader here would make a task of it. */
   it("records a note that is only its addressing as asking nothing, without a read, and never reads it", async () => {
     notes = [note("n-bare", LYLE.uuid, "2026-09-22 09:00:00", "@IsaacSmith")];
-    askAnswer = () => ({ ok: true, read: { kind: "do", title: "Follow up with Lyle about 2041 Wollstonecraft", dueDate: null } });
+    askAnswer = () => ({ ok: true, read: { kind: "do", title: "Follow up with Lyle about 2041 Testcraft", dueDate: null } });
     const out = await settle();
     expect(readAsk).not.toHaveBeenCalled();
     expect(out).toMatchObject({ reads: 0, tasks: 0, adopted: 0 });
@@ -407,9 +407,9 @@ describe("one task per ask", () => {
     askAnswer = (a) =>
       a.tasks.length
         ? { ok: true, read: { kind: "none", title: "", dueDate: null } }
-        : { ok: true, read: { kind: "do", title: "Call Mary about 2041 Wollstonecraft", dueDate: null } };
+        : { ok: true, read: { kind: "do", title: "Call Mary about 2041 Testcraft", dueDate: null } };
     const out = await settle();
-    expect(readAsk.mock.calls.map(([a]) => a.tasks)).toEqual([[], ["Call Mary about 2041 Wollstonecraft"]]);
+    expect(readAsk.mock.calls.map(([a]) => a.tasks)).toEqual([[], ["Call Mary about 2041 Testcraft"]]);
     expect(out).toMatchObject({ reads: 2, tasks: 1 });
   });
 });
@@ -632,8 +632,8 @@ describe("the lease", () => {
   it("takes its task back out when another run marked the row first, so one task is left", async () => {
     askAnswer = () => {
       Object.assign(asksTable()[0], { status: "read", kind: "do", task_id: "t-other" });
-      tasksTable().push(openTask("t-other", "Call Mary about 2041 Wollstonecraft"));
-      return { ok: true, read: { kind: "do", title: "Call Mary about 2041 Wollstonecraft", dueDate: null } };
+      tasksTable().push(openTask("t-other", "Call Mary about 2041 Testcraft"));
+      return { ok: true, read: { kind: "do", title: "Call Mary about 2041 Testcraft", dueDate: null } };
     };
     const out = await settle();
     expect(out.tasks).toBe(0);
@@ -696,7 +696,7 @@ describe("failures that aren't the ask's", () => {
     }
     expect(askRow("n-mary")).toMatchObject({ status: "reading", attempts: 0, claimed_at: null, error: "rate limited" });
 
-    askAnswer = () => ({ ok: true, read: { kind: "do", title: "Call Mary about 2041 Wollstonecraft", dueDate: null } });
+    askAnswer = () => ({ ok: true, read: { kind: "do", title: "Call Mary about 2041 Testcraft", dueDate: null } });
     await settle();
     expect(askRow("n-mary")).toMatchObject({ status: "read", kind: "do" });
   });
@@ -784,7 +784,7 @@ describe("a read that runs out of time", () => {
   describe("for your replies", () => {
     const FANS_READ = () => {
       db.mention_asks = [readRow("n-fans", "t-fans", { sm8_job_uuid: "j-3294" })];
-      db.tasks = [openTask("t-fans", "Tell Lyle how many fans for 3294 Rozelle")];
+      db.tasks = [openTask("t-fans", "Tell Lyle how many fans for 3294 Mockzelle")];
     };
     const THREE = mine("r-fans", "2026-09-16 09:00:00", "three", "j-3294");
 
@@ -835,8 +835,8 @@ describe("a read that runs out of time", () => {
     it(`sets aside replies that always run out of time, read for two tasks in a row, after ${MAX_ATTEMPTS} runs, and then reads the asks behind them`, async () => {
       db.mention_asks = [readRow("n-mary", "t-mary"), readRow("n-quote", "t-quote")];
       db.tasks = [
-        openTask("t-mary", "Call Mary about 2041 Wollstonecraft"),
-        openTask("t-quote", "Send Mary the quote for 2041 Wollstonecraft"),
+        openTask("t-mary", "Call Mary about 2041 Testcraft"),
+        openTask("t-quote", "Send Mary the quote for 2041 Testcraft"),
       ];
       notes = [
         ASK_MARY,
@@ -934,13 +934,13 @@ describe("your replies", () => {
     ];
     askAnswer = (a) =>
       a.text.includes("ducting")
-        ? { ok: true, read: { kind: "do", title: "Quote the ducting for 2041 Wollstonecraft", dueDate: null } }
-        : { ok: true, read: { kind: "do", title: "Call Mary about 2041 Wollstonecraft", dueDate: null } };
+        ? { ok: true, read: { kind: "do", title: "Quote the ducting for 2041 Testcraft", dueDate: null } }
+        : { ok: true, read: { kind: "do", title: "Call Mary about 2041 Testcraft", dueDate: null } };
     replyAnswer = (a) => (a.task.startsWith("Call Mary") ? readingAs("done") : readingAs("none"));
     await settle();
     expect(readReply.mock.calls.map(([a]) => [a.task, a.others])).toEqual([
-      ["Call Mary about 2041 Wollstonecraft", ["Quote the ducting for 2041 Wollstonecraft"]],
-      ["Quote the ducting for 2041 Wollstonecraft", []],
+      ["Call Mary about 2041 Testcraft", ["Quote the ducting for 2041 Testcraft"]],
+      ["Quote the ducting for 2041 Testcraft", []],
     ]);
     expect(taskOf("n-mary")).toMatchObject({ status: "done" });
     expect(taskOf("n-quote")).toMatchObject({ status: "open" });
@@ -956,7 +956,7 @@ describe("your replies", () => {
     ];
     askAnswer = (a) =>
       a.text.includes("ducting")
-        ? { ok: true, read: { kind: "do", title: "Quote the ducting for 2041 Wollstonecraft", dueDate: null } }
+        ? { ok: true, read: { kind: "do", title: "Quote the ducting for 2041 Testcraft", dueDate: null } }
         : { ok: true, read: { kind: "none", title: "", dueDate: null } };
     replyAnswer = () => readingAs("done");
     await settle();
@@ -968,7 +968,7 @@ describe("your replies", () => {
      is not his to have ticked off. */
   it("never move a task given to someone else since", async () => {
     db.mention_asks = [readRow("n-mary", "t-mary")];
-    db.tasks = [openTask("t-mary", "Call Mary about 2041 Wollstonecraft", { assigned_to: "s-leo" })];
+    db.tasks = [openTask("t-mary", "Call Mary about 2041 Testcraft", { assigned_to: "s-leo" })];
     notes = [ASK_MARY, mine("n-done", "2026-09-22 15:10:00", "done")];
     replyAnswer = () => readingAs("done");
     await settle();
@@ -981,7 +981,7 @@ describe("your replies", () => {
   it("still reach the task of an ask older than the 30 days, with no newer ask about", async () => {
     notes = [note("n-old", LYLE.uuid, "2026-08-25 09:00:00", "@isaacsmith quote this"), mine("n-done", "2026-09-24 09:00:00", "done")];
     db.mention_asks = [readRow("n-old", "t-old")];
-    db.tasks = [openTask("t-old", "Quote 2041 Wollstonecraft")];
+    db.tasks = [openTask("t-old", "Quote 2041 Testcraft")];
     replyAnswer = () => readingAs("done");
     await settle();
     expect(readAsk).not.toHaveBeenCalled();
@@ -1015,7 +1015,7 @@ describe("your replies", () => {
 
   it("log a new due day only when the day changes, and keep the words when they change nothing", async () => {
     db.mention_asks = [readRow("n-mary", "t-mary", { due_said: "today" })];
-    db.tasks = [openTask("t-mary", "Call Mary about 2041 Wollstonecraft", { due_date: "2026-09-22" })];
+    db.tasks = [openTask("t-mary", "Call Mary about 2041 Testcraft", { due_date: "2026-09-22" })];
     notes = [ASK_MARY, MINE];
     replyAnswer = () => readingAs("when", "2026-09-22", "this afternoon");
     const out = await settle();

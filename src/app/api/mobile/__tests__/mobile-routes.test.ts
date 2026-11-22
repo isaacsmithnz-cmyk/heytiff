@@ -150,7 +150,7 @@ describe("refused before anything is read", () => {
   const calls: [string, () => Promise<Response>][] = [
     ["me", () => me(req("me"))],
     ["schedule", () => schedule(req("schedule?day=2026-10-26"))],
-    ["jobs", () => jobs(req("jobs?q=rifkin"))],
+    ["jobs", () => jobs(req("jobs?q=fairweather"))],
     ["a job", () => job(req("jobs/job-3342"), params("job-3342"))],
   ];
   test.each(calls)("%s without a token is a 401", async (_n, go) => {
@@ -213,11 +213,11 @@ test("a day that isn't a bare date is a 400 that never reaches the diary", async
 });
 
 test("the search carries money only for someone who holds it", async () => {
-  await jobs(req("jobs?q=rifkin", "auth0|lyle"));
-  await jobs(req("jobs?q=rifkin", "auth0|isaac"));
+  await jobs(req("jobs?q=fairweather", "auth0|lyle"));
+  await jobs(req("jobs?q=fairweather", "auth0|isaac"));
   expect(asked).toEqual([
-    'search org-diamond "rifkin" 2026-10-26 {"includeMoney":false}',
-    'search org-diamond "rifkin" 2026-10-26 {"includeMoney":true}',
+    'search org-diamond "fairweather" 2026-10-26 {"includeMoney":false}',
+    'search org-diamond "fairweather" 2026-10-26 {"includeMoney":true}',
   ]);
 });
 
@@ -226,12 +226,12 @@ test("before anything is typed: every job by number a page at a time, and the jo
   await jobs(req("jobs?list=1&from=50", "auth0|isaac"));
   await jobs(req("jobs?ids=job-3494,job-3423", "auth0|lyle"));
   /* a search typed wins over both */
-  await jobs(req("jobs?q=rifkin&list=1", "auth0|lyle"));
+  await jobs(req("jobs?q=fairweather&list=1", "auth0|lyle"));
   expect(asked).toEqual([
     'list org-diamond 2026-10-26 {"includeMoney":false,"from":0}',
     'list org-diamond 2026-10-26 {"includeMoney":true,"from":50}',
     'ids org-diamond job-3494+job-3423 2026-10-26 {"includeMoney":false}',
-    'search org-diamond "rifkin" 2026-10-26 {"includeMoney":false}',
+    'search org-diamond "fairweather" 2026-10-26 {"includeMoney":false}',
   ]);
 });
 

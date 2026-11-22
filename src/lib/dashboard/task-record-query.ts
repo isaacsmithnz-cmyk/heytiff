@@ -543,7 +543,7 @@ async function sm8NotesFor(
   return out;
 }
 
-/** job uuid → "2041 Wollstonecraft", for the jobs the mirror holds. */
+/** job uuid → "2041 Testcraft", for the jobs the mirror holds. */
 async function sm8JobsFor(orgId: string, uuids: readonly string[]): Promise<Map<string, string>> {
   const out = new Map<string, string>();
   if (uuids.length === 0) return out;

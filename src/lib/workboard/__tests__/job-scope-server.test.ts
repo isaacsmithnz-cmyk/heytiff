@@ -40,8 +40,8 @@ const story = (over: Record<string, unknown> = {}) => ({
   stamp: "2026-10-28 14:40:00|3",
   status: "Quote",
   createdOn: "2026-10-08 00:00:00",
-  clientName: "Tandem Projects",
-  scope: "Fw: Quote 6 Bishops avenue",
+  clientName: "Tangent Projects",
+  scope: "Fw: Quote 6 Nostrud avenue",
   workDone: null,
   entries: [
     { kind: "note", day: "2026-10-28", at: "2026-10-28 14:40:00", author: "Isaac Smith", text: "Builder rang: exhaust fans too", actionRequired: false },

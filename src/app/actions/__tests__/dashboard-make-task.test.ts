@@ -89,9 +89,9 @@ describe("makeTasks", () => {
 
   it("makes one task a line, sharing the job, the day and the person", async () => {
     allowed = new Set(["team"]);
-    const res = await makeTasks({ text: "Order the grilles\n\n  Book the crane \nCall Rifkin", jobUuid: "job-3209", dueDate: "2026-10-21", forStaffId: "s-lyle" });
+    const res = await makeTasks({ text: "Order the grilles\n\n  Book the crane \nCall Fairweather", jobUuid: "job-3209", dueDate: "2026-10-21", forStaffId: "s-lyle" });
     expect(res).toEqual({ ok: true, taskIds: ["t-1", "t-2", "t-3"], jobKept: true });
-    expect(inserts.map((r) => r.title)).toEqual(["Order the grilles", "Book the crane", "Call Rifkin"]);
+    expect(inserts.map((r) => r.title)).toEqual(["Order the grilles", "Book the crane", "Call Fairweather"]);
     for (const r of inserts) expect(r).toMatchObject({ sm8_job_uuid: "job-3209", due_date: "2026-10-21", assigned_to: "s-lyle" });
   });
 

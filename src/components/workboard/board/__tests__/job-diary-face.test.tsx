@@ -400,8 +400,8 @@ describe("Also in ServiceM8", () => {
 
 describe("withMentions", () => {
   it("wears a mention as a callout, and never an @ inside an email address", () => {
-    render(<p>{withMentions("@lyleirving sent to josh@lsdb.com.au")}</p>);
+    render(<p>{withMentions("@lyleirving sent to josh@kpsb.example")}</p>);
     expect([...document.querySelectorAll(".wb2-mention")].map((m) => m.textContent)).toEqual(["@lyleirving"]);
-    expect(screen.getByText(/sent to josh@lsdb\.com\.au/)).toBeInTheDocument();
+    expect(screen.getByText(/sent to josh@kpsb\.example/)).toBeInTheDocument();
   });
 });

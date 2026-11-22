@@ -226,7 +226,7 @@ function roomsBetween(walls: Walls, input: VectorInput): VectorRooms | { none: s
   const named = keep.filter((k) => k.names.length).length;
   const found = { colours: walls.colours, rooms: keep.length, named, labels, landed };
   /* a plan whose room names aren't text in the file (drawn as lines, as
-     Frogmore's are) gives rooms the read by picture names in the merge;
+     Pariatur's are) gives rooms the read by picture names in the merge;
      one whose names are text must have most of them land in a room */
   const big = keep.filter((k) => k.n >= sq(2000, mmPerPx)).length;
   if (labels === 0 && big < 4) return { none: `Only ${big} room${big === 1 ? "" : "s"} closed off between its walls, and it writes no room names as text` };

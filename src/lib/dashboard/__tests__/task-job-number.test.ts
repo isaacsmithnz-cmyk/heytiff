@@ -2,7 +2,7 @@ import { namedJobNumber } from "../task-job-number";
 
 describe("namedJobNumber", () => {
   it("reads a number written as a job", () => {
-    expect(namedJobNumber("Proceed with 3450 Kingsford")).toBe("3450");
+    expect(namedJobNumber("Proceed with 3450 Fakesford")).toBe("3450");
     expect(namedJobNumber("Ring the builder about #2845")).toBe("2845");
     expect(namedJobNumber("Order for job 2845A")).toBe("2845A");
   });

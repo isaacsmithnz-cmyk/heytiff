@@ -51,14 +51,14 @@ it("is manage-tier: nothing for someone who can't make an agreement", async () =
 
 it("reads this org's active and paused agreements and its categories, by name", async () => {
   tables = {
-    maintenance_agreements: [{ id: "a-1", label: "Rooftop", client_name: "Richards Building", site_label: null, status: "active" }],
+    maintenance_agreements: [{ id: "a-1", label: "Rooftop", client_name: "Rowland Building", site_label: null, status: "active" }],
     agreement_categories: [
       { id: "c-2", name: "Residential", accent: "pink" },
       { id: "c-1", name: "Commercial", accent: "blue" },
     ],
   };
   const ctx = await agreementFormContext();
-  expect(ctx?.agreements).toEqual([{ id: "a-1", label: "Rooftop", clientName: "Richards Building", siteLabel: null, status: "active" }]);
+  expect(ctx?.agreements).toEqual([{ id: "a-1", label: "Rooftop", clientName: "Rowland Building", siteLabel: null, status: "active" }]);
   expect(ctx?.categories.map((c) => c.name)).toEqual(["Commercial", "Residential"]);
   expect(reads.find((r) => r.table === "maintenance_agreements")?.filters).toEqual({ org_id: "org-1", status: ["active", "paused"] });
   expect(reads.find((r) => r.table === "agreement_categories")?.filters).toEqual({ org_id: "org-1" });

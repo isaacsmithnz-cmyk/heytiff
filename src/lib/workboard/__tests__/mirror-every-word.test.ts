@@ -1,6 +1,6 @@
 /* Several words, every one of them landing somewhere (2026-09-24). Isaac
-   typed "hr constructions mosman" into ⌘K: the client's name and a suburb.
-   HR Constructions Pty Ltd has fifteen jobs in Mosman, and the search found
+   typed "hr constructions sampleton" into ⌘K: the client's name and a suburb.
+   HR Constructions Pty Ltd has fifteen jobs in Sampleton, and the search found
    none, because it asked for the whole phrase inside one field.
 
    The fake here is a small PostgREST: it FILTERS rows the way the database
@@ -102,19 +102,19 @@ beforeEach(() => {
     client("c-chr", "Christine Hair Studio"),
   ];
   tables.sm8_jobs = [
-    job("j-2675", { company_uuid: "c-hr", geo_city: "Mosman", date: "2026-08-01 09:00:00" }),
-    job("j-2545", { company_uuid: "c-hr", geo_city: "Mosman", date: "2026-05-01 09:00:00" }),
+    job("j-2675", { company_uuid: "c-hr", geo_city: "Sampleton", date: "2026-08-01 09:00:00" }),
+    job("j-2545", { company_uuid: "c-hr", geo_city: "Sampleton", date: "2026-05-01 09:00:00" }),
     job("j-3166", { company_uuid: "c-hr", geo_city: "Northbridge", date: "2026-09-01 09:00:00" }),
     job("j-2701", {
       company_uuid: "c-abc",
-      geo_city: "Mosman",
+      geo_city: "Sampleton",
       job_description: "HR office fitout",
       date: "2026-09-10 09:00:00",
     }),
-    job("j-2702", { company_uuid: "c-abc", geo_city: "Mosman", job_description: "Roof unit" }),
-    job("j-2800", { company_uuid: "c-chr", geo_city: "Mosman", job_description: "Split in the salon" }),
-    job("j-3260", { status: "Work Order", geo_city: "Balmain East", job_address: "19 Union St\nBalmain East NSW 2041" }),
-    job("j-3432", { status: "Work Order", geo_city: "Paddington", job_address: "1 union st Paddington " }),
+    job("j-2702", { company_uuid: "c-abc", geo_city: "Sampleton", job_description: "Roof unit" }),
+    job("j-2800", { company_uuid: "c-chr", geo_city: "Sampleton", job_description: "Split in the salon" }),
+    job("j-3260", { status: "Work Order", geo_city: "Demoport East", job_address: "19 Fiction St\nDemoport East NSW 2041" }),
+    job("j-3432", { status: "Work Order", geo_city: "Fauxington", job_address: "1 fiction st Fauxington " }),
   ];
   tables.sm8_categories = [];
   tables.sm8_job_activities = [];
@@ -122,7 +122,7 @@ beforeEach(() => {
 
 describe("several words, every one landing", () => {
   it("finds a client's jobs in a suburb when the name and the suburb are typed together", async () => {
-    expect(await numbers("hr constructions mosman")).toEqual([
+    expect(await numbers("hr constructions sampleton")).toEqual([
       // the client whose name covers the most words answers first, newest first
       "2675",
       "2545",
@@ -133,21 +133,21 @@ describe("several words, every one landing", () => {
 
   it("answers first with the client covering more words, whatever order the book is in", async () => {
     tables.sm8_companies = [...tables.sm8_companies].reverse();
-    expect(await numbers("constructions hr mosman")).toEqual(["2675", "2545", "2701"]);
+    expect(await numbers("constructions hr sampleton")).toEqual(["2675", "2545", "2701"]);
   });
 
   it("takes the words in any order", async () => {
-    expect(await numbers("mosman hr constructions")).toEqual(["2675", "2545", "2701"]);
+    expect(await numbers("sampleton hr constructions")).toEqual(["2675", "2545", "2701"]);
   });
 
   /* "hr" inside Christine is not the word hr: a client is named by the words
      their name starts, or 47 clients would answer for one. */
   it("names a client by the words their name starts, not by letters inside one", async () => {
-    expect(await numbers("hr mosman")).not.toContain("2800");
+    expect(await numbers("hr sampleton")).not.toContain("2800");
   });
 
   it("reads a job number and a suburb together", async () => {
-    expect(await numbers("2675 mosman")).toEqual(["2675"]);
+    expect(await numbers("2675 sampleton")).toEqual(["2675"]);
     expect(await numbers("2675 northbridge")).toEqual([]);
   });
 
@@ -170,15 +170,15 @@ describe("several words, every one landing", () => {
   });
 });
 
-/* The street (2026-10-28): "19 union" in the phone's Move found nothing, the
-   box saying "Number, client or street", though 3260 is at 19 Union St. */
+/* The street (2026-10-28): "19 fiction" in the phone's Move found nothing, the
+   box saying "Number, client or street", though 3260 is at 19 Fiction St. */
 describe("the street a job is on", () => {
   it("finds a job by its street number and name together", async () => {
-    expect(await numbers("19 union")).toEqual(["3260"]);
+    expect(await numbers("19 fiction")).toEqual(["3260"]);
   });
 
   it("finds every job on a street by its name alone", async () => {
-    expect((await numbers("union")).sort()).toEqual(["3260", "3432"]);
+    expect((await numbers("fiction")).sort()).toEqual(["3260", "3432"]);
   });
 });
 
@@ -187,35 +187,35 @@ describe("the street a job is on", () => {
    never stands in for 3260. */
 describe("only the states asked for", () => {
   beforeEach(() => {
-    tables.sm8_jobs.push(job("j-3260A", { status: "Completed", geo_city: "Balmain East", job_address: "19 Union St\nBalmain East NSW 2041" }));
+    tables.sm8_jobs.push(job("j-3260A", { status: "Completed", geo_city: "Demoport East", job_address: "19 Fiction St\nDemoport East NSW 2041" }));
   });
 
   it("finds finished jobs too when no state is asked for", async () => {
-    tables.sm8_jobs.push(job("j-3300", { status: "Completed", geo_city: "Balmain East", job_address: "19 Union St\nBalmain East NSW 2041" }));
-    expect((await numbers("19 union")).sort()).toEqual(["3260", "3300"]);
+    tables.sm8_jobs.push(job("j-3300", { status: "Completed", geo_city: "Demoport East", job_address: "19 Fiction St\nDemoport East NSW 2041" }));
+    expect((await numbers("19 fiction")).sort()).toEqual(["3260", "3300"]);
   });
 
   it("finds only open Work Orders and Quotes when those are asked for, by one word or several", async () => {
     const open = async (query: string) =>
       (await searchAllMirrorJobs(ORG, query, TODAY, { includeMoney: false, statuses: ["Work Order", "Quote"] })).map((j) => j.jobNumber).sort();
-    expect(await open("19 union")).toEqual(["3260"]);
-    expect(await open("union")).toEqual(["3260", "3432"]);
+    expect(await open("19 fiction")).toEqual(["3260"]);
+    expect(await open("fiction")).toEqual(["3260", "3432"]);
     expect(await open("3260")).toEqual(["3260"]);
   });
 });
 
-/* "7 cutler street" (2026-11-11): 2845 is at 7 Cutler Rd, and the search
+/* "7 ipsum street" (2026-11-11): 2845 is at 7 Ipsum Rd, and the search
    found nothing, because "street" had to land too. */
 describe("the kind of street", () => {
   beforeEach(() => {
-    tables.sm8_jobs.push(job("j-2845", { status: "Work Order", geo_city: "Clontarf", job_address: "7 Cutler Rd\nClontarf NSW 2093" }));
+    tables.sm8_jobs.push(job("j-2845", { status: "Work Order", geo_city: "Testbury", job_address: "7 Ipsum Rd\nTestbury NSW 2093" }));
   });
 
   it("finds the job whatever kind of street is typed", async () => {
-    expect(await numbers("7 cutler street")).toEqual(["2845"]);
-    expect(await numbers("7 cutler st")).toEqual(["2845"]);
-    expect(await numbers("cutler road")).toEqual(["2845"]);
-    expect(await numbers("19 union street")).toEqual(["3260"]);
+    expect(await numbers("7 ipsum street")).toEqual(["2845"]);
+    expect(await numbers("7 ipsum st")).toEqual(["2845"]);
+    expect(await numbers("ipsum road")).toEqual(["2845"]);
+    expect(await numbers("19 fiction street")).toEqual(["3260"]);
   });
 
   it("still looks for the word when it is all that's typed", async () => {
@@ -223,14 +223,14 @@ describe("the kind of street", () => {
   });
 });
 
-/* "JT construct" (2026-11-11): 2845A, a payment claim cloned off 2845,
+/* "QX construct" (2026-11-11): 2845A, a payment claim cloned off 2845,
    stood in the list beside it. A claim is its parent's card. */
 describe("a claim is its parent's card", () => {
   beforeEach(() => {
-    tables.sm8_companies.push(client("c-jt", "JT Construct"));
+    tables.sm8_companies.push(client("c-jt", "QX Construct"));
     tables.sm8_jobs.push(
-      job("j-2845", { company_uuid: "c-jt", status: "Work Order", geo_city: "Clontarf", job_address: "7 Cutler Rd", date: "2026-03-01 09:00:00" }),
-      job("j-2845A", { company_uuid: "c-jt", status: "Completed", geo_city: "Clontarf", job_address: "7 Cutler Rd", date: "2026-04-01 09:00:00" }),
+      job("j-2845", { company_uuid: "c-jt", status: "Work Order", geo_city: "Testbury", job_address: "7 Ipsum Rd", date: "2026-03-01 09:00:00" }),
+      job("j-2845A", { company_uuid: "c-jt", status: "Completed", geo_city: "Testbury", job_address: "7 Ipsum Rd", date: "2026-04-01 09:00:00" }),
       job("j-2042B", { company_uuid: "c-jt", status: "Completed", geo_city: "Allambie Heights", date: "2026-02-01 09:00:00" }),
       job("j-2042", { company_uuid: "c-jt", status: "Completed", geo_city: "Allambie Heights", date: "2025-12-01 09:00:00" }),
       job("j-1999A", { company_uuid: "c-jt", status: "Completed", geo_city: "Manly", date: "2025-01-01 09:00:00" }),
@@ -238,8 +238,8 @@ describe("a claim is its parent's card", () => {
   });
 
   it("shows each family once, by its parent, where the first of it was found", async () => {
-    expect(await numbers("jt construct")).toEqual(["2845", "2042", "1999A"]);
-    expect(await numbers("jt")).toEqual(["2845", "2042", "1999A"]);
+    expect(await numbers("qx construct")).toEqual(["2845", "2042", "1999A"]);
+    expect(await numbers("qx")).toEqual(["2845", "2042", "1999A"]);
   });
 
   it("answers a claim's own number with its parent", async () => {

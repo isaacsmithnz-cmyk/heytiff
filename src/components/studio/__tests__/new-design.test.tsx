@@ -72,7 +72,7 @@ async function open(pages: number) {
   render(<Studio store={new LocalDesignStore(window.localStorage)} planImages={fake} />);
   await user.click(await screen.findByRole("button", { name: "New design" }));
   const dialog = screen.getByRole("dialog", { name: "New design" });
-  await user.type(within(dialog).getByPlaceholderText(/Design name/), "44 Frogmore St");
+  await user.type(within(dialog).getByPlaceholderText(/Design name/), "44 Pariatur St");
   fireEvent.change(document.querySelector('.pt-dialog input[type="file"]')!, {
     target: { files: [new File(["%PDF"], "set.pdf", { type: "application/pdf" })] },
   });
@@ -108,7 +108,7 @@ describe("New design, from the plans", () => {
     expect(fake.uploads).toBe(2);
     await waitFor(() => expect(saved().floors).toHaveLength(2));
     const doc = saved();
-    expect(doc.meta.name).toBe("44 Frogmore St");
+    expect(doc.meta.name).toBe("44 Pariatur St");
     expect(doc.floors.map((f: { name: string; level: number }) => [f.name, f.level])).toEqual([
       ["Ground floor", 0],
       ["Level 1", 1],
@@ -233,7 +233,7 @@ describe("New design, opened on a job", () => {
     window.localStorage.clear();
     pdfToPages.mockReset();
   });
-  const job = { remoteId: "job-3406", name: "6 Bishops Avenue", jobNumber: "3406", client: "Tandem", site: "6 Bishops Avenue, Randwick NSW 2031" };
+  const job = { remoteId: "job-3406", name: "6 Nostrud Avenue", jobNumber: "3406", client: "Tangent", site: "6 Nostrud Avenue, Madeupton NSW 2031" };
 
   it("opens on the job, its street the name, and puts the design on it", async () => {
     const user = userEvent.setup();
@@ -242,16 +242,16 @@ describe("New design, opened on a job", () => {
     // the job it was opened on is its card, with no cross and nothing to search for
     const card = within(dialog).getByText("3406").closest(".ds2-nd-picked")!;
     expect(card).toHaveClass("sc-card");
-    expect(within(card as HTMLElement).getByText("Tandem")).toBeInTheDocument();
-    expect(within(card as HTMLElement).getByText("6 Bishops Avenue, Randwick NSW 2031")).toBeInTheDocument();
+    expect(within(card as HTMLElement).getByText("Tangent")).toBeInTheDocument();
+    expect(within(card as HTMLElement).getByText("6 Nostrud Avenue, Madeupton NSW 2031")).toBeInTheDocument();
     expect(within(dialog).queryByRole("button", { name: "Clear the job" })).toBeNull();
     expect(within(dialog).queryByLabelText("Find a job")).toBeNull();
     expect(within(dialog).queryByRole("button", { name: "Start without a job" })).toBeNull();
-    expect(within(dialog).getByPlaceholderText(/Design name/)).toHaveValue("6 Bishops Avenue");
+    expect(within(dialog).getByPlaceholderText(/Design name/)).toHaveValue("6 Nostrud Avenue");
 
     await user.click(within(dialog).getByRole("button", { name: "Start with a blank canvas" }));
     await waitFor(() => expect(saved().jobLink).toMatchObject({ remoteId: "job-3406", jobNumber: "3406" }));
-    expect(saved().meta).toMatchObject({ name: "6 Bishops Avenue", jobNumber: "3406", client: "Tandem" });
+    expect(saved().meta).toMatchObject({ name: "6 Nostrud Avenue", jobNumber: "3406", client: "Tangent" });
   });
 
   it("plans dropped on a job go into the job's Plans, read once there, not into the design alone", async () => {

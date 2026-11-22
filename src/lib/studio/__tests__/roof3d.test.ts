@@ -85,7 +85,7 @@ describe("the framing", () => {
   });
 });
 
-/* 23 Hope St, 20 October: at a skillion's low eave the joists came up
+/* 23 Rumour St, 20 October: at a skillion's low eave the joists came up
    through the roof, which sat on the walls instead of on its rafters */
 it("keeps every joist and rafter under the roof, at the low eave too", () => {
   const r = rect({ form: "skillion", ridge: "down", fallsTo: "right", pitchDeg: 6, overhangMm: 300 });

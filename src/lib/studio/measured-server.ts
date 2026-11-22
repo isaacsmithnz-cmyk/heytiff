@@ -374,7 +374,7 @@ export async function prepareMeasured(page: FinePage, times: number, mmPerPx: nu
 
 /** A measured floor's rooms, named by her and set on its walls. `deadline`
     is when it must be done by, as Date.now() counts: the route it runs in is
-    killed at five minutes with nothing saved, and 7 Cutler Rd's level took
+    killed at five minutes with nothing saved, and 7 Ipsum Rd's level took
     87 s to name and 216 s to look at (the engine's review, 21 November
     2026). A naming that runs past it throws; a look that would is not
     taken, or is left, and the answer before it stands. */

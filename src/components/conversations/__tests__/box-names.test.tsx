@@ -26,12 +26,12 @@ const box = (value: string) =>
   render(<CvBox value={value} onChange={() => {}} onSubmit={() => {}} label="Write a note on this job" placeholder="Write a note on this job" sendWord="Tiff" dict={null} />);
 
 it("draws a typed name in blue behind the box's clear letters", () => {
-  const { container } = box("Can you let Luke know that Jay Matthews' job is ready to book in?");
+  const { container } = box("Can you let Luke know that Jay Oakhurst' job is ready to book in?");
   const field = screen.getByRole("textbox", { name: "Write a note on this job" });
   expect(field).toHaveClass("cv-words--named");
   const mirror = container.querySelector(".cv-mirror");
   expect(mirror).toHaveAttribute("aria-hidden", "true");
-  expect(mirror?.textContent).toBe("Can you let Luke know that Jay Matthews' job is ready to book in?");
+  expect(mirror?.textContent).toBe("Can you let Luke know that Jay Oakhurst' job is ready to book in?");
   expect(Array.from(container.querySelectorAll(".cv-named")).map((n) => n.textContent)).toEqual(["Luke"]);
 });
 

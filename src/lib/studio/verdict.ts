@@ -75,7 +75,7 @@ export function strayFittingIds(
     for (const a of [attachOf(o.props.startAttach), attachOf(o.props.endAttach)])
       if (a) on.set(a.id, (on.get(a.id) ?? 0) + 1);
   }
-  /* a duct going up a riser reaches it too (7 Cutler's Study, 31 October 2026) */
+  /* a duct going up a riser reaches it too (7 Ipsum's Study, 31 October 2026) */
   const ducted = new Set<string>();
   for (const o of doc.objects) {
     if (o.type !== "duct-run" || o.systemId !== sys.id) continue;
@@ -142,7 +142,7 @@ export function loosePipes(doc: DesignDocument, sys: DesignSystem): SystemFindin
   };
 }
 
-/* PIPEWORK THAT NEVER REACHES THE OUTDOOR (48 Thorne St, 2026-10-13: four
+/* PIPEWORK THAT NEVER REACHES THE OUTDOOR (48 Laborum St, 2026-10-13: four
    runs from the heads to a riser pair, none to the outdoor). Every run was
    attached at both ends and every riser had a pipe on its floor, so nothing
    said the outdoor had no pipe on it. A VRF's runs all leave from its
@@ -158,7 +158,7 @@ export function unpipedOutdoor(doc: DesignDocument, sys: DesignSystem): SystemFi
   };
 }
 
-/* A HEAD THE DRAWING LEAVES OFF (6 Bishops Ave, 2026-10-15: the ground
+/* A HEAD THE DRAWING LEAVES OFF (6 Nostrud Ave, 2026-10-15: the ground
    floor's pipework left the outdoor and reached three of its four heads; the
    second head in Living / Dining had no pipe on it, and the system said
    Valid). Until the drawing reaches every head the tree is the zones' order

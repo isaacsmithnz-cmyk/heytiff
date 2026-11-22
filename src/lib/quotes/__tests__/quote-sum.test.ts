@@ -4,7 +4,7 @@ import { priceLines } from "../lines-price";
 import { quoteParts } from "../quote-sum";
 
 /* The quote card's sums (the chat-first quote page, Isaac, 2026-10-13), on
-   3231's own lines as they stood on 12 October (121 Awaba Street: a 10 kW
+   3231's own lines as they stood on 12 October (121 Cupidatat Street: a 10 kW
    Mitsubishi Electric underfloor ducted, five zones), in the order they went
    on, at the business's Quoting settings: 25% on units, 40% on materials,
    $140 an hour, an 8-hour day, a duct contingency of 15% and 3 h. */

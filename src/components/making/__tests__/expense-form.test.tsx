@@ -62,7 +62,7 @@ const JOBS: JobCandidate[] = [
   { kind: "visit", id: "v1", clientName: "Northgate Realty", label: "Quarterly service", siteLabel: "Mona Vale", jobNumber: "1042" },
   { kind: "project", id: "p1", clientName: "Acme Industrial", label: "Plant room", siteLabel: null, jobNumber: null },
 ];
-const SM8: CostJob = { kind: "sm8", id: "j-3209", label: "Job 3209, Richards Building, North Narrabeen" };
+const SM8: CostJob = { kind: "sm8", id: "j-3209", label: "Job 3209, Rowland Building, North Pretendale" };
 
 const toast = jest.fn();
 type Opts = { job?: CostJob | null; jobs?: JobCandidate[] | undefined; payer?: PaidWith; given?: boolean };
@@ -433,7 +433,7 @@ describe("Add a cost, from a job", () => {
     await waitFor(() => expect(submit).toHaveBeenCalled());
     expect(submit.mock.calls[0][0]).toMatchObject({
       job: null,
-      description: "Copper fittings and flux, for Job 3209, Richards Building, North Narrabeen",
+      description: "Copper fittings and flux, for Job 3209, Rowland Building, North Pretendale",
       paidWith: "company",
     });
     expect(toast).toHaveBeenCalledWith(`Cost added for ${SM8.label}`, expect.any(Function));

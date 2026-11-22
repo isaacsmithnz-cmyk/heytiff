@@ -8,13 +8,13 @@ import { CUSTOMER_WORDS, customerChanges, type CustomerForm } from "@/lib/integr
 const J = "0b1e0b1e-0000-4000-8000-000000000001";
 const LISA = "9e9e9e9e-0000-4000-8000-000000000001";
 const RAY = "9e9e9e9e-0000-4000-8000-000000000002";
-const lisa = { uuid: LISA, first: "Lisa", last: "Watters", mobile: "0412 345 678", phone: "", email: "", type: "JOB" };
-const ray = { uuid: RAY, first: "Ray", last: "Watters", mobile: "0400 111 222", phone: "02 9960 0000", email: "", type: "BILLING" };
+const lisa = { uuid: LISA, first: "Lisa", last: "Ashdown", mobile: "0412 345 678", phone: "", email: "", type: "JOB" };
+const ray = { uuid: RAY, first: "Ray", last: "Ashdown", mobile: "0400 111 222", phone: "02 9960 0000", email: "", type: "BILLING" };
 const job: CustomerForm = {
   jobUuid: J,
-  company: { uuid: "c0c0c0c0-0000-4000-8000-000000000001", name: "Lisa Watters", address: "6/40 Raglan St, Mosman" },
-  billingAddress: "6/40 Raglan St\nMosman",
-  siteAddress: "6/40 Raglan St, Mosman",
+  company: { uuid: "c0c0c0c0-0000-4000-8000-000000000001", name: "Lisa Ashdown", address: "6/40 Lorem St, Sampleton" },
+  billingAddress: "6/40 Lorem St\nSampleton",
+  siteAddress: "6/40 Lorem St, Sampleton",
   contacts: [lisa, ray],
 };
 
@@ -27,7 +27,7 @@ const rows = (edit: Parameters<typeof applyPhoneEdit>[1], before: CustomerForm =
 
 describe("a phone's one change, as rows", () => {
   it("a person changed: only what changed goes, and their landline stays as it is", () => {
-    expect(rows({ kind: "person", id: RAY, first: "Ray", last: "Watters", mobile: "0400 999 888", email: "ray@example.com", type: "Tenant" })).toEqual([
+    expect(rows({ kind: "person", id: RAY, first: "Ray", last: "Ashdown", mobile: "0400 999 888", email: "ray@example.com", type: "Tenant" })).toEqual([
       ["jobcontact", "update", RAY, { mobile: "0400 999 888", email: "ray@example.com", type: "Tenant" }],
     ]);
   });
@@ -43,16 +43,16 @@ describe("a phone's one change, as rows", () => {
   });
 
   it("the site's address, and the bills that went to the same place follow it", () => {
-    expect(rows({ kind: "site", address: "8 Raglan St, Mosman NSW 2088" })).toEqual([["job", "update", J, { billing_address: "8 Raglan St, Mosman NSW 2088", job_address: "8 Raglan St, Mosman NSW 2088" }]]);
+    expect(rows({ kind: "site", address: "8 Lorem St, Sampleton NSW 2088" })).toEqual([["job", "update", J, { billing_address: "8 Lorem St, Sampleton NSW 2088", job_address: "8 Lorem St, Sampleton NSW 2088" }]]);
   });
 
   it("the site's address alone when the bills go elsewhere", () => {
-    expect(rows({ kind: "site", address: "8 Raglan St, Mosman NSW 2088" }, { ...job, billingAddress: "PO Box 412, Mosman NSW 2088" })).toEqual([["job", "update", J, { job_address: "8 Raglan St, Mosman NSW 2088" }]]);
+    expect(rows({ kind: "site", address: "8 Lorem St, Sampleton NSW 2088" }, { ...job, billingAddress: "PO Box 412, Sampleton NSW 2088" })).toEqual([["job", "update", J, { job_address: "8 Lorem St, Sampleton NSW 2088" }]]);
   });
 
   it("the billing address: its own, or the site's", () => {
-    expect(rows({ kind: "billing", address: "PO Box 412, Mosman NSW 2088", same: false })).toEqual([["job", "update", J, { billing_address: "PO Box 412, Mosman NSW 2088" }]]);
-    expect(rows({ kind: "billing", address: "", same: true }, { ...job, billingAddress: "PO Box 412" })).toEqual([["job", "update", J, { billing_address: "6/40 Raglan St, Mosman" }]]);
+    expect(rows({ kind: "billing", address: "PO Box 412, Sampleton NSW 2088", same: false })).toEqual([["job", "update", J, { billing_address: "PO Box 412, Sampleton NSW 2088" }]]);
+    expect(rows({ kind: "billing", address: "", same: true }, { ...job, billingAddress: "PO Box 412" })).toEqual([["job", "update", J, { billing_address: "6/40 Lorem St, Sampleton" }]]);
   });
 });
 
@@ -82,7 +82,7 @@ describe("what a phone's change can't do", () => {
 
 describe("reading a phone's body", () => {
   it("takes the four edits and nothing else", () => {
-    expect(parsePhoneEdit({ edit: { kind: "site", address: "8 Raglan St" } })).toEqual({ kind: "site", address: "8 Raglan St" });
+    expect(parsePhoneEdit({ edit: { kind: "site", address: "8 Lorem St" } })).toEqual({ kind: "site", address: "8 Lorem St" });
     expect(parsePhoneEdit({ edit: { kind: "billing", same: true, address: "ignored" } })).toEqual({ kind: "billing", address: "", same: true });
     expect(parsePhoneEdit({ edit: { kind: "remove", id: RAY } })).toEqual({ kind: "remove", id: RAY });
     expect(parsePhoneEdit({ edit: { kind: "person", id: null, first: "Dana", type: "Tenant" } })).toEqual({ kind: "person", id: null, first: "Dana", last: "", mobile: "", email: "", type: "Tenant" });
@@ -96,8 +96,8 @@ describe("reading a phone's body", () => {
 
 describe("the same address", () => {
   it("whatever the case, the spaces or how the lines break", () => {
-    expect(sameAddress("6/40 Raglan St\nMosman", "6/40 raglan st,  Mosman")).toBe(true);
-    expect(sameAddress("6/40 Raglan St, Mosman", "PO Box 412, Mosman")).toBe(false);
+    expect(sameAddress("6/40 Lorem St\nSampleton", "6/40 lorem st,  Sampleton")).toBe(true);
+    expect(sameAddress("6/40 Lorem St, Sampleton", "PO Box 412, Sampleton")).toBe(false);
     expect(sameAddress("", "")).toBe(false);
   });
 });

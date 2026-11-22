@@ -667,7 +667,7 @@ describe("a palette that acts", () => {
       host({
         windows: [],
         recent: [
-          { key: "job.j-7", ref: { kind: "job", id: "j-7" }, title: "Job 7", sub: "Coogee Strata" },
+          { key: "job.j-7", ref: { kind: "job", id: "j-7" }, title: "Job 7", sub: "Testcove Strata" },
           { key: "visit.v-8", ref: { kind: "visit", id: "v-8" }, title: "Quarterly service", sub: null },
         ],
       }),
@@ -675,7 +675,7 @@ describe("a palette that acts", () => {
       { hosted: true, open },
     );
     const group = screen.getByRole("group", { name: "Recent" });
-    expect(within(group).getAllByRole("option").map((o) => o.textContent)).toEqual(["Job 7Coogee Strata", "Quarterly service"]);
+    expect(within(group).getAllByRole("option").map((o) => o.textContent)).toEqual(["Job 7Testcove Strata", "Quarterly service"]);
     fireEvent.click(within(group).getByRole("option", { name: /Quarterly service/ }));
     expect(open).toHaveBeenCalledWith({ kind: "visit", id: "v-8" }, expect.objectContaining({ from: null }));
     /* a job opened lately goes to its page */
@@ -683,7 +683,7 @@ describe("a palette that acts", () => {
     expect(push).toHaveBeenCalledWith("/dashboard/jobs/j-7");
     expect(open).toHaveBeenCalledTimes(1);
 
-    type("coogee");
+    type("testcove");
     expect(screen.queryByRole("group", { name: "Recent" })).toBeNull();
   });
 

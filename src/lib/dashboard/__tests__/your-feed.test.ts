@@ -17,7 +17,7 @@ const talk = (notes: { uuid: string; text: string; author: string; at: string }[
       { uuid: "u-isaac", handle: "isaacsmith", name: "Isaac Smith", first: "Isaac" },
       { uuid: "u-luke", handle: "lukep", name: "Luke Parker", first: "Luke" },
     ],
-    jobs: new Map([[JOB, { label: "2674 Clovelly", live: true }]]),
+    jobs: new Map([[JOB, { label: "2674 Samplevelly", live: true }]]),
     today: TODAY,
   });
 
@@ -51,7 +51,7 @@ describe("to you", () => {
     expect(item).toMatchObject({
       filter: "you",
       who: { name: "Luke Parker", sm8: false },
-      what: "mentioned you on 2674 Clovelly",
+      what: "mentioned you on 2674 Samplevelly",
       said: "can you order two grille filters?",
       when: "12:52 pm",
       unread: true,
@@ -108,18 +108,18 @@ describe("approvals and jobs", () => {
 
   it("says what came in from ServiceM8: a new job, a check-in, photos counted per person", () => {
     const events = feedEventsOf({
-      jobs: [{ uuid: "j1", generated_job_id: "3444", geo_city: "Stanmore", job_description: "Construction project\nlevel 2", date: "2026-10-20 10:02:00", work_order_date: null, quote_date: null, status: "Quote" }],
+      jobs: [{ uuid: "j1", generated_job_id: "3444", geo_city: "Placeholm", job_description: "Construction project\nlevel 2", date: "2026-10-20 10:02:00", work_order_date: null, quote_date: null, status: "Quote" }],
       acts: [{ uuid: "a1", job_uuid: "j2", staff_uuid: "s-luke", start_date: "2026-10-20 07:30:00" }, { uuid: "a2", job_uuid: "j2", staff_uuid: "s-luke", start_date: "2026-10-20 12:30:00" }],
       atts: [1, 2, 3].map((i) => ({ uuid: `p${i}`, related_object_uuid: "j2", created_by_staff_uuid: "s-luke", timestamp: `2026-10-20 1${i}:00:00`, file_type: ".jpg" })),
-      label: (id) => (id === "j1" ? "3444 Stanmore" : "2674 Clovelly"),
+      label: (id) => (id === "j1" ? "3444 Placeholm" : "2674 Samplevelly"),
       nameOf: new Map([["s-luke", "Luke Parker"]]),
       since: "2026-10-19",
     });
     const items = feed({ events });
     expect(items.map((i) => [i.who.name, i.what, i.when])).toEqual([
-      ["Luke Parker", "added 3 photos to 2674 Clovelly", "1:00 pm"],
-      ["New job", "3444 Stanmore", "10:02 am"],
-      ["Luke Parker", "checked in at 2674 Clovelly", "7:30 am"],
+      ["Luke Parker", "added 3 photos to 2674 Samplevelly", "1:00 pm"],
+      ["New job", "3444 Placeholm", "10:02 am"],
+      ["Luke Parker", "checked in at 2674 Samplevelly", "7:30 am"],
     ]);
     expect(items.find((i) => i.who.name === "New job")).toMatchObject({ said: "Construction project", filter: "jobs" });
   });
@@ -144,7 +144,7 @@ describe("what an item opens", () => {
       jobs: [],
       acts: [{ uuid: "a1", job_uuid: "j2", staff_uuid: "s-luke", start_date: "2026-10-20 07:30:00" }],
       atts: [{ uuid: "p1", related_object_uuid: "j2", created_by_staff_uuid: "s-luke", timestamp: "2026-10-20 11:00:00", file_type: ".jpg" }],
-      label: () => "2674 Clovelly",
+      label: () => "2674 Samplevelly",
       nameOf: new Map([["s-luke", "Luke Parker"]]),
       since: "2026-10-19",
     });

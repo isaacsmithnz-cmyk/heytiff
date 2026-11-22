@@ -633,16 +633,16 @@ export function withoutEchoes(story: readonly StoryEntry[], customer: readonly C
 const SIGN_OFF = /^(?:(?:kind|best|warm|many|with)\s+)?(?:regards|thanks|thank you|thanks again|cheers|ta)\b[\s,.!]*$|^sent from my\b|^get outlook for\b|^--\s*$/i;
 
 /* a signature with no sign-off over it (the walk of 15 November 2026, 3408:
-   Jacqueline's one-line question came with her title, award, numbers and a
+   Jacinta's one-line question came with her title, award, numbers and a
    confidentiality notice, and no "Regards"): a line of contact details ("M
-   0407 899 944", "E jo@…", "Ph: (02) 9327 1717"), or the opening of a
+   0491 570 110", "E jo@…", "Ph: (02) 5550 1717"), or the opening of a
    disclaimer */
 const CONTACT = /^(?:m|p|f|t|e|w|ph|mob|mobile|phone|tel|fax|email|e-mail|web)\s*[:.]?\s+(?:\+?\(?\d[\d\s()+-]{6,}|[\w.+-]+@[\w-]+\.[\w.]+|www\.)/i;
 const DISCLAIMER = /^(?:the information (?:contained )?in this (?:e-?mail|message)|this (?:e-?mail|message) (?:and any|is confidential|may contain)|confidential(?:ity)? (?:notice|warning)|disclaimer\b)/i;
 
 /** Whether a line opens a signature by naming the sender: their first name
-    first, on a short line that isn't a sentence ("JACQUELINE BLACKET B.Ec",
-    "Jacqueline"). */
+    first, on a short line that isn't a sentence ("JACINTA CORRIE B.Ec",
+    "Jacinta"). */
 function namesSender(line: string, name: string | null | undefined): boolean {
   const first = (name ?? "").trim().split(/\s+/)[0];
   if (!first || first.length < 2 || line.length > 60 || /[?!]$/.test(line)) return false;
@@ -684,7 +684,7 @@ const ENTITIES: Record<string, string> = {
 
 /** An email's HTML as plain text, never drawn as HTML (the walk of 26
     October 2026: ServiceM8's own text part runs a signature's lines into
-    one, "Luke Ingold61457301636", where its HTML has the break). The
+    one, "Luke Ingold61491570158", where its HTML has the break). The
     source's own whitespace is one space, as a browser reads it; a <br>,
     and the open and close of a block (div, p, li, tr, h1–6, blockquote),
     is a line; images, styles, scripts and every other tag go; the

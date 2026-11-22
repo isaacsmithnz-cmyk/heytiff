@@ -46,8 +46,8 @@ export function telHref(raw: string | null | undefined): string | null {
   return /^\+?\d{6,15}$/.test(bare) ? `tel:${bare}` : null;
 }
 
-/** A number as Australians write it: a mobile 0403 183 628, a landline
-    02 9876 5432 (the walk of 25 October 2026: it read 0403183628).
+/** A number as Australians write it: a mobile 0491 570 006, a landline
+    02 9876 5432 (the walk of 25 October 2026: it read 0491570006).
     Anything else, a 1300 number, one from overseas, ServiceM8's free text
     saying more than one number, is shown as it was given. */
 export function phoneWords(raw: string): string {
@@ -109,8 +109,8 @@ function Fact({
 export { withoutCountry };
 
 /** The address as two lines, the street over the rest: ServiceM8's own
-    lines where it has them, else split at its last comma ("2 Krui Street,
-    Fairlight", 3533: the walk of 15 November 2026). */
+    lines where it has them, else split at its last comma ("2 Tempor Street,
+    Demoford", 3533: the walk of 15 November 2026). */
 export function addressLines(where: string): string[] {
   const lines = withoutCountry(where).split(/\s*\n\s*/).filter(Boolean);
   if (lines.length !== 1) return lines;

@@ -114,7 +114,7 @@
    row and the rows tighten to the scale's small steps. */
 @media print {
   @page { size: A4; margin: 0; }
-  /* the addressee gets the room it needs: "Heuvel Construction" and its
+  /* the addressee gets the room it needs: "Testa Construction" and its
      street on one line each, not broken a word to a line */
   .cer .dsd-mast { grid-template-columns: minmax(0, 1fr) max-content; column-gap: 24px; }
   .cer .dsd-mast-job {

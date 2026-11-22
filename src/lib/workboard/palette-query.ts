@@ -206,7 +206,7 @@ export async function searchStaff(
 }
 
 /** Projects by their name, their client or their site — every word landing in
-    one of them, so "hr mosman" is HR's project on a Mosman site. Archived ones
+    one of them, so "hr sampleton" is HR's project on a Sampleton site. Archived ones
     stay put away, as they do on the Projects list — "done" is still work
     somebody looks up. */
 export async function searchProjects(

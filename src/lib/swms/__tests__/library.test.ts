@@ -25,7 +25,7 @@ import {
   type SwmsAnswers,
 } from "../library";
 
-const ctx = { work: "Supply and install a split system", electricianName: "Sam Ikpeba", firstAiderName: "Troy Porter" };
+const ctx = { work: "Supply and install a split system", electricianName: "Sam Ikpeba", firstAiderName: "Troy Northam" };
 const answers = (over: Partial<SwmsAnswers> = {}): SwmsAnswers => ({
   ...DEFAULT_ANSWERS,
   hospital: "Sutherland Hospital, Caringbah",
@@ -172,7 +172,7 @@ describe("the document", () => {
 
   it("carries the emergency facts and the licence note", () => {
     const doc = buildSwms(answers({ jurisdiction: "QLD" }), ctx);
-    expect(doc.emergency).toEqual({ firstAider: "Troy Porter", hospital: "Sutherland Hospital, Caringbah", extinguisher: "In the van" });
+    expect(doc.emergency).toEqual({ firstAider: "Troy Northam", hospital: "Sutherland Hospital, Caringbah", extinguisher: "In the van" });
     expect(doc.licenceNote).toMatch(/refrigerant trading authorisation/);
     expect(doc.licenceNote).toMatch(/restricted electrical licence/);
   });

@@ -184,7 +184,7 @@ export const SCOPE_SYSTEM_PROMPT =
   "the air side (grilles, registers, ducts) and any catch worth checking. Name a model only " +
   "when the record names one. `from` is where it came from, each a short label: a drawing " +
   "sheet as the record names it (\"A201\"), or who said it and when (\"Sam, 27 Oct\", " +
-  "\"Tandem's email, 8 Oct\").\n\n" +
+  "\"Tangent's email, 8 Oct\").\n\n" +
   "`added`: what was asked for on top of the original brief or drawings (a builder's or " +
   "client's call, a note), each with where it came from. An option in our own quote isn't " +
   "added: say it in the system it belongs to. Leave it empty when nothing was.\n\n" +

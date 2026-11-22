@@ -74,7 +74,7 @@ beforeEach(() => {
 describe("saveStudioDesign mirrors the job link out to its own column", () => {
   it("writes the uuid for a design started from a job", async () => {
     const doc = createDesign({
-      name: "12/3 Wallace St",
+      name: "12/3 Eiusmod St",
       mode: "blank",
       jobNumber: "3151",
       job: { remoteId: "sm8-uuid-1", jobNumber: "3151" },
@@ -84,7 +84,7 @@ describe("saveStudioDesign mirrors the job link out to its own column", () => {
   });
 
   it("writes null for a design named by hand", async () => {
-    await saveStudioDesign(createDesign({ name: "Farran St", mode: "blank" }));
+    await saveStudioDesign(createDesign({ name: "Cillum St", mode: "blank" }));
     expect(designRow()?.sm8_job_uuid).toBeNull();
   });
 

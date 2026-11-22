@@ -24,7 +24,7 @@ import {
 } from "./reading";
 
 /* TIFF READS A FLOOR PLAN (v2, 20 October). The bench's checklist read
-   (Opus 5.5, scored on Isaac's five floors and the 44 Frogmore St set,
+   (Opus 5.5, scored on Isaac's five floors and the 44 Pariatur St set,
    https://claude.ai/artifact/NHXQRiUuDGA6X41E7sddqU): every room, small
    space, stair, void, door, window, skylight, built-in, fan and A/C note,
    and for each item on the list, what she found or that she looked and

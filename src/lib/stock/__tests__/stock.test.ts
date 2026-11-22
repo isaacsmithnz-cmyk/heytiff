@@ -123,10 +123,10 @@ describe("what a job needs", () => {
   });
 });
 
-/* 2845, 7 Cutler Rd: its quote's visits as Tiff wrote them (13 November 2026) */
+/* 2845, 7 Ipsum Rd: its quote's visits as Tiff wrote them (13 November 2026) */
 const visit = (position: number, stage: string, tasks: string[], people = 2, hours = 8) =>
   line({ kind: "labour", position, name: stage, visit: { stage, people, dayHours: 8, tasks: tasks.map((task) => ({ task, hours: hours / tasks.length, was: null, byHand: false })) } });
-const cutler = [
+const ipsum = [
   visit(1, "Rough-in: ground floor ducting", ["Ducted plenum and 5 supply takeoffs", "5 zone dampers fitted in their runs", "Sensor cabling and damper wiring back to the zone controller"], 2, 32),
   visit(2, "Rough-in: upstairs VRF", ["VRF pipe (20 m to first joint), tee joints and transmission cable to 3 bulkhead", "3 plenums at the bulkhead heads"]),
   visit(3, "Install", ["Both outdoors placed, mounted and levelled", "Hang 3 bulkhead heads", "Hang PEA-M125HAA (66 kg), connect plenum and returns", "Zone controller, wired controllers, 4 Wi-Fi interfaces"], 3, 48),
@@ -134,7 +134,7 @@ const cutler = [
 ];
 
 describe("a job over many visits", () => {
-  const plan = planOf(cutler, [0]);
+  const plan = planOf(ipsum, [0]);
   it("takes the quote's visits in order, a part day a day of its own", () => {
     expect(plan.map((v) => [v.stage, v.days])).toEqual([
       ["Rough-in: ground floor ducting", 2],

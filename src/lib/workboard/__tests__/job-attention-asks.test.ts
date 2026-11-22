@@ -74,9 +74,9 @@ it("offers the ask as a mention while nothing has been made of it", async () => 
 
 it("goes quiet on an ask Tiff made a task of, and shows that task instead", async () => {
   tables.mention_asks = [{ sm8_note_uuid: "n-mary", task_id: "t-mary" }];
-  tables.tasks = [{ id: "t-mary", title: "Call Mary about 2041 Wollstonecraft", due_date: null, assigned_to: "s-isaac" }];
+  tables.tasks = [{ id: "t-mary", title: "Call Mary about 2041 Testcraft", due_date: null, assigned_to: "s-isaac" }];
 
-  expect(kinds(await read())).toEqual(["task:Call Mary about 2041 Wollstonecraft"]);
+  expect(kinds(await read())).toEqual(["task:Call Mary about 2041 Testcraft"]);
 
   const [asked] = calls.filter((c) => c.table === "mention_asks");
   expect(asked.eq).toEqual({ org_id: ORG, sm8_job_uuid: JOB, status: "read" });

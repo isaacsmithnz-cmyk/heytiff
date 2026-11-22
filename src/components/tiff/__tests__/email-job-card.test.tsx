@@ -50,13 +50,13 @@ const view = (over: Record<string, unknown> = {}) => ({
     jobNumbers: [],
     notJobWhy: "",
     summary: "",
-    client: "Truecut Building",
-    contact: { first: "Matt", last: "Glass", mobile: "0412 345 678", phone: "", email: "matt@truecut.example" },
-    site: "40 Westbourne Street, Stanmore NSW 2048",
+    client: "Plumbline Building",
+    contact: { first: "Matt", last: "Juniper", mobile: "0412 345 678", phone: "", email: "matt@plumbline.example" },
+    site: "40 Aliqua Street, Placeholm NSW 2048",
     due: "2026-11-07",
     scope: ["Modify the existing underfloor AC", "Extend it to the attic"],
     excluded: ["The secondary dwelling"],
-    clientMatch: { uuid: "c1", name: "Truecut Building", builder: true },
+    clientMatch: { uuid: "c1", name: "Plumbline Building", builder: true },
     siteMatch: null,
   },
   files: [{ name: "A-101 Architectural.pdf", size: 16_000_000, drawings: false }],
@@ -89,7 +89,7 @@ it("shows what Tiff read: the client already here, the site, the scope, the file
   expect(screen.getByText(/already a client/)).toBeInTheDocument();
   /* a builder's job goes on the builder: no new site (3533, 17 November 2026) */
   expect(screen.queryByText(/a new site/)).toBeNull();
-  expect(screen.getByText("Matt Glass, 0412 345 678, matt@truecut.example")).toBeInTheDocument();
+  expect(screen.getByText("Matt Juniper, 0412 345 678, matt@plumbline.example")).toBeInTheDocument();
   expect(screen.getByText("Saturday 7 November")).toBeInTheDocument();
   expect(screen.getByText("Extend it to the attic")).toBeInTheDocument();
   expect(screen.getByText("The secondary dwelling")).toBeInTheDocument();
@@ -142,7 +142,7 @@ it("opens the New job form filled in, on the email's own press, and files the em
   await draw();
   fireEvent.click(screen.getByRole("button", { name: "Change the details" }));
   expect(screen.getByRole("dialog", { name: "New job form" })).toBeInTheDocument();
-  expect(formProps?.initial).toMatchObject({ pressId: ID, clientName: "Truecut Building", address: "40 Westbourne Street, Stanmore NSW 2048", first: "Matt", via: "email" });
+  expect(formProps?.initial).toMatchObject({ pressId: ID, clientName: "Plumbline Building", address: "40 Aliqua Street, Placeholm NSW 2048", first: "Matt", via: "email" });
   await act(async () => {
     (formProps!.onMade as (u: string) => void)("j-2");
   });
@@ -170,7 +170,7 @@ it("draws nothing for an email that isn't a request for work", async () => {
 /* "What if I just forward documents that were sent to us for an existing
    job?" (28 October 2026) */
 describe("documents for a job already here", () => {
-  const job = (n: string, found: string) => ({ uuid: `u-${n}`, number: n, address: "40 Westbourne Street\nStanmore NSW 2048", client: "Truecut Building", status: "Work Order", found });
+  const job = (n: string, found: string) => ({ uuid: `u-${n}`, number: n, address: "40 Aliqua Street\nPlaceholm NSW 2048", client: "Plumbline Building", status: "Work Order", found });
   const about = (jobs: unknown[]) => view({ proposal: { ...view().proposal, isJob: false, aboutJob: true, jobs } });
 
   it("offers the one job it's sure of, says how it knows, and adds the email to it", async () => {
@@ -210,22 +210,22 @@ describe("documents for a job already here", () => {
     readEmailJob.mockResolvedValue({
       ...about([job("3452", "number")]),
       files: [
-        { name: "90 bondi BEACH- Suttor.pdf", size: 4_000_000, drawings: true },
+        { name: "90 fictonia BEACH- Fictor.pdf", size: 4_000_000, drawings: true },
         { name: "Quote request.pdf", size: 40_000, drawings: false },
       ],
     });
-    addEmailToJob.mockResolvedValue({ ok: true, planIds: ["jplan_1"], planned: ["90 bondi BEACH- Suttor.pdf"] });
+    addEmailToJob.mockResolvedValue({ ok: true, planIds: ["jplan_1"], planned: ["90 fictonia BEACH- Fictor.pdf"] });
     await draw();
-    const tick = screen.getByRole("checkbox", { name: /90 bondi BEACH- Suttor\.pdf/ });
+    const tick = screen.getByRole("checkbox", { name: /90 fictonia BEACH- Fictor\.pdf/ });
     expect(tick).toBeChecked();
-    expect(tick.closest("li")).toHaveTextContent("90 bondi BEACH- Suttor.pdf, a set of drawings, to the job's Plans");
+    expect(tick.closest("li")).toHaveTextContent("90 fictonia BEACH- Fictor.pdf, a set of drawings, to the job's Plans");
     expect(screen.getByText("Quote request.pdf, to the job's Documents")).toBeInTheDocument();
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Add to job 3452" }));
     });
-    expect(addEmailToJob).toHaveBeenCalledWith(ID, "u-3452", ["90 bondi BEACH- Suttor.pdf"]);
+    expect(addEmailToJob).toHaveBeenCalledWith(ID, "u-3452", ["90 fictonia BEACH- Fictor.pdf"]);
     expect(kickPlanReads).toHaveBeenCalledWith(["jplan_1"]);
-    expect(screen.getByText("90 bondi BEACH- Suttor.pdf, in the job's Plans")).toBeInTheDocument();
+    expect(screen.getByText("90 fictonia BEACH- Fictor.pdf, in the job's Plans")).toBeInTheDocument();
   });
 
   it("lets the tick come off, and the file then goes to Documents like any other", async () => {

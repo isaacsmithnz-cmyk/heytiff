@@ -102,7 +102,7 @@ def quote():
     <div class="gp"><dl class="kv"><dt>Ex GST</dt><dd class="nm">$7,770</dd><dt>Inc GST</dt><dd class="nm" style="font-weight:600">$8,547</dd><dt>Profit</dt><dd class="nm">$2,310, 30%</dd></dl></div>
   </aside>
 </div>'''
-    return jpage("3361", "Okafor, Ada", "Orange", "Quote", "12 Bridge St, Riverview", '<span class="st info">Quote to write</span>', "Enquiry", "Quote", {"Visits": "1", "Photos": "9", "Documents": "1"}, content)
+    return jpage("3361", "Okafor, Ada", "Orange", "Quote", "12 Bridge St, Fakeview", '<span class="st info">Quote to write</span>', "Enquiry", "Quote", {"Visits": "1", "Photos": "9", "Documents": "1"}, content)
 
 
 # ------------------------------------------------------------------ a project job
@@ -130,7 +130,7 @@ def project():
     <div class="gp"><h2 class="t16" style="margin-bottom:2px">Linked jobs</h2>{row("jobs", "3301, the quote", '<span class="st good">Accepted</span>')}{row("jobs", "3315, variation: drains to the north wall", '<span class="st look">Drafted</span>')}</div>
   </aside>
 </div>'''
-    return jpage("3302", "Heuvel Construction", "Purple", "Project", "18 Albert Ave, Chatswood", '<span class="st good">Rough-in, day 2 of 3</span>', "Rough-in", "Visits", {"Visits": "4", "Checklist": "31 of 52", "Photos": "140", "Documents": "4"}, content, steps=["Quoted", "Approved", "Pre-install", "Rough-in", "Fit-off", "Commission", "Handover", "Paid"])
+    return jpage("3302", "Testa Construction", "Purple", "Project", "18 Albert Ave, Fablewood", '<span class="st good">Rough-in, day 2 of 3</span>', "Rough-in", "Visits", {"Visits": "4", "Checklist": "31 of 52", "Photos": "140", "Documents": "4"}, content, steps=["Quoted", "Approved", "Pre-install", "Rough-in", "Fit-off", "Commission", "Handover", "Paid"])
 
 
 # ------------------------------------------------------------------ Documents
@@ -147,10 +147,10 @@ def docs_head(view):
 
 def documents():
     rows = [
-        ("shield", "SWMS, split install", "Blue", "3342 Rifkin, Bellevue Hill", '<span class="st look">2 of 3 signed on</span>', "Today", "IS"),
-        ("shield", "SWMS, Heuvel roof work", "Purple", "3302 Heuvel, Chatswood", '<span class="st good">All signed on</span>', "9 October", "KL"),
+        ("shield", "SWMS, split install", "Blue", "3342 Fairweather, Bellevue Hill", '<span class="st look">2 of 3 signed on</span>', "Today", "IS"),
+        ("shield", "SWMS, Testa roof work", "Purple", "3302 Testa, Fablewood", '<span class="st good">All signed on</span>', "9 October", "KL"),
         ("cert", "Commissioning certificate", "Green", "2380 Kingsford Bakery", '<span class="st good">Issued, emailed to the builder</span>', "Today", "IS"),
-        ("doc", "Quote, version 2", "Blue", "3342 Rifkin, Bellevue Hill", '<span class="st good">Accepted</span>', "8 October", "IS"),
+        ("doc", "Quote, version 2", "Blue", "3342 Fairweather, Bellevue Hill", '<span class="st good">Accepted</span>', "8 October", "IS"),
         ("doc", "Quote, version 1", "Orange", "3294 Belmont Holdings", '<span class="qq">Sent, waiting</span>', "2 October", "IS"),
         ("letter", "Reference, Dan Walsh", None, "No job", '<span class="qq">Draft</span>', "1 October", "IS"),
         ("doc", "Handover sheet", "Blue", "3240 Hale Street apartments", '<span class="st good">Signed</span>', "28 September", "KL"),
@@ -187,7 +187,7 @@ def swms():
 </div>
 <div style="display:flex;gap:64px;padding:24px 40px 0">
   <div style="width:560px;display:flex;flex-direction:column;gap:20px">
-    <label class="fl"><span class="lb">Job</span><span class="fi">{dot("Blue")}<span style="flex:1">3342 Rifkin, Bellevue Hill</span><span style="display:inline-flex">{ico("x")}</span></span></label>
+    <label class="fl"><span class="lb">Job</span><span class="fi">{dot("Blue")}<span style="flex:1">3342 Fairweather, Bellevue Hill</span><span style="display:inline-flex">{ico("x")}</span></span></label>
     <label class="fl"><span class="lb">The work</span><span class="fi">Install two split systems, back to back</span></label>
     <label class="fl"><span class="lb">Where on site</span><span class="fi">Main bedroom, study, side path</span></label>
     <div class="fl"><span class="lb">High-risk work</span><div style="display:flex;flex-direction:column;gap:10px;margin-top:2px">{tick(True, "Work at height over 2 m")}{tick(True, "Electrical work near live parts")}{tick(False, "Confined space")}</div></div>
@@ -199,7 +199,7 @@ def swms():
     <p class="c12" style="margin-top:12px">Template approved 3 September</p>
   </aside>
 </div>'''
-    tabs = [TAB_HOME, tab_job("Blue", "3342 Rifkin"), (ico("shield"), "New SWMS")]
+    tabs = [TAB_HOME, tab_job("Blue", "3342 Fairweather"), (ico("shield"), "New SWMS")]
     return frame(sidebar("doc"), header(tabs, 2), body)
 
 
@@ -222,7 +222,7 @@ def library():
 
 # ------------------------------------------------------------------ Design
 def design():
-    designs = [("4 Hale St, level 3", "Blue", "3240 Hale Street apartments", "Edited today"), ("Heuvel new build, floors 1 and 2", "Purple", "3302 Heuvel Construction", "Edited yesterday"), ("Okafor house", "Orange", "3361 Okafor, Riverview", "Edited 9 October"), ("Grange brewhouse cool room", "Blue", "3288 Grange Microbrewery", "Edited 7 October"), ("Scott Group office", "Blue", "3250 Scott Group, Parramatta", "Edited 30 September"), ("Northgate level 2", "Blue", "3323 Northgate Realty", "Edited 28 September")]
+    designs = [("4 Hale St, level 3", "Blue", "3240 Hale Street apartments", "Edited today"), ("Testa new build, floors 1 and 2", "Purple", "3302 Testa Construction", "Edited yesterday"), ("Okafor house", "Orange", "3361 Okafor, Fakeview", "Edited 9 October"), ("Grange brewhouse cool room", "Blue", "3288 Grange Microbrewery", "Edited 7 October"), ("Scott Group office", "Blue", "3250 Scott Group, Parramatta", "Edited 30 September"), ("Northgate level 2", "Blue", "3323 Northgate Realty", "Edited 28 September")]
     th = '<div class="thumb"><i style="inset:24px 40px"></i><i style="left:40px;right:40px;top:75px;height:0;border-width:1px;border-radius:0"></i><i style="left:50%;top:24px;bottom:24px;width:0;border-width:1px;border-radius:0"></i></div>'
     cs = "".join(f'<a class="cd" href="#" style="overflow:hidden;display:flex;flex-direction:column">{th}<div style="padding:12px 16px"><div style="font-weight:600">{n}</div><div class="l13 qq" style="display:flex;align-items:center;gap:8px;margin-top:2px">{dot(c)}<span class="fade">{j}</span></div><div class="l13 qq">{d}</div></div></a>' for n, c, j, d in designs)
     body = f'''<div class="ph">
@@ -257,7 +257,7 @@ def person(tech=False):
         role = "Senior tech"
     else:
         card = f'''<div class="gp"><div style="display:flex;align-items:center;margin-bottom:8px"><h2 class="t16">Details</h2><span style="flex:1"></span><span class="b sm sec">Edit details</span></div>
-      <dl class="kv"><dt>Mobile</dt><dd>0413 222 871</dd><dt>Email</dt><dd>lyle@yourbusiness.com.au</dd><dt>Address</dt><dd>14 Carrington St, Marrickville NSW 2204</dd><dt>Employment</dt><dd>Full time, from 8 March 2021</dd><dt>Emergency</dt><dd>Sam Irving, partner, 0414 908 112</dd></dl></div>
+      <dl class="kv"><dt>Mobile</dt><dd>0413 222 871</dd><dt>Email</dt><dd>lyle@yourbusiness.com.au</dd><dt>Address</dt><dd>14 Notion St, Exampleville NSW 2204</dd><dt>Employment</dt><dd>Full time, from 8 March 2021</dd><dt>Emergency</dt><dd>Sam Irving, partner, 0414 908 112</dd></dl></div>
     <div class="gp"><div style="display:flex;align-items:center;margin-bottom:2px"><h2 class="t16">Licences and tickets</h2><span style="flex:1"></span><span class="b sm sec">{ico("plus")}Add a licence</span></div>
       {lic("ARCtick refrigerant handling licence", '<span class="st look">Runs out 2 November</span>', '<span class="b sm sec">Renew</span>')}
       {lic("Electrical licence, restricted", '<span class="st good">Current to 2027</span>', '<span class="b sm" style="width:68px">Open</span>')}
@@ -319,14 +319,14 @@ def expenses():
     job = lambda c, t: f'<span style="display:flex;align-items:center;gap:8px">{dot(c)}{t}</span>'
     body = team_head("Expenses") + f'''<div style="padding:20px 40px 0">
   <div class="gh2"><h2 class="t16">Waiting on you</h2><span class="qq">2, $199.20</span><span style="flex:1"></span><span class="b go">Approve both</span></div>
-  {r("LI", "Lyle Irving", "Copper fittings and flux", "Reece, Friday 9 October", job("Blue", "3342 Rifkin"), "$86.40", "Own money, receipt read", ad)}
+  {r("LI", "Lyle Irving", "Copper fittings and flux", "Reece, Friday 9 October", job("Blue", "3342 Fairweather"), "$86.40", "Own money, receipt read", ad)}
   {r("DW", "Dan Walsh", "Fuel, 52.3 litres", "Ampol Botany, Thursday 8 October", "Hilux XQG 41B", "$112.80", "Own money, receipt read", ad)}
   <div class="gh2" style="margin-top:28px"><h2 class="t16">Approved, to pay back</h2><span class="qq">2, $213.40</span></div>
   {r("CA", "Callum Ahn", "Drill bits", "Bunnings, Tuesday 6 October", "Workshop", "$34.90", "Approved 7 October", paid)}
-  {r("KL", "Kai Lee", "Parking and tolls", "Week of 28 September", job("Purple", "3302 Heuvel"), "$178.50", "Approved 2 October", paid)}
+  {r("KL", "Kai Lee", "Parking and tolls", "Week of 28 September", job("Purple", "3302 Testa"), "$178.50", "Approved 2 October", paid)}
   <div class="gh2" style="margin-top:28px"><h2 class="t16">On the company card</h2><span class="qq">3 this week, no approval needed</span></div>
   {r("IS", "Isaac Smith", "Fuel, 61.0 litres", "BP Rosebery, Monday 12 October", "Ranger YHT 22C", "$131.75", "", "")}
-  {r("LI", "Lyle Irving", "Pipe and lagging", "Reece, Thursday 8 October", job("Blue", "3342 Rifkin"), "$412.10", "", "")}
+  {r("LI", "Lyle Irving", "Pipe and lagging", "Reece, Thursday 8 October", job("Blue", "3342 Fairweather"), "$412.10", "", "")}
   {r("MP", "Mia Park", "Printer toner", "Officeworks, Wednesday 7 October", "Office", "$89.00", "", "")}
 </div>'''
     return frame(sidebar("team"), header([TAB_HOME, (ico("team"), "Team")], 1), body)
@@ -528,14 +528,14 @@ def notice_write():
 
 # ------------------------------------------------------------------ Conversations
 def conversations():
-    items = [("Bellevue Hill wrap-up and isolator", "Today 10:20 am", True), ("Riverview brief", "Today 8:40 am", False), ("Hilux and the head for Lyle", "Today 8:12 am", False), ("Clearing an E6 on a Daikin split", "Yesterday", False), ("Fans for Rozelle: which brand", "Friday", False), ("Who's free Thursday", "Friday", False)]
+    items = [("Bellevue Hill wrap-up and isolator", "Today 10:20 am", True), ("Fakeview brief", "Today 8:40 am", False), ("Hilux and the head for Lyle", "Today 8:12 am", False), ("Clearing an E6 on a Daikin split", "Yesterday", False), ("Fans for Mockzelle: which brand", "Friday", False), ("Who's free Thursday", "Friday", False)]
     li = "".join(f'<a class="{"on" if s else ""}" href="#"><span class="m"><span class="t">{t}</span><span class="s">{d}</span></span></a>' for t, d, s in items)
     vw = "".join(f'<a class="{"on" if i == 0 else ""}" href="#">{n}{f" <span class=c>{c}</span>" if c else ""}</a>' for i, (n, c) in enumerate([("All", ""), ("Team", ""), ("Only me", "")]))
     voice = f'{ico("mic")}<span class="qq">Spoken, on 3342</span>'
     thread = f'''<div class="dd2">Today</div>
 <div class="msg">{jc.av("IS")}<div class="bd">{jc.who("Isaac Smith", "10:20 am", voice)}<p>Lyle's finished the study head. Customer wants an extra isolator on the deck, quote it. And book Northgate in for Thursday with Kai.</p></div></div>
 <div class="msg">{jc.tiff_av()}<div class="bd">{jc.who("Tiff", "10:20 am")}<p>Done. Noted on 3342, the isolator is drafted as a variation for you to check, and Northgate is held for Thursday with Kai.</p>
-  {jc.act("check", "Note on 3342 Rifkin", "In ServiceM8 too", "Open")}
+  {jc.act("check", "Note on 3342 Fairweather", "In ServiceM8 too", "Open")}
   {jc.act("doc", "Variation: isolator on the deck", "$480 plus GST, waiting for you", "Open")}
   <div class="act">{ico("cal")}<div class="m2"><b>Northgate 3323, Thursday, Kai</b><span>Held, not booked yet</span></div><span class="b sm go">Book it</span></div>
   <p class="l13" style="margin-top:10px"><a class="lk" href="#">Undo all three</a></p></div></div>'''
@@ -554,7 +554,7 @@ def conversations():
 
 
 # ------------------------------------------------------------------ one engine: asking Tiff anything
-ASK_ITEMS = [("Last 10 kW Mitsubishi ducted", "Today 10:42 am"), ("Daikin or Mitsubishi, 5 kW", "Today 10:31 am"), ("Bellevue Hill wrap-up and isolator", "Today 10:20 am"), ("Riverview brief", "Today 8:40 am"), ("Hilux and the head for Lyle", "Today 8:12 am"), ("Clearing an E6 on a Daikin split", "Yesterday"), ("Who's free Thursday", "Friday")]
+ASK_ITEMS = [("Last 10 kW Mitsubishi ducted", "Today 10:42 am"), ("Daikin or Mitsubishi, 5 kW", "Today 10:31 am"), ("Bellevue Hill wrap-up and isolator", "Today 10:20 am"), ("Fakeview brief", "Today 8:40 am"), ("Hilux and the head for Lyle", "Today 8:12 am"), ("Clearing an E6 on a Daikin split", "Yesterday"), ("Who's free Thursday", "Friday")]
 
 
 def src(icon, text):

@@ -1,6 +1,6 @@
 /* THE LINKS A BUILDER SENDS INSTEAD OF FILES (Isaac, 29 October 2026: "Lots
    of builders send things that way. She could at least bring the link for
-   you to click on straight from the job card"). The Krui Street tender's
+   you to click on straight from the job card"). The Tempor Street tender's
    plans sat behind "260917 Tender Issue", an architect's OneDrive folder.
 
    Found in code, never by Tiff: a link is copied from the email exactly as

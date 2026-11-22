@@ -88,7 +88,7 @@ const claim = (id: string, staffProfileId: string, over: Record<string, unknown>
   staffProfileId,
   staffName: staffProfileId === "card-alex" ? "Alex Lorenz" : "Isaac Smith",
   expenseDate: "2026-10-27",
-  description: "Copper fittings, flux and silfos, for #3215, Jay Matthews",
+  description: "Copper fittings, flux and silfos, for #3215, Jay Oakhurst",
   category: "materials",
   amount: 96.8,
   gstAmount: 8.8,
@@ -177,7 +177,7 @@ test("claims someone else sent and is waiting on, with the receipt; never your o
     {
       id: "ec-1",
       staffName: "Alex Lorenz",
-      description: "Copper fittings, flux and silfos, for #3215, Jay Matthews",
+      description: "Copper fittings, flux and silfos, for #3215, Jay Oakhurst",
       supplier: "Reece",
       expenseDate: "2026-10-27",
       categoryLabel: "Materials",

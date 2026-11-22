@@ -213,7 +213,7 @@ export function centroidOf(poly: readonly Point[]): Point {
 
 type Segment = [Point, Point, number];
 
-/* A DUCT'S WORDS (Isaac, 1 November 2026: the Cutler plan looked "unbelievably
+/* A DUCT'S WORDS (Isaac, 1 November 2026: the Ipsum plan looked "unbelievably
    messy"): a duct is drawn at its true width and is much wider than a pipe, so its
    words sit clear of its walls, and they are smaller than a pipe's, since a plan
    carries few sizes and a lot of duct. Only a duct the next flow drew has a form;

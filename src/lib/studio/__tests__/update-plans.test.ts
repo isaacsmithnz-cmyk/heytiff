@@ -47,7 +47,7 @@ const issueH = plan(
 
 const designFrom = (p: JobPlan): DesignDocument => {
   const made = designFromPlan(p);
-  return readyFromPlans({ ...createDesign({ name: "7 Cutler Rd", mode: "plan" }), floors: made.floors, planImport: made.planImport, reading: made.reading });
+  return readyFromPlans({ ...createDesign({ name: "7 Ipsum Rd", mode: "plan" }), floors: made.floors, planImport: made.planImport, reading: made.reading });
 };
 const rooms = (d: DesignDocument) => d.objects.filter((o) => o.type === "room");
 const named = (d: DesignDocument, name: string) => rooms(d).find((o) => o.props.name === name);

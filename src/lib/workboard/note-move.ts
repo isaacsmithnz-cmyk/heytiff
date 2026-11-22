@@ -3,9 +3,9 @@ import { dayWord, isVisitPart, visitDay, visitStart, type VisitPart } from "./no
 
 /* MOVING A BOOKING FROM TIFF — pure, on both sides of the wire.
 
-   Isaac, 2 November 2026, his first test: "Move Lisa and Mossman, uh, my
+   Isaac, 2 November 2026, his first test: "Move Lisa and Sampletton, uh, my
    booking this afternoon to Friday, seven AM" booked a SECOND visit on the
-   job the chip was on, and the real one, 6/40 Raglan St, Mosman, stayed put.
+   job the chip was on, and the real one, 6/40 Lorem St, Sampleton, stayed put.
    The mock (https://claude.ai/artifact/GSEAXk33huxmx3LyPhMzL8, 10 November)
    and its calls:
 
@@ -29,7 +29,7 @@ export type ProposedMove = {
   whoId: string | null;
   /** The person as the note said them, "" when nobody was named. */
   whoHint: string;
-  /** How they named the booking: "Lisa in Mosman", "my 3pm". */
+  /** How they named the booking: "Lisa in Sampleton", "my 3pm". */
   words: string;
   /** The day it's on now, "YYYY-MM-DD", or "" when not said. */
   fromDay: string;
@@ -58,9 +58,9 @@ export type MoveBooking = {
   staffName: string;
   start: string;
   end: string;
-  /** "6/40 Raglan St, Mosman", or "" */
+  /** "6/40 Lorem St, Sampleton", or "" */
   place: string;
-  /** The job's number, client and address words, to match "Mosman" or "Lisa" against. */
+  /** The job's number, client and address words, to match "Sampleton" or "Lisa" against. */
   match: string;
 };
 
@@ -125,7 +125,7 @@ const minuteOf = (stamp: string): number | null => {
 };
 const dayOf = (stamp: string) => STAMP.exec(stamp)?.[1] ?? "";
 
-/** How alike two spellings are: Mossman is Mosman. */
+/** How alike two spellings are: Sampletton is Sampleton. */
 function near(a: string, b: string): boolean {
   if (a === b) return true;
   if (a.length < 5 || b.length < 5) return false;
@@ -212,13 +212,13 @@ export function whenWords(start: string, end: string, today: string): string {
   return [day, range].filter(Boolean).join(" ");
 }
 
-/** "your visit at 6/40 Raglan St, Mosman", "Lisa's visit at …" */
+/** "your visit at 6/40 Lorem St, Sampleton", "Lisa's visit at …" */
 function whose(b: MoveBooking, mine: boolean): string {
   const at = b.place ? ` at ${b.place}` : "";
   return mine ? `your visit${at}` : b.staffName ? `${b.staffName}'s visit${at}` : `the visit${at}`;
 }
 
-/** The one that fits, asked: "Move your visit at 6/40 Raglan St, Mosman
+/** The one that fits, asked: "Move your visit at 6/40 Lorem St, Sampleton
     from today 3:00 to 4:00 pm to Friday 7:00 to 8:00 am?" */
 export function moveQuestion(b: MoveBooking, to: { start: string; end: string }, mine: boolean, today: string): string {
   return `Move ${whose(b, mine)} from ${whenWords(b.start, b.end, today)} to ${whenWords(to.start, to.end, today)}?`;
@@ -231,7 +231,7 @@ export function whichQuestion(to: { start: string; end: string } | null, today: 
   return at ? `Which one goes to ${at}? ${n === 2 ? "Two" : "Three"} fit.` : "Which one?";
 }
 
-/** A booking to tap: "Today 3:00 to 4:00 pm, 6/40 Raglan St, Mosman". */
+/** A booking to tap: "Today 3:00 to 4:00 pm, 6/40 Lorem St, Sampleton". */
 export function bookingLabel(b: MoveBooking, today: string): string {
   const w = whenWords(b.start, b.end, today);
   return [w ? w[0]!.toUpperCase() + w.slice(1) : "", b.place].filter(Boolean).join(", ");
@@ -246,7 +246,7 @@ export function noneFitLine(m: Pick<ProposedMove, "words">, mine: boolean, name:
     : `I couldn't tell which of ${whoseOnes} you meant, so nothing's moved. Say its day or time, or open it on Schedule.`;
 }
 
-/** Moved: "Moved. Your visit at 6/40 Raglan St, Mosman is Friday 7:00 to 8:00 am now." */
+/** Moved: "Moved. Your visit at 6/40 Lorem St, Sampleton is Friday 7:00 to 8:00 am now." */
 export function movedLine(b: MoveBooking, to: { start: string; end: string }, mine: boolean, today: string, waiting: boolean): string {
   const w = whose(b, mine);
   return `${waiting ? "Moving it." : "Moved."} ${w[0]!.toUpperCase() + w.slice(1)} is ${whenWords(to.start, to.end, today)} now${waiting ? ", once ServiceM8 has it" : ""}.`;

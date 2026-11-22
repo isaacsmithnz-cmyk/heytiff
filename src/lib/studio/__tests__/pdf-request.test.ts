@@ -76,7 +76,7 @@ describe("what a browser may ask for", () => {
   });
 
   it("names the file safely", () => {
-    expect(pdfFileName('85 West St / "Option B"')).toBe("85 West St Option B .pdf".replace(" .pdf", ".pdf"));
+    expect(pdfFileName('85 Placeholder St / "Option B"')).toBe("85 Placeholder St Option B .pdf".replace(" .pdf", ".pdf"));
     expect(pdfFileName("")).toBe("Design.pdf");
   });
 });

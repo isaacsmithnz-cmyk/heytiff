@@ -181,7 +181,7 @@ export function whenText(m: Moment, today: string): string {
   return m.time ? `${day}, ${m.time}` : day;
 }
 
-/** "2041 Wollstonecraft" — a ServiceM8 job named the way the diary's
+/** "2041 Testcraft" — a ServiceM8 job named the way the diary's
     mention doors name it: its number and its suburb. Null when the mirror
     has neither. */
 export function jobLabelOf(number: string | null | undefined, city: string | null | undefined): string | null {
@@ -288,7 +288,7 @@ export function sourceLine(
 }
 
 /** The caption over their words: "**You said**, Sat 22 Aug, 11:42 pm", or
-    "**Lyle Irving** wrote, in a job note on 2041 Wollstonecraft". `strong`
+    "**Lyle Irving** wrote, in a job note on 2041 Testcraft". `strong`
     is the part set in weight; the caption reads `strong + rest`. Null when
     there are no words to caption. */
 export function wordsCaption(about: TaskAbout, today: string): { strong: string; rest: string } | null {

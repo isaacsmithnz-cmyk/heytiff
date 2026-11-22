@@ -274,7 +274,7 @@ describe("taskOwners", () => {
         { uuid: "u-isaac", handle: "isaacsmith", name: "Isaac Smith", first: "Isaac" },
         { uuid: "u-lyle", handle: "lyleirving", name: "Lyle Irving", first: "Lyle" },
       ],
-      jobs: new Map([["j-2041", { label: "2041 Wollstonecraft", live: true }]]),
+      jobs: new Map([["j-2041", { label: "2041 Testcraft", live: true }]]),
       today: "2026-09-25",
     });
     const feed = diaryFeed({

@@ -29,7 +29,7 @@ export const KIND_LABEL: Record<DocKind, string> = {
   handover: "Handover sheets",
 };
 
-/** The job a document is on: "3342 Rifkin, Bellevue Hill", with the job's
+/** The job a document is on: "3342 Fairweather, Bellevue Hill", with the job's
     colour (rule 18) when the mirror holds it. */
 export type DocJob = { label: string; hue: Hue | null };
 
@@ -92,7 +92,7 @@ export function handoverState(checks: { done: number; total: number }): { state:
 
 const dayOf = (iso: string | null | undefined, toDay: (iso: string) => string): string => (iso ? toDay(iso) : "");
 
-/** "3342 Rifkin, Bellevue Hill" */
+/** "3342 Fairweather, Bellevue Hill" */
 export function jobLabel(number: string | null, clientName: string | null, place: string | null): string {
   return [jobTabLabel(number, clientName), place?.trim() || null].filter(Boolean).join(", ");
 }

@@ -55,7 +55,7 @@ type JobRow = {
 const JOB_COLUMNS = "uuid, generated_job_id, status, company_uuid, category_uuid, geo_city";
 
 /** The jobs these documents are on, from the mirror, by uuid and by the job
-    numbers a project carries: "3342 Rifkin, Bellevue Hill" and the job's
+    numbers a project carries: "3342 Fairweather, Bellevue Hill" and the job's
     colour, as the Jobs list names and colours them. */
 async function readJobs(orgId: string, uuids: readonly string[], numbers: readonly string[]): Promise<{ byUuid: Map<string, DocJob>; byNumber: Map<string, DocJob> }> {
   const [byU, byN] = await Promise.all([

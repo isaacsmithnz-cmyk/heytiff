@@ -195,16 +195,16 @@ describe("a long session", () => {
 
   it("folds them into her notes with one call, and reads the notes ahead of what's kept", async () => {
     const model = scripted([
-      { content: [text("Notes: a split in Mosman, 3.5 kW said.")], stopReason: "end_turn" },
+      { content: [text("Notes: a split in Sampleton, 3.5 kW said.")], stopReason: "end_turn" },
       { content: [text("Done.")], stopReason: "end_turn" },
     ]);
     const { d } = deps(model);
     const messages = Array.from({ length: 20 }, (_, i) => turn(i, 10_000)).flat();
     const end = await runTurn({ messages, summary: "" }, "Make it 5 kW", d);
     expect(model.calls[0]!.system).toMatch(/Fold the earlier part/);
-    expect(end.state.summary).toBe("Notes: a split in Mosman, 3.5 kW said.");
+    expect(end.state.summary).toBe("Notes: a split in Sampleton, 3.5 kW said.");
     expect(end.state.messages.length).toBeLessThan(messages.length);
-    expect(model.calls[1]!.messages[0]!.content[0]).toMatchObject({ type: "text", text: expect.stringContaining("Notes: a split in Mosman") });
+    expect(model.calls[1]!.messages[0]!.content[0]).toMatchObject({ type: "text", text: expect.stringContaining("Notes: a split in Sampleton") });
   });
 
   it("sends the notes alone when nothing follows them", () => {
@@ -256,7 +256,7 @@ describe("what she looks at (4.6)", () => {
 });
 
 /* 16 October: a drawing set she looked at was kept in the session (11 MB on
-   27 Milroy) and sent again every round; the turn after never finished, and
+   27 Proident) and sent again every round; the turn after never finished, and
    every poll that read it slowed the database for everyone */
 describe("a file she looks at", () => {
   const pdf = { type: "document" as const, source: { type: "base64" as const, media_type: "application/pdf" as const, data: "JVBERi0xLjQ=" } };

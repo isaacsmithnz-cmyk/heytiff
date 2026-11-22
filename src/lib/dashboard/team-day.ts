@@ -78,8 +78,8 @@ export type TeamDay = {
 
 const first = (name: string): string => name.trim().split(/\s+/)[0] ?? "";
 
-/** The words for a job's line under its client: "Glebe, with Ryan, Sam and
-    Marco"; on You, "Install, Glebe". */
+/** The words for a job's line under its client: "Mockglen, with Ryan, Sam and
+    Marco"; on You, "Install, Mockglen". */
 export function teamLine(job: Pick<TeamJob, "suburb" | "people" | "kind">, view: "team" | "you"): string {
   if (view === "you") return [job.kind, job.suburb].filter(Boolean).join(", ");
   const who = job.people.length ? `with ${andList(job.people)}` : "nobody booked";

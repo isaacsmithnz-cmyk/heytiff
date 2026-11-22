@@ -36,7 +36,7 @@ jest.mock("@/app/actions/palette", () => ({
     clients: [],
     projects: [],
     photos: [],
-    jobs: [{ remoteId: "j-3342", jobNumber: "3342", clientName: "Rifkin", suburb: "Bellevue Hill" }],
+    jobs: [{ remoteId: "j-3342", jobNumber: "3342", clientName: "Fairweather", suburb: "Bellevue Hill" }],
   })),
 }));
 
@@ -100,20 +100,20 @@ describe("the task form", () => {
     fireEvent.click(screen.getByRole("button", { name: "Clear the job" }));
     expect(screen.queryByText("3209 Richards")).toBeNull();
     jest.useFakeTimers();
-    fireEvent.change(screen.getByPlaceholderText("None, a general task"), { target: { value: "Rifkin" } });
+    fireEvent.change(screen.getByPlaceholderText("None, a general task"), { target: { value: "Fairweather" } });
     await act(async () => {
       jest.advanceTimersByTime(300);
     });
     jest.useRealTimers();
     await act(async () => {});
-    fireEvent.click(screen.getByRole("button", { name: "Job 3342, Rifkin, Bellevue Hill" }));
-    expect(screen.getByText("Job 3342, Rifkin, Bellevue Hill")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Job 3342, Fairweather, Bellevue Hill" }));
+    expect(screen.getByText("Job 3342, Fairweather, Bellevue Hill")).toBeInTheDocument();
   });
 
   it("makes one task a line, says how many, and Undo takes them all back", async () => {
     draw({ uuid: "j-3209", label: "3209 Richards" });
     await act(async () => {});
-    say("Order the grilles\nBook the crane\n\nCall Rifkin");
+    say("Order the grilles\nBook the crane\n\nCall Fairweather");
     expect(screen.getByRole("button", { name: "Add 3 tasks" })).toBeInTheDocument();
     (makeTasks as jest.Mock).mockResolvedValueOnce({ ok: true, taskIds: ["a", "b", "c"], jobKept: true });
     await act(async () => fireEvent.click(screen.getByRole("button", { name: "Add 3 tasks" })));
@@ -189,9 +189,9 @@ describe("when a task is due", () => {
 describe("an existing task's form", () => {
   const task: TaskForEdit = {
     id: "t9",
-    title: "Proceed with 3450 Kingsford as do and charge",
+    title: "Proceed with 3450 Fakesford as do and charge",
     job: null,
-    suggestedJob: { uuid: "j-3450", label: "3450 Kingsford" },
+    suggestedJob: { uuid: "j-3450", label: "3450 Fakesford" },
     sm8: { lines: [], sender: null },
     assigneeId: null,
     dueDate: "2026-10-30",
@@ -215,7 +215,7 @@ describe("an existing task's form", () => {
     await open();
     expect(screen.getByRole("heading", { name: "Task" })).toBeInTheDocument();
     expect(screen.getByLabelText("What needs doing")).toHaveValue(task.title);
-    expect(screen.getByText("3450 Kingsford")).toBeInTheDocument();
+    expect(screen.getByText("3450 Fakesford")).toBeInTheDocument();
     expect(screen.getByText("Anyone")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add time" })).toBeInTheDocument();
     expect(screen.getByText(/Made by Luke Ingold/)).toBeInTheDocument();

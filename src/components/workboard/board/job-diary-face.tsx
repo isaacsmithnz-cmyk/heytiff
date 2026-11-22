@@ -344,8 +344,8 @@ export function NoteDoors({
     resolve; here it only needs to read as a callout.
 
     AN "@" INSIDE A WORD IS AN ADDRESS, NOT A MENTION. The diary records the
-    documents emailed from the job ("… to josh@lsdb.com.au"), and a split on
-    every "@" drew "@lsdb" as a callout in the middle of it — the same
+    documents emailed from the job ("… to josh@kpsb.example"), and a split on
+    every "@" drew "@kpsb" as a callout in the middle of it — the same
     tolerance lib/workboard/sm8-mentions already gives an email address. */
 export function withMentions(text: string): React.ReactNode {
   const parts = text.split(/((?<![\w.+-])@[a-z0-9_]+)/gi);

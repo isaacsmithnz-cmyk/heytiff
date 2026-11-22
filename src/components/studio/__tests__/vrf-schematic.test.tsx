@@ -177,11 +177,11 @@ describe("a riser dropped on the trunk (Isaac, 2026-09-30: it sat on the pipe wi
   });
 });
 
-describe("pipework that never reaches the outdoor (48 Thorne St, 2026-10-13)", () => {
+describe("pipework that never reaches the outdoor (48 Laborum St, 2026-10-13)", () => {
   /* four heads, two a floor, each piped to its floor's riser of one pair;
      the outdoor placed with no pipe on it */
   function thorneSt(piped: boolean): { doc: DesignDocument; systemId: string } {
-    let doc = createDesign({ name: "48 Thorne St", mode: "blank" });
+    let doc = createDesign({ name: "48 Laborum St", mode: "blank" });
     const g = doc.floors[0];
     doc = { ...doc, floors: [{ ...g, name: "Ground floor" }, { ...g, id: "flr_up", name: "Level 1", level: 1 }] };
     const rooms: [string, string][] = [
@@ -274,13 +274,13 @@ describe("pipework that never reaches the outdoor (48 Thorne St, 2026-10-13)", (
   });
 });
 
-describe("a head the drawing leaves off (6 Bishops Ave, 2026-10-15)", () => {
+describe("a head the drawing leaves off (6 Nostrud Ave, 2026-10-15)", () => {
   /* the ground floor: a PUMY-P200 piped through two joints to Kids Play,
      Guest Bed and one of Living / Dining's two P63s; the other P63 placed
      with no pipe on it */
-  function bishops(opts: { pipeSecond?: boolean; placeSecond?: boolean } = {}) {
+  function nostrud(opts: { pipeSecond?: boolean; placeSecond?: boolean } = {}) {
     const placeSecond = opts.placeSecond ?? true;
-    let doc = createDesign({ name: "6 Bishops Ave", mode: "blank" });
+    let doc = createDesign({ name: "6 Nostrud Ave", mode: "blank" });
     const g = doc.floors[0];
     for (const id of ["Kids Play", "Guest Bed", "Living / Dining"])
       doc.objects.push({
@@ -346,7 +346,7 @@ describe("a head the drawing leaves off (6 Bishops Ave, 2026-10-15)", () => {
   }
 
   it("fails, names the head by the zone it is one of two in, and says it once on the schematic", () => {
-    const { doc, sys } = bishops();
+    const { doc, sys } = nostrud();
     const tree = systemVrfTree(pack, sys, doc)!;
     expect(tree.joined).toBe(3);
     const findings = systemFindings(doc, pack, sys);
@@ -368,19 +368,19 @@ describe("a head the drawing leaves off (6 Bishops Ave, 2026-10-15)", () => {
   });
 
   it("piped to the last head, it says nothing and the drawing is counted", () => {
-    const { doc, sys } = bishops({ pipeSecond: true });
+    const { doc, sys } = nostrud({ pipeSecond: true });
     expect(systemFindings(doc, pack, sys).map((f) => f.code)).not.toContain("head-unpiped");
     expect(systemVrfTree(pack, sys, doc)!.drawn).toBe(true);
     expect(combinationWord(doc, pack, sys)).toBe("Valid");
   });
 
   it("a head not on the plan yet is still to place, not unpiped", () => {
-    const { doc, sys } = bishops({ placeSecond: false });
+    const { doc, sys } = nostrud({ placeSecond: false });
     expect(systemFindings(doc, pack, sys).map((f) => f.code)).not.toContain("head-unpiped");
   });
 
   it("more than one left off: counted, and a zone with none of its heads piped named whole", () => {
-    const { doc, sys } = bishops();
+    const { doc, sys } = nostrud();
     const cut = { ...doc, objects: doc.objects.filter((o) => o.id !== "toGuest" && o.id !== "toLiving") };
     const finding = systemFindings(cut, pack, sys).find((f) => f.code === "head-unpiped");
     expect(finding?.message).toBe("3 heads aren't piped to the outdoor yet: Guest Bed, Living / Dining");

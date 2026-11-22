@@ -1,5 +1,5 @@
 -- Documents up to 50 MB a file (Isaac, 2026-10-21): an architect's tender
--- set (7 Cutler Rd, 16 MB) couldn't go on its job at 10. The app holds the
+-- set (7 Ipsum Rd, 16 MB) couldn't go on its job at 10. The app holds the
 -- same number (src/lib/documents/files.ts MAX_BYTES); the bucket is the
 -- second place it is held. Files go to storage on a signed upload, so no
 -- server body limit stands in front of it.

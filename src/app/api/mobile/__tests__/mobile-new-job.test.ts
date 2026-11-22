@@ -6,7 +6,7 @@
    https://claude.ai/artifact/JLF86oYMASuBt4gKDRr1VR), behind the real token
    check: only for someone who runs the board, nothing at all where new jobs
    don't go, and every read and Create the web form's own action, run as the
-   phone's own person. Drawn on JT Construct: 13 sites, Unit 41 at Mackillop
+   phone's own person. Drawn on QX Construct: 13 sites, Unit 41 at Voluptate
    Grange. The actions are stand-ins that record who asked. */
 
 import { generateKeyPairSync, sign } from "node:crypto";
@@ -45,15 +45,15 @@ jest.mock("@/lib/workboard/new-job-offer", () => ({ newJobOffered: async () => o
 import { phoneSession } from "@/lib/phone-session";
 const asked: string[] = [];
 const as = () => `${phoneSession()?.orgId}/${phoneSession()?.user.sub}`;
-const JT = { uuid: "11111111-1111-4111-8111-111111111111", name: "JT Construct", address: null, sites: 13, contacts: [{ name: "Josh Terrett", mobile: null, phone: null, email: null }] };
-const UNIT41 = { uuid: "22222222-2222-4222-8222-222222222222", name: "41/28 Mackillop Grange", address: "Unit 41/28 Wudgong St,\nMosman NSW 2088", parentName: "JT Construct", lastJob: null };
+const QX = { uuid: "11111111-1111-4111-8111-111111111111", name: "QX Construct", address: null, sites: 13, contacts: [{ name: "Josh Pemberley", mobile: null, phone: null, email: null }] };
+const UNIT41 = { uuid: "22222222-2222-4222-8222-222222222222", name: "41/28 Voluptate Grange", address: "Unit 41/28 Consequat St,\nSampleton NSW 2088", parentName: "QX Construct", lastJob: null };
 const created = jest.fn();
 jest.mock("@/app/actions/job-new", () => ({
-  searchNewJobClients: async (q: string) => (asked.push(`clients "${q}" as ${as()}`), [JT]),
+  searchNewJobClients: async (q: string) => (asked.push(`clients "${q}" as ${as()}`), [QX]),
   searchClientSites: async (p: string, q: string) => (asked.push(`sites ${p} "${q}" as ${as()}`), [UNIT41]),
   matchPreviousSite: async (a: string) => (asked.push(`match "${a}" as ${as()}`), null),
   readNewJobCategories: async () => (asked.push(`kinds as ${as()}`), [{ uuid: "33333333-3333-4333-8333-333333333333", name: "Install", colour: null }]),
-  nearNewJobSite: async (lat: number, lng: number) => (asked.push(`near ${lat},${lng} as ${as()}`), { client: JT, site: UNIT41 }),
+  nearNewJobSite: async (lat: number, lng: number) => (asked.push(`near ${lat},${lng} as ${as()}`), { client: QX, site: UNIT41 }),
   createNewJob: async (input: unknown) => {
     asked.push(`create as ${as()}`);
     created(input);
@@ -98,19 +98,19 @@ afterAll(() => {
 const PRESS = "55555555-5555-4555-8555-555555555555";
 const BODY = {
   pressId: PRESS,
-  clientName: "JT Construct",
+  clientName: "QX Construct",
   client: { kind: "existing", uuid: UNIT41.uuid },
   jobAddress: UNIT41.address,
   description: "Unit 41 wants the same ducted system as 34.",
   categoryUuid: "33333333-3333-4333-8333-333333333333",
-  contact: { first: "Josh", last: "Terrett", mobile: "", email: "" },
+  contact: { first: "Josh", last: "Pemberley", mobile: "", email: "" },
   via: "an existing customer",
 };
 
 test("without a token, or without running the board, nothing is read or made", async () => {
   expect((await GET(req("?start=1", null))).status).toBe(401);
   expect((await POST(post(null, BODY))).status).toBe(401);
-  expect((await GET(req("?q=jt", "auth0|lyle"))).status).toBe(403);
+  expect((await GET(req("?q=qx", "auth0|lyle"))).status).toBe(403);
   expect((await POST(post("auth0|lyle", BODY))).status).toBe(403);
   expect(asked).toEqual([]);
 });
@@ -127,7 +127,7 @@ test("the start: the kinds and the site you're standing at, read as the phone's 
   const body = await (await GET(req("?start=1&near=-33.8301,151.2442", "auth0|isaac"))).json();
   expect(body.offered).toBe(true);
   expect(body.categories).toEqual([{ uuid: "33333333-3333-4333-8333-333333333333", name: "Install", colour: null }]);
-  expect(body.here).toEqual({ client: JT, site: UNIT41 });
+  expect(body.here).toEqual({ client: QX, site: UNIT41 });
   expect(asked).toEqual(["kinds as org-diamond/auth0|isaac", "near -33.8301,151.2442 as org-diamond/auth0|isaac"]);
 });
 
@@ -138,11 +138,11 @@ test("a place that isn't a place is never looked for", async () => {
 });
 
 test("customers, a builder's sites and a previous site, each the web form's own", async () => {
-  expect((await (await GET(req("?q=jt", "auth0|isaac"))).json()).clients).toEqual([JT]);
-  expect((await (await GET(req(`?sites=${JT.uuid}&q=41`, "auth0|isaac"))).json()).sites).toEqual([UNIT41]);
-  expect((await (await GET(req("?match=9%2F6%20Holbrook%20Ave", "auth0|isaac"))).json()).match).toBeNull();
+  expect((await (await GET(req("?q=qx", "auth0|isaac"))).json()).clients).toEqual([QX]);
+  expect((await (await GET(req(`?sites=${QX.uuid}&q=41`, "auth0|isaac"))).json()).sites).toEqual([UNIT41]);
+  expect((await (await GET(req("?match=9%2F6%20Dolor%20Ave", "auth0|isaac"))).json()).match).toBeNull();
   expect((await GET(req("?sites=not-a-uuid", "auth0|isaac"))).status).toBe(400);
-  expect(asked).toEqual([`clients "jt" as org-diamond/auth0|isaac`, `sites ${JT.uuid} "41" as org-diamond/auth0|isaac`, `match "9/6 Holbrook Ave" as org-diamond/auth0|isaac`]);
+  expect(asked).toEqual([`clients "qx" as org-diamond/auth0|isaac`, `sites ${QX.uuid} "41" as org-diamond/auth0|isaac`, `match "9/6 Dolor Ave" as org-diamond/auth0|isaac`]);
 });
 
 test("Create job is the web's createNewJob with the form's words, as the phone's person", async () => {
@@ -152,12 +152,12 @@ test("Create job is the web's createNewJob with the form's words, as the phone's
   expect(asked).toEqual(["create as org-diamond/auth0|isaac"]);
   expect(created).toHaveBeenCalledWith({
     pressId: PRESS,
-    clientName: "JT Construct",
+    clientName: "QX Construct",
     client: { kind: "existing", uuid: UNIT41.uuid },
     jobAddress: UNIT41.address,
     description: "Unit 41 wants the same ducted system as 34.",
     categoryUuid: "33333333-3333-4333-8333-333333333333",
-    contact: { first: "Josh", last: "Terrett", mobile: "", phone: "", email: "" },
+    contact: { first: "Josh", last: "Pemberley", mobile: "", phone: "", email: "" },
     via: "an existing customer",
     next: null,
   });

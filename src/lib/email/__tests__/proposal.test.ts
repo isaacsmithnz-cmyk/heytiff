@@ -1,20 +1,20 @@
 /* Email to Tiff, read (28 October 2026): what Tiff is asked, what of her
    answer is believed, what she says over the card, and the words a ServiceM8
-   job is made of. Truecut Building's real tender for 40 Westbourne Street,
-   Stanmore is the example. */
+   job is made of. Plumbline Building's real tender for 40 Aliqua Street,
+   Placeholm is the example. */
 import { EMAIL_JOB_SCHEMA, dueWords, emailJobPrompt, forExistingJob, jobDescriptionOf, parseEmailJobRead, sureJob, threadTitleOf, tiffSays, type EmailProposal } from "../proposal";
 
 const raw = {
   isJob: true,
   notJobWhy: "",
-  summary: "Truecut Building want an itemised quote for the air conditioning in a tender for alterations and additions at 40 Westbourne Street, Stanmore.",
-  client: "Truecut Building",
+  summary: "Plumbline Building want an itemised quote for the air conditioning in a tender for alterations and additions at 40 Aliqua Street, Placeholm.",
+  client: "Plumbline Building",
   contactFirst: "Matt",
-  contactLast: "Glass",
+  contactLast: "Juniper",
   contactMobile: "0412 345 678",
   contactPhone: "",
-  contactEmail: "matt@truecut.example",
-  site: "40 Westbourne Street, Stanmore NSW 2048",
+  contactEmail: "matt@plumbline.example",
+  site: "40 Aliqua Street, Placeholm NSW 2048",
   due: "2026-11-07",
   scope: ["Modify the existing underfloor AC", "Extend it to the attic", "Relocate outdoor units beneath deck on plinths"],
   excluded: ["The secondary dwelling"],
@@ -30,8 +30,8 @@ it("asks for every field, none optional, and tells Tiff who 'we' are and who for
 
 it("believes a read only as far as it holds up", () => {
   const read = parseEmailJobRead(raw);
-  expect(read).toMatchObject({ isJob: true, client: "Truecut Building", site: "40 Westbourne Street, Stanmore NSW 2048", due: "2026-11-07" });
-  expect(read.contact).toEqual({ first: "Matt", last: "Glass", mobile: "0412 345 678", phone: "", email: "matt@truecut.example" });
+  expect(read).toMatchObject({ isJob: true, client: "Plumbline Building", site: "40 Aliqua Street, Placeholm NSW 2048", due: "2026-11-07" });
+  expect(read.contact).toEqual({ first: "Matt", last: "Juniper", mobile: "0412 345 678", phone: "", email: "matt@plumbline.example" });
   const bad = parseEmailJobRead({ ...raw, isJob: "yes", due: "7/11/2026", contactEmail: "not an address", scope: ["  ", 4, "Ducting"] });
   expect(bad).toMatchObject({ isJob: false, due: "", scope: ["Ducting"] });
   expect(bad.contact.email).toBe("");
@@ -57,7 +57,7 @@ it("writes the job's description from the scope as written, what's excluded and 
       "",
       "Quote due Saturday 7 November.",
       "",
-      "From Matt Glass's email (Truecut Building), forwarded to Tiff by Isaac Smith on Thursday 30 October.",
+      "From Matt Juniper's email (Plumbline Building), forwarded to Tiff by Isaac Smith on Thursday 30 October.",
     ].join("\n")
   );
   const long = jobDescriptionOf(parseEmailJobRead({ ...raw, scope: Array.from({ length: 40 }, () => "x".repeat(400)) }), { name: null, at: "today" });
@@ -65,21 +65,21 @@ it("writes the job's description from the scope as written, what's excluded and 
 });
 
 it("names the thread after the email, without its Fw:", () => {
-  expect(threadTitleOf("Fw: RE: Tender – 40 Westbourne Street, Stanmore", null)).toBe("Tender – 40 Westbourne Street, Stanmore");
-  expect(threadTitleOf("", parseEmailJobRead(raw))).toBe("New job, 40 Westbourne Street, Stanmore NSW 2048");
+  expect(threadTitleOf("Fw: RE: Tender – 40 Aliqua Street, Placeholm", null)).toBe("Tender – 40 Aliqua Street, Placeholm");
+  expect(threadTitleOf("", parseEmailJobRead(raw))).toBe("New job, 40 Aliqua Street, Placeholm NSW 2048");
 });
 
 describe("what Tiff says over the card", () => {
   const p = (over: Partial<EmailProposal> = {}): EmailProposal => ({ ...parseEmailJobRead(raw), clientMatch: null, siteMatch: null, ...over });
 
   it("says a client already here, and a new site for a builder", () => {
-    const words = tiffSays(p({ clientMatch: { uuid: "c1", name: "Truecut Building", builder: true } }), null);
+    const words = tiffSays(p({ clientMatch: { uuid: "c1", name: "Plumbline Building", builder: true } }), null);
     expect(words).toContain("It's due Saturday 7 November.");
-    expect(words).toContain("Truecut Building is already a client.");
+    expect(words).toContain("Plumbline Building is already a client.");
   });
 
   it("says a new client is added, an email that isn't work, and one she couldn't read", () => {
-    expect(tiffSays(p(), null)).toContain("Truecut Building aren't a client yet; Create job adds them.");
+    expect(tiffSays(p(), null)).toContain("Plumbline Building aren't a client yet; Create job adds them.");
     expect(tiffSays(p({ isJob: false, notJobWhy: "A supplier's invoice." }), null)).toBe(
       "This doesn't read as a request for work (A supplier's invoice), so I haven't proposed a job. Make one from New › Job if it is."
     );
@@ -91,7 +91,7 @@ describe("what Tiff says over the card", () => {
    job?" (28 October 2026): the jobs are found in the business's own records,
    and the card offers one only when it is sure */
 describe("an email about a job already here", () => {
-  const job = (n: string, found: "number" | "thread" | "site" | "client") => ({ uuid: `u-${n}`, number: n, address: "40 Westbourne Street\nStanmore NSW 2048", client: "Truecut Building", status: "Quote", found });
+  const job = (n: string, found: "number" | "thread" | "site" | "client") => ({ uuid: `u-${n}`, number: n, address: "40 Aliqua Street\nPlaceholm NSW 2048", client: "Plumbline Building", status: "Quote", found });
   const p = (over: Partial<EmailProposal> = {}): EmailProposal => ({ ...parseEmailJobRead({ ...raw, isJob: false, aboutJob: true, jobNumbers: ["3444"] }), clientMatch: null, siteMatch: null, ...over });
 
   it("reads the numbers written in it, digits only", () => {
@@ -114,7 +114,7 @@ describe("an email about a job already here", () => {
   });
 
   it("says which job and how she knows, or that she can't tell", () => {
-    expect(tiffSays(p({ jobs: [job("3444", "number")] }), null)).toContain("This is for job 3444 at 40 Westbourne Street (its number is in the email). Add it to that job?");
+    expect(tiffSays(p({ jobs: [job("3444", "number")] }), null)).toContain("This is for job 3444 at 40 Aliqua Street (its number is in the email). Add it to that job?");
     expect(tiffSays(p({ jobs: [job("3444", "client"), job("3500", "client")] }), null)).toContain("I can't tell which. Pick the job to add it to.");
     expect(tiffSays(p({ jobs: [] }), null)).toContain("none of yours matched its number, site or client");
   });

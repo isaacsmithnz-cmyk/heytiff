@@ -142,7 +142,7 @@ test("a list's day: up to tomorrow and two weeks back", () => {
 });
 
 describe("across trips: each trip its own list, the job so far adds them up", () => {
-  /* 1937, Fantail Building: Isaac's real list from Wednesday 4 November, and Friday if he went back */
+  /* 1937, Whitlock Building: Isaac's real list from Wednesday 4 November, and Friday if he went back */
   const ISAAC = "auth0|isaac";
   const names = new Map([[ISAAC, "Isaac"], ["auth0|leo", "Leonardo"]]);
   const DRAIN = { supplier_key: "reece", code: "D20", name: "Drain 20 mm", unit: "m" };

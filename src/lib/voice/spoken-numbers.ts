@@ -1,6 +1,6 @@
 /* Spoken numbers → digits. Pure, and load-bearing twice over.
 
-   A tech says "job three three seven" and "thirty six Wyndham Street". Both are
+   A tech says "job three three seven" and "thirty six Fabulum Street". Both are
    numbers, and neither arrives as digits reliably — every transcriber formats
    them differently, and the same one is inconsistent between takes. So the
    resolver never sees raw transcriber output: it sees this.

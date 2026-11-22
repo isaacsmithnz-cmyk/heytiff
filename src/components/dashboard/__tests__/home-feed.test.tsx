@@ -60,14 +60,14 @@ const LUKE = item({
   key: "talk:1",
   filter: "you",
   who: { name: "Luke Parker", sm8: false },
-  what: "mentioned you on 2674 Clovelly",
+  what: "mentioned you on 2674 Samplevelly",
   said: "can you order two grille filters?",
   when: "12:52 pm",
   unread: true,
   reply: { jobUuid: "job-1", sourceNoteUuid: "n1", closesTaskId: "t9" },
 });
 const LEAVE = item({ key: "alert:leave-queue:1", filter: "approvals", who: { name: "Leave to approve", sm8: false }, what: "Alex, 3 to 5 Nov", act: { kind: "link", label: "Review", href: "/dashboard/team?view=leave" } });
-const NEWJOB = item({ key: "event:new:j1", filter: "jobs", who: { name: "New job", sm8: true }, what: "3444 Stanmore", act: { kind: "link", label: "Open", href: "/dashboard/jobs/j1" } });
+const NEWJOB = item({ key: "event:new:j1", filter: "jobs", who: { name: "New job", sm8: true }, what: "3444 Placeholm", act: { kind: "link", label: "Open", href: "/dashboard/jobs/j1" } });
 const GIVEN = item({ key: "assignment:t1", filter: "you", who: { name: "Order the PEAD", sm8: false }, what: "Given to you by Dane", unread: true, act: { kind: "gotit", taskId: "t1" }, open: { taskId: "t1" } });
 
 const draw = (items: FeedItem[] = [LUKE, LEAVE, NEWJOB, GIVEN]) => render(<HomeFeed items={items} />);
@@ -268,7 +268,7 @@ it("(F) says who and what as one sentence that wraps to three lines and fades on
   expect(name).toHaveClass("hm-feed-name");
   const sentence = name.closest(".pt-fade")!;
   expect(sentence).toHaveClass("pt-fade--3");
-  expect(sentence).toHaveTextContent("Middle rooftop unit tripped again, repeat occurrence, cause not yet identified mentioned you on 2674 Clovelly");
+  expect(sentence).toHaveTextContent("Middle rooftop unit tripped again, repeat occurrence, cause not yet identified mentioned you on 2674 Samplevelly");
   expect(within(list()).getByText(/grille filters/).closest(".pt-fade")).toHaveClass("pt-fade--3");
   expect(within(list()).getByText("12:52 pm")).toHaveClass("hm-feed-when");
   expect(sentence).not.toHaveTextContent("12:52 pm");

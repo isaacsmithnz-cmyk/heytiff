@@ -101,7 +101,7 @@ describe("readAnalyticsJobs", () => {
         work_order_date: "2026-08-20 07:30:00",
         job_description: "As per quote",
         generated_job_id: "1042",
-        geo_city: "Mosman",
+        geo_city: "Sampleton",
         company_uuid: "co-1",
         category_uuid: "c2",
       }),
@@ -132,7 +132,7 @@ describe("readAnalyticsJobs", () => {
       paid: false,
       acceptedInHeyTiff: false,
       number: "1042",
-      suburb: "Mosman",
+      suburb: "Sampleton",
       brief: "As per quote",
       clientId: "co-1",
     });

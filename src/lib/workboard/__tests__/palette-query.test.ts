@@ -109,8 +109,8 @@ describe("searchProjects", () => {
     ]);
   });
 
-  /* Every word has to land in one of the four — "hr mosman" is HR's project
-     on a Mosman site — and the brackets and commas PostgREST reads as syntax
+  /* Every word has to land in one of the four — "hr sampleton" is HR's project
+     on a Sampleton site — and the brackets and commas PostgREST reads as syntax
      never reach it. */
   it("asks for every word, each in any of them", async () => {
     await searchProjects("org-1", "smith, (jones)");

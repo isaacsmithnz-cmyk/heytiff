@@ -103,8 +103,33 @@ describe("a floor's rooms read from its drawing file", () => {
     expect(r.look).toEqual([{ kind: "label", room: "Bed 1, Robe", said: "Bed 1, Robe: the plan writes 2 names in one space with no wall between them. It may be 2 rooms." }]);
   });
   it("isn't trusted when the room names it writes don't land in rooms", () => {
-    expect(vectorRooms({ ...input, words: [] })).toEqual({ none: "Only 3 rooms closed off between its walls, and it writes no room names as text" });
+    expect(vectorRooms({ ...input, words: [], mmPerPt: 35.28 })).toEqual({ none: "Only 3 rooms closed off between its walls, and it writes no room names as text" });
     expect(vectorRooms({ ...input, fills: [] })).toEqual({ none: "Its walls aren't drawn in the file, filled or in lines" });
+  });
+  /* a closet walled off against the living room's top wall, `side` points square inside, its walls 4 thick */
+  const closet = (side: number) => {
+    const y = 54 + side;
+    const ring = (x0: number, y0: number, x1: number, y1: number): [number, number][] => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
+    return [...threeRooms(), ...[ring(156, 54, 160, y + 4), ring(160 + side, 54, 164 + side, y + 4), ring(156, y, 164 + side, y + 4)].map((r) => ({ colour: "#808080", rings: [r] }))];
+  };
+  it("with no scale, a room the plan names is kept however small it is drawn: a WC 1.4 m square at 1:200 is 20 points", () => {
+    const words = [...roomWords, { text: "WC", at: { x: 340, y: 128 } }];
+    const r = vectorRooms({ ...input, fills: closet(20), words });
+    if ("none" in r) throw new Error(r.none);
+    expect(r.spaces.map((s) => [s.name, s.kind])).toContainEqual(["WC", "wet"]);
+  });
+  it("with no scale, a space with no name isn't called a cupboard by its size", () => {
+    const at = (mmPerPt: number | null) => {
+      const r = vectorRooms({ ...input, fills: closet(36), mmPerPt });
+      if ("none" in r) throw new Error(r.none);
+      return r.spaces.filter((s) => !s.named).map((s) => s.kind);
+    };
+    /* 1.3 m square at 1:100 */
+    expect(at(35.28)).toEqual(["cupboard"]);
+    expect(at(null)).toEqual(["room"]);
+  });
+  it("with no scale and no room names as text, its spaces can't be told from a wall's cavity, so it isn't trusted", () => {
+    expect(vectorRooms({ ...input, words: [] })).toEqual({ none: "It writes no room names as text, and with no scale its rooms can't be told by their size" });
   });
 });
 
@@ -143,6 +168,19 @@ describe("walls drawn in lines", () => {
     expect(r.spaces.map((s) => s.name)).toEqual(["Bed 1", "Living", "Ensuite"]);
     expect(r.spaces[0].outline[0]).toEqual({ x: 108, y: 108 });
   });
+  it("a face the file draws as pieces a hair apart across is one face, no piece of it lost", () => {
+    /* each face in five pieces, every other one a billionth of a point lower */
+    const split = facesOfWalls().flatMap((l) =>
+      [0, 1, 2, 3, 4].map((i) => {
+        const at = (t: number): [number, number] => [l.a[0] + (l.b[0] - l.a[0]) * t, l.a[1] + (l.b[1] - l.a[1]) * t];
+        const [a, b] = [at(i / 5), at((i + 1) / 5)];
+        const off = l.a[1] === l.b[1] && i % 2 ? 1e-9 : 0;
+        return { ...l, a: [a[0], a[1] + off] as [number, number], b: [b[0], b[1] + off] as [number, number] };
+      }),
+    );
+    const round = (w: ReturnType<typeof lineWalls>) => w!.shapes.map((s) => s.map((r) => r.map(([x, y]) => [Math.round(x * 1e6) / 1e6, Math.round(y * 1e6) / 1e6])));
+    expect(round(lineWalls(split, null))).toEqual(round(lineWalls(facesOfWalls(), null)));
+  });
   it("a stair's treads, evenly spaced, are no wall", () => {
     const treads: Line[] = Array.from({ length: 12 }, (_, i) => ({ colour: "#000000", width: 0.5, a: [100, 100 + i * 7] as [number, number], b: [130, 100 + i * 7] as [number, number] }));
     expect(lineWalls(treads, null)).toBeNull();
@@ -161,6 +199,21 @@ describe("a room read by picture, put on the drawing's walls", () => {
       { x: 54, y: 146 },
     ]);
     expect([moved, sides]).toEqual([4, 4]);
+  });
+  it("an L-shaped room's inside corner moves onto its own face, not the far one: the room's middle lies outside it", () => {
+    /* walls 5 thick, each as its two faces: round the L, and along its two inside sides */
+    const wall = (x0: number, y0: number, x1: number, y1: number): Line[] =>
+      x1 - x0 >= y1 - y0
+        ? [{ colour: "#000000", width: 0.5, a: [x0, y0], b: [x1, y0] }, { colour: "#000000", width: 0.5, a: [x0, y1], b: [x1, y1] }]
+        : [{ colour: "#000000", width: 0.5, a: [x0, y0], b: [x0, y1] }, { colour: "#000000", width: 0.5, a: [x1, y0], b: [x1, y1] }];
+    const lines = [wall(-5, -5, 105, 0), wall(100, -5, 105, 35), wall(30, 30, 105, 35), wall(30, 30, 35, 105), wall(-5, 100, 35, 105), wall(-5, -5, 0, 105)].flat();
+    const faces = facesOf(lines, [], 8, 1, 18);
+    const read = [{ x: 2, y: 2 }, { x: 98, y: 2 }, { x: 98, y: 28 }, { x: 28, y: 28 }, { x: 28, y: 98 }, { x: 2, y: 98 }];
+    const l = { name: "Living", named: true, kind: "room" as const, written: "", existing: false, openTo: "", stair: "", outline: read };
+    const on = [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 30 }, { x: 30, y: 30 }, { x: 30, y: 100 }, { x: 0, y: 100 }];
+    expect(snapped([l], faces, 1, 6).spaces[0].outline).toEqual(on);
+    /* drawn the other way round, the same */
+    expect(snapped([{ ...l, outline: [...read].reverse() }], faces, 1, 6).spaces[0].outline).toEqual([...on].reverse());
   });
   it("a side with no wall in reach stays where it was read", () => {
     const faces = facesOf(facesOfWalls(), [], 8, 1, 18);

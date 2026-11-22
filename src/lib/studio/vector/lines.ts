@@ -19,14 +19,22 @@ const lightness = (c: string) => {
   return (parseInt(m[1], 16) + parseInt(m[2], 16) + parseInt(m[3], 16)) / (3 * 255);
 };
 
-/* one line's pieces along one coordinate made one run where they touch */
+/* one line's pieces along one coordinate made one run where they touch. The
+   pieces lying within 0.15 of each other across are taken together first,
+   then joined in turn along: a file draws one face as pieces a hair apart
+   (100, then 100.000000001, then 100 again), and sorted by where they lie
+   across, a piece came after a run that had started past it and was lost
+   in it, leaving a hole in the wall where the drawing has none */
 function runs(lines: { at: number; from: number; to: number }[], join: number): Run[] {
-  const sorted = [...lines].sort((a, b) => a.at - b.at || a.from - b.from);
+  const sorted = [...lines].sort((a, b) => a.at - b.at);
   const out: Run[] = [];
-  for (const l of sorted) {
-    const last = out[out.length - 1];
-    if (last && Math.abs(last.at - l.at) <= 0.15 && l.from <= last.to + join) last.to = Math.max(last.to, l.to);
-    else out.push({ ...l });
+  for (let i = 0, j = 0; i < sorted.length; i = j) {
+    while (j < sorted.length && sorted[j].at - sorted[i].at <= 0.15) j++;
+    let last: Run | null = null;
+    for (const l of sorted.slice(i, j).sort((a, b) => a.from - b.from)) {
+      if (last && l.from <= last.to + join) last.to = Math.max(last.to, l.to);
+      else out.push((last = { at: sorted[i].at, from: l.from, to: l.to }));
+    }
   }
   return out;
 }

@@ -157,15 +157,19 @@ export function vectorRooms(input: VectorInput): VectorRooms | { none: string } 
 }
 
 function roomsBetween(walls: Walls, input: VectorInput): VectorRooms | { none: string } {
-  /* an unknown scale is taken as 1:100 for the sizes below: a wall, a door, a cupboard */
-  const mmPerPx = (input.mmPerPt ?? 35.28) / K;
+  /* a room's size is judged only at a known scale. Taken as 1:100, a 1:200
+     sheet's 1.4 m WC was too small to be a room and dropped, and its every
+     unnamed room under 15 m² called a cupboard */
+  const mmPerPx = input.mmPerPt ? input.mmPerPt / K : null;
   const W = Math.ceil(input.width * K);
   const H = Math.ceil(input.height * K);
   const grid = rasterise(walls.shapes, input.width, input.height, K);
   const thick = walls.thickness * K;
   /* widest gap closed: 6.5 m at a known scale, else forty walls' thickness; a wall end is thin up to 560 mm */
-  const widest = input.mmPerPt ? 6500 / mmPerPx : thick * 37;
-  const thin = input.mmPerPt ? 560 / mmPerPx : thick * 3;
+  const widest = mmPerPx ? 6500 / mmPerPx : thick * 37;
+  const thin = mmPerPx ? 560 / mmPerPx : thick * 3;
+  /* the widest a doorway is: a robe's or an ensuite's opening, 2.5 m */
+  const tee = Math.round(mmPerPx ? 2500 / mmPerPx : thick * 14);
   const e = enclose(grid, W, H, Math.round(widest), Math.round(thin));
 
   /* the building: the box round the walls */
@@ -213,7 +217,7 @@ function roomsBetween(walls: Walls, input: VectorInput): VectorRooms | { none: s
   for (const s of e.spaces) {
     if (s.open) continue;
     if (s.n > buildingArea * 0.35) continue;
-    if (s.n < sq(700, mmPerPx) * 1.2) continue;
+    if (mmPerPx && s.n < sq(700, mmPerPx) * 1.2) continue;
     const w = s.box[2] - s.box[0] + 1;
     const h = s.box[3] - s.box[1] + 1;
     const words = inSpace.get(s.id) ?? [];
@@ -222,12 +226,12 @@ function roomsBetween(walls: Walls, input: VectorInput): VectorRooms | { none: s
     const names = labelsOf(room.length ? room : words, 14 * K);
     const strong = room.length;
     /* an unnamed sliver between two walls (a cavity, a bridged reveal) is no room */
-    if (!names.length && (Math.min(w, h) < 450 / mmPerPx || s.n < sq(1000, mmPerPx))) continue;
+    if (!names.length && mmPerPx && (Math.min(w, h) < 450 / mmPerPx || s.n < sq(1000, mmPerPx))) continue;
     /* TWO ROOMS' NAMES IN ONE SPACE (a bedroom open to its robe): parted
        where a wall end faces a wall across it, up to 2.5 m, inside this space
        only; each part with a name is its own room */
     if (names.length > 1 && room.length > 1) {
-      const parts = parted(e, grid, s, room.map((x) => x.at), Math.round(widest), Math.round(thin), Math.round(input.mmPerPt ? 2500 / mmPerPx : thick * 14));
+      const parts = parted(e, grid, s, room.map((x) => x.at), Math.round(widest), Math.round(thin), tee);
       if (parts) {
         for (const p of parts) {
           const held = p.holds.map((k) => room[k]);
@@ -243,9 +247,13 @@ function roomsBetween(walls: Walls, input: VectorInput): VectorRooms | { none: s
   const found = { colours: walls.colours, rooms: keep.length, named, labels, landed };
   /* a plan whose room names aren't text in the file (drawn as lines, as
      Pariatur's are) gives rooms the read by picture names in the merge;
-     one whose names are text must have most of them land in a room */
-  const big = keep.filter((k) => k.n >= sq(2000, mmPerPx)).length;
-  if (labels === 0 && big < 4) return { none: `Only ${big} room${big === 1 ? "" : "s"} closed off between its walls, and it writes no room names as text` };
+     one whose names are text must have most of them land in a room. With
+     neither names nor a scale, a room can't be told from a wall's cavity */
+  if (labels === 0) {
+    if (!mmPerPx) return { none: "It writes no room names as text, and with no scale its rooms can't be told by their size" };
+    const big = keep.filter((k) => k.n >= sq(2000, mmPerPx)).length;
+    if (big < 4) return { none: `Only ${big} room${big === 1 ? "" : "s"} closed off between its walls, and it writes no room names as text` };
+  }
   if (labels > 0 && named < 3) return { none: `Only ${named} named room${named === 1 ? "" : "s"} closed off between its walls` };
   if (labels >= 4 && landed < labels * 0.6) return { none: `Only ${landed} of the ${labels} room names it writes fell in a room closed off between its walls` };
 
@@ -256,7 +264,8 @@ function roomsBetween(walls: Walls, input: VectorInput): VectorRooms | { none: s
     const name = names.length ? names.join(", ") : "Unnamed space";
     if (names.length > 1)
       look.push({ kind: "label", room: name, said: `${name}: the plan writes ${names.length} names in one space with no wall between them. It may be ${names.length} rooms.` });
-    const small = n < sq(1600, mmPerPx) * 1.5;
+    /* an unnamed space is a cupboard by its size, so only at a known scale */
+    const small = !!mmPerPx && n < sq(1600, mmPerPx) * 1.5;
     return {
       name,
       named: names.length > 0,

@@ -127,6 +127,23 @@ export async function fullInNode(bytes: Uint8Array, numbers: readonly number[], 
   }
 }
 
+/** Each page's words, with no pixels drawn: what a set's schedule sheets are found by. */
+export async function textsInNode(bytes: Uint8Array, numbers: readonly number[]): Promise<{ n: number; words: { text: string }[] }[]> {
+  const { doc, close } = await open(bytes);
+  try {
+    const out: { n: number; words: { text: string }[] }[] = [];
+    for (const n of numbers) {
+      const page = await doc.getPage(n);
+      const items = (await page.getTextContent()).items as { str?: string }[];
+      out.push({ n, words: items.map((i) => ({ text: (i.str ?? "").trim() })).filter((w) => w.text) });
+      page.cleanup();
+    }
+    return out;
+  } finally {
+    close();
+  }
+}
+
 export type PageVectors = { n: number; fills: Fill[]; lines: Line[]; width: number; height: number; rasterScale: number; words: { text: string; at: { x: number; y: number } }[] };
 
 /** One page's filled shapes, in its own points, and its words on the walls'

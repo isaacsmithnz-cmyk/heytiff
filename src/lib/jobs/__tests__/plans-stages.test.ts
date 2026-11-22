@@ -70,7 +70,11 @@ const pixelsInNode = jest.fn(async (_b: Uint8Array, n: number, times: number) =>
 /* the drawing file's shapes: none drawn as walls, unless a test gives a floor some */
 const fileFloors = new Map<number, { fills: Fill[]; words: { text: string; at: { x: number; y: number } }[] }>();
 const vectorsInNode = jest.fn(async (_b: Uint8Array, n: number) => ({ n, width: 400, height: 300, rasterScale: 2, fills: fileFloors.get(n)?.fills ?? [], words: fileFloors.get(n)?.words ?? [] }));
+/* the set's pages' words: none a schedule, unless a test makes page 6 one */
+const scheduleOn = { page: 0 };
+const textsInNode = jest.fn(async (_b: Uint8Array, ns: readonly number[]) => ns.map((n) => ({ n, words: n === scheduleOn.page ? [{ text: "WINDOW SCHEDULE" }] : [{ text: "SECTION A" }] })));
 jest.mock("../plan-draw-node", () => ({
+  textsInNode: (...a: unknown[]) => textsInNode(...(a as [Uint8Array, number[]])),
   vectorsInNode: (...a: unknown[]) => vectorsInNode(...(a as [Uint8Array, number])),
   previewsInNode: (...a: unknown[]) => previewsInNode(...(a as [Uint8Array])),
   fullInNode: (...a: unknown[]) => fullInNode(...(a as [Uint8Array, number[]])),
@@ -95,6 +99,7 @@ jest.mock("@/lib/studio/measured-server", () => ({
   },
   nameRooms: (_m: unknown, o: { floorName: string; deadline?: number }) => readMeasured(null, 1, o),
 }));
+const readSchedule = jest.fn(async (_png: Buffer, _words: unknown[]) => ({ items: [{ mark: "GW.21", type: "W.05", kind: "window", width_mm: 750, height_mm: 1800, sill_mm: 300 }] }));
 const readSheet = jest.fn(async (_o: string, s: { floorId: string }) => ({ sheetId: s.floorId, spaces: [{ name: "Living", points: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }] }, { name: "Kitchen", points: [{ x: 100, y: 0 }, { x: 200, y: 0 }, { x: 200, y: 100 }] }] }));
 jest.mock("@/lib/studio/reading-server", () => ({
   READING_MODEL: "claude-opus-5-5",
@@ -102,6 +107,7 @@ jest.mock("@/lib/studio/reading-server", () => ({
   readRoof: async () => ({ said: null }),
   readSite: async () => null,
   readDimensions: async () => [],
+  readSchedule: (...a: unknown[]) => readSchedule(...(a as [Buffer, unknown[]])),
   askWith: async () => ({}),
   pngBlock: (b: Buffer) => b,
 }));
@@ -128,6 +134,8 @@ beforeEach(() => {
   Object.assign(preparing, { now: 0, most: 0, marks: [] });
   pixelsInNode.mockClear();
   vectorsInNode.mockClear();
+  readSchedule.mockClear();
+  scheduleOn.page = 0;
   fileFloors.clear();
   /* off unless asked for; its own tests turn it on */
   delete process.env.PLANS_MEASURED;
@@ -296,5 +304,29 @@ describe("with a floor's rooms read from the drawing file", () => {
     } finally {
       delete process.env.PLANS_VECTOR;
     }
+  });
+});
+
+describe("the set's door and window schedule", () => {
+  it("is found among the pages, read once, and gives each opening its size by its mark", async () => {
+    scheduleOn.page = 6;
+    readSheet.mockImplementation((async (_o: string, sh: { floorId: string }) => ({
+      sheetId: sh.floorId,
+      spaces: [{ name: "Living", outline: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }] }],
+      openings: [{ kind: "window", tag: "GW.21", a: { x: 0, y: 0 }, b: { x: 50, y: 0 }, widthMm: 900, room: "Living", external: true, facing: "N" }],
+    })) as never);
+    try {
+      await readPlan("org-1", "jplan_1", "https://app.test", client);
+      clock += 1_000;
+      await readPlan("org-1", "jplan_1", "https://app.test", client);
+    } finally {
+      readSheet.mockImplementation(async (_o: string, sh: { floorId: string }) => ({ sheetId: sh.floorId, spaces: [{ name: "Living", points: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }] }, { name: "Kitchen", points: [{ x: 100, y: 0 }, { x: 200, y: 0 }, { x: 200, y: 100 }] }] }));
+    }
+    /* only the pages that aren't floors are looked through, and only the schedule drawn and read */
+    expect(textsInNode.mock.calls.at(-1)![1]).toEqual([1, 5, 6]);
+    expect(readSchedule).toHaveBeenCalledTimes(1);
+    const reading = plan().reading as { schedule?: unknown; floors: Record<string, { openings: { widthMm: number; heightMm?: number; sillMm?: number }[] }[]> };
+    expect(reading.schedule).toEqual({ pages: [6], marks: 1, matched: 3 });
+    expect(reading.floors.p3[0].openings[0]).toMatchObject({ widthMm: 750, heightMm: 1800, sillMm: 300 });
   });
 });

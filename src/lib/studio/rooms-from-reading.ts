@@ -74,12 +74,12 @@ export function suggestionsFor(floor: Pick<Floor, "plans">, sheets: SheetReading
   return out;
 }
 
-/* A window's glass is its width by this height when the plan gives only
-   the width (the floor read does; the elevations will give the real one). */
+/* A window's glass is its width by this height when nothing gives its
+   height; the set's schedule does, by its mark (schedule.ts). */
 const WINDOW_HEIGHT_M = 1.2;
 
-/** The glass read for a room, in m². */
-export const glassM2 = (s: Pick<Suggestion, "windows">) => s.windows.reduce((t, w) => t + (w.widthMm / 1000) * WINDOW_HEIGHT_M, 0);
+/** The glass read for a room, in m²: each window's width by its scheduled height, else 1.2 m. */
+export const glassM2 = (s: Pick<Suggestion, "windows">) => s.windows.reduce((t, w) => t + (w.widthMm / 1000) * (w.heightMm && w.heightMm > 0 ? w.heightMm / 1000 : WINDOW_HEIGHT_M), 0);
 
 /** The glazing level from glass over floor area, by the fixed cut-offs
     (Isaac left it to the most reliable answer, 20 October): under 15% low,

@@ -56,7 +56,7 @@ const lightness = (c: string) => {
   return (parseInt(m[1], 16) + parseInt(m[2], 16) + parseInt(m[3], 16)) / (3 * 255);
 };
 
-const near = (p: [number, number], q: [number, number], d: number) => Math.abs(p[0] - q[0]) <= d && Math.abs(p[1] - q[1]) <= d;
+const near = (p: readonly [number, number], q: readonly [number, number], d: number) => Math.abs(p[0] - q[0]) <= d && Math.abs(p[1] - q[1]) <= d;
 
 /** An arrow drawn on the page: where three or more short dark strokes meet
     (a shaft and its head's two sides), the way it points (from the strokes'

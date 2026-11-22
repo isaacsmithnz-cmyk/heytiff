@@ -54,11 +54,13 @@ it("puts each item in one group, and orders a supplier's lot from its one button
   expect(screen.getAllByText("Unit DDD-4")).toHaveLength(1);
   fireEvent.click(screen.getByRole("button", { name: "Order from AAD" }));
   expect(screen.getByRole("button", { name: "Mark 3 ordered" })).toBeTruthy();
+  /* From starts at the lot's supplier */
+  expect(screen.getByText("AAD, the cheapest")).toBeTruthy();
   fireEvent.click(screen.getByRole("checkbox", { name: /BBB-2/ }));
   const go = screen.getByRole("button", { name: "Mark 2 ordered" });
   (stockPress as jest.Mock).mockResolvedValue({ ok: false, reason: "no" });
   await act(async () => {
     fireEvent.click(go);
   });
-  expect(stockPress).toHaveBeenCalledWith(expect.objectContaining({ do: "ordered", supplier: "aad", keys: ["AAA-1"] }));
+  expect(stockPress).toHaveBeenCalledWith(expect.objectContaining({ do: "ordered", supplier: "aad", keys: ["AAA-1"], from: "aad" }));
 });

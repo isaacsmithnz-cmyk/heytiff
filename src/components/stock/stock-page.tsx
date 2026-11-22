@@ -864,8 +864,10 @@ function HadDialog({ it, busy, onClose, onSave }: { it: Item; busy: boolean; onC
 
 /** Order from a supplier: one sheet for its whole lot. What's ordered (all
     ticked to begin with), where each job's part goes, the day it lands and
-    their order number, then Mark ordered. A lot with no supplier in the price
-    book asks who it's from first. */
+    their order number, then Mark ordered. From starts at the lot's supplier,
+    the cheapest in the price book, and can send the whole order to another
+    (Isaac, 22 November 2026: "yes add a From choice"); a lot with no
+    supplier in the book starts at Not said. */
 function OrderFromDialog({
   d,
   supplier,
@@ -886,7 +888,7 @@ function OrderFromDialog({
   const [sites, setSites] = useState<Set<string>>(new Set());
   const [due, setDue] = useState("");
   const [ref, setRef] = useState("");
-  const [from, setFrom] = useState("");
+  const [from, setFrom] = useState(supplier ?? "");
   if (!o) return null;
   const jobOf = new Map(d.jobs.map((j) => [j.job.uuid, j.job]));
   const lines = o.lines.filter((l) => pick.has(l.key));
@@ -897,10 +899,12 @@ function OrderFromDialog({
   const known = new Map<string, string>();
   for (const x of d.orders) if (x.supplierKey) known.set(x.supplierKey, x.supplierName);
   for (const ps of Object.values(d.prices)) for (const p of ps) known.set(p.supplierKey, p.name);
-  const fromName = supplier ? o.supplierName : known.get(from) ?? null;
+  if (supplier && !known.has(supplier)) known.set(supplier, o.supplierName);
+  const fromName = known.get(from) ?? null;
+  const fromUrl = d.orders.find((x) => x.supplierKey === from)?.orderUrl ?? null;
   return (
     <Dialog
-      heading={supplier ? `Order from ${o.supplierName}` : "Order them"}
+      heading={fromName ? `Order from ${fromName}` : "Order them"}
       onClose={onClose}
       width={560}
       foot={
@@ -917,7 +921,7 @@ function OrderFromDialog({
               const siteDue: Record<string, string | null> = {};
               for (const u of toSite) siteDue[u] = due || null;
               onSave(
-                { do: "ordered", supplier, keys: lines.map((l) => l.key), from: supplier ? null : from || null, sites: toSite, due: { factory: due || null, sites: siteDue }, ref: ref || null },
+                { do: "ordered", supplier, keys: lines.map((l) => l.key), from: from || null, sites: toSite, due: { factory: due || null, sites: siteDue }, ref: ref || null },
                 `${n} ordered${fromName ? ` from ${fromName}` : ""}`,
                 d.items.filter((i) => pick.has(i.key)),
               );
@@ -930,11 +934,9 @@ function OrderFromDialog({
     >
       <div className="stk-ofd">
       <p className="stk-dsub">{`${plural(o.lines.reduce((s, l) => s + l.qty, 0), "item")} for ${and(all)}`}</p>
-      {supplier ? null : (
-        <Field label="From">
-          <Chooser options={[{ value: "", label: "Not said" }, ...[...known].map(([value, label]) => ({ value, label }))]} value={from} onChange={setFrom} />
-        </Field>
-      )}
+      <Field label="From">
+        <Chooser options={[...(supplier ? [] : [{ value: "", label: "Not said" }]), ...[...known].map(([value, label]) => ({ value, label: value === supplier ? `${label}, the cheapest` : label }))]} value={from} onChange={setFrom} />
+      </Field>
       <div className="stk-fld">
         <span className="stk-lbl">What you’re ordering</span>
         <ul className="stk-share">
@@ -987,15 +989,15 @@ function OrderFromDialog({
       <Field label="Their order number">
         <TextInput value={ref} onChange={(e) => setRef(e.currentTarget.value.slice(0, 60))} />
       </Field>
-      {o.orderUrl ? (
+      {fromUrl ? (
         <div className="stk-askrow stk-site">
-          <Button kind="second" size={36} href={o.orderUrl} target="_blank" rel="noreferrer">
-            {`Open ${o.supplierName}’s site`}
+          <Button kind="second" size={36} href={fromUrl} target="_blank" rel="noreferrer">
+            {`Open ${fromName}’s site`}
           </Button>
         </div>
-      ) : supplier ? (
+      ) : from && fromName ? (
         <div className="stk-askrow stk-site">
-          <Button kind="second" size={36} onClick={() => onAddSite(supplier, o.supplierName)}>
+          <Button kind="second" size={36} onClick={() => onAddSite(from, fromName)}>
             Add their site
           </Button>
         </div>

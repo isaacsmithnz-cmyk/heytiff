@@ -10176,8 +10176,6 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
 .dstudio .ds3-lab.check { border-color: var(--red-w); color: var(--red-w); }
 /* what a tapped room or unit is */
 .dstudio .ds3-card { position: absolute; z-index: 2; width: 228px; padding: 12px; border: 1px solid var(--edge); border-radius: var(--r-control); background: var(--paper); color: var(--ink); font-size: 13px; line-height: 20px; pointer-events: none; }
-/* the floors, over the picture's top right */
-.dstudio .ds3-show.ds3-floors { left: auto; right: 16px; }
 .dstudio .ds3-hour { width: 120px; accent-color: var(--ink); }
 .dstudio .ds3-time { min-width: 64px; font-size: 13px; line-height: 20px; font-weight: 600; color: var(--ink); }
 .dstudio .ds-print-3d { display: block; width: 100%; height: 100%; object-fit: contain; }
@@ -10185,6 +10183,33 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
 .dstudio .ds3-lines line { stroke: var(--gray500); stroke-width: 1; }
 /* what the 3D picture shows, over its top left corner (mock, 8 November 2026) */
 .dstudio .ds3-show { position: absolute; top: 16px; left: 16px; display: flex; flex-wrap: wrap; align-items: center; max-width: calc(100% - 32px); gap: 4px; padding: 4px; border: 1px solid var(--edge); border-radius: var(--r-button); background: var(--paper); }
+/* standing in a room in the Studio or on the live link, Back out at the
+   picture's foot, clear of the plan's pill over its top left */
+.dstudio .ds3-show.ds3-back { top: auto; bottom: 16px; }
+/* THE VIEW PANEL down the picture's right, folding sideways to a tab on its
+   edge (Isaac, 22 November 2026: "collapse should be horizontal", then
+   "Build it" to https://claude.ai/artifact/7tdUEA4NkXE52kYpGPHFqn). Its
+   256 is VIEW_PANEL_PX in view-3d.tsx, which centres the house beside it */
+.dstudio .ds3-view { position: absolute; top: 0; right: 0; bottom: 0; z-index: 12; width: 256px; overflow-y: auto; background: var(--paper); border-left: 1px solid var(--line); }
+.dstudio .ds3-view-head { display: flex; align-items: center; gap: 8px; width: 100%; height: 56px; padding: 0 16px; border: 0; border-bottom: 1px solid var(--line); background: transparent; font: 600 14px/20px var(--font); color: var(--ink); cursor: pointer; }
+.dstudio .ds3-view-head span { flex: 1; text-align: left; }
+.dstudio .ds3-view-body { padding: 4px 8px 8px; }
+.dstudio .ds3-view-grp { margin: 0; padding: 8px 8px 4px; font-size: 12px; line-height: 16px; font-weight: 500; color: var(--q); }
+.dstudio .ds3-view-sep { margin: 4px 8px; border: 0; border-top: 1px solid var(--line); }
+/* a switch a row, the word on the left and the switch on the right */
+.dstudio .ds3-sw[role="switch"] { display: flex; flex-direction: row-reverse; justify-content: space-between; width: 100%; height: 32px; padding: 0 8px; border-radius: var(--r-control); }
+.dstudio .ds3-sw[role="switch"]:hover { background: var(--hov); }
+/* the last floor on can't go off: its switch is quieter, its word isn't */
+.dstudio .ds3-sw[role="switch"]:disabled { opacity: 1; }
+.dstudio .ds3-sw[role="switch"]:disabled .pt-switch__track { opacity: .5; }
+.dstudio .ds3-view-sun { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 8px; }
+.dstudio .ds3-view-sun .ds3-hour { flex: 1; width: auto; min-width: 0; }
+.dstudio .ds3-view-sun .ds3-time { min-width: 0; text-align: right; }
+.dstudio .ds3-view-tab { position: absolute; top: 24px; right: 0; z-index: 12; display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 16px 0 12px; border: 0; border-radius: 16px 0 0 16px; background: var(--paper); box-shadow: var(--shadow-overlay); font: 600 14px/20px var(--font); color: var(--ink); cursor: pointer; }
+.dstudio .ds3-view-head:focus-visible,
+.dstudio .ds3-view-tab:focus-visible { outline: none; box-shadow: var(--ring); }
+/* Tiff's pill steps left of the open panel */
+.dstudio .ds-editor.clean .ds-canvas-col:has(.ds3-view) .tc-ask { right: 272px; }
 .dstudio .ds3-none,
 .dstudio .ds3-empty p { margin: 0; font-size: 14px; line-height: 20px; color: var(--gray500); text-align: center; max-width: 48ch; }
 .dstudio .ds3-none { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; }

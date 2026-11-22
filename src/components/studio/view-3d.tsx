@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type * as THREE_NS from "three";
 import { WALLED, middleOf, toPlan, type Floor3D, type Grille3D, type Opening3D, type Scene3D, type Space3D, type Unit3D, type XZ } from "@/lib/studio/scene3d";
 import { within } from "@/lib/studio/furnish3d";
@@ -10,6 +10,8 @@ import { latitudeOf, sunAt, towardsSun } from "@/lib/studio/sun";
 import { clipOut, flows } from "@/lib/studio/tidy3d";
 import { pieceMaker } from "./view-3d-pieces";
 import { airMaker } from "./view-3d-air";
+import { Icon } from "@/components/shell/icon";
+import { Switch } from "@/components/parts/tick";
 
 /* THE DESIGN IN 3D (Isaac, 20 October 2026: "a button on Design"). The
    scene is worked out in lib/studio/scene3d; this paints it with three.js,
@@ -113,7 +115,37 @@ type Built = {
   still: () => string;
   /** stop drawing frames, or start again: the phone's 3D waiting behind its plan */
   pause: (on: boolean) => void;
+  /** the width the View panel covers on the picture's right, so the house centres in what's left */
+  inset: (px: number) => void;
   dispose: () => void;
+};
+
+/** how wide the View panel is over the picture's right, and where its open or folded is kept */
+const VIEW_PANEL_PX = 256;
+const VIEW_KEY = "heytiff.3d-view";
+/* kept on this browser, as the canvas's wheel setting is (wheel-mode.ts):
+   the markup that hydrates is open, and only then the stored choice */
+const viewFolds = new Set<() => void>();
+const viewIsOpen = () => {
+  try {
+    return localStorage.getItem(VIEW_KEY) !== "folded";
+  } catch {
+    return true;
+  }
+};
+const foldView = (open: boolean) => {
+  try {
+    localStorage.setItem(VIEW_KEY, open ? "open" : "folded");
+  } catch {
+    /* no storage: the panel won't stay as it was left, and nothing else */
+  }
+  viewFolds.forEach((f) => f());
+};
+const onViewFold = (f: () => void) => {
+  viewFolds.add(f);
+  return () => {
+    viewFolds.delete(f);
+  };
 };
 
 /** "FAMILY ROOM" reads as "Family room": no type in capitals */
@@ -1780,6 +1812,7 @@ async function build(
   controls.addEventListener("start", () => {
     turned = true;
   });
+  let padRight = 0;
   const resize = () => {
     const w = host.clientWidth;
     const h = host.clientHeight;
@@ -1793,6 +1826,11 @@ async function build(
     svg.setAttribute("height", String(h));
     camera.aspect = w / h;
     if (!turned) camera.position.copy(home).sub(controls.target).divideScalar(Math.min(1, camera.aspect)).add(controls.target);
+    /* the View panel over the picture's right: the picture's middle moves
+       left by half of it, so the house stands in the middle of what shows;
+       labels and picking go through the same projection */
+    if (padRight > 0 && padRight < w) camera.setViewOffset(w, h, padRight / 2, 0, w, h);
+    else camera.clearViewOffset();
     camera.updateProjectionMatrix();
   };
   const watch = new ResizeObserver(resize);
@@ -2092,6 +2130,11 @@ async function build(
         frame();
       }
     },
+    inset: (px: number) => {
+      if (px === padRight) return;
+      padRight = px;
+      resize();
+    },
     dispose: () => {
       gone = true;
       cancelAnimationFrame(raf);
@@ -2116,6 +2159,18 @@ async function build(
       renderer.domElement.remove();
     },
   };
+}
+
+/** A floor's switch flipped in the View panel, as the phone's View menu does
+    it: every floor on is All, one is that floor alone (not lifted apart),
+    any other set is All with the rest left out; the last floor on stays on */
+export function flipFloor(look: Look3D, ids: string[], id: string): Look3D | null {
+  const on = ids.filter((x) => shows(look, x));
+  const next = ids.filter((x) => (x === id ? !on.includes(x) : on.includes(x)));
+  if (!next.length) return null;
+  if (next.length === ids.length) return { ...look, floor: ALL_FLOORS, hide: undefined };
+  if (next.length === 1) return { ...look, floor: next[0], hide: undefined, apart: false };
+  return { ...look, floor: ALL_FLOORS, hide: ids.filter((x) => !next.includes(x)) };
 }
 
 export function View3D({
@@ -2155,6 +2210,18 @@ export function View3D({
   const lookRef = useRef(look);
   const [noGl, setNoGl] = useState(false);
   const [standing, setStanding] = useState(false);
+  /* THE VIEW PANEL down the picture's right, open or folded to a tab on its
+     edge (Isaac, 22 November 2026: "no it should be a collapsable on right
+     side of canvas", "collapse should be horizontal", then "Build it" to
+     https://claude.ai/artifact/7tdUEA4NkXE52kYpGPHFqn). Open until folded,
+     and kept as it was left, on this browser */
+  const viewOpen = useSyncExternalStore(onViewFold, viewIsOpen, () => true);
+  const panel = !!onLook && !noGl && viewOpen;
+  const panelRef = useRef(panel);
+  useEffect(() => {
+    panelRef.current = panel;
+    builtRef.current?.inset(panel ? VIEW_PANEL_PX : 0);
+  }, [panel]);
 
   useEffect(() => {
     lookRef.current = look;
@@ -2179,6 +2246,7 @@ export function View3D({
       if (!b) setNoGl(true);
       builtRef.current = b;
       if (pausedRef.current) b?.pause(true);
+      b?.inset(panelRef.current ? VIEW_PANEL_PX : 0);
       houseRef.current?.(b ? b.glb : null);
     });
     return () => {
@@ -2192,71 +2260,73 @@ export function View3D({
 
   const tiles = scene.floors.some((f) => f.tiles.length > 0) && !!planUrl;
   const air = scene.units.some((u) => !u.outdoor) || scene.grilles.length > 0;
-  const toggle = (on: boolean, word: string, next: Partial<Look3D>) => (
-    <button key={word} type="button" className={`ds-ctl-btn${on ? " on" : ""}`} aria-pressed={on} onClick={() => onLook?.({ ...look, ...next })}>
-      {word}
-    </button>
+  /* a switch a row, its word on the left, as the phone's View menu has them */
+  const row = (word: string, on: boolean, next: Partial<Look3D>) => (
+    <Switch key={word} className="ds3-sw" checked={on} label={word} onChange={() => onLook?.({ ...look, ...next })} />
   );
+  const ids = scene.floors.map((f) => f.id);
+  const onIds = ids.filter((id) => shows(look, id));
+  const flip = (id: string) => {
+    const next = flipFloor(look, ids, id);
+    if (next) onLook?.(next);
+  };
   return (
     <div className="ds3" ref={hostRef} aria-label="The design in 3D" role="img">
       {noGl && <p className="ds3-none">The 3D view needs WebGL, which this browser has turned off.</p>}
-      {/* what the picture shows, over its corner (mock, 8 November 2026): the
-          drawing on the floors, the outside, the air, the names; and, standing
-          in a room, the way back out */}
-      {/* the phone's page has no tray, but standing in a room still needs a way out */}
-      {!onLook && standing && (
-        <div className="ds3-show">
+      {/* standing in a room, the way back out over the picture's top left;
+          the phone's page, with no panel, needs it too */}
+      {standing && (
+        <div className={`ds3-show${onLook ? " ds3-back" : ""}`}>
           <button type="button" className="ds-ctl-btn" onClick={() => builtRef.current?.backOut()}>
             Back out
           </button>
         </div>
       )}
-      {onLook && !noGl && (
-        <>
-          {scene.floors.length > 1 && (
-            <div className="ds3-show ds3-floors" role="group" aria-label="Floors">
-              {toggle(look.floor === ALL_FLOORS, "All", { floor: ALL_FLOORS })}
-              {scene.floors.map((f) => (
-                <button
-                  key={f.id}
-                  type="button"
-                  className={`ds-ctl-btn${look.floor === f.id ? " on" : ""}`}
-                  aria-pressed={look.floor === f.id}
-                  onClick={() => onLook?.({ ...look, floor: f.id, apart: false })}
-                >
-                  {sentence(f.name)}
-                </button>
-              ))}
-              {look.floor === ALL_FLOORS && toggle(look.apart, "Lift apart", { apart: !look.apart })}
-            </div>
-          )}
-          <div className="ds3-show" role="group" aria-label="Show">
-            {standing && (
-              <button type="button" className="ds-ctl-btn" onClick={() => builtRef.current?.backOut()}>
-                Back out
-              </button>
-            )}
-            {tiles &&
-              toggle(look.plans !== false, "Plans", {
-                plans: look.plans === false,
-              })}
-            {toggle(!!look.outside, "Outside", { outside: !look.outside })}
-            {air && toggle(!!look.air, "Airflow", { air: !look.air })}
-            {!customer && scene.roofs.length > 0 && toggle(!!look.space, "Roof space", { space: !look.space })}
-            {!customer && toggle(!!look.measure, "Measure", { measure: !look.measure })}
-            {toggle(look.sun != null, "Sun", {
-              sun: look.sun != null ? undefined : 15,
-            })}
-            {look.sun != null && (
+      {onLook && !noGl && !viewOpen && (
+        <button type="button" className="ds3-view-tab" aria-expanded={false} onClick={() => foldView(true)}>
+          <Icon name="chevL" size={14} />
+          <Icon name="layers" size={14} />
+          View
+        </button>
+      )}
+      {panel && (
+        <div className="ds3-view" role="group" aria-label="View">
+          <button type="button" className="ds3-view-head" aria-expanded onClick={() => foldView(false)}>
+            <Icon name="layers" size={14} />
+            <span>View</span>
+            <Icon name="chevR" size={14} />
+          </button>
+          <div className="ds3-view-body">
+            {scene.floors.length > 1 && (
               <>
-                <input type="range" className="ds3-hour" min={5} max={20} step={0.5} value={look.sun} aria-label="Time of day" onChange={(e) => onLook?.({ ...look, sun: Number(e.target.value) })} />
-                <span className="ds3-time">{`${Math.floor(look.sun) % 12 || 12}:${look.sun % 1 ? "30" : "00"} ${look.sun < 12 ? "am" : "pm"}`}</span>
-                {toggle(!!look.winter, "Winter", { winter: !look.winter })}
+                <p className="ds3-view-grp">Floors</p>
+                {scene.floors.map((f) => {
+                  const on = onIds.includes(f.id);
+                  return <Switch key={f.id} className="ds3-sw" checked={on} disabled={on && onIds.length === 1} label={sentence(f.name)} onChange={() => flip(f.id)} />;
+                })}
+                {onIds.length > 1 && row("Lift apart", look.apart, { apart: !look.apart })}
+                <hr className="ds3-view-sep" />
               </>
             )}
-            {toggle(look.labels, "Labels", { labels: !look.labels })}
+            <p className="ds3-view-grp">Show</p>
+            {tiles && row("Plans", look.plans !== false, { plans: look.plans === false })}
+            {row("Outside", !!look.outside, { outside: !look.outside })}
+            {air && row("Airflow", !!look.air, { air: !look.air })}
+            {!customer && scene.roofs.length > 0 && row("Roof space", !!look.space, { space: !look.space })}
+            {!customer && row("Measure", !!look.measure, { measure: !look.measure })}
+            {row("Sun", look.sun != null, { sun: look.sun != null ? undefined : 15 })}
+            {look.sun != null && (
+              <>
+                <div className="ds3-view-sun">
+                  <input type="range" className="ds3-hour" min={5} max={20} step={0.5} value={look.sun} aria-label="Time of day" onChange={(e) => onLook?.({ ...look, sun: Number(e.target.value) })} />
+                  <span className="ds3-time">{`${Math.floor(look.sun) % 12 || 12}:${look.sun % 1 ? "30" : "00"} ${look.sun < 12 ? "am" : "pm"}`}</span>
+                </div>
+                {row("Winter", !!look.winter, { winter: !look.winter })}
+              </>
+            )}
+            {row("Labels", look.labels, { labels: !look.labels })}
           </div>
-        </>
+        </div>
       )}
     </div>
   );

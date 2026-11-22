@@ -10192,7 +10192,8 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
    256 is VIEW_PANEL_PX in view-3d.tsx, which centres the house beside it */
 .dstudio .ds3-view { position: absolute; top: 0; right: 0; bottom: 0; z-index: 12; width: 256px; overflow-y: auto; background: var(--paper); border-left: 1px solid var(--line); }
 .dstudio .ds3-view-head { display: flex; align-items: center; gap: 8px; width: 100%; height: 56px; padding: 0 16px; border: 0; border-bottom: 1px solid var(--line); background: transparent; font: 600 14px/20px var(--font); color: var(--ink); cursor: pointer; }
-.dstudio .ds3-view-head span { flex: 1; text-align: left; }
+/* the word takes the room, so the chevron sits at the head's end (the icons wear spans too) */
+.dstudio .ds3-view-head .ds3-view-word { flex: 1; text-align: left; }
 .dstudio .ds3-view-body { padding: 4px 8px 8px; }
 .dstudio .ds3-view-grp { margin: 0; padding: 8px 8px 4px; font-size: 12px; line-height: 16px; font-weight: 500; color: var(--q); }
 .dstudio .ds3-view-sep { margin: 4px 8px; border: 0; border-top: 1px solid var(--line); }

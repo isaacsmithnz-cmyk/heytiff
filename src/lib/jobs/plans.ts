@@ -18,7 +18,7 @@ import { newId } from "@/lib/studio/document";
 import { defaultFloorName, placeSheets, type UploadedSheet } from "@/lib/studio/plans";
 import type { TrimRect } from "@/lib/studio/plan-trim";
 import type { MeasuredScale, PlanReading, PlanWord, ReadLook, ReadPoint, ReadSpace, SheetReading, SpaceJoin, WallGap } from "@/lib/studio/reading";
-import { area, scaleFromWritten, suggestedRooms } from "@/lib/studio/reading";
+import { area, SCALE_AGREES, scaleFromWritten, suggestedRooms } from "@/lib/studio/reading";
 export { scaleFromWritten };
 import { andList } from "@/lib/swms/library";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
@@ -173,9 +173,15 @@ const FLOOR_TITLE = new RegExp(`\\b(?:(${LEVEL_WORDS})\\s+(?:FLOOR\\s+)?PLAN\\b|
     a room called Pool beside a house's plan is not one */
 const OUTBUILDING_BEFORE = /\b(GARAGE|GARGE|CARPORT|CABANA|POOL\s+HOUSE|SHED|GRANNY\s+FLAT|SECONDARY\s+DWELLING|WORKSHOP|BARN)\b[\s&A-Z]{0,12}$/;
 /** the building as it stands before the work, named against the title:
-    "EXISTING GROUND FLOOR PLAN", "GF PLAN - EXISTING" */
+    "EXISTING GROUND FLOOR PLAN", "GF PLAN - EXISTING". Only a PROPOSED
+    joined to the EXISTING ("PROPOSED/EXISTING", "EXISTING & PROPOSED")
+    draws the new over the old: one a word or two off may be the next
+    drawing's title, and a legend's "EXISTING WALLS" after the title is no
+    qualifier of it */
 const EXISTING_BEFORE = /\bEXISTING\W{0,3}$/;
-const EXISTING_AFTER = /^\W{0,4}EXISTING\b/;
+const JOINED_BEFORE = /\bPROPOSED\s*(?:\/|&|AND|\+)\s*EXISTING\W{0,3}$/;
+const EXISTING_AFTER = /^\s*[-–:(]\s*EXISTING\b(?!\s*(?:\/|&|AND|\+)\s*PROPOSED)/;
+const PROPOSED_BEFORE = /\bPROPOSED\W{0,3}$/;
 /** a plan of something other than the rooms: never a floor to read */
 const NOT_A_FLOOR = /\b(DEMOLITION|ELECTRICAL|LIGHTING|REFLECTED\s+CEILING|RCP|DRAINAGE|STORMWATER|SEWER|HYDRAULIC|LANDSCAPE|SEDIMENT|EROSION|SET[\s-]?OUT|SLAB|FOOTING|FRAMING|BRACING|TILING|FINISHES|FURNITURE|CEILING\s+PLAN|SHADOW|WASTE|BASIX|FIRE|SIGNAGE|MARKING)\b/;
 const SITE_TITLE = /\b(SITE\s+(?:ANALYSIS\s+)?PLAN|LOCATION\s+PLAN|LOCALITY\s+PLAN|SITE\s+AND\s+ROOF\s+PLAN|SITE\/ROOF\s+PLAN|BLOCK\s+PLAN)\b/;
@@ -230,8 +236,10 @@ export function guessPageByWords(words: readonly Word[] | null | undefined): Pag
   /* a title that says what kind of plan it is, from the title block first */
   const titles = [...text.matchAll(FLOOR_TITLE)];
   const floor = titles[0];
-  const before = (m: RegExpMatchArray) => text.slice(Math.max(0, m.index! - 20), m.index!);
-  const after = (m: RegExpMatchArray) => text.slice(m.index! + m[0].length, m.index! + m[0].length + 16);
+  const before = (m: RegExpMatchArray) => text.slice(Math.max(0, m.index! - 24), m.index!);
+  const after = (m: RegExpMatchArray) => text.slice(m.index! + m[0].length, m.index! + m[0].length + 28);
+  const existing = (m: RegExpMatchArray) =>
+    (EXISTING_BEFORE.test(before(m)) && !JOINED_BEFORE.test(before(m))) || (EXISTING_AFTER.test(after(m)) && !PROPOSED_BEFORE.test(before(m)));
   const notAFloor = (m: RegExpMatchArray) => NOT_A_FLOOR.test(text.slice(Math.max(0, m.index! - 24), m.index! + m[0].length + 24));
   if (floor && !notAFloor(floor)) {
     /* a garage's or a cabana's floor is that building's, not the house's:
@@ -243,12 +251,15 @@ export function guessPageByWords(words: readonly Word[] | null | undefined): Pag
     /* the house as it stands before the work isn't the floor that's built
        (the look's own rule, plans-server.ts): an alterations set draws both,
        and the two read as one ground floor put the real one a floor up. One
-       that draws the new over the old, "EXISTING/PROPOSED", is the floor. */
-    if (house.some((m) => (EXISTING_BEFORE.test(before(m)) || EXISTING_AFTER.test(after(m))) && !/\bPROPOSED\b/.test(`${before(m)} ${after(m)}`))) return { kind: "other", name: "", level: null };
-    /* a page naming floors at two levels is a cover's drawing list, or a
-       sheet drawing two floors: it isn't one floor at one level, and a
-       cover read as the ground floor put the house's own a floor up */
-    if (new Set(house.flatMap((m) => levelOfTitle(m[0])?.level ?? [])).size > 1) return { kind: "other", name: "", level: null };
+       that draws the new over the old, "EXISTING/PROPOSED", is the floor; a
+       sheet drawing the old beside the new isn't one floor to read. */
+    if (house.some(existing)) return { kind: "other", name: "", level: null };
+    /* a page naming floors at two levels may be a cover's drawing list, a
+       sheet drawing two floors, or one floor whose stair says "REFER FIRST
+       FLOOR PLAN": the words don't say which, so it's left to the look,
+       which takes a cover for one (a cover read as the ground floor put the
+       house's own a floor up; one taken as other lost a floor unsaid) */
+    if (new Set(house.flatMap((m) => levelOfTitle(m[0])?.level ?? [])).size > 1) return null;
     const lv = levelOfTitle(floor[0]);
     return { kind: "floor", name: lv?.name ?? "Floor plan", level: lv?.level ?? 0 };
   }
@@ -273,10 +284,6 @@ export const floorPagesOf = (plan: { pages: readonly JobPlanPage[] }): JobPlanPa
    at 40 m (plan-set.ts gives a design's floors the same rule). A set's
    floor pages are its file's, drawn at one size. */
 
-/** How far a page's own measure may be from a scale of its set and be taken
-    for it: the measuring's own leeway (SCALE_AGREES, reading.ts), well
-    inside the nearest two scales a plan is drawn at, 1:125 and 1:150. */
-const ONE_SCALE = 0.08;
 /** How far apart two floors' scales may be and still line up: 1% is 0.2 m
     across a 20 m house, about a wall. */
 const LINES_UP = 0.01;
@@ -288,11 +295,13 @@ const ownSure = (p: JobPlanPage): number | null => (p.set && p.set.mmPerPx > 0 ?
 const sameSet = (a: JobPlanPage, b: JobPlanPage) => a.n !== b.n && a.kind === "floor" && b.kind === "floor" && a.width === b.width && a.height === b.height;
 
 /** The floor page of `set` whose sure scale a page's measure, `mm`, is but
-    for noise; the first, in the set's order. Null when none is. */
+    for noise, the measuring's own leeway (SCALE_AGREES), well inside the
+    nearest two scales a plan is drawn at, 1:125 and 1:150; the first, in
+    the set's order. Null when none is. */
 function sureOfSet(page: JobPlanPage, set: readonly JobPlanPage[], mm: number): JobPlanPage | null {
   for (const q of set) {
     const sure = sameSet(page, q) ? ownSure(q) : null;
-    if (sure && Math.abs(mm / sure - 1) <= ONE_SCALE) return q;
+    if (sure && Math.abs(mm / sure - 1) <= SCALE_AGREES) return q;
   }
   return null;
 }
@@ -301,8 +310,9 @@ function sureOfSet(page: JobPlanPage, set: readonly JobPlanPage[], mm: number): 
     the title block prints, else the lengths printed along its dimension
     lines, else the sizes written in its rooms. Given the plan's pages, one
     only measured takes the sure scale a floor of its set has where the two
-    are one but for the measuring's noise. Null: none to be had. */
-export function pageScale(page: JobPlanPage, spaces: readonly ReadSpace[], set: readonly JobPlanPage[] = []): { mmPerPx: number; from: string; sure: boolean } | null {
+    are one but for the measuring's noise, and `of` is that floor's page.
+    Null: none to be had. */
+export function pageScale(page: JobPlanPage, spaces: readonly ReadSpace[], set: readonly JobPlanPage[] = []): { mmPerPx: number; from: string; sure: boolean; of?: number } | null {
   if (page.set && page.set.mmPerPx > 0) {
     const who = page.set.by ?? "someone";
     return { mmPerPx: page.set.mmPerPx, from: page.set.mm ? `the ${Math.round(page.set.mm)} mm ${who} measured on it` : `the scale ${who} measured in a design`, sure: true };
@@ -316,7 +326,7 @@ export function pageScale(page: JobPlanPage, spaces: readonly ReadSpace[], set: 
       : null;
   const of = own && sureOfSet(page, set, own.mmPerPx);
   if (!of) return own;
-  return { mmPerPx: ownSure(of)!, from: of.set && of.set.mmPerPx > 0 ? `the scale ${of.set.by ?? "someone"} set on page ${of.n}` : `page ${of.n}'s printed scale${of.scale ? `, ${of.scale}` : ""}`, sure: true };
+  return { mmPerPx: ownSure(of)!, from: of.set && of.set.mmPerPx > 0 ? `the scale ${of.set.by ?? "someone"} set on page ${of.n}` : `page ${of.n}'s printed scale${of.scale ? `, ${of.scale}` : ""}`, sure: true, of: of.n };
 }
 
 /** The spaces she read on a page. */
@@ -336,9 +346,9 @@ const scalesOf = (plan: ScaledPlan) =>
     sure scale of the set: two measures neither surer than the other, or one
     too far from the set's to be taken for it (it may be drawn at another
     scale). Two scales a person set or the drawing prints are theirs to say. */
-function offScale(plan: ScaledPlan, each: ReturnType<typeof scalesOf>): number[] {
+function offScale(each: ReturnType<typeof scalesOf>): number[] {
   return each
-    .filter(({ page, scale }) => scale && !ownSure(page) && !sureOfSet(page, plan.pages, scale.mmPerPx))
+    .filter(({ page, scale }) => scale && !ownSure(page) && scale.of == null)
     .filter((a) => each.some((b) => b.scale && sameSet(a.page, b.page) && Math.abs(a.scale!.mmPerPx / b.scale.mmPerPx - 1) > LINES_UP))
     .map((a) => a.page.n);
 }
@@ -351,7 +361,7 @@ function offScale(plan: ScaledPlan, each: ReturnType<typeof scalesOf>): number[]
     on its set's scale, so it won't line up over the others. */
 export function scaleAsks(plan: ScaledPlan): { n: number; ask: "set" | "check" }[] {
   const each = scalesOf(plan);
-  const off = offScale(plan, each);
+  const off = offScale(each);
   return each.flatMap(({ page, scale }): { n: number; ask: "set" | "check" }[] => (!scale ? [{ n: page.n, ask: "set" }] : !scale.sure || off.includes(page.n) ? [{ n: page.n, ask: "check" }] : []));
 }
 
@@ -365,7 +375,7 @@ export function scaleSaid(plan: ScaledPlan): string | null {
     if (!many || none.length === each.length) return "No scale on the plan, so the rooms have no sizes";
     return `No scale on ${pagesWordOf(none).toLowerCase()}, so ${none.length === 1 ? "its" : "their"} rooms have no sizes`;
   }
-  const off = offScale(plan, each);
+  const off = offScale(each);
   if (off.length) return `Its floors aren't on one scale, so they may not line up: check ${pagesWordOf(off).toLowerCase()}`;
   const one = each.find((e) => !e.scale!.sure);
   if (one) {
@@ -692,7 +702,7 @@ export function designFromPlan(plan: JobPlan): DesignFromPlan {
     const scaled = on
       .map((p) => {
         const scale = pageScale(p, spacesOn(plan.reading, p.n), plan.pages);
-        return ownSure(p) ?? (scale && sureOfSet(p, plan.pages, scale.mmPerPx) ? scale.mmPerPx : null);
+        return ownSure(p) ?? (scale?.of != null ? scale.mmPerPx : null);
       })
       .find((mm) => !!mm);
     return {

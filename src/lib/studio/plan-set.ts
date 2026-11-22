@@ -12,7 +12,7 @@
    Pure: the Studio's set-up panel and its mutate wrapper call these. */
 
 import type { DesignDocument, Floor, Point } from "./document";
-import { scaleFromWritten } from "./reading";
+import { SCALE_AGREES, scaleFromWritten } from "./reading";
 
 /** ISO A paper, long side by short side, mm */
 export const PAPER_MM = {
@@ -100,8 +100,8 @@ const PAPER_PT = Object.fromEntries(Object.entries(PAPER_MM).map(([k, [l, s]]) =
     with no scale). The ratio near the word SCALE is the one named. Null: no
     ratio, ratios that disagree (a site plan's 1:200 beside the floor's
     1:100, a detail's 1:20, where the one written most or by the word SCALE
-    was taken, and a tie fell to the first), or a page that isn't a paper (a
-    scan or a photo). */
+    was taken, and a tie fell to the first), one ratio printed for two
+    papers, or a page that isn't a paper (a scan or a photo). */
 export function mmPerPointOf(words: readonly Word[] | null | undefined, page: { width: number; height: number }): { mmPerPt: number; text: string } | null {
   if (!words?.length) return null;
   const long = Math.max(page.width, page.height);
@@ -130,15 +130,16 @@ export function mmPerPointOf(words: readonly Word[] | null | undefined, page: { 
      at 1:50 printed on A3 is drawn at half that size, so a point is twice the
      building (the outside review, 21 November 2026: "a ratio printed before a
      fit-to-page copy can be internally consistent yet physically wrong") */
-  const sized = (ratio: number) => {
-    const named = seen.find((s) => s.ratio === ratio && s.for)?.for ?? null;
+  const sized = (ratio: number, named: Paper | null) => {
     const fit = named && named !== paper ? PAPER_PT[named][0] / PAPER_PT[paper][0] : 1;
     return { mmPerPt: (25.4 / 72) * ratio * fit, text: `1:${ratio}${named && named !== paper ? ` @ ${named}` : ""} on ${paper}` };
   };
-  /* "1:100 @ A1" and "1:200 @ A3" are one scale; 1:100 and 1:200 aren't */
-  const each = [...new Set(seen.map((s) => s.ratio))].map(sized);
+  /* each for its own paper, a bare ratio for the one its ratio names
+     elsewhere: "1:100 @ A1" and "1:200 @ A3" are one scale; 1:100 and
+     1:200 aren't, and nor are "1:100 @ A1" and "1:100 @ A3" */
+  const each = seen.map((s) => sized(s.ratio, s.for ?? seen.find((t) => t.ratio === s.ratio && t.for)?.for ?? null));
   if (each.some((e) => Math.abs(e.mmPerPt / each[0].mmPerPt - 1) > ONE_PRINTED)) return null;
-  return sized(seen.find((s) => s.scale)?.ratio ?? seen[0].ratio);
+  return each[Math.max(0, seen.findIndex((s) => s.scale))];
 }
 
 const SHEET_NO_RE = /^[A-Z]{1,3}[-.]?\d{2,4}[A-Z]?$/;
@@ -184,24 +185,22 @@ function pageOf(doc: DesignDocument, imageRef: string): number | null {
   return at != null ? Number(at) : null;
 }
 
-/** A scale to offer: the one the title block prints, or else the one Tiff
-    measured off the lengths printed on the page (`from` says which, "the
-    5000 mm printed on it"; `sure` when two or more agree). */
+/** A scale to offer: the one the title block prints, on the floor whose
+    sheet prints it (`floorId`, another of the set where this one prints
+    none), or else the one Tiff measured off the lengths printed on the page
+    (`from` says which, "the 5000 mm printed on it"; `sure` when two or more
+    agree). */
 export type ScaleProposal =
-  | { kind: "printed"; scale: PrintedScale; mmPerUnit: number }
+  | { kind: "printed"; scale: PrintedScale; mmPerUnit: number; floorId: string }
   | { kind: "measured"; from: string; sure: boolean; mmPerUnit: number };
-
-/** How far a floor's measure may be from its set's printed scale and be
-    taken for it: the measuring's own leeway (SCALE_AGREES, reading.ts), well
-    inside the nearest two scales a plan is drawn at, 1:125 and 1:150. */
-const ONE_SCALE = 0.08;
 
 /** The scale to offer a floor, off its page: the printed one first, since
     it is the drawing's own word; Tiff's measured one where it prints none
     or its raster isn't the paper's shape (3517's plan, 13 November 2026);
     else the one the sizes written in its rooms give. A floor that prints
     none is offered the one another floor of its set prints, where its own
-    measure is that but for noise: the floors stand over each other from
+    measure is that but for the measuring's own leeway (SCALE_AGREES, well
+    inside 1:125 against 1:150): the floors stand over each other from
     their sheets' corners, so one 2% off the floor under it is 0.8 m out at
     40 m. Further off, it may be drawn at another scale, and keeps its own. */
 export function proposedScale(doc: DesignDocument, floorId: string): ScaleProposal | null {
@@ -209,7 +208,7 @@ export function proposedScale(doc: DesignDocument, floorId: string): ScalePropos
   if (!own || own.kind === "printed") return own;
   for (const id of setOf(doc, floorId)) {
     const printed = id === floorId ? null : ownScale(doc, id);
-    if (printed?.kind === "printed" && Math.abs(own.mmPerUnit / printed.mmPerUnit - 1) <= ONE_SCALE) return printed;
+    if (printed?.kind === "printed" && Math.abs(own.mmPerUnit / printed.mmPerUnit - 1) <= SCALE_AGREES) return printed;
   }
   return own;
 }
@@ -221,7 +220,7 @@ function ownScale(doc: DesignDocument, floorId: string): ScaleProposal | null {
   if (!s) return null;
   const scale = printedScaleOf(wordsOfFloor(doc, floorId));
   const printed = scale ? mmPerPxFor(scale, s) : null;
-  if (scale && printed) return { kind: "printed", scale, mmPerUnit: printed };
+  if (scale && printed) return { kind: "printed", scale, mmPerUnit: printed, floorId };
   const m = pageOf(doc, s.imageRef);
   const read = m != null ? doc.planImport?.measured?.[m] : undefined;
   if (read && read.mmPerPx > 0) return { kind: "measured", from: read.from, sure: read.sure, mmPerUnit: read.mmPerPx };

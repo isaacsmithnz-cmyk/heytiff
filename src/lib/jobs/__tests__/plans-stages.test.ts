@@ -101,13 +101,15 @@ jest.mock("@/lib/studio/measured-server", () => ({
 }));
 const readRoof = jest.fn(async (..._a: unknown[]): Promise<Record<string, unknown>> => ({ said: null }));
 const readSchedule = jest.fn(async (_png: Buffer, _words: unknown[]) => ({ items: [{ mark: "GW.21", type: "W.05", kind: "window", width_mm: 750, height_mm: 1800, sill_mm: 300 }] }));
+/* the lengths printed along a floor's dimension lines: none, unless a test prints some */
+const readDimensions = jest.fn(async (_o: string, _s: { floorId: string }): Promise<unknown[]> => []);
 const readSheet = jest.fn(async (_o: string, s: { floorId: string }) => ({ sheetId: s.floorId, spaces: [{ name: "Living", points: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }] }, { name: "Kitchen", points: [{ x: 100, y: 0 }, { x: 200, y: 0 }, { x: 200, y: 100 }] }] }));
 jest.mock("@/lib/studio/reading-server", () => ({
   READING_MODEL: "claude-opus-5-5",
   readSheet: (...a: unknown[]) => readSheet(...(a as [string, { floorId: string }])),
   readRoof: (...a: unknown[]) => readRoof(...a),
   readSite: async () => null,
-  readDimensions: async () => [],
+  readDimensions: (...a: unknown[]) => readDimensions(...(a as [string, { floorId: string }])),
   readSchedule: (...a: unknown[]) => readSchedule(...(a as [Buffer, unknown[]])),
   askWith: async () => ({}),
   pngBlock: (b: Buffer) => b,
@@ -338,6 +340,39 @@ describe("the set's door and window schedule", () => {
     const reading = plan().reading as { schedule?: unknown; floors: Record<string, { openings: { widthMm: number; heightMm?: number; sillMm?: number }[] }[]> };
     expect(reading.schedule).toEqual({ pages: [6], marks: 1, matched: 3 });
     expect(reading.floors.p3[0].openings[0]).toMatchObject({ widthMm: 750, heightMm: 1800, sillMm: 300 });
+  });
+
+  it("finds a window's mark beside it at its set's scale, where the floor prints none and measures 2% off it", async () => {
+    scheduleOn.page = 6;
+    /* the ground floor prints 1:50 @ A1 (17.52 mm a pixel); level 1 prints none and has its mark 51 px from its window */
+    fullInNode.mockImplementationOnce(async (_b: Uint8Array, ns: readonly number[]) =>
+      ns.map((n) => ({ n, png: Buffer.from("png"), width: 2400, height: 1695, words: n === 3 ? [...words("PLAN"), ...words("SCALE"), ...words("1:50 @ A1")] : n === 4 ? [...words("PLAN"), { text: "GW.21", at: { x: 125, y: 151 } }] : words("PLAN") })),
+    );
+    /* level 1's dimension lines give 17.87 mm a pixel: on its own, 900 mm is 50.4 px, short of the mark; at its set's 1:50, 51.4 */
+    readDimensions.mockImplementation(async (_o: string, sh: { floorId: string }) =>
+      sh.floorId === "p4"
+        ? [
+            { mm: 5000, a: { x: 0, y: 0 }, b: { x: 5000 / 17.87, y: 0 }, what: "" },
+            { mm: 3600, a: { x: 0, y: 0 }, b: { x: 0, y: 3600 / 17.87 }, what: "" },
+          ]
+        : [],
+    );
+    readSheet.mockImplementation((async (_o: string, sh: { floorId: string }) => ({
+      sheetId: sh.floorId,
+      spaces: [{ name: "Living", outline: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }] }],
+      openings: [{ kind: "window", tag: "", a: { x: 100, y: 100 }, b: { x: 150, y: 100 }, widthMm: 900, room: "Living", external: true, facing: "N" }],
+    })) as never);
+    try {
+      for (let i = 0; i < 3; i++) {
+        clock += 1_000;
+        await readPlan("org-1", "jplan_1", "https://app.test", client);
+      }
+    } finally {
+      readDimensions.mockImplementation(async () => []);
+      readSheet.mockImplementation(async (_o: string, sh: { floorId: string }) => ({ sheetId: sh.floorId, spaces: [{ name: "Living", points: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }] }, { name: "Kitchen", points: [{ x: 100, y: 0 }, { x: 200, y: 0 }, { x: 200, y: 100 }] }] }));
+    }
+    const reading = plan().reading as { floors: Record<string, { openings: { tag: string; widthMm: number }[] }[]> };
+    expect(reading.floors.p4[0].openings[0]).toMatchObject({ tag: "GW.21", widthMm: 750 });
   });
 });
 

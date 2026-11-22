@@ -162,8 +162,9 @@ describe("one set, one scale and north", () => {
       const d = ipsum();
       return { ...d, planImport: { ...d.planImport!, measured: { 2: { mmPerPx, from: "the 5000 mm printed on it", sure: true } } } };
     };
-    /* 2% off the ground floor's 1:50, which is 0.8 m at 40 m: the ground floor's */
-    expect(proposedScale(measuredOnL1(17.87), "l1")).toMatchObject({ kind: "printed", scale: { ratio: 50, paper: "A1" } });
+    /* 2% off the ground floor's 1:50, which is 0.8 m at 40 m: the ground floor's, said to be printed on its sheet */
+    expect(proposedScale(measuredOnL1(17.87), "l1")).toMatchObject({ kind: "printed", scale: { ratio: 50, paper: "A1" }, floorId: "gf" });
+    expect(proposedScale(measuredOnL1(17.87), "gf")).toMatchObject({ kind: "printed", floorId: "gf" });
     expect(proposedScale(measuredOnL1(17.87), "l1")!.mmPerUnit).toBeCloseTo(17.521, 2);
     /* twice it is drawn at another scale: hers */
     expect(proposedScale(measuredOnL1(35.1), "l1")).toMatchObject({ kind: "measured", mmPerUnit: 35.1 });
@@ -281,6 +282,10 @@ describe("the scale a sheet prints without its paper", () => {
     expect(mmPerPointOf(w("1:100", "1:100", "SCALE", "1:50"), A1)).toBeNull();
     /* the one scale written for two papers is one, the one beside SCALE named */
     expect(mmPerPointOf(w("1:200 @ A3", "SCALE", "1:100 @ A1"), A1)).toEqual({ mmPerPt: (25.4 / 72) * 100, text: "1:100 on A1" });
+    /* one ratio written for two papers is two scales, a copy at half the size of the other */
+    expect(mmPerPointOf(w("SCALE", "1:100 @ A1", "NOTE", "1:100 @ A3"), A1)).toBeNull();
+    /* a bare ratio is for the paper the same ratio names elsewhere */
+    expect(mmPerPointOf(w("SCALE", "1:100", "1:100 @ A3"), A1)!.text).toBe("1:100 @ A3 on A1");
   });
   it("is none on a page that isn't a paper (a scan, a photo)", () => {
     expect(mmPerPointOf(w("1:100"), { width: 3024, height: 4032 })).toBeNull();

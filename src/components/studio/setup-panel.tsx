@@ -40,7 +40,11 @@ export function SetupPanel({
   if (!floor) return null;
   const set = setOf(doc, floorId).map((id) => doc.floors.find((f) => f.id === id)!).filter(Boolean);
   const proposal = proposedScale(doc, floorId);
-  const title = sheetTitleOf(wordsOfFloor(doc, floorId));
+  /* the sheet that prints the scale, which is another floor's of the set
+     where this one prints none: its title block is the one named */
+  const printedOn = proposal?.kind === "printed" ? doc.floors.find((f) => f.id === proposal.floorId) : undefined;
+  const title = printedOn ? sheetTitleOf(wordsOfFloor(doc, printedOn.id)) : null;
+  const whose = title ? `${title.number}'s` : printedOn && printedOn.id !== floorId ? `${printedOn.name}'s` : null;
   const scaled = floor.scaleMmPerUnit != null;
   const fromProposal = scaled && proposal != null && Math.abs(floor.scaleMmPerUnit! - proposal.mmPerUnit) < 1e-6;
   const faced = floor.northDeg != null;
@@ -83,7 +87,7 @@ export function SetupPanel({
               {!fromProposal
                 ? "Measured on the plan"
                 : proposal!.kind === "printed"
-                  ? `${proposal!.scale.text}, ${title ? `${title.number}'s` : "the"} title block`
+                  ? `${proposal!.scale.text}, ${whose ?? "the"} title block`
                   : `Tiff, off ${proposal!.from}`}
             </span>
           </div>
@@ -91,7 +95,7 @@ export function SetupPanel({
           <div className="ds-su-row">
             <span className="k">From</span>
             <span className="v">
-              {title ? `${title.number}'s` : "The"} title block, {mm(proposal.mmPerUnit)} a pixel
+              {whose ?? "The"} title block, {mm(proposal.mmPerUnit)} a pixel
             </span>
           </div>
         ) : proposal ? (

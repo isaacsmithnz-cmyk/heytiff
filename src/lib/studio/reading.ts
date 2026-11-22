@@ -394,8 +394,9 @@ export type ReadDimension = { mm: number; a: ReadPoint; b: ReadPoint; what: stri
     so a person checking the scale sees the figure she used. */
 export type MeasuredScale = { mmPerPx: number; from: string; sure: boolean; at?: { a: ReadPoint; b: ReadPoint; mm: number } };
 
-/** how far two dimensions' scales may sit apart and still agree */
-const SCALE_AGREES = 0.08;
+/** how far two dimensions' scales may sit apart and still agree; a page's
+    own measure is taken for its set's scale within it too (plans.ts, plan-set.ts) */
+export const SCALE_AGREES = 0.08;
 
 export function scaleFromDimensions(dims: readonly ReadDimension[], sheet: { width: number; height: number }): MeasuredScale | null {
   /* a short span makes every room's error large: a twentieth of the sheet at least */

@@ -478,7 +478,7 @@ async function roofFacesOf(bytes: Uint8Array, pages: readonly JobPlanPage[], rea
           spaces: sheet.spaces,
           walls: sheet.walled?.walls,
           ceilingMm: roof.levels.find((l) => l.floorId === pageKey(p.n))?.ceilingMm ?? null,
-          mmPerPx: pageScale(p, sheet.spaces)?.mmPerPx ?? null,
+          mmPerPx: pageScale(p, sheet.spaces, pages)?.mmPerPx ?? null,
         };
       });
     const placed = placeFaces(lines.faces, n, under, roof.parts);
@@ -1202,9 +1202,10 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
         let matched = 0;
         for (const id of Object.keys(reading.floors))
           reading.floors[id] = reading.floors[id].map((sh) => {
-            const p = floors.find((f) => pageKey(f.n) === sh.sheetId);
-            /* its scale as the Studio will take it: set, printed, or measured off its dimensions (3570 prints none) */
-            const mmPerPx = (p ? pageScale(p, [])?.mmPerPx : undefined) ?? 35;
+            /* its scale as the Studio will take it: set, printed, or measured off its dimensions (3570 prints none),
+               on its set's scale where that measure is it but for noise; the pages as measured just now */
+            const p = measured.find((f) => f.kind === "floor" && pageKey(f.n) === sh.sheetId);
+            const mmPerPx = (p ? pageScale(p, [], measured)?.mmPerPx : undefined) ?? 35;
             const words = (p?.words ?? []) as { text: string; at: { x: number; y: number } }[];
             /* on a floor whose file draws its walls, each printed mark in the gap it sits by */
             const gapped = marksInGaps(sh, words, schedule.items, mmPerPx).sheet;

@@ -89,7 +89,7 @@ describe("which pages are floors, by their words", () => {
     expect(levelOfTitle("L3 PLAN")).toEqual({ level: 3, name: "Level 3" });
     expect(levelOfTitle("DETAILS")).toBeNull();
   });
-  it("leaves out the building as it stands before the work, and a cover's list of the floors", () => {
+  it("leaves out the building as it stands before the work, and leaves a page naming two floors to the look", () => {
     const other = { kind: "other", name: "", level: null };
     const ground = { kind: "floor", name: "Ground floor", level: 0 };
     /* an alterations set draws the house as it is, then as it will be: only the second is built */
@@ -99,8 +99,17 @@ describe("which pages are floors, by their words", () => {
     expect(guessPageByWords(words("PROPOSED GROUND FLOOR PLAN", "1 : 100", "NOTE: EXISTING WALLS TO REMAIN"))).toEqual(ground);
     /* one that draws the new over the old is the floor that's built */
     expect(guessPageByWords(words("EXISTING/PROPOSED GROUND FLOOR PLAN"))).toEqual(ground);
-    /* a drawing list names a floor at each level, and is none of them */
-    expect(guessPageByWords(words("DRAWING LIST", "A101", "GROUND FLOOR PLAN", "A102", "FIRST FLOOR PLAN"))).toEqual(other);
+    expect(guessPageByWords(words("PROPOSED AND EXISTING GROUND FLOOR PLAN"))).toEqual(ground);
+    expect(guessPageByWords(words("GROUND FLOOR PLAN - EXISTING/PROPOSED", "A-101"))).toEqual(ground);
+    /* the old drawn beside the new: the next drawing's PROPOSED doesn't make the first the built floor */
+    expect(guessPageByWords(words("EXISTING GROUND FLOOR PLAN", "PROPOSED GROUND FLOOR PLAN", "1:100"))).toEqual(other);
+    expect(guessPageByWords(words("PROPOSED GROUND FLOOR PLAN", "EXISTING GROUND FLOOR PLAN", "1:100"))).toEqual(other);
+    /* a legend's existing walls, printed after the title, are no qualifier of it */
+    expect(guessPageByWords(words("GROUND FLOOR PLAN", "EXISTING WALLS TO REMAIN"))).toEqual(ground);
+    /* a drawing list names a floor at each level, and so does a stair sending
+       you up to the next floor's plan: which it is is the look's to say */
+    expect(guessPageByWords(words("DRAWING LIST", "A101", "GROUND FLOOR PLAN", "A102", "FIRST FLOOR PLAN"))).toBeNull();
+    expect(guessPageByWords(words("PROPOSED GROUND FLOOR PLAN", "A101", "STAIR UP - REFER FIRST FLOOR PLAN"))).toBeNull();
     /* the title block and the drawing's own label name the one floor twice */
     expect(guessPageByWords(words("GROUND FLOOR PLAN", "1:100", "GF PLAN", "A102"))).toEqual(ground);
   });
@@ -297,7 +306,7 @@ describe("a read plan's scale", () => {
 
   it("stands a page that prints no scale on the one its set prints, where its own measure is that but for noise", () => {
     const p = plan({ pages: [page(3), unprinted(4, 17.87)] });
-    expect(pageScale(p.pages[1], [], p.pages)).toEqual({ mmPerPx: 17.52, from: "page 3's printed scale, 1:50 @ A1", sure: true });
+    expect(pageScale(p.pages[1], [], p.pages)).toEqual({ mmPerPx: 17.52, from: "page 3's printed scale, 1:50 @ A1", sure: true, of: 3 });
     expect(designFromPlan(p).floors.map((f) => f.scaleMmPerUnit)).toEqual([17.52, 17.52]);
     expect(scaleAsks(p)).toEqual([]);
     expect(scaleSaid(p)).toBe("Scaled off its printed scale, 1:50 @ A1");

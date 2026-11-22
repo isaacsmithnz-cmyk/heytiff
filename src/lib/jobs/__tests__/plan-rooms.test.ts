@@ -85,6 +85,20 @@ describe("a plan's rooms and their sizes", () => {
     expect(planRoomsSaid([out])).toContain("A room with no m² has nothing on the plan to size it");
   });
 
+  it("sizes a page that prints no scale on the one its set prints, as the plan's line and a design do", () => {
+    /* page 3 prints 1:50 @ A1; page 4 prints none and measures 2% off it, which is 0.8 m at 40 m */
+    const printed = page({ n: 3, width: 2400, height: 1695, mmPerPx: 17.52, scale: "1:50 @ A1" });
+    const unprinted = page({ n: 4, name: "Level 1", level: 1, width: 2400, height: 1695, measured: { mmPerPx: 17.87, from: "the 5000 mm printed on it", sure: true } });
+    const out = planRoomsOf(
+      plan(printed, [], {
+        sourceKind: "pdf",
+        pages: [printed, unprinted],
+        reading: { at: "2026-11-11T00:00:00Z", model: "claude-opus-5-5", floors: { p3: [sheet([space("Living", box(0, 0, 200, 200))])], p4: [sheet([space("Bed 2", box(0, 0, 200, 200))])] }, failed: [] },
+      }),
+    );
+    expect(out.floors[1]).toMatchObject({ page: 4, sized_by: "page 3's printed scale, 1:50 @ A1", sure: true, rooms: [{ name: "Bed 2", area_m2: 12.3 }] });
+  });
+
   it("says what to do with no plan, one still being read, and one that couldn't be", () => {
     expect(planRoomsSaid([])).toContain("No plan is in this job's Plans");
     const reading = planRoomsOf(plan(page(), [], { state: "reading", reading: null, pages: [] }));

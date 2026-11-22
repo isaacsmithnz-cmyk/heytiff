@@ -124,7 +124,7 @@ Nineteen values: each of the eight hues has a bright value (dots, blocks, charts
 
 **Ink at an alpha** (lines and fills, not new colours): line 8%, edge 14%, selected 7%, hover 4%, soft fill 5%. On the ink sidebar, white at 12% marks the place you're on.
 
-**The one shadow:** 0 12px 32px at 16% of a near-black, for anything that floats. **The card shadow** (`--shadow-card`): 0 1px 2px at 5% and 0 4px 16px at 7%, for a card resting on the white page, and only where His rulings name it (On Home, On a job's page). **The scrim** behind a dialog: near-black at 45%.
+**The one shadow:** 0 12px 32px at 16% of a near-black, for anything that floats. **The card shadow** (`--shadow-card`): 0 1px 2px at 5% and 0 4px 16px at 7%, for a card resting on the white page, or on a job's grey, and only where His rulings name it (On Home, On a job's page). **The scrim** behind a dialog: near-black at 45%.
 
 **Text on a solid block** (a bar, a column's head on Home): ink on every hue but blue, which takes white. A schedule card's number box is the exception: the hue's word value, or its card value for orange, yellow and pink, with white words, ink on yellow (rule 19).
 
@@ -434,6 +434,14 @@ the fourth on the customer's messages, below).
   it as you left it, and Jobs when there is nowhere to go back to (a
   link, a refresh). It is one word, not a breadcrumb.
 
+- **A job's page stands on grey** (`--jp-ground`), despite rule 1, the plain
+  white page: the page under the job, its top bar too, is the Library's
+  and the Quote tab's grey, ink at the soft fill's 5% on white, and every
+  card on it stays white and lifted with the card shadow, so a card is no
+  longer white on white (Isaac, 22 November 2026: "white on white on job
+  cards is a bit hard on the eye", then "just go lifted grey background" to
+  Grey, lifted on https://claude.ai/artifact/YJ5aPKUeREGMCvU1RbtvHQ). The
+  quote and invoice tabs keep their own white page and soft ground.
 - **Every tab's cards are lifted, their names in colour** (`.jp-fit`,
   `face-title.tsx`; Isaac, 17 November 2026, "the job card changes to match
   are good" to https://claude.ai/artifact/7ijojbkVbMJUGasurPCvVF). On site's

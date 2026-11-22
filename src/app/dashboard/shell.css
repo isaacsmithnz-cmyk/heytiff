@@ -6954,8 +6954,14 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    D): its head and tabs stay at the top, the box at the card's foot, and the
    feed between them scrolls, oldest at the top, opening at the newest */
 .fg .jov--fit > .jov-side > .jov-sec.jc-convo { display:flex; flex-direction:column; overflow:hidden; padding-bottom:16px; }
-.fg .jc-convo > .jc-feed { flex:1 1 auto; min-height:0; overflow:auto; border-top:0; }
-.fg .jc-convo > .jc-foot { flex:none; margin:0; padding-top:12px; border-top:1px solid var(--line); }
+/* the feed fades up into the box rather than stopping at a line: its last
+   24 fade out over the box's head, and 24 under its newest item keep that
+   one whole at the foot (Isaac, 22 November 2026: "take hard line under
+   activity feed so feed doesnt look cut off. let it fade up") */
+.fg .jc-convo > .jc-feed { flex:1 1 auto; min-height:0; overflow:auto; border-top:0; padding-bottom:24px;
+  -webkit-mask-image:linear-gradient(to top, transparent, var(--ink) 24px); mask-image:linear-gradient(to top, transparent, var(--ink) 24px); }
+.fg .jc-convo > .jc-foot { flex:none; margin:0; padding-top:0; border-top:0; }
+.fg .jc-convo > .jc-feed > .jc-day:last-child > .jc-entry:last-child { border-bottom:0; }
 /* a To do in the feed: its tick, its words, who it's for and when; red once overdue (calls 6 and 7) */
 /* the feed's box on one row, as the mock draws it: the +, the words, then
    the microphone, Save and Tiff's ↑; a photo's chip above them */

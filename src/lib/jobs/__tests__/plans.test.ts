@@ -1,5 +1,5 @@
 import type { PlanReading, SheetReading } from "@/lib/studio/reading";
-import { areaM2Of, chooseFloors, floorLevelOf, choosablePages, designFromPlan, floorOptions, floorValueOf, designFromPlans, floorNamesOf, guessPageByWords, levelOfTitle, pagesWordOf, planLine, planReadLine, planStateWord, replacedBy, scaleAsks, scaleSaid, stackLevels, stateOfRead, startablePlans, type JobPlan, type JobPlanPage, type JobPlanRead } from "../plans";
+import { areaM2Of, chooseFloors, floorLevelOf, choosablePages, designFromPlan, floorOptions, floorValueOf, designFromPlans, floorNamesOf, guessPageByWords, levelOfTitle, pageScale, pagesWordOf, planLine, planReadLine, planStateWord, replacedBy, scaleAsks, scaleSaid, stateOfRead, startablePlans, type JobPlan, type JobPlanPage, type JobPlanRead } from "../plans";
 
 /* PLANS ON THE JOB, the pure side (lib/jobs/plans.ts): which pages are
    floors by their words, what a read came to, what the row says, and a
@@ -89,13 +89,20 @@ describe("which pages are floors, by their words", () => {
     expect(levelOfTitle("L3 PLAN")).toEqual({ level: 3, name: "Level 3" });
     expect(levelOfTitle("DETAILS")).toBeNull();
   });
-  it("stacks two floors that share a level", () => {
-    const out = stackLevels([
-      { n: 3, kind: "floor" as const, level: 0 },
-      { n: 4, kind: "floor" as const, level: 0 },
-      { n: 5, kind: "site" as const, level: null },
-    ]);
-    expect(out.map((p) => p.level)).toEqual([0, 1, null]);
+  it("leaves out the building as it stands before the work, and a cover's list of the floors", () => {
+    const other = { kind: "other", name: "", level: null };
+    const ground = { kind: "floor", name: "Ground floor", level: 0 };
+    /* an alterations set draws the house as it is, then as it will be: only the second is built */
+    expect(guessPageByWords(words("EXISTING GROUND FLOOR PLAN", "A-101"))).toEqual(other);
+    expect(guessPageByWords(words("EXISTING FLOOR PLAN"))).toEqual(other);
+    expect(guessPageByWords(words("SHEET NAME :", "GF PLAN - EXISTING", "004"))).toEqual(other);
+    expect(guessPageByWords(words("PROPOSED GROUND FLOOR PLAN", "1 : 100", "NOTE: EXISTING WALLS TO REMAIN"))).toEqual(ground);
+    /* one that draws the new over the old is the floor that's built */
+    expect(guessPageByWords(words("EXISTING/PROPOSED GROUND FLOOR PLAN"))).toEqual(ground);
+    /* a drawing list names a floor at each level, and is none of them */
+    expect(guessPageByWords(words("DRAWING LIST", "A101", "GROUND FLOOR PLAN", "A102", "FIRST FLOOR PLAN"))).toEqual(other);
+    /* the title block and the drawing's own label name the one floor twice */
+    expect(guessPageByWords(words("GROUND FLOOR PLAN", "1:100", "GF PLAN", "A102"))).toEqual(ground);
   });
 });
 
@@ -113,6 +120,15 @@ describe("what the read came to", () => {
   it("asks for a look when the set had no floor plan, and fails without a reading", () => {
     expect(stateOfRead([page(1, { kind: "other", ref: null })], reading({ floors: {} }))).toEqual({ state: "check", said: "No floor plan found on its page" });
     expect(stateOfRead(plan().pages, null).state).toBe("failed");
+  });
+  it("keeps two floor pages that read at one level there, neither moved up, and asks which is which", () => {
+    const pages = [page(3), page(4, { name: "Ground floor", level: 0 })];
+    expect(stateOfRead(pages, reading())).toEqual({ state: "check", said: "Pages 3 and 4 both read as Ground floor: choose which floor each is" });
+    /* a design stands them on the one floor, side by side */
+    expect(designFromPlan(plan({ pages })).floors.map((f) => [f.level, f.plans.length])).toEqual([[0, 2]]);
+    /* once somebody has chosen, it's theirs */
+    const picked = { by: "Isaac Smith", at: "2026-11-23T00:00:00Z" };
+    expect(stateOfRead(pages.map((p) => ({ ...p, picked })), reading()).state).toBe("read");
   });
 });
 
@@ -272,6 +288,44 @@ describe("a read plan's scale", () => {
     const made = designFromPlan(one([photo({ measured: { ...measured, at } })]));
     expect(made.planImport.measured).toEqual({ 2: measured });
   });
+
+  /* ONE SET, ONE SCALE: the floors of a set stand over each other from
+     their pages' corners, so a page measured 2% off the one under it puts
+     its far end 0.8 m out at 40 m */
+  const unprinted = (n: number, mmPerPx: number, sure = true, over: Partial<JobPlanPage> = {}) =>
+    page(n, { mmPerPx: null, scale: null, measured: { mmPerPx, from: "the 5000 and 3600 mm printed on it", sure }, ...over });
+
+  it("stands a page that prints no scale on the one its set prints, where its own measure is that but for noise", () => {
+    const p = plan({ pages: [page(3), unprinted(4, 17.87)] });
+    expect(pageScale(p.pages[1], [], p.pages)).toEqual({ mmPerPx: 17.52, from: "page 3's printed scale, 1:50 @ A1", sure: true });
+    expect(designFromPlan(p).floors.map((f) => f.scaleMmPerUnit)).toEqual([17.52, 17.52]);
+    expect(scaleAsks(p)).toEqual([]);
+    expect(scaleSaid(p)).toBe("Scaled off its printed scale, 1:50 @ A1");
+    /* one resting on a single figure takes it too */
+    expect(designFromPlan(plan({ pages: [page(3), unprinted(4, 17.87, false)] })).floors[1].scaleMmPerUnit).toBe(17.52);
+    /* a page alone is its own measure, and a page of another size isn't of the set */
+    expect(pageScale(p.pages[1], [])!.mmPerPx).toBe(17.87);
+    expect(pageScale(unprinted(4, 17.87, true, { width: 1200, height: 848 }), [], p.pages)!.mmPerPx).toBe(17.87);
+  });
+
+  it("leaves a set's floors on scales of their own where none is sure or they're further apart, and says so", () => {
+    /* a page further off may be drawn at another scale: it keeps its own, and is asked to be checked */
+    const far = plan({ pages: [page(3), unprinted(4, 35.1)] });
+    expect(designFromPlan(far).floors.map((f) => f.scaleMmPerUnit)).toEqual([17.52, null]);
+    expect(scaleAsks(far)).toEqual([{ n: 4, ask: "check" }]);
+    expect(scaleSaid(far)).toBe("Its floors aren't on one scale, so they may not line up: check page 4");
+    /* of two measures, neither is surer than the other */
+    const both = plan({ pages: [unprinted(3, 17.5), unprinted(4, 17.85)] });
+    expect(designFromPlan(both).floors.map((f) => f.scaleMmPerUnit)).toEqual([null, null]);
+    expect(scaleAsks(both)).toEqual([
+      { n: 3, ask: "check" },
+      { n: 4, ask: "check" },
+    ]);
+    expect(scaleSaid(both)).toBe("Its floors aren't on one scale, so they may not line up: check pages 3 and 4");
+    /* within a hair they are one; and two scales the drawing prints, or a person set, are theirs to say */
+    expect(scaleAsks(plan({ pages: [unprinted(3, 17.5), unprinted(4, 17.53)] }))).toEqual([]);
+    expect(scaleAsks(plan({ pages: [page(3), page(4, { mmPerPx: 35.04, scale: "1:100 @ A1" })] }))).toEqual([]);
+  });
 });
 
 describe("choosing a page's floor", () => {
@@ -347,6 +401,18 @@ describe("a floor's printed level", () => {
     expect(floorLevelOf([{ text: "EX FFL +63, 315" }])).toBe(63.315);
     expect(floorLevelOf([{ text: "FINISHED FLOOR LEVEL (FFL)." }, { text: "2400" }])).toBeNull();
     expect(floorLevelOf(null)).toBeNull();
+  });
+  it("reads a level under the datum as under it, and the datum itself", () => {
+    expect(floorLevelOf([{ text: "FFL -2.800" }])).toBe(-2.8);
+    expect(floorLevelOf([{ text: "FFL ±0.000" }])).toBe(0);
+    expect(floorLevelOf([{ text: "FFL" }, { text: "0.000" }])).toBe(0);
+    /* a dash set apart from the figure is between the words, not a minus */
+    expect(floorLevelOf([{ text: "FFL - 194.000" }])).toBe(194);
+    const at = { x: 1, y: 1 };
+    const made = designFromPlan(
+      plan({ pages: [page(2, { name: "Basement", level: -1, words: [{ text: "FFL -2.800", at }] }), page(3, { words: [{ text: "FFL ±0.000", at }] }), page(4, { words: [{ text: "FFL +3.100", at }] })] }),
+    );
+    expect(made.floors.map((f) => f.heightM)).toEqual([2.8, 3.1, undefined]);
   });
   it("makes each floor as tall as the next floor's level less its own", () => {
     const made = designFromPlan(plan({ pages: [page(3, { words: [{ text: "FFL 194.000", at: { x: 1, y: 1 } }] }), page(4, { words: [{ text: "FFL 197.700", at: { x: 1, y: 1 } }] })] }));

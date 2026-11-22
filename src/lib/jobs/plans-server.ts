@@ -22,7 +22,7 @@ import { fullInNode, pixelsInNode, previewsInNode, textsInNode, vectorsInNode } 
 import { airPages, plainWords } from "./take-in";
 import { staffDisplayNames } from "@/lib/workboard/job-notes-query";
 import type { DrawnFull, DrawnPreview, PlanPagesAnswer } from "@/app/print/plan-pages/plan-pages";
-import { chooseFloors, guessPageByWords, pageKey, pageScale, stackLevels, stateOfRead, type JobPlan, type JobPlanKind, type SpecWords, type JobPlanPage, type JobPlanRead, type PageGuess, type PlanPageKind, type PlanPick, type PlanProgress , type PageWalled } from "./plans";
+import { chooseFloors, guessPageByWords, pageKey, pageScale, stateOfRead, type JobPlan, type JobPlanKind, type SpecWords, type JobPlanPage, type JobPlanRead, type PageGuess, type PlanPageKind, type PlanPick, type PlanProgress , type PageWalled } from "./plans";
 import { planRoomsOf, planRoomsSaid, type JobPlanRooms } from "./plan-rooms";
 
 /* PLANS ON THE JOB, THE SERVER SIDE (lib/jobs/plans.ts says what a plan is).
@@ -956,7 +956,8 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
       if (previews.length === 0) return failed("No pages could be drawn from the file.");
       tell({ step: "finding", done: 0, total: 1 });
       const guesses = await classify(plan.sourceKind, previews, client);
-      const floors = stackLevels(previews.map((p) => ({ n: p.n, ...guesses.get(p.n)! }))).filter((p) => p.kind === "floor");
+      /* two at one level stay there, and the read says so (stateOfRead) */
+      const floors = previews.map((p) => ({ n: p.n, ...guesses.get(p.n)! })).filter((p) => p.kind === "floor");
       /* the floors' small pictures, for the row's thumbnails */
       const previewRefs = new Map<number, string>();
       for (const f of floors) {

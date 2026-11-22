@@ -69,6 +69,15 @@ describe("the printed scale", () => {
     expect(printedScaleOf(undefined)).toBeNull();
   });
 
+  test("finds none where the sheet prints two that disagree, whichever stands by the word SCALE", () => {
+    const words = (...t: string[]) => t.map((text) => ({ text }));
+    /* a detail's 1:20 printed before the plan's 1:100 would make every room five times too small */
+    expect(printedScaleOf(words("STAIR DETAIL", "SCALE", "1:20 @ A1", "GROUND FLOOR PLAN", "SCALE", "1:100 @ A1"))).toBeNull();
+    expect(printedScaleOf(words("1:100 @ A1", "1:20 @ A1"))).toBeNull();
+    /* 1:100 at A1 is 1:200 at A3: the one scale */
+    expect(printedScaleOf(words("SCALE", "1:100 @ A1", "1:200 @ A3"))).toMatchObject({ ratio: 100, paper: "A1" });
+  });
+
   test("A1 at 2,400 pixels is 17.52 mm a pixel at 1:50, against the 17.53 Isaac measured", () => {
     const mm = mmPerPxFor({ ratio: 50, paper: "A1", text: "" }, { width: 2400, height: 1695 })!;
     expect(mm).toBeCloseTo(17.521, 2);
@@ -146,6 +155,18 @@ describe("one set, one scale and north", () => {
     const d = applyNorthToSet(ipsum(), "l1", 0);
     expect(d.floors.map((f) => f.northDeg)).toEqual([0, 0, null]);
     expect(d.floors[0].northPos).not.toBeNull();
+  });
+
+  test("a floor of the set that prints no scale is offered the one its set prints, where hers is that but for noise", () => {
+    const measuredOnL1 = (mmPerPx: number): DesignDocument => {
+      const d = ipsum();
+      return { ...d, planImport: { ...d.planImport!, measured: { 2: { mmPerPx, from: "the 5000 mm printed on it", sure: true } } } };
+    };
+    /* 2% off the ground floor's 1:50, which is 0.8 m at 40 m: the ground floor's */
+    expect(proposedScale(measuredOnL1(17.87), "l1")).toMatchObject({ kind: "printed", scale: { ratio: 50, paper: "A1" } });
+    expect(proposedScale(measuredOnL1(17.87), "l1")!.mmPerUnit).toBeCloseTo(17.521, 2);
+    /* twice it is drawn at another scale: hers */
+    expect(proposedScale(measuredOnL1(35.1), "l1")).toMatchObject({ kind: "measured", mmPerUnit: 35.1 });
   });
 
   test("a calibration on the first floor answers the second: nothing left to ask", () => {
@@ -250,9 +271,16 @@ describe("the scale a sheet prints without its paper", () => {
     /* on its own paper, as it says */
     expect(mmPerPointOf(w("1:50", "at", "A3"), A3)!.mmPerPt).toBeCloseTo((25.4 / 72) * 50);
   });
-  it("prefers the one beside SCALE, and is never a fall", () => {
-    expect(mmPerPointOf(w("1:100", "1:100", "SCALE", "1:50"), A1)!.text).toBe("1:50 on A1");
+  it("is never a fall", () => {
     expect(mmPerPointOf(w("1:100", "FALL", "TO", "RWO"), A1)).toBeNull();
+  });
+  it("is none where the ratios printed disagree, whichever is written most or by the word SCALE", () => {
+    /* a floor sheet with its site plan's 1:200 inset beside the plan's 1:100 (a real set's, 23 November 2026) */
+    expect(mmPerPointOf(w("SITE PLAN", "1 : 200", "PROPOSED GROUND FLOOR PLAN", "1 : 100"), A1)).toBeNull();
+    /* a detail's "SCALE 1:50" by a plan's 1:100 */
+    expect(mmPerPointOf(w("1:100", "1:100", "SCALE", "1:50"), A1)).toBeNull();
+    /* the one scale written for two papers is one, the one beside SCALE named */
+    expect(mmPerPointOf(w("1:200 @ A3", "SCALE", "1:100 @ A1"), A1)).toEqual({ mmPerPt: (25.4 / 72) * 100, text: "1:100 on A1" });
   });
   it("is none on a page that isn't a paper (a scan, a photo)", () => {
     expect(mmPerPointOf(w("1:100"), { width: 3024, height: 4032 })).toBeNull();

@@ -378,6 +378,8 @@ const MEASURE_MM = 17.5;
     handed on (7 Ipsum Rd's level took 303 s on its own; the engine's review,
     21 November 2026). */
 const MEASURE_BY_MS = 250_000;
+/** When a run's roof and site reads must be back by, from its start: the route is killed at 300 s, and what was read still has to be written. */
+const READ_BY_MS = 235_000;
 /** What a floor's page says until its measuring lands: a run killed part-way
     (out of time, out of memory) leaves it, and the next run reads that floor
     by picture instead of measuring the set again and dying the same way. */
@@ -1026,7 +1028,9 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
 
     /* 5. the read: each floor, the roof and the site off the set */
     const floors = pages.filter((p) => p.kind === "floor" && p.ref).sort((a, b) => (a.level ?? 0) - (b.level ?? 0) || a.n - b.n);
-    const reading: PlanReading = { at: new Date().toISOString(), model: READING_MODEL, floors: {}, failed: [] };
+    /* a read handed on with its floors done (below): only its roof and its site are left to read */
+    const kept = plan.reading?.partial && plan.state === "reading" ? plan.reading : null;
+    const reading: PlanReading = kept ? { ...kept } : { at: new Date().toISOString(), model: READING_MODEL, floors: {}, failed: [] };
     /* a photo or sketch: read smaller, and its roof left to the Studio, which
        reads it when the 3D wants it (its 243 s on 3465's photo held the read) */
     const photo = plan.sourceKind === "image";
@@ -1043,8 +1047,18 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
       const pdf = plan.sourceKind === "pdf" ? sourceRef : null;
       const first = Math.max(0, floors[0].n - 1);
       const ground = sheets[0];
+      /* THE ROOF AND THE SITE ARE READ OFF THE WHOLE SET AND CAN TAKE FIVE
+         MINUTES, the route's whole life: a run cut off there lost the floors
+         with them and the plan sat on reading, read again and again (3570,
+         22 November 2026: four runs, each to four of five). So they have
+         until READ_BY_MS from the run's start. Late, the floors are saved as
+         they stand and the roof and the site get a run of their own; late
+         again, the plan is finished without them, and the Studio reads the
+         roof when its 3D wants it, as it does for a photo. */
+      const wantRoof = !photo && !(kept && kept.roof !== undefined);
+      const wantSite = !(kept && kept.site !== undefined);
       /* each floor, the roof and the site counted off as it comes back */
-      const total = sheets.length + (photo ? 0 : 1) + 1;
+      const total = (kept ? 0 : sheets.length) + (wantRoof ? 1 : 0) + (wantSite ? 1 : 0);
       let done = 0;
       tell({ step: "reading", done, total });
       const counted = <T,>(p: Promise<T>): Promise<T> =>
@@ -1052,21 +1066,24 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
           done++;
           tell({ step: "reading", done, total });
         });
-      const [results, measured, roof, site, schedule] = await Promise.all([
+      const roofP: Promise<PlanReading["roof"]> = wantRoof
+        ? counted(readRoof(orgId, pdf, sheets, undefined, first))
+            .then(({ said: _said, ...r }) => r)
+            .catch((e) => {
+              console.error(`[job-plans] ${planId}/roof: ${String(e)}`);
+              return null;
+            })
+        : Promise.resolve(photo ? undefined : kept?.roof);
+      const siteP: Promise<PlanReading["site"]> = wantSite
+        ? counted(readSite(orgId, pdf, ground, first)).catch((e) => {
+            console.error(`[job-plans] ${planId}/site: ${String(e)}`);
+            return null;
+          })
+        : Promise.resolve(kept?.site);
+      if (!kept) {
+      const [results, measured, schedule] = await Promise.all([
         Promise.allSettled(sheets.map((s) => counted(readSheet(orgId, s)))),
         measurePages(orgId, pages, photo),
-        photo
-          ? undefined
-          : counted(readRoof(orgId, pdf, sheets, undefined, first))
-              .then(({ said: _said, ...r }) => r)
-              .catch((e) => {
-                console.error(`[job-plans] ${planId}/roof: ${String(e)}`);
-                return null;
-              }),
-        counted(readSite(orgId, pdf, ground, first)).catch((e) => {
-          console.error(`[job-plans] ${planId}/site: ${String(e)}`);
-          return null;
-        }),
         isPdf
           ? schedulesOf(new Uint8Array((await bytesOf()).bytes), pages).catch((e) => {
               console.error(`[job-plans] ${planId}/schedule: ${String(e)}`);
@@ -1130,9 +1147,27 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
           });
         reading.schedule = { pages: schedule.pages, marks: schedule.items.length, matched };
       }
-      if (roof !== undefined) reading.roof = roof;
-      reading.site = site;
       pages = measured;
+      }
+      const until = started + READ_BY_MS;
+      const LATE = Symbol("late");
+      const byThen = <T,>(pr: Promise<T>): Promise<T | typeof LATE> => {
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const late = new Promise<typeof LATE>((r) => {
+          timer = setTimeout(() => r(LATE), Math.max(0, until - Date.now()));
+        });
+        return Promise.race([pr, late]).finally(() => clearTimeout(timer));
+      };
+      const [roof, site] = await Promise.all([byThen(roofP), byThen(siteP)]);
+      if (roof !== LATE && roof !== undefined) reading.roof = roof;
+      if (site !== LATE) reading.site = site;
+      if ((roof === LATE || site === LATE) && !kept) {
+        /* the floors stand; the roof and the site get a run of their own */
+        await write(orgId, planId, { pages, reading: { ...reading, partial: true } });
+        return await handOff();
+      }
+      if (roof === LATE || site === LATE) console.error(`[job-plans] ${planId}: finished without its ${[roof === LATE ? "roof" : "", site === LATE ? "site" : ""].filter(Boolean).join(" and ")}, which took too long twice`);
+      delete reading.partial;
     }
     const { state, said } = stateOfRead(pages, reading);
     await write(orgId, planId, { pages, reading, state, said, read_at: new Date().toISOString() });

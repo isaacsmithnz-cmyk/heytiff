@@ -26,6 +26,7 @@ import { allocationsOf, hasAllocations, roomsServed, type Allocation } from "./a
 import { nextSystemColour } from "./modules";
 import { allVrfOnly, joinsVrf } from "./vrf";
 import type { RoomObj } from "./loads-room";
+import { livedIn } from "./lived-in";
 
 const isRoom = (o: DesignObject): o is RoomObj =>
   o.type === "room" && o.geometry.kind === "polygon";
@@ -123,7 +124,9 @@ export const toggleZone = (doc: DesignDocument, systemId: string, zoneId: string
 export function newSystem(
   doc: DesignDocument,
   packVersion: string,
-  brand = ""
+  brand = "",
+  /** the floor whose lived-in zones on no system it starts with switched on */
+  livedOnFloor?: string
 ): { doc: DesignDocument; systemId: string } {
   const id = newId("sys");
   let names = 0;
@@ -139,14 +142,23 @@ export function newSystem(
     name: `System ${Math.max(names, doc.systems.length) + 1}`,
     settings: { zoneIds: [], roomIds: [] },
   };
-  return {
-    doc: {
-      ...doc,
-      systems: [...doc.systems, sys],
-      packPins: brand ? { ...doc.packPins, [brand]: doc.packPins[brand] ?? packVersion } : doc.packPins,
-    },
-    systemId: id,
+  const made: DesignDocument = {
+    ...doc,
+    systems: [...doc.systems, sys],
+    packPins: brand ? { ...doc.packPins, [brand]: doc.packPins[brand] ?? packVersion } : doc.packPins,
   };
+  const lived = livedOnFloor ? livedInZones(doc, livedOnFloor) : [];
+  return { doc: lived.length ? withZones(made, id, lived) : made, systemId: id };
+}
+
+/** The zones on this floor people live in (lived-in.ts) that no system has
+    yet: what a new system starts with switched on (Isaac, 22 November 2026,
+    "Build A"). The rest stay off for you to switch on. */
+export function livedInZones(doc: DesignDocument, floorId: string): string[] {
+  const taken = new Set(doc.systems.flatMap((s) => zoneIdsOf(s)));
+  return doc.objects
+    .filter((o) => isRoom(o) && o.floorId === floorId && !taken.has(o.id) && livedIn(String(o.props.name ?? "")))
+    .map((o) => o.id);
 }
 
 /** the brand a system is built in, chosen before its first unit. A system

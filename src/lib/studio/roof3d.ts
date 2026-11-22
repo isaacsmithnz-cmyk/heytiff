@@ -97,9 +97,6 @@ function tri(m: Mesh, a: V3, b: V3, c: V3) {
   m.tris.push(i, i + 1, i + 2);
 }
 
-/** The sheets' seat over the wall at a pitch (seatOf, for a face read off the roof plan). */
-export const seatAt = (pitchDeg: number): number => (pitchDeg > 0 ? RAFTER.h / Math.cos(Math.atan(Math.tan((pitchDeg * Math.PI) / 180))) + 0.02 : 0);
-
 /** One face of the roof as the roof plan draws it, its corners already at
     their heights: cut into triangles on the plan by ear clipping, since a
     face may have a notch (a gable bay let into a hip's side). */

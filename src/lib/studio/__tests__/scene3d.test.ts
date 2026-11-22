@@ -124,8 +124,30 @@ describe("floors stack", () => {
     expect(lineUp(ground, upper)).toEqual([-28, 0]);
   });
 
-  it("middle over middle with no stair to go by", () => {
-    expect(lineUp(g([space("A", "room", [0, 0, 1000, 800])]), g([space("B", "room", [3000, 2000, 3400, 2400])]))).toEqual([-27, -18]);
+  it("as drawn with no stair to go by: its middle over the ground's would be a guess", () => {
+    expect(lineUp(g([space("A", "room", [0, 0, 1000, 800])]), g([space("B", "room", [3000, 2000, 3400, 2400])]))).toEqual([0, 0]);
+  });
+
+  /* the first floor narrower than the ground, its stair a metre off the one below (as 90 Dreamer St's) */
+  const dreamer = (planImport: DesignDocument["planImport"]) => ({
+    ...design([floor("gf", 0), floor("l1", 1)], {
+      gf: [read("s-gf", [space("Long", "room", [0, 0, 2000, 500]), space("Stair", "stair", [1000, 0, 1200, 400])])],
+      l1: [read("s-l1", [space("Short", "room", [0, 0, 1500, 500]), space("Stair", "stair", [900, 0, 1100, 400])])],
+    }),
+    planImport,
+  });
+  it("as drawn when they are pages of one PDF at one size: the sheets share an origin, and a stair read off doesn't move a floor", () => {
+    const one = { sources: [{ ref: "r/set.pdf", kind: "pdf" as const }], placed: { 2: "r/s-gf.png", 3: "r/s-l1.png" }, chosen: [2, 3], names: {} };
+    expect(sceneOf(dreamer(one)).floors.map((f) => [f.id, f.shift])).toEqual([
+      ["gf", [0, 0]],
+      ["l1", [0, 0]],
+    ]);
+  });
+  it("lined up stair over stair when each floor is a file of its own", () => {
+    expect(sceneOf(dreamer(null)).floors.map((f) => [f.id, f.shift])).toEqual([
+      ["gf", [0, 0]],
+      ["l1", [1, 0]],
+    ]);
   });
 
   it("stays as drawn when a stair is read a little off two floors drawn in register", () => {
@@ -304,6 +326,20 @@ describe("the roof void over each room", () => {
 
   it("says when the roof hasn't been read", () => {
     expect(roofSummary(design([floor("gf", 0)], null))).toMatchObject({ read: false });
+  });
+});
+
+/* A roof read off the roof plan's own lines (lib/studio/vector/roof.ts) */
+describe("the roof's own faces", () => {
+  it("rise at their pitch from the top of the wall, their overhang's fall lower at the eave line, with no rafter's depth guessed", () => {
+    const d = design([floor("gf", 0)], { gf: [read("s-gf", [space("Lounge", "room", [0, 0, 400, 300])])] });
+    const face = { floorId: "gf", sheetId: "s-gf", outline: [{ x: 0, y: -60 }, { x: 400, y: -60 }, { x: 400, y: 300 }, { x: 0, y: 300 }], pitchDeg: 45, fall: { x: 0, y: 1 }, eaveMm: 2700, overhangMm: 600, existing: false, page: 4 };
+    const s = sceneOf({ ...d, reading: { ...d.reading!, roof: { levels: [], parts: [], raked: [], material: "", roofSpace: "", faces: [face] } } });
+    expect(s.roofs).toHaveLength(1);
+    const ys = s.roofs[0].faces.verts.map(([, y]) => y);
+    /* the eave line 600 mm out past the wall, at 45°: 600 mm under the wall's top of 2.7 m; 3.6 m up the fall to its top */
+    expect(Math.min(...ys)).toBeCloseTo(2.1, 3);
+    expect(Math.max(...ys)).toBeCloseTo(5.7, 3);
   });
 });
 

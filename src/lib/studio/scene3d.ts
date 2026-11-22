@@ -4,7 +4,7 @@ import { ductPaint } from "./duct-size";
 import type { GrilleMount, GrilleStyle } from "./grilles";
 import { inside, type ReadPoint, type ReadSpace, type SheetReading, type SiteSurfaceKind, type SpaceKind } from "./reading";
 import { finishInside, roofFinishFor, stairFinishOf, type RoofFinish, type SurfaceFinish } from "./finishes";
-import { faceMesh, framingOf, roofHeightAt, roofMesh, seatAt, type Member, type Mesh, type RoofRect } from "./roof3d";
+import { faceMesh, framingOf, roofHeightAt, roofMesh, type Member, type Mesh, type RoofRect } from "./roof3d";
 import { riseOf } from "./vector/roof";
 import { frameOf, furnish, within, type Piece3D, type ReadPiece } from "./furnish3d";
 import { snapOpenings, waysIn } from "./tidy3d";
@@ -370,11 +370,11 @@ const CLEARLY_BETTER = 1.1;
     on their sheets yet still overlapped by more than half, so the first
     floor stood 4.4 m out over the ground). Every stair below against every
     stair above, since an outdoor stair or an old one kept is a stair too,
-    and as drawn: whichever stands most of the floor on the one below. */
+    and as drawn: whichever stands most of the floor on the one below. With
+    no stair to go by the floor stays as drawn: its middle put over the
+    ground's would be a guess, and the floor can be moved by hand. */
 export function lineUp(ground: Raw, other: Raw): XZ {
-  const g = boxOf(solid(ground).flatMap((s) => s.pts));
-  const o = boxOf(solid(other).flatMap((s) => s.pts));
-  if (!g || !o) return [0, 0];
+  if (!solid(ground).length || !solid(other).length) return [0, 0];
   const below = walledBoxes(ground);
   const above = walledBoxes(other);
   let best: XZ | null = null;
@@ -403,10 +403,19 @@ export function lineUp(ground: Raw, other: Raw): XZ {
       }
     }
   }
-  if (best) return best;
-  if (nearBest) return nearBest;
-  if (overlap(g, o) >= 0.5) return [0, 0];
-  return [(g.x0 + g.x1) / 2 - (o.x0 + o.x1) / 2, (g.z0 + g.z1) / 2 - (o.z0 + o.z1) / 2];
+  return best ?? nearBest ?? [0, 0];
+}
+
+/** A floor's sheets as pages of the one PDF the design's plans came from,
+    all at one size; null when they aren't, or that can't be told (files
+    dropped in together, a photo). */
+function pagesOf(doc: DesignDocument, f: Floor): { size: string; refs: string[] } | null {
+  const imp = doc.planImport;
+  if (imp?.sources.length !== 1 || imp.sources[0].kind !== "pdf" || !f.plans.length) return null;
+  const placed = new Set(Object.values(imp.placed));
+  if (!f.plans.every((s) => placed.has(s.imageRef))) return null;
+  const sizes = new Set(f.plans.map((s) => `${s.width}x${s.height}`));
+  return sizes.size === 1 ? { size: [...sizes][0], refs: f.plans.map((s) => s.imageRef) } : null;
 }
 
 const shift = ([dx, dz]: XZ) => (p: XZ): XZ => [p[0] + dx, p[1] + dz];
@@ -502,8 +511,18 @@ export function sceneOf(doc: DesignDocument, unitRow?: (model: string) => UnitRo
     if (r) raws.set(f.id, r);
   }
   const groundRaw = groundFloor ? raws.get(groundFloor.id) : undefined;
+  /* PAGES OF ONE FILE SHARE AN ORIGIN: an architect's sheets at one size
+     draw every floor in the same place on its page (3570's), so a floor on
+     another page of the one PDF stands as drawn, and a stair read a little
+     off can't walk it out of register. Only a floor from a file of its own,
+     or drawn on the ground floor's own page, is lined up over the ground. */
+  const groundPages = groundFloor ? pagesOf(doc, groundFloor) : null;
   const moves = new Map<string, XZ>();
-  for (const [id, r] of raws) moves.set(id, groundRaw && r !== groundRaw ? lineUp(groundRaw, r) : [0, 0]);
+  for (const [id, r] of raws) {
+    const pages = pagesOf(doc, r.floor);
+    const oneFile = !!pages && !!groundPages && pages.size === groundPages.size && !pages.refs.some((ref) => groundPages.refs.includes(ref));
+    moves.set(id, groundRaw && r !== groundRaw && !oneFile ? lineUp(groundRaw, r) : [0, 0]);
+  }
 
   /* A SUBFLOOR (floor-spaces.ts): the house stands on it, so every floor goes
      up by its height and it stands on the ground under the lowest one */
@@ -770,8 +789,10 @@ export function sceneOf(doc: DesignDocument, unitRow?: (model: string) => UnitRo
     roofs.push({ floorId: f.id, existing: part.existing, faces, fills, finish: roofFinishFor(part, roofRead?.material ?? "") });
   }
   /* THE ROOF'S OWN FACES (lib/studio/vector/roof.ts): each at its pitch from
-     its eave, the eave a rafter's seat over the top of the wall under it and
-     its overhang's fall lower at the eave line the plan draws */
+     the top of the wall under it, its overhang's fall lower at the eave line
+     the plan draws. No rafter's seat is added: it would be a rafter's depth
+     guessed, and one that differs with the pitch steps two faces of one
+     roof apart where they meet, at heights roof-place.ts checked without it */
   for (const face of roofRead?.faces ?? []) {
     const f = floorById.get(face.floorId);
     const floor = doc.floors.find((x) => x.id === face.floorId);
@@ -781,7 +802,7 @@ export function sceneOf(doc: DesignDocument, unitRow?: (model: string) => UnitRo
     const mv = shift(moves.get(f.id)!);
     const rise = riseOf(face.outline.map((p) => [p.x, p.y] as [number, number]), [face.fall.x, face.fall.y], face.pitchDeg);
     const t = Math.tan((face.pitchDeg * Math.PI) / 180);
-    const eave = f.y0 + face.eaveMm / 1000 + seatAt(face.pitchDeg) - (face.overhangMm / 1000) * t;
+    const eave = f.y0 + face.eaveMm / 1000 - (face.overhangMm / 1000) * t;
     const pts = face.outline.map((p, i): [number, number, number] => {
       const [x, z] = mv([((sheet.x + p.x) * k) / 1000, ((sheet.y + p.y) * k) / 1000]);
       return [x, eave + (rise[i] * k) / 1000, z];

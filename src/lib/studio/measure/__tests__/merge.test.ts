@@ -45,6 +45,16 @@ describe("the measured rooms into a sheet's reading", () => {
     const out = withMeasured(picture([sq("Grand Hall", 5, 5), sq("Store", 300, 0, "cupboard")]), measured([sq("Washroom", 0, 0, "wet"), { ...sq("Cupboard", 300, 0, "cupboard"), named: false }]), "p2");
     expect(out.walled!.look).toEqual([{ kind: "readers", room: "Washroom", said: "Washroom: a second read of the plan calls this room Grand Hall. Check which it is." }]);
   });
+  it("a measured room with no name takes the name of the picture's room that is plainly it, not of one it sits inside", () => {
+    /* a robe the picture read drew inside Bed 2, and Bed 2 itself: both unnamed by measure */
+    const robe: ReadSpace = { ...sq("Unnamed", 0, 0, "cupboard"), named: false, outline: [{ x: 40, y: 40 }, { x: 60, y: 40 }, { x: 60, y: 60 }, { x: 40, y: 60 }] };
+    const bed: ReadSpace = { ...sq("Unnamed", 0, 0), named: false };
+    const out = withMeasured(picture([sq("Bed 2", 0, 0)]), measured([robe, bed]), "p2");
+    expect(out.spaces.map((s) => [s.name, s.kind])).toEqual([
+      ["Unnamed", "cupboard"],
+      ["Bed 2", "room"],
+    ]);
+  });
   it("stand alone when the picture read failed", () => {
     const out = withMeasured(null, measured([sq("Lounge", 0, 0)]), "p2");
     expect(out).toMatchObject({ sheetId: "p2", openings: [], planUp: "" });
@@ -209,6 +219,12 @@ describe("doors and windows in the gaps their walls leave", () => {
     expect(out[1]).toMatchObject({ a: { x: 100, y: 70 }, b: { x: 140, y: 70 } });
     expect(out[1].inGap).toBeUndefined();
     expect(out[2].inGap).toBeUndefined();
+  });
+  it("a gap far longer than the opening as read is another's, and the opening stays as read", () => {
+    /* a window read 40 px across by a 150 px gap: a door's, not this one's */
+    const out = onGaps([op(130, 55)], [{ a: { x: 60, y: 50 }, b: { x: 210, y: 50 }, t: 8 }]);
+    expect(out[0].inGap).toBeUndefined();
+    expect(out[0].a).toEqual({ x: 110, y: 55 });
   });
   it("a floor read from the file carries its walls and gaps on its reading, its openings in them", () => {
     const walls = [[[{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 8 }, { x: 0, y: 8 }]]];

@@ -14,6 +14,8 @@ import { agreement, inside } from "./rooms";
 export type MeasuredRooms = { /** "file": read from the drawing file (lib/studio/vector), whose unnamed spaces may be yards */ from?: "file"; spaces: ReadSpace[]; look: ReadLook[]; grid: { x: number[]; y: number[] }; rounds: number; frame?: { left: number; top: number; width: number; height: number }; /** the file's own walls and the gaps in them */ walls?: ReadPoint[][][]; gaps?: WallGap[]; /** a named room and the unnamed spaces it may be one room with (vector/read.ts) */ joins?: SpaceJoin[] };
 
 const WALLED = new Set(["room", "wet", "cupboard", "garage"]);
+/* a measured room and a picture room are one when they share this much of their area (overlapOf) */
+const SHARED = 0.5;
 const walledIn = (spaces: readonly ReadSpace[]) => spaces.filter((s) => WALLED.has(s.kind) && (s.outline?.length ?? 0) >= 3);
 
 /** Why a measured read isn't to be trusted over the picture's, or null when it is. */
@@ -67,33 +69,26 @@ export function withMeasured(picture: SheetReading | null, m: MeasuredRooms, she
   };
   const beyond = picture ? picture.spaces.filter(out) : [];
   if (beyond.length) look.push({ kind: "readers", room: "", said: `${[...new Set(beyond.map((s) => s.name))].join(", ")}: outside the part of the sheet that was measured, so ${beyond.length === 1 ? "it is" : "they are"} as the read by picture drew ${beyond.length === 1 ? "it" : "them"}.` });
-  /* A ROOM THE FILE GAVE NO NAME takes the name the picture read gives the
-     room standing there, one inside the other either way round: a plan whose
-     names aren't text (Pariatur draws them), a hall, a robe or a WC the plan
-     leaves unlabelled (22 November 2026: 3570's entry hall and hall were
-     dropped, unnamed, where the picture read had them) */
+  /* A ROOM MEASURED WITH NO NAME takes the name the picture read gives the
+     room that is plainly it, the two sharing at least half their area: a
+     plan whose names aren't text (Pariatur draws them), a hall, a robe or a
+     WC the plan leaves unlabelled (22 November 2026: 3570's entry hall and
+     hall were dropped, unnamed, where the picture read had them). Not one
+     whose middle merely lies in the other: a robe inside the bedroom the
+     picture drew round it isn't the bedroom. Two such rooms, and it is
+     left unnamed. */
   const NAMES = new Set([...WALLED, "circulation"]);
   const has = (s: ReadSpace) => (s.outline?.length ?? 0) >= 3;
   const taken = new Set<ReadSpace>();
   const measured = m.spaces
     .map((s) => {
       if (s.named || !picture || !has(s)) return s;
-      const hit = picture.spaces.find((p) => !taken.has(p) && NAMES.has(p.kind) && has(p) && (inside(mean(p.outline)!, s.outline) || inside(mean(s.outline)!, p.outline)));
-      if (!hit) return s;
-      taken.add(hit);
-      return { ...s, name: hit.name, named: hit.named, kind: hit.kind };
+      const hits = picture.spaces.filter((p) => !taken.has(p) && NAMES.has(p.kind) && has(p) && boxed(p.outline, s.outline) && overlapOf(p.outline, s.outline) >= SHARED);
+      if (hits.length !== 1) return s;
+      taken.add(hits[0]);
+      return { ...s, name: hits[0].name, named: hits[0].named, kind: hits[0].kind };
     })
     .filter((s) => s.named || s.kind === "cupboard" || !m.from);
-  /* A ROOM THE FILE DIDN'T CLOSE OFF (a garage open to the drive, a hall
-     whose walls weren't found) is kept as the picture read drew it, where no
-     measured room stands: dropped, 3570's south garage went from the floor
-     (22 November 2026) */
-  const missed =
-    picture && m.from
-      ? picture.spaces.filter(
-          (p) => NAMES.has(p.kind) && has(p) && !taken.has(p) && !beyond.includes(p) && !measured.some((s) => has(s) && (inside(mean(p.outline)!, s.outline) || inside(mean(s.outline)!, p.outline))),
-        )
-      : [];
   /* what walls don't close off is the picture's to give: a terrace, a void,
      a stair in a hall, where the measured rooms have none of their own there */
   const OPEN = new Set(["outdoor", "void", "notch", "stair"]);
@@ -102,7 +97,7 @@ export function withMeasured(picture: SheetReading | null, m: MeasuredRooms, she
         (p) => OPEN.has(p.kind) && !beyond.includes(p) && (p.outline?.length ?? 0) >= 3 && !measured.some((s) => s.kind === p.kind && (s.outline?.length ?? 0) >= 3 && inside(mean(s.outline)!, p.outline)),
       )
     : [];
-  const spaces = [...measured, ...beyond, ...missed, ...open];
+  const spaces = [...measured, ...beyond, ...open];
   if (picture) {
     const a = agreement(spaces, picture.spaces);
     const missed = walledIn(picture.spaces).filter((s) => a.onlyB.includes(s.name) && !beyond.includes(s));
@@ -273,12 +268,17 @@ export function pictureLed(picture: readonly ReadSpace[], file: readonly ReadSpa
 
 /* ── doors and windows set in the walls' own gaps ── */
 
+/* a gap is an opening's when the two are this share of each other's length or more */
+const SAME_GAP = 0.7;
+
 /** EACH DOOR AND WINDOW IN THE GAP ITS WALL LEAVES FOR IT. The picture read
     places an opening by eye; the file's wall has the gap itself, jamb to
     jamb. Each opening takes the nearest gap within reach of its middle
-    (four wall thicknesses, about a metre), each gap once, the nearest
-    opening first; its ends become the gap's jambs, and its width the gap's
-    where the read gave none. One with no gap in reach stays as read. Pure. */
+    (four wall thicknesses, about a metre) that is about as long as the
+    read drew it jamb to jamb, within 30%, each gap once, the nearest
+    opening first; its ends become the gap's jambs. The nearest gap to a
+    600 mm window can be the 2.7 m one beside it, which would draw it 2.7 m
+    wide. One with no such gap in reach stays as read. Pure. */
 export function onGaps(openings: readonly ReadOpening[], gaps: readonly WallGap[]): ReadOpening[] {
   const mid = (a: Pt, b: Pt) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
   const toSeg = (p: Pt, a: Pt, b: Pt) => {
@@ -287,11 +287,15 @@ export function onGaps(openings: readonly ReadOpening[], gaps: readonly WallGap[
     const t = dx || dy ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy))) : 0;
     return Math.hypot(p.x - a.x - t * dx, p.y - a.y - t * dy);
   };
+  const long = (a: Pt, b: Pt) => Math.hypot(b.x - a.x, b.y - a.y);
   const pairs: { o: number; g: number; d: number }[] = [];
   openings.forEach((o, i) => {
-    if (o.kind === "skylight") return;
+    const lo = long(o.a, o.b);
+    if (o.kind === "skylight" || !(lo > 0)) return;
     const m = mid(o.a, o.b);
     gaps.forEach((g, j) => {
+      const lg = long(g.a, g.b);
+      if (Math.min(lo, lg) < SAME_GAP * Math.max(lo, lg)) return;
       const d = toSeg(m, g.a, g.b);
       if (d <= Math.max(4 * g.t, 8)) pairs.push({ o: i, g: j, d });
     });

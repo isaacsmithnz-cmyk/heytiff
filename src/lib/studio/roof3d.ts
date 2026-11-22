@@ -97,6 +97,49 @@ function tri(m: Mesh, a: V3, b: V3, c: V3) {
   m.tris.push(i, i + 1, i + 2);
 }
 
+/** The sheets' seat over the wall at a pitch (seatOf, for a face read off the roof plan). */
+export const seatAt = (pitchDeg: number): number => (pitchDeg > 0 ? RAFTER.h / Math.cos(Math.atan(Math.tan((pitchDeg * Math.PI) / 180))) + 0.02 : 0);
+
+/** One face of the roof as the roof plan draws it, its corners already at
+    their heights: cut into triangles on the plan by ear clipping, since a
+    face may have a notch (a gable bay let into a hip's side). */
+export function faceMesh(pts: readonly V3[]): Mesh {
+  const m: Mesh = { verts: pts.map((p) => [r3(p[0]), r3(p[1]), r3(p[2])]), tris: [] };
+  const n = pts.length;
+  if (n < 3) return m;
+  const xz = pts.map((p) => [p[0], p[2]] as const);
+  const area = xz.reduce((s, p, i) => s + p[0] * xz[(i + 1) % n][1] - xz[(i + 1) % n][0] * p[1], 0);
+  const turn = area > 0 ? 1 : -1;
+  const cross = (a: number, b: number, c: number) => (xz[b][0] - xz[a][0]) * (xz[c][1] - xz[a][1]) - (xz[b][1] - xz[a][1]) * (xz[c][0] - xz[a][0]);
+  const holds = (a: number, b: number, c: number, p: number) => turn * cross(a, b, p) >= 0 && turn * cross(b, c, p) >= 0 && turn * cross(c, a, p) >= 0;
+  const left = [...Array(n).keys()];
+  let guard = n * n;
+  while (left.length > 3 && guard-- > 0) {
+    let cut = false;
+    for (let i = 0; i < left.length; i++) {
+      const a = left[(i - 1 + left.length) % left.length];
+      const b = left[i];
+      const c = left[(i + 1) % left.length];
+      const c2 = turn * cross(a, b, c);
+      /* a straight run's middle corner is no ear, but drops out */
+      if (Math.abs(c2) < 1e-9) {
+        left.splice(i, 1);
+        cut = true;
+        break;
+      }
+      if (c2 < 0) continue;
+      if (left.some((p) => p !== a && p !== b && p !== c && holds(a, b, c, p))) continue;
+      m.tris.push(a, b, c);
+      left.splice(i, 1);
+      cut = true;
+      break;
+    }
+    if (!cut) break;
+  }
+  if (left.length === 3) m.tris.push(left[0], left[1], left[2]);
+  return m;
+}
+
 /** The roof sheets (`faces`) and the walls that rise to meet them (`fills`). */
 export function roofMesh(r: RoofRect): { faces: Mesh; fills: Mesh } {
   const faces: Mesh = { verts: [], tris: [] };

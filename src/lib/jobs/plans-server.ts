@@ -14,6 +14,8 @@ import { nameRooms, prepareMeasured } from "@/lib/studio/measured-server";
 import { withMeasured } from "@/lib/studio/measure/merge";
 import { K, vectorRooms } from "@/lib/studio/vector/read";
 import { facesOf, snapped } from "@/lib/studio/vector/snap";
+import { pitchOf, roofLines } from "@/lib/studio/vector/roof";
+import { placeFaces, type FloorUnder } from "@/lib/studio/vector/roof-place";
 import { SONNET_FALLBACK } from "@/lib/tiff/sonnet-fallback";
 import { openPdf } from "@/lib/tiff/extract";
 import { fullInNode, pixelsInNode, previewsInNode, textsInNode, vectorsInNode } from "./plan-draw-node";
@@ -429,6 +431,66 @@ async function measureFloor(bytes: Uint8Array, p: JobPlanPage, deadline: number,
   return { spaces: read.spaces, look: read.problems, grid: read.walls.grid, rounds: read.rounds, frame: read.frame };
 }
 
+
+/** At most this many pages are read for the roof's faces: a set's roof plans are a page or two. */
+const ROOF_PAGES = 3;
+
+/* THE ROOF OFF THE ROOF PLAN'S OWN LINES (lib/studio/vector/roof.ts,
+   roof-place.ts): the pages that print three or more roof pitches, each read
+   for the faces its lines close round them and set over the floors read.
+   Only a floor drawn on a page the same size as the roof plan's is set
+   under it: the sheets' shared origin is what puts the faces in place. Any
+   page that doesn't read cleanly gives nothing, and the read's own roof
+   parts stand. Never fails the read. */
+async function roofFacesOf(bytes: Uint8Array, pages: readonly JobPlanPage[], reading: PlanReading): Promise<{ faces: NonNullable<NonNullable<PlanReading["roof"]>["faces"]>; left: number } | null> {
+  const roof = reading.roof;
+  if (!roof) return null;
+  const read = pages.filter((p) => p.kind === "floor" && reading.floors[pageKey(p.n)]?.length);
+  if (!read.length) return null;
+  const others = pages.filter((p) => p.kind !== "floor").map((p) => p.n);
+  if (!others.length) return null;
+  const found = (await textsInNode(bytes, others))
+    .map((t) => ({ n: t.n, pitches: t.words.filter((w) => pitchOf(w.text) != null).length }))
+    .filter((t) => t.pitches >= 3)
+    .sort((a, b) => b.pitches - a.pitches)
+    .slice(0, ROOF_PAGES);
+  const faces: NonNullable<NonNullable<PlanReading["roof"]>["faces"]> = [];
+  let left = 0;
+  for (const { n } of found) {
+    const v = await vectorsInNode(bytes, n);
+    const lines = roofLines({ lines: v.lines, words: v.words.map((w) => ({ text: w.text, at: { x: w.at.x / K, y: w.at.y / K } })), width: v.width, height: v.height });
+    if ("none" in lines) {
+      console.log(`[job-plans] p${n} roof lines: ${lines.none}`);
+      continue;
+    }
+    /* the floors drawn on a sheet of the roof plan's size, in that sheet's pixels to a point */
+    const W = Math.round(v.width * v.rasterScale);
+    const H = Math.round(v.height * v.rasterScale);
+    const under: FloorUnder[] = read
+      .filter((p) => Math.abs(p.width - W) <= 2 && Math.abs(p.height - H) <= 2)
+      .map((p) => {
+        const sheet = reading.floors[pageKey(p.n)][0];
+        return {
+          floorId: pageKey(p.n),
+          sheetId: sheet.sheetId,
+          level: p.level ?? 0,
+          pxPerPt: v.rasterScale,
+          spaces: sheet.spaces,
+          walls: sheet.walled?.walls,
+          ceilingMm: roof.levels.find((l) => l.floorId === pageKey(p.n))?.ceilingMm ?? null,
+          mmPerPx: pageScale(p, sheet.spaces)?.mmPerPx ?? null,
+        };
+      });
+    const placed = placeFaces(lines.faces, n, under, roof.parts);
+    if ("none" in placed) {
+      console.log(`[job-plans] p${n} roof faces: ${placed.none}`);
+      continue;
+    }
+    faces.push(...placed.faces);
+    left += placed.left + lines.left.length;
+  }
+  return faces.length ? { faces, left } : null;
+}
 
 /** At most this many schedule sheets are read: a set's schedules are a page or two. */
 const SCHEDULE_PAGES = 3;
@@ -1165,6 +1227,15 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
       };
       const [roof, site] = await Promise.all([byThen(roofP), byThen(siteP)]);
       if (roof !== LATE && roof !== undefined) reading.roof = roof;
+      /* the roof's faces off the roof plan's own lines, where it draws them so they read */
+      /* only with the run's time to spare: a read cut off by the route's limit loses everything with it */
+      if (reading.roof && isPdf && vectorOn() && !reading.roof.faces && Date.now() < until) {
+        const got = await roofFacesOf(new Uint8Array((await bytesOf()).bytes), pages, reading).catch((e) => {
+          console.error(`[job-plans] ${planId}/roof faces: ${String(e)}`);
+          return null;
+        });
+        if (got) reading.roof = { ...reading.roof, faces: got.faces, facesLeft: got.left };
+      }
       if (site !== LATE) reading.site = site;
       if ((roof === LATE || site === LATE) && !kept) {
         /* the floors stand; the roof and the site get a run of their own */

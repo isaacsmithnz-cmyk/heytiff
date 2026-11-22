@@ -33,6 +33,9 @@ export type ReadSpace = {
   stair: string;
 };
 
+/** A gap in a wall the drawing file draws: a door's or a window's place. */
+export type WallGap = { a: ReadPoint; b: ReadPoint; t: number };
+
 export type ReadOpening = {
   kind: "door" | "window" | "skylight";
   tag: string;
@@ -46,6 +49,8 @@ export type ReadOpening = {
   /** from the set's door and window schedule, by its mark (schedule.ts): its height, and its sill above the floor */
   heightMm?: number;
   sillMm?: number;
+  /** its ends are the jambs of the gap its wall leaves for it in the drawing file (merge.ts onGaps) */
+  inGap?: boolean;
 };
 
 /** Built-ins, bulkheads, fans and what's written about the air conditioning. */
@@ -84,7 +89,15 @@ export type SheetReading = {
   /** set when the spaces were measured off the drawing's own walls and named
       between them (measured-server.ts), not traced off its picture: the wall
       lines they stand on, and what a person should still look at */
-  walled?: { grid: { x: number[]; y: number[] }; rounds: number; look: ReadLook[] };
+  walled?: {
+    grid: { x: number[]; y: number[] };
+    rounds: number;
+    look: ReadLook[];
+    /** the walls as the drawing file draws them (lib/studio/vector): each a filled shape, its outlines even-odd, in the sheet's pixels. The 3D stands these up. */
+    walls?: ReadPoint[][][];
+    /** the gaps in those walls a door or a window leaves: each jamb's middle and the wall's thickness there */
+    gaps?: WallGap[];
+  };
 };
 
 /** Something about a reading a person should look at: a room that sits on no

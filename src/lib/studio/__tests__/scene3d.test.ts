@@ -1,6 +1,6 @@
 import { createDesign, type DesignDocument, type DesignObject, type Floor } from "../document";
 import type { ReadSpace, SheetReading } from "../reading";
-import { lineUp, sceneOf } from "../scene3d";
+import { lineUp, sceneOf, solidsOf } from "../scene3d";
 
 /* The 3D view's arithmetic (lib/studio/scene3d): what it draws, in metres,
    and how the floors stand on each other. */
@@ -418,3 +418,38 @@ describe("a roof space (floor-spaces.ts)", () => {
 });
 
 
+
+describe("the walls the drawing file draws", () => {
+  const ring = (x0: number, y0: number, x1: number, y1: number) => [
+    { x: x0, y: y0 },
+    { x: x1, y: y0 },
+    { x: x1, y: y1 },
+    { x: x0, y: y1 },
+  ];
+  it("stand on the floor in metres with their gaps, and a door in its gap isn't moved onto a room's side", () => {
+    const sh = {
+      ...read("s-gf", [space("Lounge", "room", [10, 10, 390, 290])], [{ kind: "door", tag: "", a: { x: 100, y: 5 }, b: { x: 190, y: 5 }, widthMm: 900, room: "Lounge", external: true, facing: "N", inGap: true }]),
+      walled: { grid: { x: [], y: [] }, rounds: 0, look: [], walls: [[ring(0, 0, 100, 10)], [ring(190, 0, 400, 10)]], gaps: [{ a: { x: 100, y: 5 }, b: { x: 190, y: 5 }, t: 10 }] },
+    };
+    const f = sceneOf(design([floor("gf", 0)], { gf: [sh] })).floors[0];
+    /* 10 mm a plan unit: 100 units is a metre */
+    expect(f.walls).toEqual([
+      { outer: [[0, 0], [1, 0], [1, 0.1], [0, 0.1]], holes: [] },
+      { outer: [[1.9, 0], [4, 0], [4, 0.1], [1.9, 0.1]], holes: [] },
+    ]);
+    expect(f.gaps).toEqual([{ a: [1, 0.05], b: [1.9, 0.05], t: 0.1 }]);
+    expect(f.openings[0]).toMatchObject({ a: [1, 0.05], b: [1.9, 0.05], inGap: true });
+  });
+  it("a floor with none has none, and its rooms' walls are drawn round them as before", () => {
+    const f = sceneOf(design([floor("gf", 0)], { gf: [read("s-gf", [space("Lounge", "room", [0, 0, 400, 300])])] })).floors[0];
+    expect(f.walls).toBeUndefined();
+  });
+  it("an outline inside another is a hole in it; one beside it is a wall of its own", () => {
+    const sq = (x0: number, z0: number, x1: number, z1: number): [number, number][] => [[x0, z0], [x1, z0], [x1, z1], [x0, z1]];
+    const out = solidsOf([sq(0, 0, 10, 10), sq(2, 2, 8, 8), sq(20, 0, 30, 1)]);
+    expect(out).toEqual([
+      { outer: sq(0, 0, 10, 10), holes: [sq(2, 2, 8, 8)] },
+      { outer: sq(20, 0, 30, 1), holes: [] },
+    ]);
+  });
+});

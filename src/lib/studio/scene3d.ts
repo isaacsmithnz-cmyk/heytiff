@@ -73,7 +73,42 @@ export type Opening3D = {
   head: number;
   /** cuts the face across a thick wall from the one it's drawn in, and draws nothing there (tidy3d) */
   echo?: boolean;
+  /** its ends are the jambs of the gap its wall leaves for it in the drawing file */
+  inGap?: boolean;
 };
+
+/** A wall as the drawing file draws it: its outline and the holes in it, metres. */
+export type Wall3D = { outer: XZ[]; holes: XZ[][] };
+/** A gap in the file's walls: each jamb's middle, and the wall's thickness there, metres. */
+export type Gap3D = { a: XZ; b: XZ; t: number };
+
+/** A filled shape's outlines (even-odd) as solids: an outline inside an odd
+    number of the others is a hole in the one it sits in. Pure. */
+export function solidsOf(rings: readonly XZ[][]): Wall3D[] {
+  const ok = rings.filter((r) => r.length >= 3);
+  const inRing = (p: XZ, r: readonly XZ[]) => {
+    let c = false;
+    for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+      const [ax, az] = r[i];
+      const [bx, bz] = r[j];
+      if (az > p[1] !== bz > p[1] && p[0] < ((bx - ax) * (p[1] - az)) / (bz - az) + ax) c = !c;
+    }
+    return c;
+  };
+  const size = (r: readonly XZ[]) => Math.abs(r.reduce((t, [x, z], i) => t + x * r[(i + 1) % r.length][1] - r[(i + 1) % r.length][0] * z, 0));
+  const inside = ok.map((r, i) => ok.map((o, j) => (j !== i && inRing(r[0], o) ? j : -1)).filter((j) => j >= 0));
+  const out = new Map<number, Wall3D>();
+  ok.forEach((r, i) => {
+    if (inside[i].length % 2 === 0) out.set(i, { outer: r, holes: [] });
+  });
+  ok.forEach((r, i) => {
+    if (inside[i].length % 2 === 0) return;
+    /* a hole belongs to the smallest solid outline round it */
+    const host = inside[i].filter((j) => out.has(j)).sort((a, b) => size(ok[a]) - size(ok[b]))[0];
+    if (host !== undefined) out.get(host)!.holes.push(r);
+  });
+  return [...out.values()];
+}
 
 export type Floor3D = {
   id: string;
@@ -97,6 +132,10 @@ export type Floor3D = {
   open?: [XZ, XZ][];
   /** floor laid across a wall's thickness where it's open or a door goes through it (tidy3d) */
   bridges?: XZ[][];
+  /** THE WALLS AS THE DRAWING FILE DRAWS THEM, where it does (lib/studio/vector): stood up as they are, instead of walls drawn round each room */
+  walls?: Wall3D[];
+  /** the gaps in those walls: a door's or a window's place */
+  gaps?: Gap3D[];
   /** back to the plan: a point here is (p - shift) * 1000 / mm plan units, mm the floor's scale */
   shift?: XZ;
   mm?: number;
@@ -241,7 +280,7 @@ function overlap(a: Box, b: Box): number {
 }
 
 /** A floor's spaces, openings and units in metres, before it is lined up. */
-type Raw = { floor: Floor; spaces: Space3D[]; openings: Opening3D[]; read: boolean; furniture?: ReadPiece[]; joinery?: ReadPiece[] };
+type Raw = { floor: Floor; spaces: Space3D[]; openings: Opening3D[]; read: boolean; furniture?: ReadPiece[]; joinery?: ReadPiece[]; walls?: Wall3D[]; gaps?: Gap3D[] };
 
 function rawFloor(doc: DesignDocument, floor: Floor, ceiling: number): Raw | null {
   const k = floor.scaleMmPerUnit;
@@ -252,6 +291,8 @@ function rawFloor(doc: DesignDocument, floor: Floor, ceiling: number): Raw | nul
   const openings: Opening3D[] = [];
   const furniture: ReadPiece[] = [];
   const joinery: ReadPiece[] = [];
+  const walls: Wall3D[] = [];
+  const gaps: Gap3D[] = [];
   /* the plan's own words, kept from the PDF at upload, for the finishes they name */
   const pageOf = new Map(Object.entries(doc.planImport?.placed ?? {}).map(([i, ref]) => [ref, Number(i)]));
   for (const r of sheets) {
@@ -282,8 +323,12 @@ function rawFloor(doc: DesignDocument, floor: Floor, ceiling: number): Raw | nul
         external: o.external,
         sill: o.kind === "window" ? Math.min(sill ?? (tall !== null ? Math.max(0, HEAD_M - tall) : SILL_M), head - 0.3) : 0,
         head,
+        ...(o.inGap ? { inGap: true } : {}),
       });
     }
+    /* the file's own walls and their gaps, where it drew them */
+    for (const rings of r.walled?.walls ?? []) walls.push(...solidsOf(rings.map((ring) => ring.map(on))));
+    for (const g of r.walled?.gaps ?? []) gaps.push({ a: on(g.a), b: on(g.b), t: (g.t * k) / 1000 });
   }
   const read = spaces.length > 0;
   if (!read) {
@@ -292,7 +337,7 @@ function rawFloor(doc: DesignDocument, floor: Floor, ceiling: number): Raw | nul
       spaces.push({ name: typeof o.props.name === "string" ? o.props.name : "", kind: "zone", pts: o.geometry.points.map(m), existing: false });
     }
   }
-  return spaces.length ? { floor, spaces, openings, read, furniture, joinery } : null;
+  return spaces.length ? { floor, spaces, openings, read, furniture, joinery, ...(walls.length ? { walls, gaps } : {}) } : null;
 }
 
 const solid = (r: Raw) => r.spaces.filter((s) => WALLED.has(s.kind) && !s.existing);
@@ -470,7 +515,8 @@ export function sceneOf(doc: DesignDocument, unitRow?: (model: string) => UnitRo
     const mv = shift(moves.get(f.id)!);
     const spaces = r.spaces.map((s) => ({ ...s, pts: s.pts.map(mv) }));
     /* each door and window onto the wall it belongs to (tidy3d) */
-    const openings = r.read ? snapOpenings(spaces, r.openings.map((o) => ({ ...o, a: mv(o.a), b: mv(o.b) }))) : r.openings.map((o) => ({ ...o, a: mv(o.a), b: mv(o.b) }));
+    /* on the file's own walls, a door or a window is in its gap already */
+    const openings = r.read && !r.walls ? snapOpenings(spaces, r.openings.map((o) => ({ ...o, a: mv(o.a), b: mv(o.b) }))) : r.openings.map((o) => ({ ...o, a: mv(o.a), b: mv(o.b) }));
     floors.push({
       id: f.id,
       name: f.name,
@@ -486,6 +532,7 @@ export function sceneOf(doc: DesignDocument, unitRow?: (model: string) => UnitRo
       tiles: tilesOf(doc, f, r, moves.get(f.id)!),
       pieces: [],
       stairs: [],
+      ...(r.walls ? { walls: r.walls.map((w) => ({ outer: w.outer.map(mv), holes: w.holes.map((h) => h.map(mv)) })), gaps: (r.gaps ?? []).map((g) => ({ ...g, a: mv(g.a), b: mv(g.b) })) } : {}),
     });
   }
   flightsOf(floors);

@@ -1189,6 +1189,8 @@ async function build(
         for (let k = 0; k < (s.bare ? 0 : s.pts.length); k++) {
           const a = s.pts[k];
           const b = s.pts[(k + 1) % s.pts.length];
+          /* the drawing file's own walls stand on this floor (below): none is drawn round a room */
+          if (f.walls?.length && !s.well) break;
           if (!s.well) {
             /* a room's wall stops where it would cross a flight of stairs (tidy3d) */
             for (const [p, q] of clipOut(a, b, flightsOn(f, s))) addAll(g, wall(p, q, f, glass ? zoneMat : wallMat, true));
@@ -1206,6 +1208,54 @@ async function build(
       if (s.kind !== "stair" && s.kind !== "cupboard") {
         const nm = floorName(sentence(s.name), s.pts, f.y0, i);
         if (nm) g.add(nm);
+      }
+    }
+    /* THE WALLS AS THE DRAWING FILE DRAWS THEM (lib/studio/vector), stood up
+       to the ceiling as they are: their real thickness, their corners, their
+       curves. A door or a window stands in the gap the wall leaves for it,
+       at its scheduled sill and head, wall under and over it; a gap no
+       opening was read in is a doorway, wall over it from 2.1 m, or left
+       open when it is wider than a door (Isaac, 22 November 2026, of the
+       outside study built from the walls: "the most accurate so far") */
+    if (f.walls?.length) {
+      for (const w of f.walls) {
+        const sh = shape(w.outer);
+        for (const h of w.holes) sh.holes.push(shape(h));
+        const geo = new THREE.ExtrudeGeometry(sh, { depth: f.ceiling, bevelEnabled: false });
+        geo.rotateX(-Math.PI / 2);
+        const m = new THREE.Mesh(geo, wallMat);
+        m.position.y = f.y0;
+        m.castShadow = true;
+        m.receiveShadow = true;
+        const e = new THREE.LineSegments(new THREE.EdgesGeometry(geo), edgeMat);
+        e.position.y = f.y0;
+        g.add(m, e);
+      }
+      for (const gap of f.gaps ?? []) {
+        const len = Math.hypot(gap.b[0] - gap.a[0], gap.b[1] - gap.a[1]);
+        if (len < 0.05) continue;
+        const ux = (gap.b[0] - gap.a[0]) / len;
+        const uz = (gap.b[1] - gap.a[1]) / len;
+        const mid: XZ = [(gap.a[0] + gap.b[0]) / 2, (gap.a[1] + gap.b[1]) / 2];
+        const nx = (-uz * gap.t) / 2;
+        const nz = (ux * gap.t) / 2;
+        /* the floor runs through the gap */
+        const sl = slab({ name: "", kind: "room", pts: [[gap.a[0] + nx, gap.a[1] + nz], [gap.b[0] + nx, gap.b[1] + nz], [gap.b[0] - nx, gap.b[1] - nz], [gap.a[0] - nx, gap.a[1] - nz]], existing: false }, f);
+        standOn.set(sl, f.id);
+        g.add(sl);
+        const o = f.openings.find((x) => x.inGap && Math.hypot((x.a[0] + x.b[0]) / 2 - mid[0], (x.a[1] + x.b[1]) / 2 - mid[1]) < 0.05);
+        if (!o) {
+          if (len <= 2.5) addAll(g, segBox(gap.a, gap.b, f.y0 + 2.1, f.ceiling - 2.1, gap.t, wallMat, true));
+          continue;
+        }
+        const head = Math.min(o.head, f.ceiling);
+        addAll(g, segBox(gap.a, gap.b, f.y0, o.sill, gap.t, wallMat, true));
+        addAll(g, segBox(gap.a, gap.b, f.y0 + head, f.ceiling - head, gap.t, wallMat, true));
+        const fg = fill({ ...o, head }, len);
+        const [mx, mz] = P(mid);
+        fg.position.set(mx, f.y0 + o.sill, mz);
+        fg.rotation.y = -Math.atan2(uz, ux);
+        g.add(fg);
       }
     }
     /* the floor across a wall's thickness where it's open or a door goes through it */

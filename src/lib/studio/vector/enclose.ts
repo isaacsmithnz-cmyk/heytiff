@@ -342,3 +342,46 @@ export function parted(
     };
   });
 }
+
+/** A gap closed in a wall: a door's or a window's place. Its two jambs' middles and the wall's thickness there, in the grid's pixels. */
+export type Gap = { a: [number, number]; b: [number, number]; t: number };
+
+/** The gaps `bridged` closed: each run of closed pixels, with a wall at both
+    its ends along x (a gap in a wall running across) or along y (one running
+    up and down). `wall` is the grid before, `shut` after. */
+export function gapsOf(wall: Uint8Array, shut: Uint8Array, W: number, H: number): Gap[] {
+  const seen = new Uint8Array(W * H);
+  const out: Gap[] = [];
+  const queue = new Int32Array(W * H);
+  const is = (i: number) => shut[i] === 1 && wall[i] === 0;
+  for (let s = 0; s < W * H; s++) {
+    if (seen[s] || !is(s)) continue;
+    let head = 0;
+    let tail = 0;
+    let [x0, y0, x1, y1] = [W, H, 0, 0];
+    queue[tail++] = s;
+    seen[s] = 1;
+    while (head < tail) {
+      const i = queue[head++];
+      const x = i % W;
+      const y = (i / W) | 0;
+      x0 = Math.min(x0, x);
+      x1 = Math.max(x1, x);
+      y0 = Math.min(y0, y);
+      y1 = Math.max(y1, y);
+      for (const j of [x > 0 ? i - 1 : -1, x < W - 1 ? i + 1 : -1, y > 0 ? i - W : -1, y < H - 1 ? i + W : -1])
+        if (j >= 0 && !seen[j] && is(j)) {
+          seen[j] = 1;
+          queue[tail++] = j;
+        }
+    }
+    const cx = (x0 + x1 + 1) / 2;
+    const cy = (y0 + y1 + 1) / 2;
+    const at = (x: number, y: number) => x >= 0 && y >= 0 && x < W && y < H && wall[y * W + x] === 1;
+    const across = at(x0 - 1, Math.floor(cy)) && at(x1 + 1, Math.floor(cy));
+    const down = at(Math.floor(cx), y0 - 1) && at(Math.floor(cx), y1 + 1);
+    if (across && (!down || x1 - x0 >= y1 - y0)) out.push({ a: [x0, cy], b: [x1 + 1, cy], t: y1 - y0 + 1 });
+    else if (down) out.push({ a: [cx, y0], b: [cx, y1 + 1], t: x1 - x0 + 1 });
+  }
+  return out;
+}

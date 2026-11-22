@@ -1,6 +1,6 @@
 import { fillsOf, type FillOps } from "../fills";
 import { wallsOf } from "../walls";
-import { bridged, enclose, outlined, rasterise, simplify } from "../enclose";
+import { bridged, enclose, gapsOf, outlined, rasterise, simplify } from "../enclose";
 import { roomWord, vectorRooms } from "../read";
 import { lineWalls } from "../lines";
 import { facesOf, snapped } from "../snap";
@@ -183,5 +183,27 @@ describe("two rooms' names in one space", () => {
       ["Ensuite", "wet"],
     ]);
     expect(r.look).toEqual([]);
+  });
+});
+
+describe("the walls themselves, and the gaps in them", () => {
+  it("come back with the rooms: the file's shapes in the sheet's pixels, and each door's and window's gap jamb to jamb", () => {
+    const r = vectorRooms({ fills: threeRooms(), width: 400, height: 300, words: roomWords, mmPerPt: null, rasterScale: 2 });
+    if ("none" in r) throw new Error(r.none);
+    expect(r.walls).toHaveLength(WALLS.length);
+    /* the top wall's first piece, 50,50 to 120,54 points, at two pixels a point */
+    expect(r.walls[0][0]).toEqual([{ x: 100, y: 100 }, { x: 240, y: 100 }, { x: 240, y: 108 }, { x: 100, y: 108 }]);
+    /* two windows in the top wall, two in the bottom, one in the left, a door in each wall between */
+    expect(r.gaps).toHaveLength(7);
+    expect(r.gaps).toContainEqual({ a: { x: 240, y: 104 }, b: { x: 280, y: 104 }, t: 8 });
+    expect(r.gaps).toContainEqual({ a: { x: 300, y: 200 }, b: { x: 300, y: 250 }, t: 8 });
+  });
+  it("a gap is a run of closed floor with wall at both its ends", () => {
+    const W = 12;
+    const wall = new Uint8Array(W * W);
+    for (let x = 0; x < W; x++) if (x < 4 || x >= 8) wall[5 * W + x] = wall[6 * W + x] = 1;
+    const shut = new Uint8Array(wall);
+    for (let x = 4; x < 8; x++) shut[5 * W + x] = shut[6 * W + x] = 1;
+    expect(gapsOf(wall, shut, W, W)).toEqual([{ a: [4, 6], b: [8, 6], t: 2 }]);
   });
 });

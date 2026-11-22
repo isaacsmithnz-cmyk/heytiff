@@ -1,8 +1,8 @@
-import type { ReadLook, ReadSpace, SpaceKind } from "../reading";
+import type { ReadLook, ReadPoint, ReadSpace, SpaceKind } from "../reading";
 import type { Fill, Line } from "./fills";
 import { wallsOf, type Walls } from "./walls";
 import { lineWalls } from "./lines";
-import { enclose, outlined, parted, rasterise } from "./enclose";
+import { enclose, gapsOf, outlined, parted, rasterise } from "./enclose";
 
 /* A FLOOR'S ROOMS READ FROM THE DRAWING FILE ITSELF (Isaac, 22 November 2026:
    "I need the plans accurate to design it"; "build the new way"). The walls
@@ -37,6 +37,14 @@ export type VectorRooms = {
   grid: { x: number[]; y: number[] };
   rounds: number;
   frame: { left: number; top: number; width: number; height: number };
+  /** THE WALLS THEMSELVES, as the file draws them: each a filled shape, its
+      outlines even-odd, in the sheet's raster pixels to a tenth. What the 3D
+      stands up, instead of walls guessed round rooms (the outside study of
+      3570, 22 November 2026, built its model from the walls; Isaac: "the
+      most accurate so far") */
+  walls: ReadPoint[][][];
+  /** the gaps in them a door or a window leaves: each jamb's middle, and the wall's thickness there */
+  gaps: { a: ReadPoint; b: ReadPoint; t: number }[];
   /** what the read found, for the kept test and the log */
   found: { colours: string[]; rooms: number; named: number; labels: number; landed: number };
 };
@@ -122,20 +130,28 @@ export function vectorRooms(input: VectorInput): VectorRooms | { none: string } 
   const filled = wallsOf(input.fills, input.mmPerPt);
   const drawn = input.lines?.length ? lineWalls(input.lines, input.mmPerPt) : null;
   if (!filled && !drawn) return { none: "Its walls aren't drawn in the file, filled or in lines" };
-  const tries: Walls[] = [];
-  if (filled) tries.push(filled);
-  if (drawn) tries.push(drawn);
-  if (filled && drawn) tries.push({ colours: [...filled.colours, ...drawn.colours], shapes: [...filled.shapes, ...drawn.shapes], thickness: filled.thickness });
+  /* the walls the file fills are sure; walls paired from lines take a roof's
+     edge or a balustrade for a wall as easily (3570's level 1, 22 November
+     2026). So the filled walls' reading stands unless one with drawn walls
+     lands three more of the plan's room names, and only filled walls are
+     handed on to be stood up in 3D */
   let best: VectorRooms | null = null;
   let why = "";
-  for (const walls of tries) {
+  const tried = (walls: Walls, sure: boolean): VectorRooms | null => {
     const r = roomsBetween(walls, input);
     if ("none" in r) {
       why ||= r.none;
-      continue;
+      return null;
     }
-    const score = (x: VectorRooms) => x.found.landed * 2 + x.found.named;
-    if (!best || score(r) > score(best)) best = r;
+    return sure ? r : { ...r, walls: [], gaps: [] };
+  };
+  if (filled) best = tried(filled, true);
+  const others: Walls[] = [];
+  if (drawn) others.push(drawn);
+  if (filled && drawn) others.push({ colours: [...filled.colours, ...drawn.colours], shapes: [...filled.shapes, ...drawn.shapes], thickness: filled.thickness });
+  for (const walls of others) {
+    const r = tried(walls, false);
+    if (r && (!best || r.found.landed >= best.found.landed + 3)) best = r;
   }
   return best ?? { none: why };
 }
@@ -253,7 +269,14 @@ function roomsBetween(walls: Walls, input: VectorInput): VectorRooms | { none: s
     };
   });
   const pad = Math.round(thick * 2);
+  const tenth = (v: number) => Math.round(v * to * 10) / 10;
+  /* the walls inside the building's box: a legend or a north point's fill elsewhere on the sheet is no wall */
+  const inBox = (r: readonly [number, number][]) => r.some(([x, y]) => x * K >= bx0 - pad && x * K <= bx1 + pad && y * K >= by0 - pad && y * K <= by1 + pad);
+  const wallShapes = walls.shapes.map((rings) => rings.filter(inBox).map((r) => r.map(([x, y]) => ({ x: tenth(x * K), y: tenth(y * K) })))).filter((rings) => rings.length);
+  const gaps = gapsOf(grid, e.wall, W, H).map((g) => ({ a: { x: tenth(g.a[0]), y: tenth(g.a[1]) }, b: { x: tenth(g.b[0]), y: tenth(g.b[1]) }, t: tenth(g.t) }));
   return {
+    walls: wallShapes,
+    gaps,
     spaces,
     look,
     grid: { x: [], y: [] },

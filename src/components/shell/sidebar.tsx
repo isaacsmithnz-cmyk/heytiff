@@ -34,8 +34,10 @@ export type ShellUser = {
 };
 
 /* THE SIDEBAR (docs/design.md rules 1 and 3 to 7). Ink, top to bottom:
-   the wordmark, New, Search, the places, Pinned and Recents, and your name.
-   It doesn't fold (rule 27), so the rail's collapse control is gone. */
+   the mark, New, Search, the places, Pinned and Recents, and your name.
+   A rail of icons 64 wide, each name beside its icon when you point at it
+   (Isaac, 23 November 2026, the denser job page). It never opens out, so it
+   has no control for that (rule 27). */
 export function Sidebar({ user, newJob = false, pins = [] }: { user: ShellUser; newJob?: boolean; pins?: readonly Pin[] }) {
   seedPins(pins);
   const pathname = usePathname();
@@ -124,7 +126,7 @@ function NewButton({ newJob }: { newJob: boolean }) {
         <span className="fr-newdisc" aria-hidden>
           <Icon name="plus" size={14} />
         </span>
-        New
+        <span className="fr-lbl">New</span>
       </button>
       <Menu
         anchor={ref}

@@ -177,7 +177,7 @@ export function JobHeadMap({ jobUuid, hue, address }: { jobUuid: string; hue: st
   );
 }
 
-/** The site in the job's head: the address's first line bold over the rest,
+/** The site in the job's head: the address on one line, its first part bold,
     their PO where they gave one, and Site notes (build 9). */
 export function JobSiteWords({ detail, jobUuid }: { detail: MirrorJobDetail | null; jobUuid: string | null }) {
   if (!detail) return null;
@@ -188,7 +188,7 @@ export function JobSiteWords({ detail, jobUuid }: { detail: MirrorJobDetail | nu
     <div className="jp-site">
       <p className="jp-addr">
         <b>{first}</b>
-        {rest.length > 0 && <span>{rest.join(", ")}</span>}
+        {rest.length > 0 && <span>, {rest.join(", ")}</span>}
       </p>
       {jobUuid && <SiteNotes jobUuid={jobUuid} />}
       {detail.purchaseOrder && (

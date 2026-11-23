@@ -186,6 +186,14 @@ export function CustomerThreadView({ thread }: { thread: CustomerThread }) {
     the dots to show that there is more to open"). */
 export const BUBBLE_WHOLE_LINES = 16;
 
+/** AN EMAIL IN THE FEED is a plain row, not a bubble: who wrote it, its
+    first three lines at 14, then its time, Seen and Whole email, every
+    message on the left (Isaac, 23 November 2026, "Build all six" to the
+    denser job page, https://claude.ai/artifact/8UsC9Cuf7RCMNi2tKqsP56,
+    as ServiceM8 shows a job's emails). A longer one fades on its third
+    line, and Whole email opens the rest. A text keeps its bubble. */
+export const EMAIL_WHOLE_LINES = 3;
+
 /** One message in a run: the name above the run's first, the bubble with
     its words and their links, what came with it under it, and the run's
     time and Seen under its last. A message too long to show whole has its
@@ -200,25 +208,25 @@ function Bubble({ line: l, onOpen, lastRef }: { line: ThreadBubble; onOpen: (b: 
     const measure = () => {
       const line = parseFloat(getComputedStyle(el).lineHeight) || 22;
       /* the whole of it, clamped or not: scrollHeight is the words' own height */
-      setLong(el.scrollHeight > line * BUBBLE_WHOLE_LINES + 1);
+      setLong(el.scrollHeight > line * (l.email ? EMAIL_WHOLE_LINES : BUBBLE_WHOLE_LINES) + 1);
     };
     measure();
     if (typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [l.words]);
+  }, [l.words, l.email]);
   return (
     <div
       ref={lastRef}
-      className={["jc-bm", `jc-bm--${l.side}`, l.name ? "jc-bm--first" : "", l.last ? "jc-bm--last" : ""].filter(Boolean).join(" ")}
+      className={["jc-bm", `jc-bm--${l.side}`, l.email ? "jc-bm--email" : "", l.name ? "jc-bm--first" : "", l.last ? "jc-bm--last" : ""].filter(Boolean).join(" ")}
     >
       {l.name && <p className="jc-bmname">{l.name}</p>}
       <div className="jc-bubble">
         <div ref={words} className={`jc-bubwords${long ? " jc-bubwords--clamped" : ""}`}>
           <Linked text={l.words} />
         </div>
-        {long && (
+        {long && !l.email && (
           <button type="button" className="jc-bubmore" aria-label="Show the whole message" aria-haspopup="dialog" onClick={() => onOpen(l)}>
             •••
           </button>

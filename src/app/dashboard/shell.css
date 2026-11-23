@@ -435,8 +435,31 @@
 .fg .fr-mewho b { font-size:14px; font-weight:600; line-height:20px; }
 .fg .fr-mewho em { font-style:normal; font-size:13px; font-weight:500; line-height:18px; color:var(--on-ink-q); }
 
+/* THE RAIL (Isaac, 23 November 2026, "Build all six" to the denser job page,
+   https://claude.ai/artifact/8UsC9Cuf7RCMNi2tKqsP56): the sidebar is 64 wide,
+   its icons alone, so every page is 144 wider. It never opens out, so it has
+   no control for that (rule 27). A row's name shows beside its icon, ink
+   with white words, while you point at it or tab to it: the label is fixed,
+   so the rail's own scroll doesn't clip it, and its static place keeps it
+   level with its row. Pinned and Recents keep their rows under a hairline. */
+.fg .side.fr-side { width:64px; flex:0 0 64px; align-items:center; }
+.fg .fr-brand { padding:4px 0 16px; justify-content:center; }
+.fg .fr-wm { display:none; }
+.fg .side .fr-row, .fg .side .fr-new { width:48px; padding:0; justify-content:center; }
+.fg .fr-places, .fg .fr-group { align-items:center; }
+.fg .fr-grouphead { display:none; }
+.fg .fr-group { padding-top:8px; border-top:1px solid var(--on-ink-tint-2); }
+.fg .side .fr-metrig { width:48px; padding:8px; justify-content:center; }
+.fg .fr-metrig > svg { display:none; }
+.fg .side .fr-lbl, .fg .side .fr-mewho { display:none; position:fixed; left:72px; z-index:var(--z-overlay); flex:none; width:max-content; max-width:320px; padding:4px 8px; border-radius:var(--r-button); background:var(--ink); color:var(--white); font-size:13px; font-weight:500; line-height:18px; white-space:nowrap; -webkit-mask-image:none; mask-image:none; box-shadow:var(--shadow-overlay); pointer-events:none; }
+.fg .side .fr-row:hover .fr-lbl, .fg .side .fr-row:focus-visible .fr-lbl,
+.fg .side .fr-new:hover .fr-lbl, .fg .side .fr-new:focus-visible .fr-lbl,
+.fg .side .fr-metrig:hover .fr-mewho, .fg .side .fr-metrig:focus-visible .fr-mewho { display:block; }
+.fg .side .fr-new[aria-expanded="true"] .fr-lbl, .fg .side .fr-metrig[aria-expanded="true"] .fr-mewho { display:none; }
+.fg .side .fr-mewho b, .fg .side .fr-mewho em { display:block; font-size:13px; line-height:18px; }
+
 /* the header (rule 2), on the white page */
-.fg .topbar.fr-head { height:72px; flex:0 0 72px; gap:24px; padding:0 32px; background:var(--white); border-top-left-radius:var(--r-page); justify-content:flex-start; }
+.fg .topbar.fr-head { height:48px; flex:0 0 48px; gap:24px; padding:0 32px; background:var(--white); border-top-left-radius:var(--r-page); justify-content:flex-start; }
 .fg .fr-head .tbclock { flex-direction:row-reverse; align-items:baseline; gap:12px; }
 .fg .fr-head .tbclock b, .fg .fr-head .tbclock em { font-size:16px; line-height:24px; color:var(--ink); }
 .fg .fr-head .tbclock em { font-weight:600; }
@@ -6183,7 +6206,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .main:has(.jp-sheet:not(.jp-doc)) .topbar.fr-head { background:var(--jp-ground); }
 /* the card's open items (On this job) sit under the head, in the page's one column */
 .fg .jp-sheet > .wb2-jcatt { margin:16px 0 0; }
-.fg .jp-head { display:flex; flex-direction:column; gap:16px; }
+.fg .jp-head { display:flex; flex-direction:column; gap:12px; }
 .fg .jp-top { display:flex; align-items:flex-start; gap:16px; min-width:0; }
 /* the name grows from nothing, so a long one wraps beside the stages line
    rather than squeezing it until its words touch (the walk of 15 November
@@ -6241,14 +6264,18 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    while a new one comes. */
 .fg .jp-sheet { --jp-side:380px; }
 .fg .jp-top--site { align-items:flex-start; }
-.fg .jp-words { flex:1 1 0; min-width:0; display:flex; flex-direction:column; justify-content:center; gap:8px; min-height:120px; box-sizing:border-box; padding:16px 24px; border-radius:var(--r-card); background:var(--paper); box-shadow:var(--shadow-card); }
-.fg .jp-words > .jp-id { flex:none; }
+.fg .jp-words { flex:1 1 0; min-width:0; display:flex; flex-direction:row; align-items:center; gap:16px; min-height:0; box-sizing:border-box; padding:12px 16px; border-radius:var(--r-card); background:var(--paper); box-shadow:var(--shadow-card); }
+/* THE DENSER HEAD (Isaac, 23 November 2026, "Build all six" to
+   https://claude.ai/artifact/8UsC9Cuf7RCMNi2tKqsP56): the plate, the name
+   and the site on one line, the address one line too, so the card is 64
+   high and the map beside it as tall. A long name still wraps. */
+.fg .jp-words > .jp-id { flex:0 1 auto; }
+.fg .jp-words > .jp-site { flex:1 1 auto; min-width:0; }
 .fg .jp-site { display:flex; align-items:center; flex-wrap:wrap; gap:8px 16px; }
-.fg .jp-addr { display:flex; flex-direction:column; margin:0; font-size:14px; line-height:20px; color:var(--ink); }
+.fg .jp-addr { display:block; margin:0; font-size:14px; line-height:20px; color:var(--ink); }
 .fg .jp-addr b { font-weight:600; }
-.fg .jp-addr span { color:var(--q); }
 .fg .jp-site .jov-po { margin:0; }
-.fg .jp-map { position:relative; flex:none; align-self:stretch; display:block; width:var(--jp-side); min-height:120px; border-radius:var(--r-card); background:var(--soft); box-shadow:var(--shadow-card); overflow:hidden; }
+.fg .jp-map { position:relative; flex:none; align-self:stretch; display:block; width:var(--jp-side); min-height:64px; border-radius:var(--r-card); background:var(--soft); box-shadow:var(--shadow-card); overflow:hidden; }
 .fg .jp-map img { position:absolute; inset:0; display:block; width:100%; height:100%; object-fit:cover; }
 .fg .jp-map:focus-visible { outline:none; box-shadow:var(--ring); }
 /* Actions at the right end of the tabs' row, under the map, standing on the tabs' line */
@@ -6833,6 +6860,16 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 /* a web address in a message: a link in the words' own colour */
 .fg .jc-bubble .jc-link, .pt-dialog .cmsg-words .jc-link { color:inherit; text-decoration:underline; text-underline-offset:2px; overflow-wrap:anywhere; }
 .fg .jc-bmtime { display:flex; align-items:center; gap:8px; margin:0; font-size:12px; line-height:16px; color:var(--q); }
+/* AN EMAIL IS A PLAIN ROW (customer-thread.tsx, EMAIL_WHOLE_LINES): on the
+   left, the whole width, no fill; the name in ink over three lines at 14,
+   the third fading when there's more, as rule 50 has it, never a "…" */
+.fg .jc-bm--email { align-self:stretch; align-items:flex-start; max-width:100%; }
+.fg .jc-bm--email .jc-bmname { font-size:13px; line-height:18px; color:var(--ink); }
+.fg .jc-thbody .jc-bm--email .jc-bubble { padding:0; border-radius:0; background:none; color:var(--ink); }
+.fg .jc-bm--email .jc-bubble .jc-bubwords { font-size:14px; line-height:20px; }
+.fg .jc-bm--email .jc-bubble .jc-bubwords--clamped { max-height:calc(20px * 3); -webkit-mask-image:linear-gradient(to bottom, var(--ink) calc(100% - 20px), transparent); mask-image:linear-gradient(to bottom, var(--ink) calc(100% - 20px), transparent); }
+.fg .jc-bm--email + .jc-bm--email { margin-top:8px; }
+.fg .jc-bm + .jc-bm--email.jc-bm--first { margin-top:12px; }
 /* THE TIFF CONVERSATION'S SIDES (Isaac, 26 October 2026, on
    https://claude.ai/artifact/7aVi2krm8t7m6JAMNVSnVN): your words on the
    right and everyone else's on the left, both the light grey (`--bubble-them`;
@@ -6983,7 +7020,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 /* on a fitted tab the job's head stays put while a short window scrolls the
    cards under it (call 11, mock C) */
 .fg .wrap.jp:has(.jp-fit:not([hidden])) { padding-top:0; }
-.fg .wrap.jp:has(.jp-fit:not([hidden])) .jp-head { position:sticky; top:0; z-index:10; padding-top:24px; background:var(--jp-ground, var(--paper)); }
+.fg .wrap.jp:has(.jp-fit:not([hidden])) .jp-head { position:sticky; top:0; z-index:10; padding-top:8px; background:var(--jp-ground, var(--paper)); }
 /* THE FACTS CARD (job-facts.tsx): one card, its parts under hairlines */
 .fg .jfc { flex:none; display:flex; flex-direction:column; min-width:0; overflow:hidden; border-radius:var(--r-card); background:var(--paper); box-shadow:var(--shadow-card); }
 .fg .jfc-part { position:relative; display:flex; flex-direction:column; align-items:flex-start; gap:4px; min-width:0; padding:12px 16px; transition:background-color var(--t-fast) var(--ease); }

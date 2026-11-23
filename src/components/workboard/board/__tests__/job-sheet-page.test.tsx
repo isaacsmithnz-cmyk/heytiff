@@ -268,12 +268,12 @@ describe("the job's page head", () => {
     expect(plate.querySelector(".jp-num")).toHaveTextContent(/^3209$/);
     /* the site is under the name, on every tab (Isaac, 16 November 2026: the map as the head's hero) */
     expect(container.querySelector(".jp-head .jp-site")).toHaveTextContent(/Aliquip/);
-    /* no grey line of stage or kind, and no breadcrumb: one word back */
+    /* no grey line of stage or kind, and no breadcrumb */
     expect(container.querySelector(".jp-line, .jp-facts, .jp-stage")).toBeNull();
     expect(container.querySelector(".jp-head")).not.toHaveTextContent(/Work order|Job 3209|Accepted/);
     expect(container.querySelector(".wb2-crumbline, .int-back")).toBeNull();
-    /* opened with nowhere to go back to, the way back is Jobs */
-    expect(screen.getByRole("link", { name: "Jobs" })).toHaveAttribute("href", "/dashboard/jobs");
+    /* no way back above the head: the sidebar's Jobs is the way back (Isaac, 23 November 2026, "Build all six") */
+    expect(container.querySelector(".jp-head .jp-back")).toBeNull();
   });
 
   it("is a page, not a card: no dialog, no scrim, no band, no rail, nothing to close", async () => {

@@ -1,11 +1,11 @@
-import { floorPagesOf, pageCaption, pageKey, type JobPlan, type JobPlanPage } from "@/lib/jobs/plans";
+import { designFromPlan, floorPagesOf, pageCaption, pageKey, readingOnto, type JobPlan, type JobPlanPage } from "@/lib/jobs/plans";
 import type { DesignDocument, DesignObject, PlanSheet } from "./document";
 import { areaUnitsToM2, polygonArea } from "./geometry";
 import { plansInDesign, withJobPlans } from "./job-plan-floors";
 import { roomLoadKw, type RoomObj } from "./loads-room";
 import { keepFound, readyFloor } from "./room-edit";
 import { glassOf } from "./rooms-from-reading";
-import type { ReadOpening, ReadSpace } from "./reading";
+import type { PlanReading, ReadOpening, ReadSpace } from "./reading";
 
 /* UPDATE PLANS (Isaac, 11 November 2026, "new plans can get uploaded, which
    you can then select update plans"; the boards "Newer plans land on the
@@ -23,6 +23,13 @@ import type { ReadOpening, ReadSpace } from "./reading";
    set's sheets for the new one's, each in the old one's place, so nothing
    drawn moves; units, ducts and the Scope stay as they were made.
 
+   PLANS UPDATED (Isaac, 23 November 2026: "it could say plans updated, use
+   on this design or something on the canvas"). A set Tiff read again (its
+   pages drawn again, her read redone) is offered the same way: the design's
+   read of the set is set beside her new one, page by page, and taking it
+   puts her new read under the design, its walls, openings, roof and site,
+   with each room drawn from a room that changed offered as above.
+
    Pure. The new set's pages are matched to the old one's by floor, in page
    order; its rooms to the old rooms by where they sit, then by name. */
 
@@ -32,7 +39,8 @@ type Space = { i: number; s: ReadSpace; glass: ReadOpening[] };
 /** One page of the new set beside the page it takes the place of. */
 type PagePair = { old: JobPlanPage | null; now: JobPlanPage };
 
-export type NewerPlan = { plan: JobPlan; was: JobPlan | null };
+/** `again`: a set the design holds, read again since the read it holds; `was` is then the set as the design has it */
+export type NewerPlan = { plan: JobPlan; was: JobPlan | null; again?: boolean };
 
 /** A change offered to the design: a room's, ticked to take it. */
 export type RoomOffer = { id: string; title: string; line: string };
@@ -55,7 +63,7 @@ const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
     and the set of the design's it takes the place of: the one sharing the
     most floors with it. Null when the design holds none of the job's plans,
     or nothing newer is on the job. */
-export function newerPlan(doc: Pick<DesignDocument, "floors" | "planImport">, plans: readonly JobPlan[]): NewerPlan | null {
+export function newerPlan(doc: Pick<DesignDocument, "floors" | "planImport" | "reading">, plans: readonly JobPlan[]): NewerPlan | null {
   const drawings = drawingsOf(plans);
   const mine = new Set(plansInDesign(doc, drawings));
   const held = drawings.filter((p) => mine.has(p.id));
@@ -65,7 +73,7 @@ export function newerPlan(doc: Pick<DesignDocument, "floors" | "planImport">, pl
   const plan = drawings
     .filter((p) => !mine.has(p.id) && !passed.has(p.id) && time(p.addedAt) > newest)
     .sort((a, b) => time(b.addedAt) - time(a.addedAt))[0];
-  if (!plan) return null;
+  if (!plan) return readAgain(doc, held);
   const levels = new Set(floorPagesOf(plan).map((p) => p.level ?? 0));
   const was =
     held
@@ -73,6 +81,103 @@ export function newerPlan(doc: Pick<DesignDocument, "floors" | "planImport">, pl
       .filter((x) => x.shared > 0)
       .sort((a, b) => b.shared - a.shared || time(b.p.addedAt) - time(a.p.addedAt))[0]?.p ?? null;
   return { plan, was };
+}
+
+type Held = Pick<DesignDocument, "floors" | "planImport" | "reading">;
+
+/** A set the design holds that Tiff has read again since the read the
+    design holds, the one it was made from first; null when there's none.
+    The design's read of it stands in as the old set's. */
+function readAgain(doc: Held, held: readonly JobPlan[]): NewerPlan | null {
+  const since = doc.reading ? time(doc.reading.at) : 0;
+  if (!since) return null;
+  const lead = (p: JobPlan) => Number(p.id === doc.planImport?.jobPlanId);
+  const plan = held
+    .filter((p) => p.reading && time(p.reading.at) > since && floorPagesOf(p).some((pg) => sheetForPage(doc, p, pg)))
+    .sort((a, b) => lead(b) - lead(a) || time(b.reading!.at) - time(a.reading!.at))[0];
+  return plan ? { plan, was: asDrawn(doc, plan), again: true } : null;
+}
+
+/** The design's sheet of a page of one of its sets: the one showing the
+    page's picture, else, for the set it was made from, the one it placed
+    for that page (a set read again draws its pages again, as new pictures). */
+function sheetForPage(doc: Pick<DesignDocument, "floors" | "planImport">, plan: JobPlan, page: JobPlanPage): { floorId: string; sheet: PlanSheet } | null {
+  const placed = doc.planImport?.jobPlanId === plan.id ? doc.planImport.placed[page.n - 1] : undefined;
+  for (const ref of [page.ref, placed]) {
+    if (!ref) continue;
+    for (const f of doc.floors) {
+      const sheet = f.plans.find((s) => s.imageRef === ref);
+      if (sheet) return { floorId: f.id, sheet };
+    }
+  }
+  return null;
+}
+
+/** A set as the design has it: each page the picture on its sheet, her read the one the design holds. */
+function asDrawn(doc: Held, plan: JobPlan): JobPlan {
+  const floors: PlanReading["floors"] = {};
+  const pages = plan.pages.map((pg) => {
+    const at = pg.kind === "floor" ? sheetForPage(doc, plan, pg) : null;
+    if (!at) return pg;
+    floors[pageKey(pg.n)] = (doc.reading?.floors[at.floorId] ?? []).filter((s) => s.sheetId === at.sheet.id);
+    return { ...pg, ref: at.sheet.imageRef, width: at.sheet.width, height: at.sheet.height };
+  });
+  return { ...plan, pages, reading: doc.reading ? { at: doc.reading.at, model: doc.reading.model, floors, failed: [] } : null };
+}
+
+/** The design with a set read again under it: each page's new picture on
+    the page's sheet, where it sat, and her new read of the set in the old
+    one's place; its roof and site too when it's the set the design was made
+    from. What's drawn is left to updatePlans. */
+function readUnder(doc: DesignDocument, plan: JobPlan): DesignDocument {
+  const at = new Map<string, { floorId: string; sheetId: string }>();
+  const swap = new Map<string, PlanSheet>();
+  for (const pg of floorPagesOf(plan)) {
+    const was = sheetForPage(doc, plan, pg);
+    if (!was || !pg.ref) continue;
+    at.set(pageKey(pg.n), { floorId: was.floorId, sheetId: was.sheet.id });
+    const same = was.sheet.width === pg.width;
+    const { crop, shape, ...rest } = was.sheet;
+    swap.set(was.sheet.id, {
+      ...rest,
+      imageRef: pg.ref,
+      pageNumber: plan.sourceKind === "pdf" ? pg.n : was.sheet.pageNumber,
+      width: pg.width,
+      height: pg.height,
+      ...(same && crop ? { crop } : pg.trim ? { crop: { ...pg.trim } } : {}),
+      ...(same && shape ? { shape } : {}),
+    });
+  }
+  const floors = doc.floors.map((f) => ({ ...f, plans: f.plans.map((s) => swap.get(s.id) ?? s) }));
+  const lead = doc.planImport?.jobPlanId === plan.id;
+  /* the import record follows the set's new pictures, words and measures */
+  const fresh = lead ? designFromPlan(plan).planImport : null;
+  const planImport =
+    doc.planImport && fresh
+      ? { ...doc.planImport, sources: fresh.sources, placed: fresh.placed, ...(fresh.words ? { words: fresh.words } : {}), ...(fresh.measured ? { measured: fresh.measured } : {}) }
+      : doc.planImport;
+  if (!plan.reading) return { ...doc, floors, planImport };
+  const now = readingOnto(plan.reading, (key) => at.get(key) ?? null);
+  const base = doc.reading ?? { at: now.at, model: now.model, floors: {}, failed: [] };
+  const mine = new Set(swap.keys());
+  const kept: PlanReading["floors"] = {};
+  for (const [id, sheets] of Object.entries(base.floors)) kept[id] = sheets.filter((s) => !mine.has(s.sheetId));
+  for (const [id, sheets] of Object.entries(now.floors)) kept[id] = [...(kept[id] ?? []), ...sheets];
+  const reading: PlanReading = {
+    ...base,
+    at: now.at,
+    model: now.model,
+    floors: Object.fromEntries(Object.entries(kept).filter(([, s]) => s.length > 0)),
+    failed: [...base.failed.filter((f) => !mine.has(f.sheetId)), ...now.failed],
+  };
+  /* her new roof and site, as she read them: one she couldn't read is left to be read again */
+  if (lead) {
+    delete reading.roof;
+    delete reading.site;
+    if (now.roof !== undefined) reading.roof = now.roof;
+    if (now.site !== undefined) reading.site = now.site;
+  }
+  return { ...doc, floors, planImport, reading };
 }
 
 /** The new set's floor pages, each beside the old set's page on its floor, in page order. */
@@ -320,8 +425,11 @@ export function updatePlans(doc: DesignDocument, plans: readonly JobPlan[], up: 
   const drawings = drawingsOf(plans);
   const { pairs, matched } = planOf(doc, up);
   const on = [...plansInDesign(doc, drawings).filter((id) => id !== up.was?.id), up.plan.id];
-  const swapped = withJobPlans(doc, drawings, drawings, on);
+  const swapped = up.again ? { doc: readUnder(doc, up.plan), made: [] as string[] } : withJobPlans(doc, drawings, drawings, on);
   let d: DesignDocument = { ...swapped.doc, planImport: swapped.doc.planImport ? { ...swapped.doc.planImport, ...(doc.planImport?.passed ? { passed: doc.planImport.passed } : {}) } : swapped.doc.planImport };
+  /* the design holds the new set's read now: not offered it again as read again */
+  const readAt = up.plan.reading?.at;
+  if (d.reading && readAt && time(readAt) > time(d.reading.at)) d = { ...d, reading: { ...d.reading, at: readAt } };
 
   for (const { old, now } of pairs) {
     const was = sheetOfRef(doc, old?.ref ?? null);
@@ -377,10 +485,11 @@ export function updatePlans(doc: DesignDocument, plans: readonly JobPlan[], up: 
   return swapped.made.reduce((x, id) => readyFloor(x, id), d);
 }
 
-/** A room as keepFound would make it from her read, without keeping it. */
+/** A room as keepFound would make it from her read, without keeping it. A
+    set read again keeps its sheets, so the room being given it may hold its key. */
 function freshRoom(d: DesignDocument, floorId: string, key: string): DesignObject | null {
   const id = "__update_plans__";
-  const made = keepFound(d, floorId, [key], { [key]: id });
+  const made = keepFound({ ...d, objects: d.objects.filter((o) => o.props.readKey !== key) }, floorId, [key], { [key]: id });
   return made.objects.find((o) => o.id === id) ?? null;
 }
 

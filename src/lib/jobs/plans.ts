@@ -753,38 +753,41 @@ export function designFromPlan(plan: JobPlan): DesignFromPlan {
     jobPlanId: plan.id,
   };
 
-  let reading: PlanReading | null = null;
-  if (plan.reading) {
-    const r = plan.reading;
-    const at = (key: string) => sheetOf.get(Number(key.replace(/^p/, ""))) ?? null;
-    const moved: Record<string, SheetReading[]> = {};
-    for (const [key, sheets] of Object.entries(r.floors)) {
-      const to = at(key);
-      if (!to) continue;
-      moved[to.floorId] = [...(moved[to.floorId] ?? []), ...sheets.map((s) => ({ ...s, sheetId: to.sheetId }))];
-    }
-    const roof = r.roof
-      ? {
-          ...r.roof,
-          levels: r.roof.levels.flatMap((l) => (at(l.floorId) ? [{ ...l, floorId: at(l.floorId)!.floorId }] : [])),
-          parts: r.roof.parts.flatMap((p) => (at(p.floorId) ? [{ ...p, floorId: at(p.floorId)!.floorId, sheetId: at(p.floorId)!.sheetId }] : [])),
-          ...(r.roof.faces ? { faces: r.roof.faces.flatMap((f) => (at(f.floorId) ? [{ ...f, floorId: at(f.floorId)!.floorId, sheetId: at(f.floorId)!.sheetId }] : [])) } : {}),
-          raked: r.roof.raked.flatMap((k) => (at(k.floorId) ? [{ ...k, floorId: at(k.floorId)!.floorId }] : [])),
-          /* the subfloor onto the floor it is under; one only named stays, said in the floor menu */
-          subfloor: r.roof.subfloor && at(r.roof.subfloor.floorId) ? { ...r.roof.subfloor, floorId: at(r.roof.subfloor.floorId)!.floorId, sheetId: at(r.roof.subfloor.floorId)!.sheetId } : r.roof.subfloor?.shown === "mentioned" ? r.roof.subfloor : undefined,
-        }
-      : r.roof;
-    const site = r.site && at(r.site.floorId) ? { ...r.site, floorId: at(r.site.floorId)!.floorId, sheetId: at(r.site.floorId)!.sheetId } : r.site === null ? null : undefined;
-    reading = {
-      at: r.at,
-      model: r.model,
-      floors: moved,
-      failed: r.failed.flatMap((f) => (at(f.floorId) ? [{ ...f, floorId: at(f.floorId)!.floorId, sheetId: at(f.floorId)!.sheetId }] : [])),
-      ...(roof !== undefined ? { roof } : {}),
-      ...(site !== undefined ? { site } : {}),
-    };
-  }
+  const reading = plan.reading ? readingOnto(plan.reading, (key) => sheetOf.get(Number(key.replace(/^p/, ""))) ?? null) : null;
   return { floors: made, planImport, reading };
+}
+
+/** Her read of a plan onto a design's floors and sheets: `at` is the floor and
+    sheet of each page key ("p3"); what's on a page the design hasn't is left
+    behind. A roof or site she couldn't read stays unread (undefined), so it's
+    read again. Pure. */
+export function readingOnto(r: PlanReading, at: (key: string) => { floorId: string; sheetId: string } | null): PlanReading {
+  const moved: Record<string, SheetReading[]> = {};
+  for (const [key, sheets] of Object.entries(r.floors)) {
+    const to = at(key);
+    if (!to) continue;
+    moved[to.floorId] = [...(moved[to.floorId] ?? []), ...sheets.map((s) => ({ ...s, sheetId: to.sheetId }))];
+  }
+  const roof = r.roof
+    ? {
+        ...r.roof,
+        levels: r.roof.levels.flatMap((l) => (at(l.floorId) ? [{ ...l, floorId: at(l.floorId)!.floorId }] : [])),
+        parts: r.roof.parts.flatMap((p) => (at(p.floorId) ? [{ ...p, floorId: at(p.floorId)!.floorId, sheetId: at(p.floorId)!.sheetId }] : [])),
+        ...(r.roof.faces ? { faces: r.roof.faces.flatMap((f) => (at(f.floorId) ? [{ ...f, floorId: at(f.floorId)!.floorId, sheetId: at(f.floorId)!.sheetId }] : [])) } : {}),
+        raked: r.roof.raked.flatMap((k) => (at(k.floorId) ? [{ ...k, floorId: at(k.floorId)!.floorId }] : [])),
+        /* the subfloor onto the floor it is under; one only named stays, said in the floor menu */
+        subfloor: r.roof.subfloor && at(r.roof.subfloor.floorId) ? { ...r.roof.subfloor, floorId: at(r.roof.subfloor.floorId)!.floorId, sheetId: at(r.roof.subfloor.floorId)!.sheetId } : r.roof.subfloor?.shown === "mentioned" ? r.roof.subfloor : undefined,
+      }
+    : r.roof;
+  const site = r.site && at(r.site.floorId) ? { ...r.site, floorId: at(r.site.floorId)!.floorId, sheetId: at(r.site.floorId)!.sheetId } : r.site === null ? null : undefined;
+  return {
+    at: r.at,
+    model: r.model,
+    floors: moved,
+    failed: r.failed.flatMap((f) => (at(f.floorId) ? [{ ...f, floorId: at(f.floorId)!.floorId, sheetId: at(f.floorId)!.sheetId }] : [])),
+    ...(roof !== undefined ? { roof } : {}),
+    ...(site !== undefined ? { site } : {}),
+  };
 }
 
 /** Several of the job's plans into one design: the first plan's floors at

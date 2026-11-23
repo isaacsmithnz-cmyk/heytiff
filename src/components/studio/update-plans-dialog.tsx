@@ -12,13 +12,19 @@ import type { PlanUpdate } from "@/lib/studio/update-plans";
 /* UPDATE PLANS (update-plans.ts; the board "Update plans" of 11 November
    2026): what the newer set changed, page by page; what it does to the
    design, each room's change ticked to take it; and the main button that
-   takes it. Cancel leaves the design as it is, still told. */
+   takes it. Cancel leaves the design as it is, still told. A set Tiff read
+   again says Plans updated and Use on this design (Isaac, 23 November 2026). */
+
+const dayOf = (iso: string | null | undefined) => (iso ? fmtAuWeekdayDayMonth(iso.slice(0, 10)) : null);
 
 export function UpdatePlansDialog({ update, onUpdate, onClose }: { update: PlanUpdate; onUpdate: (ticked: Set<string>) => void; onClose: () => void }) {
   const [off, setOff] = useState<ReadonlySet<string>>(() => new Set());
-  const { plan, was, pages, offers, said } = update;
-  const day = plan.addedAt ? fmtAuWeekdayDayMonth(plan.addedAt.slice(0, 10)) : null;
-  const lede = `${plan.name}${day ? `, added ${day}` : ""}${was ? `, against ${was.name}, which this design was drawn from` : ""}.`;
+  const { plan, was, pages, offers, said, again } = update;
+  const day = dayOf(again ? plan.reading?.at : plan.addedAt);
+  const lede = again
+    ? `${plan.name}${day ? `, read again ${day}` : ""}, against her read${dayOf(was?.reading?.at) ? ` of ${dayOf(was?.reading?.at)}` : ""}, which this design was drawn from.`
+    : `${plan.name}${day ? `, added ${day}` : ""}${was ? `, against ${was.name}, which this design was drawn from` : ""}.`;
+  const go = again ? "Use on this design" : "Update plans";
   const tick = (id: string, on: boolean) =>
     setOff((cur) => {
       const next = new Set(cur);
@@ -29,14 +35,14 @@ export function UpdatePlansDialog({ update, onUpdate, onClose }: { update: PlanU
 
   return (
     <Dialog
-      heading="Update plans"
+      heading={again ? "Plans updated" : "Update plans"}
       width={720}
       onClose={onClose}
       foot={
         <>
           <Button onClick={onClose}>Cancel</Button>
           <Button kind="main" onClick={() => onUpdate(new Set(offers.map((o) => o.id).filter((id) => !off.has(id))))}>
-            Update plans
+            {go}
           </Button>
         </>
       }
@@ -90,7 +96,7 @@ export function UpdatePlansDialog({ update, onUpdate, onClose }: { update: PlanU
               ))}
               <li className="pt-row pt-row--wrap">
                 <span className="pt-row-text">
-                  <span className="pt-row-name">{`The supplied scope takes ${plan.name}`}</span>
+                  <span className="pt-row-name">{again ? "The walls, roof and site take her new read" : `The supplied scope takes ${plan.name}`}</span>
                   <span className="pt-row-line">Your Scope, units and ducts stay as you made them</span>
                 </span>
               </li>
@@ -103,8 +109,11 @@ export function UpdatePlansDialog({ update, onUpdate, onClose }: { update: PlanU
 }
 
 /** The row that says a newer set is on the job, with its Update plans. */
-export function NewerPlansRow({ plan, was, changed, onOpen }: { plan: JobPlan; was: JobPlan | null; changed: number; onOpen: () => void }) {
-  const line = was
+export function NewerPlansRow({ plan, was, again, changed, onOpen }: { plan: JobPlan; was: JobPlan | null; again?: boolean; changed: number; onOpen: () => void }) {
+  const day = dayOf(plan.reading?.at);
+  const line = again
+    ? `Tiff read ${plan.name} again${day ? ` ${day}` : ""}, ${changed === 0 ? "no rooms changed" : `${changed} ${changed === 1 ? "sheet" : "sheets"} changed`}`
+    : was
     ? changed === 0
       ? `No rooms changed from ${was.name}`
       : `${changed} ${changed === 1 ? "sheet" : "sheets"} changed from ${was.name}`
@@ -112,11 +121,11 @@ export function NewerPlansRow({ plan, was, changed, onOpen }: { plan: JobPlan; w
   return (
     <div className="upl-row">
       <span className="upl-row-text">
-        <span className="upl-row-name">{`${plan.name} is in the job's Plans`}</span>
+        <span className="upl-row-name">{again ? "Plans updated" : `${plan.name} is in the job's Plans`}</span>
         <span className="upl-row-line">{line}</span>
       </span>
       <Button size={32} onClick={onOpen}>
-        Update plans
+        {again ? "Use on this design" : "Update plans"}
       </Button>
     </div>
   );

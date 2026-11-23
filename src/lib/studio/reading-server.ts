@@ -794,11 +794,30 @@ export async function fitted(pdf: Buffer, room: number, order: (total: number) =
   throw new Error(tooLarge);
 }
 
-/** The pages a site read is sent when the set is cut, forty at most: the
-    site plan mostly comes before the floor plans, so every page before the
-    first floor plan, nearest it first, then that plan, then the pages after
-    it, nearest first, for a set that puts its site plan (or a site and roof
-    plan) after its floors. Cut again, what goes is the far end of those. */
+/** The most site plan pages a site read is sent: a set draws its site on a page or three. */
+const SITE_PAGES = 6;
+
+/** The set cut to the pages asked for (0-based, in the set's order, SITE_PAGES at most), or null when none of them is in it. */
+export async function pagesOnly(pdf: Buffer, at: number[]): Promise<Buffer | null> {
+  if (!at.length) return null;
+  const { PDFDocument } = await import("pdf-lib");
+  const whole = await PDFDocument.load(new Uint8Array(pdf), { ignoreEncryption: true });
+  const keep = [...new Set(at)].filter((i) => Number.isInteger(i) && i >= 0 && i < whole.getPageCount()).sort((a, b) => a - b).slice(0, SITE_PAGES);
+  if (!keep.length) return null;
+  const cut = await PDFDocument.create();
+  for (const pg of await cut.copyPages(whole, keep)) cut.addPage(pg);
+  return Buffer.from(await cut.save());
+}
+
+/** The pages a site read is sent. The set's own site plans, where its titles
+    name them (take-in's SITE_TITLE): sent the whole set, 3570's 27 pages at
+    high effort ran past four minutes on a run of its own, twice, and the plan
+    was finished without its site (22 November 2026). A set none of whose
+    titles names a site plan is sent as before, forty pages at most: the site
+    plan mostly comes before the floor plans, so every page before the first
+    floor plan, nearest it first, then that plan, then the pages after it,
+    nearest first, for a set that puts its site plan (or a site and roof plan)
+    after its floors. Cut again, what goes is the far end of those. */
 export function sitePages(total: number, from: number): number[] {
   if (total < 1) return [];
   const start = Math.min(Math.max(0, from), total - 1);
@@ -931,10 +950,20 @@ export function toSite(raw: Raw, at: { floorId: string; sheetId: string; k: numb
     plan to set it out on. Null only when there is no set, or it has no site
     plan; a set too large to send, or a read that fails, throws, so the site
     is read again next time rather than kept as none. */
-export async function readSite(orgId: string, pdfRef: string | null, ground: SheetToRead, pdfFrom = 0): Promise<SiteReading | null> {
+export async function readSite(
+  orgId: string,
+  pdfRef: string | null,
+  ground: SheetToRead,
+  pdfFrom = 0,
+  /** the set's pages its titles name as site plans, 0-based: sent alone when there are any */
+  sitesAt: number[] = [],
+): Promise<SiteReading | null> {
   if (!pdfRef) return null;
   const p = await prepare(orgId, ground);
-  const pdf = await fitted(await fetchOwn(orgId, pdfRef), REQUEST_MAX - base64(p.image.byteLength), (total) => sitePages(total, pdfFrom), 1, "The drawing set is too large to read the site from");
+  const whole = await fetchOwn(orgId, pdfRef);
+  /* its site plans alone, where its titles name them, whatever the set's size; else the set, cut only to fit */
+  const own = await pagesOnly(whole, sitesAt);
+  const pdf = await fitted(own ?? whole, REQUEST_MAX - base64(p.image.byteLength), (total) => (own ? Array.from({ length: total }, (_, i) => i) : sitePages(total, pdfFrom)), 1, "The drawing set is too large to read the site from");
   const blocks: Block[] = [{ type: "document", source: { type: "base64", media_type: "application/pdf", data: pdf.toString("base64") } }, pngBlock(p.image)];
   const raw = await askWith(blocks, sitePrompt({ w: p.ow, h: p.oh, mm: ground.mmPerPx ? ground.mmPerPx / p.k : null }), siteSchema(), 16000);
   return toSite(raw, { floorId: ground.floorId, sheetId: ground.sheetId, k: p.k, left: p.left, top: p.top });

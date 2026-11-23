@@ -6,6 +6,7 @@ import {
   FLOOR_SCHEMA,
   floorPrompt,
   openingAsPrinted,
+  pagesOnly,
   parseOutline,
   readScale,
   roofSchema,
@@ -392,5 +393,18 @@ describe("the site, as the set gives it", () => {
     expect(many.slice(0, 7)).toEqual([4, 3, 2, 1, 0, 5, 6]);
     expect(many[39]).toBe(39);
     expect(sitePages(0, 0)).toEqual([]);
+  });
+
+  it("is sent its own site plan pages alone, in the set's order, six at most", async () => {
+    const { PDFDocument } = await import("pdf-lib");
+    const set = await PDFDocument.create();
+    for (let i = 0; i < 10; i++) set.addPage([100 + i, 100]);
+    const bytes = Buffer.from(await set.save());
+    const cut = await PDFDocument.load(new Uint8Array((await pagesOnly(bytes, [6, 5, 22, 5]))!));
+    expect(cut.getPages().map((pg) => pg.getWidth())).toEqual([105, 106]);
+    const most = await PDFDocument.load(new Uint8Array((await pagesOnly(bytes, [9, 8, 7, 6, 5, 4, 3, 2]))!));
+    expect(most.getPageCount()).toBe(6);
+    expect(await pagesOnly(bytes, [])).toBeNull();
+    expect(await pagesOnly(bytes, [40])).toBeNull();
   });
 });

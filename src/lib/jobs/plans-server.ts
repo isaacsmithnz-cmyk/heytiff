@@ -1298,7 +1298,7 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
             })
         : Promise.resolve(photo ? undefined : kept?.roof);
       const siteP: Promise<PlanReading["site"]> = wantSite
-        ? counted(readSite(orgId, pdf, ground, first)).catch((e) => {
+        ? counted(readSite(orgId, pdf, ground, first, pages.filter((p) => p.kind === "site").map((p) => p.n - 1))).catch((e) => {
             console.error(`[job-plans] ${planId}/site: ${String(e)}`);
             missed.push(`The site couldn't be read: ${why(e)}`);
             return undefined;

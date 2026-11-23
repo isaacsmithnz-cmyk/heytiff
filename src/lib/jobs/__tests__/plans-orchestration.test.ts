@@ -253,6 +253,20 @@ describe("a floor read that runs past the run's time", () => {
   });
 });
 
+describe("the site", () => {
+  it("is read off the pages the set titles as site plans, alone", async () => {
+    drawn([otherPage(1), { ...otherPage(2), kind: "site" }, floorPage(3, 0, "Ground floor"), floorPage(4, 1, "Level 1"), { ...otherPage(5), kind: "site" }]);
+    expect(await run()).toMatchObject({ ok: true });
+    expect(readSite.mock.calls[0][4]).toEqual([1, 4]);
+  });
+
+  it("is sent no pages of its own when no title names a site plan, so the set is sent as before", async () => {
+    threeFloors();
+    expect(await run()).toMatchObject({ ok: true });
+    expect(readSite.mock.calls[0][4]).toEqual([]);
+  });
+});
+
 describe("a roof or a site that couldn't be read", () => {
   it("is left unread rather than kept as none, and said on the row, which asks to be checked", async () => {
     threeFloors();

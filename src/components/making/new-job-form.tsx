@@ -118,6 +118,15 @@ export function NewJobForm({ onClose, initial, onMade }: { onClose: () => void; 
      but not read back in time, said where it is */
   const [phase, setPhase] = useState<"form" | "opening" | "landed">("form");
   const alive = useRef(true);
+  /* what's wrong is brought into view once Create answers: a long form opened
+     from an email sits scrolled down, and a refusal said above or below what
+     shows read as Create doing nothing (bug 76, 23 November 2026: "wont
+     create") */
+  const formRef = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    if (!wrong.who && !wrong.where && !wrong.what && !(answer && !answer.ok)) return;
+    formRef.current?.querySelector(".pt-field-error, [data-create-wrong]")?.scrollIntoView?.({ block: "nearest" });
+  }, [wrong, answer]);
 
   const builder = who.kind === "existing" && who.hit.sites > 0;
   const builderUuid = builder ? who.hit.uuid : null;
@@ -323,6 +332,7 @@ export function NewJobForm({ onClose, initial, onMade }: { onClose: () => void; 
       }
     >
       <form
+        ref={formRef}
         className="mk-form"
         onSubmit={(e) => {
           e.preventDefault();
@@ -543,7 +553,11 @@ export function NewJobForm({ onClose, initial, onMade }: { onClose: () => void; 
 
         <div className="mk-job-facts">
           <div>{JOB_WORDS.card.charges}</div>
-          {answer && !answer.ok && <StateWord tone="wrong">{answer.error}</StateWord>}
+          {answer && !answer.ok && (
+            <div data-create-wrong>
+              <StateWord tone="wrong">{answer.error}</StateWord>
+            </div>
+          )}
           {answer?.ok && phase === "form" && <div role="status">{answer.line.words}</div>}
         </div>
       </form>

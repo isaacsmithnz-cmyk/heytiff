@@ -766,9 +766,10 @@ it("fills each side's bubbles its own way, and says a run's name once above it a
   });
   const run = [...document.querySelectorAll(".jc-bm")] as HTMLElement[];
   expect(run.map((b) => b.className)).toEqual([
-    "jc-bm jc-bm--them jc-bm--first",
-    "jc-bm jc-bm--them jc-bm--last",
-    "jc-bm jc-bm--us jc-bm--first jc-bm--last",
+    /* emails, so each is a plain row (the denser page, 23 November 2026) */
+    "jc-bm jc-bm--them jc-bm--email jc-bm--first",
+    "jc-bm jc-bm--them jc-bm--email jc-bm--last",
+    "jc-bm jc-bm--us jc-bm--email jc-bm--first jc-bm--last",
   ]);
   expect(run.map((b) => b.querySelector(".jc-bmname")?.textContent ?? null)).toEqual(["Marco", null, "Dana"]);
   expect(run.map((b) => b.querySelector(".jc-bmtime")?.textContent ?? null)).toEqual([null, "10:01 amWhole email", "10:02 amSeen 10:05 amWhole email"]);

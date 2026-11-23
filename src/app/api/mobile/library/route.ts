@@ -25,7 +25,8 @@ export async function GET(request: Request) {
         title: d.title,
         source: d.source,
         edition: d.edition,
-        status: d.status,
+        /* a photographed manual is still being read until Tiff has read its pages */
+        status: d.pagesReading && d.status === "ready" ? "processing" : d.status,
         pageCount: d.pageCount,
         hasFile: !!d.storageRef,
         uploadedAt: d.uploadedAt,

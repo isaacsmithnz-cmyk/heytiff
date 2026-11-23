@@ -16,14 +16,17 @@ jest.mock("@/lib/mobile/token", () => ({
 
 type Row = { user_id: string; org_id: string; role: string | null; permissions: unknown };
 let members: Row[] = [];
+/* the manual the read route looks at first */
+let kbDoc: Record<string, unknown> | null = null;
 jest.mock("@/lib/supabase-server", () => ({
   supabaseAdmin: {
-    from: () => {
+    from: (table: string) => {
       const f: Record<string, unknown> = {};
       const q = {
         select: () => q,
         eq: (c: string, v: unknown) => ((f[c] = v), q),
         order: () => q,
+        maybeSingle: async () => ({ data: table === "kb_documents" ? kbDoc : null, error: null }),
         then: (res: (v: unknown) => unknown) => res({ data: members.filter((m) => m.user_id === f.user_id), error: null }),
       };
       return q;
@@ -151,8 +154,31 @@ describe("the web's own steps, as the token's person", () => {
   });
 
   it("reads through the web's ingest route", async () => {
+    kbDoc = { status: "processing", page_count: 147, scanned_pages: 0, chunk_count: 0, pages_reading_until: null };
     const res = await read(req("library/d1/read", "owner", {}), params("d1"));
     expect(await res.json()).toEqual({ status: "processing", pagesDone: 20, pageCount: 147, continuing: true });
     expect(asked).toEqual([{ read: { documentId: "d1" }, as }]);
+  });
+
+  it("answers a read manual from its row, and doesn't read it again", async () => {
+    kbDoc = { status: "ready", page_count: 12, scanned_pages: 0, chunk_count: 30, pages_reading_until: null };
+    const res = await read(req("library/d1/read", "owner", {}), params("d1"));
+    expect(await res.json()).toEqual({ status: "ready", pagesDone: 12, pageCount: 12, chunkCount: 30 });
+    expect(asked).toEqual([]);
+  });
+
+  it("says a photographed manual is still being read until Tiff has read its pages", async () => {
+    const ahead = new Date(Date.now() + 60_000).toISOString();
+    kbDoc = { status: "ready", page_count: 12, scanned_pages: 9, chunk_count: 3, pages_reading_until: ahead };
+    const res = await read(req("library/d1/read", "owner", {}), params("d1"));
+    expect(await res.json()).toEqual({ status: "processing", pagesDone: 3, pageCount: 12, chunkCount: 3 });
+    expect(asked).toEqual([]);
+  });
+
+  it("says it's ready once the time it was given has gone, a read that died", async () => {
+    const gone = new Date(Date.now() - 60_000).toISOString();
+    kbDoc = { status: "ready", page_count: 12, scanned_pages: 9, chunk_count: 3, pages_reading_until: gone };
+    const res = await read(req("library/d1/read", "owner", {}), params("d1"));
+    expect((await res.json()).status).toBe("ready");
   });
 });

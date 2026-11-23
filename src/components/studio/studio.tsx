@@ -1477,7 +1477,7 @@ function Editor({
   };
   const takeUpdate = (ticked: Set<string>) => {
     if (!jobPlans || !updating) return;
-    const up = { plan: updating.plan, was: updating.was };
+    const up = { plan: updating.plan, was: updating.was, again: updating.again };
     mutate((d) => {
       const next = updatePlans(d, jobPlans, up, ticked);
       return next.reading ? { ...next, reading: withChecks(next.reading, next) } : next;
@@ -2502,7 +2502,7 @@ function Editor({
         <ScopeColumn
           jobUuid={doc.jobLink.remoteId}
           jobNumber={doc.jobLink.jobNumber}
-          top={newer ? <NewerPlansRow plan={newer.plan} was={newer.was} changed={changedSheets} onOpen={openUpdate} /> : undefined}
+          top={newer ? <NewerPlansRow plan={newer.plan} was={newer.was} again={newer.again} changed={changedSheets} onOpen={openUpdate} /> : undefined}
           onClose={() => setScopeOpen(false)}
         />
       )}

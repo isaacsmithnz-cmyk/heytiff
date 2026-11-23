@@ -174,7 +174,16 @@ export type RoofReading = {
   facesLeft?: number;
   /** the subfloor, where the set draws or names one; absent when it doesn't (or was read before 15 November 2026) */
   subfloor?: ReadSubfloor;
+  /** the levels the set prints, read off its words (lib/studio/printed-levels.ts), metres; absent when none are (or it was read before 24 November 2026) */
+  printed?: { floors: { floorId: string; ffl?: number; fcl?: number }[]; ridges: number[] };
 };
+
+/* THE ROOF READ IN SLICES (Isaac, 24 November 2026: "Should it be done in
+   slices?"): its shape off the roof plans and its heights off the sections
+   and elevations, each a question of its own, and the levels the set prints
+   off its words; joined by joinRoof. */
+export type RoofShape = { parts: ReadRoofPart[]; material: string };
+export type RoofHeights = { levels: ReadLevel[]; raked: ReadRake[]; roofSpace: string; subfloor?: ReadSubfloor; pitches: number[] };
 
 /* THE SUBFLOOR OFF THE SET (Isaac, 15 November 2026: "Should plans build a
    subfloor area if mentioned on plan with help from user?"; the mock
@@ -232,6 +241,8 @@ export type PlanReading = {
   roof?: RoofReading | null;
   /** the site round the house off the set's site plan; absent until read (none before 8 November 2026) */
   site?: SiteReading | null;
+  /** a roof read part-way: the slices back by a run's time, kept for the run handed on, which reads only the rest; null for one that failed. Gone once the roof is joined. */
+  roofSlices?: { shape?: RoofShape | null; heights?: RoofHeights | null };
   /** a sheet she couldn't read, and why, said rather than dropped */
   failed: { floorId: string; sheetId: string; reason: string }[];
   /** read part-way and saved, the rest left to a run of its own (plans-server.ts): floors that weren't back in time, or a roof and a site that ran long; gone once the plan is read */

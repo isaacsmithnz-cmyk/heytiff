@@ -775,6 +775,7 @@ export function readingOnto(r: PlanReading, at: (key: string) => { floorId: stri
         parts: r.roof.parts.flatMap((p) => (at(p.floorId) ? [{ ...p, floorId: at(p.floorId)!.floorId, sheetId: at(p.floorId)!.sheetId }] : [])),
         ...(r.roof.faces ? { faces: r.roof.faces.flatMap((f) => (at(f.floorId) ? [{ ...f, floorId: at(f.floorId)!.floorId, sheetId: at(f.floorId)!.sheetId }] : [])) } : {}),
         raked: r.roof.raked.flatMap((k) => (at(k.floorId) ? [{ ...k, floorId: at(k.floorId)!.floorId }] : [])),
+        ...(r.roof.printed ? { printed: { ...r.roof.printed, floors: r.roof.printed.floors.flatMap((f) => (at(f.floorId) ? [{ ...f, floorId: at(f.floorId)!.floorId }] : [])) } } : {}),
         /* the subfloor onto the floor it is under; one only named stays, said in the floor menu */
         subfloor: r.roof.subfloor && at(r.roof.subfloor.floorId) ? { ...r.roof.subfloor, floorId: at(r.roof.subfloor.floorId)!.floorId, sheetId: at(r.roof.subfloor.floorId)!.sheetId } : r.roof.subfloor?.shown === "mentioned" ? r.roof.subfloor : undefined,
       }

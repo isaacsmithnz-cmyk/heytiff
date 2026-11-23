@@ -127,15 +127,25 @@ export async function fullInNode(bytes: Uint8Array, numbers: readonly number[], 
   }
 }
 
-/** Each page's words, with no pixels drawn: what a set's schedule sheets are found by. */
-export async function textsInNode(bytes: Uint8Array, numbers: readonly number[]): Promise<{ n: number; words: { text: string }[] }[]> {
+/** A page's word with where it is printed: its baseline's left end and its width, in the page's points, y down. */
+export type TextWord = { text: string; x: number; y: number; w: number };
+
+/** Each page's words, with no pixels drawn: what a set's schedule sheets, its roof plans and its printed levels are found by. */
+export async function textsInNode(bytes: Uint8Array, numbers: readonly number[]): Promise<{ n: number; words: TextWord[] }[]> {
   const { doc, close } = await open(bytes);
   try {
-    const out: { n: number; words: { text: string }[] }[] = [];
+    const out: { n: number; words: TextWord[] }[] = [];
     for (const n of numbers) {
       const page = await doc.getPage(n);
-      const items = (await page.getTextContent()).items as { str?: string }[];
-      out.push({ n, words: items.map((i) => ({ text: (i.str ?? "").trim() })).filter((w) => w.text) });
+      const vp = page.getViewport({ scale: 1 });
+      const items = (await page.getTextContent()).items as { str?: string; transform?: number[]; width?: number }[];
+      const words = items.flatMap((i): TextWord[] => {
+        const text = (i.str ?? "").trim();
+        if (!text) return [];
+        const [x, y] = i.transform ? vp.convertToViewportPoint(i.transform[4], i.transform[5]) : [0, 0];
+        return [{ text, x, y, w: i.width ?? 0 }];
+      });
+      out.push({ n, words });
       page.cleanup();
     }
     return out;

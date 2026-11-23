@@ -32,11 +32,14 @@ export type KbDocRow = {
   updatedAt: string;
   /** When the manual came out, the first of its month (lib/tiff/released); null until it's read. */
   released?: string | null;
+  /** A manual photographed on the phone whose pages Tiff is still reading
+      (kb_documents.pages_reading_until still ahead): the Library says Reading. */
+  pagesReading?: boolean;
 };
 
 const COLUMNS =
   "id, category, title, source, edition, file_name, kind, storage_ref, size_bytes, page_count, " +
-  "scanned_pages, status, error, next_page, chunk_count, uploaded_by, uploaded_at, updated_at, released";
+  "scanned_pages, status, error, next_page, chunk_count, uploaded_by, uploaded_at, updated_at, released, pages_reading_until";
 
 function toRow(r: Record<string, unknown>): KbDocRow {
   return {
@@ -58,6 +61,7 @@ function toRow(r: Record<string, unknown>): KbDocRow {
     uploadedById: (r.uploaded_by as string) ?? null,
     uploadedAt: (r.uploaded_at as string) ?? null,
     updatedAt: String(r.updated_at ?? ""),
+    pagesReading: typeof r.pages_reading_until === "string" && Date.parse(r.pages_reading_until) > Date.now(),
     released: (r.released as string) ?? null,
   };
 }

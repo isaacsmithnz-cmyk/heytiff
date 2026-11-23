@@ -46,7 +46,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     category: d.category,
     released: d.released ?? null,
     edition: editionWords(d.edition),
-    status: d.status,
+    /* a photographed manual is still being read until Tiff has read its pages */
+    status: d.pagesReading && d.status === "ready" ? "processing" : d.status,
     pageCount: d.pageCount,
     scannedPages: d.scannedPages,
     drawings: count ?? 0,

@@ -108,6 +108,8 @@ const PANEL = "lb2-panel";
 const OPENED_KEY = "heytiff.library.opened";
 const OPENED_MOST = 12;
 const OPENED_EVENT = "heytiff:library-opened";
+/** How often the Library looks again at a manual whose photographed pages are being read. */
+const PAGES_READING_LOOK_MS = 20_000;
 /** the opened-lately list as this browser keeps it, raw; another tab's change arrives as `storage` */
 const readOpened = () => {
   try {
@@ -149,6 +151,8 @@ type RowState = {
   pageCount: number | null;
   error: string | null;
   resetsOn: string | null;
+  /** Photographed on the phone, its pages still being read by Tiff. */
+  pagesReading: boolean;
 };
 
 function rowState(d: KbLibraryDoc, live: KbIngestProgress | undefined, quota: KbQuotaView | null): RowState {
@@ -158,6 +162,7 @@ function rowState(d: KbLibraryDoc, live: KbIngestProgress | undefined, quota: Kb
     pageCount: live?.pageCount ?? d.pageCount,
     error: live?.error ?? d.error,
     resetsOn: live?.resetsOn ?? quota?.resetsOn ?? null,
+    pagesReading: !live && !!d.pagesReading,
   };
 }
 
@@ -222,6 +227,9 @@ function stateOf(state: RowState, ocr: OcrView): { tone: Tone; word: string } {
     };
   if (state.status === "failed") return { tone: "wrong", word: state.error || "Couldn't be read" };
   if (state.status === "uploading") return { tone: "info", word: "Uploading the document" };
+  /* a manual photographed on the phone is read as it's added: not Ready, nor
+     its pages "unreadable", until Tiff has read them */
+  if (state.pagesReading && !ocr.reading && !ocr.result) return { tone: "info", word: "Reading the photographed pages" };
 
   /* A vision run in flight says so where the caveat was, rather than beside
      it: the word is the row's one status line. */
@@ -453,6 +461,15 @@ export function Library({
   );
   const ingest = useKbIngest(processing);
   const ocr = useKbOcr();
+
+  /* a manual photographed on the phone is read on the server: looked at again
+     every so often until it says it's done */
+  const anyPagesReading = docs.some((d) => d.pagesReading);
+  useEffect(() => {
+    if (!anyPagesReading) return;
+    const t = setInterval(() => router.refresh(), PAGES_READING_LOOK_MS);
+    return () => clearInterval(t);
+  }, [anyPagesReading, router]);
 
   /* Seeded FROM `KB_CATEGORIES` rather than by hand: a literal of four keys
      beside a list of five once made the field notes' count read "NaN". */

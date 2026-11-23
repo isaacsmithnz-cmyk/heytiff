@@ -118,6 +118,15 @@ jest.mock("@/lib/studio/reading-server", () => ({
   READING_MODEL: "claude-opus-5-5",
   readSheet: (...a: unknown[]) => readSheet(...(a as [string, { floorId: string }])),
   readRoof: (...a: unknown[]) => readRoof(...a),
+  readRoofSlices: async (o: unknown, pdf: unknown, sheets: unknown, pages: { from: number }, want: { shape: boolean; heights: boolean }) => {
+    /* the one roof read the tests answer, split as the slices give it */
+    const whole = Promise.resolve(readRoof(o, pdf, sheets, undefined, pages.from)) as Promise<Record<string, unknown>>;
+    return {
+      at: [],
+      shape: want.shape ? whole.then((r) => ({ parts: (r.parts as unknown[]) ?? [], material: (r.material as string) ?? "" })) : null,
+      heights: want.heights ? whole.then((r) => ({ levels: (r.levels as unknown[]) ?? [], raked: (r.raked as unknown[]) ?? [], roofSpace: (r.roofSpace as string) ?? "", pitches: [], ...(r.subfloor ? { subfloor: r.subfloor } : {}) })) : null,
+    };
+  },
   readSite: (...a: unknown[]) => readSite(...a),
   readDimensions: (...a: unknown[]) => readDimensions(...(a as [string, { floorId: string }])),
   readSchedule: (...a: unknown[]) => readSchedule(...(a as [Buffer, unknown[]])),
@@ -205,7 +214,7 @@ it("picks up where it stopped: the floors drawn in full in Node, saved, then rea
   expect(floors.every((p) => typeof p.ref === "string" && p.ref.endsWith(".png"))).toBe(true);
   expect(readSheet.mock.calls.map((c) => (c[1] as { floorId: string }).floorId)).toEqual(["p2", "p3", "p4"]);
   expect(plan().reading).toMatchObject({ failed: [] });
-  expect(plan().progress).toMatchObject({ step: "reading", done: 5, total: 5 });
+  expect(plan().progress).toMatchObject({ step: "reading", done: 6, total: 6 });
 });
 
 describe("with the floors read by measure, when PLANS_MEASURED is 1", () => {

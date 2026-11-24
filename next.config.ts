@@ -115,7 +115,11 @@ const nextConfig: NextConfig = {
        a "fake worker" on the main one — the module still has to be THERE to
        be imported. Naming the whole build directory covers the cmaps and
        standard-font lookups that follow the same dynamic pattern. */
-    "/api/tiff/ingest": ["./node_modules/pdfjs-dist/legacy/build/**/*"],
+    "/api/tiff/ingest": ["./node_modules/pdfjs-dist/legacy/build/**/*", "./data/packs/**/*"],
+    /* the first reading looks a manual's model codes up in the data books for
+       a maker its cover doesn't print (lib/tiff/maker.ts); the phone's Read
+       runs the same route */
+    "/api/mobile/library/[id]/read": ["./node_modules/pdfjs-dist/legacy/build/**/*", "./data/packs/**/*"],
     /* ...and every other door that reads a PDF's words on the server: a
        job's Documents and the phone's uploads (take-in sorting, which failed
        every file it ever saw, 3570's plan set on 19 November 2026 among them),

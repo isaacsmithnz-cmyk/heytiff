@@ -392,12 +392,14 @@ export function visitDoneLine(v: VisitMade, why: VisitWhy | null, today: string)
     case "heytiff":
       return `${card.title} is in HeyTiff only: ${card.line}. ${why === "not_linked" ? `${v.name || "They"} isn't linked to anyone in ServiceM8.` : "Bookings don't go to ServiceM8 here."}`;
     case "task":
-      return `${why === "no_job" ? "A visit needs a ServiceM8 job" : "You can't book visits"}, so I've made it a task: ${card.title}.`;
+      return why === "anyone"
+        ? `Nobody's on it yet, so I've made you a task to book it: ${card.title}.`
+        : `${why === "no_job" ? "A visit needs a ServiceM8 job" : "You can't book visits"}, so I've made it a task: ${card.title}.`;
   }
 }
 
 /** Why a visit went the way it did, where that is worth saying. */
-export type VisitWhy = "off" | "not_linked" | "no_right" | "no_job";
+export type VisitWhy = "off" | "not_linked" | "no_right" | "no_job" | "anyone";
 
 /** Her line when Book in refused it: its own words. */
 export const visitRefusedLine = (work: string, error: string): string =>

@@ -199,7 +199,8 @@ describe("the shaper", () => {
   it("asks who paid when nobody here goes by the name, unless the company card paid", () => {
     expect(shapeProposal(raw([reece({ payer_hint: "Bobo" })]), ctx, "Bobo paid $85 at Reece, ask Lyle").clarify).toEqual({
       question: "Who paid: Bobo?",
-      options: ["Me", "Lyle"],
+      options: ["Alex Brown", "Alex Lomond", "Isaac Smith", "Lyle Irving"],
+      who: "do",
     });
     expect(shapeProposal(raw([reece({ payer_hint: "Bobo", paid_with: "company" })]), ctx).clarify).toBeNull();
   });

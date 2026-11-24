@@ -29,6 +29,9 @@ export type Shelving = {
   shelfName: string;
   /** the shelf's name on its brand's own page: "Ducted and zoning" */
   systems: string;
+  /** true when `systems` names systems, false when it names the kind of
+      document (a maker's document tagged with no system) */
+  bySystem: boolean;
   /** the maker's name on the cover, or null */
   maker: string | null;
   /** the cover's colour: the maker's tag colour, or null for the plain cover */
@@ -52,6 +55,9 @@ const MONTH = "(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*";
 const TAIL = new RegExp(
   `(?:${[
     "\\b(?:im|sm|sh|om|iom|manuals?|installation|install|service|diagnosis|troubleshooting|brochure|flyer|leaflet|data ?sheets?|specifications?|specs|guide|handbook|catalogue|catalog|edition|revised|product release)",
+    /* what's left hanging once the kind of book goes: "SAT-2 thermostat user" (manual), "KRS electronic controller
+       service and" (installation manual), 24 November 2026 */
+    "\\b(?:and|&|or|user'?s?|owner'?s?|operating|operation|instructions?)",
     `\\b${MONTH}\\s?\\d{2,4}`,
     "\\b[a-z]{1,3}\\d{4}",
     "\\b\\d{4}(?:[-/]\\d{1,2})?",
@@ -85,6 +91,8 @@ export function modelName(name: string): string | null {
     rest = rest.slice(code[0].length);
   }
   if (!sizes.length) return null;
+  /* a bare number isn't a size range: "SAT-2" is one name, not "SAT" over "2" */
+  if (sizes.every((z) => /^\d{1,2}$/.test(z))) return null;
   return [series, sizes.join(" / "), rest.trim()].filter(Boolean).join("\n");
 }
 
@@ -160,15 +168,21 @@ export function shelvesOf(docs: readonly ShelfDoc[], tagsOf: Readonly<Record<str
   for (const { d, brand, systems } of read) {
     if (!brand) {
       const shelfName = KIND_SHELF[d.category] ?? "Other documents";
-      out.set(d.id, { shelf: `kind:${d.category}`, shelfName, systems: shelfName, maker: null, color: null, name: coverName(d.title, null) });
+      out.set(d.id, { shelf: `kind:${d.category}`, shelfName, systems: shelfName, bySystem: false, maker: null, color: null, name: coverName(d.title, null) });
       continue;
     }
     const root = systems.length ? find(`${brand.id}|${systems[0]}`) : null;
     const together = root ? (members.get(root) ?? systems) : [];
+    /* A MAKER'S DOCUMENT FOR NO SYSTEM goes on its kind's shelf on the brand's
+       page, not "Other documents": that held 14 of Fujitsu's 28, its test
+       sheets, zone interface and outdoor manuals together (Isaac, 24 November
+       2026, "Build it" to https://claude.ai/artifact/9Cw9RKq4GjjWop6qamwZs8) */
+    const kind = KIND_SHELF[d.category] ?? "Other documents";
     out.set(d.id, {
-      shelf: root ? `brand:${root}` : `brand:${brand.id}`,
+      shelf: root ? `brand:${root}` : `brand:${brand.id}|kind:${d.category}`,
       shelfName: together.length ? `${brand.label} · ${systemsName(together)}` : brand.label,
-      systems: together.length ? systemsName(together) : "Other documents",
+      systems: together.length ? systemsName(together) : kind,
+      bySystem: together.length > 0,
       maker: brand.label,
       color: brand.color,
       name: coverName(d.title, brand.label),

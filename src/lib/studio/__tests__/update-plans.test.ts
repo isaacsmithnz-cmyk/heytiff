@@ -128,3 +128,94 @@ describe("taking it", () => {
     expect(foundOn(out, out.floors[0].id).map((s) => s.name)).toEqual(["Ensuite"]);
   });
 });
+
+/* PLANS UPDATED: the set the design was made from, read again. Its page is
+   drawn again as a new picture, her read redone: the Kitchen wider, and a
+   roof she couldn't read before. */
+describe("the design's own set, read again", () => {
+  const roofFace = { floorId: "p1", sheetId: "p1", outline: rect(0, 0, 500, 300), pitchDeg: 40, fall: { x: 0, y: 1 }, eaveMm: 2700, overhangMm: 450, existing: false, page: 2 };
+  const again: JobPlan = {
+    ...issueG,
+    pages: [page("org/o1/Issue G-p1-again.png")],
+    readAt: "2026-11-23T00:00:00Z",
+    reading: {
+      at: "2026-11-23T00:00:00Z",
+      model: "m",
+      floors: { p1: [sheet([room("Study", rect(0, 0, 300, 300)), room("Kitchen", rect(400, 0, 500, 300)), room("Lounge", rect(0, 400, 500, 400)), room("Bedroom 01", rect(900, 0, 300, 300))])] },
+      failed: [],
+      roof: { levels: [], parts: [], raked: [], material: "metal", roofSpace: "", faces: [roofFace as never] },
+    },
+  };
+  const d = designFrom(issueG);
+  const kitchen = named(d, "Kitchen")!;
+
+  it("is offered as the plans updated, against the read the design holds", () => {
+    const up = newerPlan(d, [again])!;
+    expect(up.again).toBe(true);
+    expect(up.plan).toBe(again);
+    expect(up.was?.pages[0].ref).toBe(d.floors[0].plans[0].imageRef);
+    expect(planUpdate(d, [again], up).pages).toEqual([{ n: 1, title: "First floor, page 1", lines: ["Kitchen is 15 m² now, was 12 m²"] }]);
+  });
+
+  it("isn't offered when the design holds that read already", () => {
+    expect(newerPlan({ ...d, reading: { ...d.reading!, at: "2026-11-24T00:00:00Z" } }, [again])).toBeNull();
+  });
+
+  it("puts her new read and the new picture under the design, nothing drawn moving", () => {
+    const up = newerPlan(d, [again])!;
+    const out = updatePlans(d, [again], up, new Set([kitchen.id]));
+    const [s] = out.floors[0].plans;
+    expect({ id: s.id, ref: s.imageRef, x: s.x, y: s.y }).toEqual({ id: d.floors[0].plans[0].id, ref: "org/o1/Issue G-p1-again.png", x: d.floors[0].plans[0].x, y: d.floors[0].plans[0].y });
+    expect(out.floors).toHaveLength(1);
+    expect(out.reading?.at).toBe("2026-11-23T00:00:00Z");
+    expect(out.reading?.roof?.faces?.map((f) => [f.floorId, f.sheetId])).toEqual([[out.floors[0].id, s.id]]);
+    expect(out.planImport?.placed[0]).toBe("org/o1/Issue G-p1-again.png");
+    expect(out.objects.find((o) => o.id === kitchen.id)!.geometry).not.toEqual(kitchen.geometry);
+    expect(rooms(out)).toHaveLength(rooms(d).length);
+    expect(rooms(out).every((o) => String(o.props.readKey).startsWith(`${s.id}:`))).toBe(true);
+    expect(newerPlan(out, [again])).toBeNull();
+  });
+});
+
+/* 3570, 24 November 2026: read again with its door and window schedule, its
+   windows had their heights, and its rooms kept the glazing of the read
+   before. A Lounge of 20 m² with 2.4 m of window: 2.9 m² of glass at 1.2 m
+   (low), 5.8 m² at its scheduled 2.4 m (moderate). */
+describe("a set read again with its glass sized", () => {
+  const glass = (room: string, widthMm: number, heightMm?: number): ReadOpening => ({ ...windowIn(room, "N"), widthMm, ...(heightMm ? { heightMm } : {}) });
+  const spaces = [room("Lounge", rect(0, 0, 500, 400)), room("Study", rect(600, 0, 300, 300))];
+  const first = plan("Set A", "2026-11-01T00:00:00Z", sheet(spaces, [glass("Lounge", 2400), glass("Study", 1200)]));
+  const again: JobPlan = { ...first, reading: { ...first.reading!, at: "2026-11-05T00:00:00Z", floors: { p1: [sheet(spaces, [glass("Lounge", 2400, 2400), glass("Study", 1200, 1500)])] } } };
+  const d = designFrom(first);
+  const lounge = named(d, "Lounge")!;
+  const study = named(d, "Study")!;
+  const up = newerPlan(d, [again])!;
+
+  it("is offered as a set read again", () => {
+    expect(lounge.props.glazing).toBe("low");
+    expect(study.props.glazing).toBe("moderate");
+    expect(up.again).toBe(true);
+  });
+
+  it("offers the room whose glazing moves with its load, and says nothing of one whose doesn't", () => {
+    const u = planUpdate(d, [again], up);
+    expect(u.pages).toEqual([{ n: 1, title: "First floor, page 1", lines: ["Lounge has more glass now"] }]);
+    expect(u.offers.map((o) => o.title)).toEqual(["Lounge takes the new plans"]);
+    expect(u.offers[0].line).toMatch(/^Its windows off First floor, page 1\. Its load goes from [\d.]+ kW to [\d.]+ kW$/);
+  });
+
+  it("gives the ticked room its glazing and leaves its outline as drawn", () => {
+    const moved = { ...lounge, geometry: { kind: "polygon" as const, points: rect(10, 10, 480, 380) } };
+    const drawn = { ...d, objects: d.objects.map((o) => (o.id === lounge.id ? moved : o)) };
+    const out = updatePlans(drawn, [again], up, new Set([lounge.id]));
+    const l = out.objects.find((o) => o.id === lounge.id)!;
+    expect(l.props.glazing).toBe("moderate");
+    expect(l.geometry).toEqual(moved.geometry);
+    expect(out.objects.find((o) => o.id === study.id)!.props.glazing).toBe("moderate");
+  });
+
+  it("leaves a room left unticked as it was", () => {
+    const out = updatePlans(d, [again], up, new Set());
+    expect(out.objects.find((o) => o.id === lounge.id)!.props.glazing).toBe("low");
+  });
+});

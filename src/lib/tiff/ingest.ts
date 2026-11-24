@@ -27,11 +27,16 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { renewLease } from "./lease";
 import { KB_BUCKET, kbRefIsOrgs } from "./files";
 import { chunkPages, type PageText } from "./chunk";
+import { printedPageOffset } from "./printed-pages";
 import { isScannedPage, openPdf, PAGE_BATCH, pageWindow } from "./extract";
 import { embedTexts } from "./embeddings";
 import { tagChunks } from "./keywords";
 import { releasedOf } from "./released";
 import { imprintPatch, readImprint } from "./imprint";
+import { makerFromModels, makerFromPages } from "./maker";
+import { kbTagsForOrg } from "./tags-query";
+import { KB_TAG_SEEDS } from "./tags";
+import { libraryPacks } from "@/lib/library/packs-server";
 import { addKbUsage, kbQuotaFor } from "./quota";
 
 /* The reason, kept where it can be read.
@@ -96,7 +101,7 @@ export type BatchPlan =
   | { kind: "done" }
   | { kind: "refused"; error: string };
 
-const DOC_COLUMNS = "status, next_page, page_count, chunk_count, scanned_pages, storage_ref, source, edition, title, file_name, released";
+const DOC_COLUMNS = "status, next_page, page_count, chunk_count, scanned_pages, storage_ref, source, edition, title, file_name, released, category";
 
 /* What to do with this document right now.
 
@@ -190,6 +195,33 @@ async function fail(
    downloads as before. Keyed by the storage ref so a cache can never feed one
    document's bytes to another. */
 export type PdfBytesCache = { ref?: string; bytes?: Uint8Array };
+
+/* THE BOOK'S OWN PAGE NUMBERS, once every page is read (bug 85,
+   ./printed-pages): the difference between the file's pages and the numbers
+   printed on them, off the document's single-page chunks, so a citation can
+   say the page the viewer opens. Never stops a read: a document without it
+   cites the file's pages alone, as before, and a Library without the column
+   (docs/migrations/kb_page_offset.sql not run) just doesn't keep it. */
+async function notePrintedPages(documentId: string, orgId: string): Promise<void> {
+  try {
+    const { data } = await supabaseAdmin
+      .from("kb_chunks")
+      .select("page_from, page_to, content")
+      .eq("org_id", orgId)
+      .eq("document_id", documentId);
+    const rows = (Array.isArray(data) ? data : []) as { page_from: number; page_to: number; content: string }[];
+    const pages = rows.filter((r) => r.page_from === r.page_to).map((r) => ({ page: r.page_from, text: r.content }));
+    const offset = printedPageOffset(pages);
+    if (offset === null) return;
+    await supabaseAdmin
+      .from("kb_documents")
+      .update({ page_offset: offset })
+      .eq("org_id", orgId)
+      .eq("id", documentId);
+  } catch (err) {
+    logIngestFailure(documentId, "printedPages", err);
+  }
+}
 
 /** Read the next window of pages into kb_chunks. Never throws: every failure
     lands on the row as `failed` + a reason, which the library shows with a
@@ -305,12 +337,18 @@ export async function processBatch(documentId: string, orgId: string, cache?: Pd
        chunks still match on their own content; null embeddings still match on
        keywords, and a later run backfills them once a key exists. */
     const texts = chunks.map((c) => c.content);
-    /* THE MAKER AND THE EDITION, off the cover and the imprint (./imprint),
-       asked once, in the first batch, beside the tagging, and only for a
-       field nobody has filled */
-    const known = { source: (row.source as string | null) ?? null, edition: (row.edition as string | null) ?? null };
-    const wantImprint = window.from === 1 && (!known.source?.trim() || !known.edition?.trim());
-    const cover = wantImprint ? pages.filter((p) => p.page <= 3).map((p) => p.text).join("\n") : "";
+    /* WHAT THE COVER SAYS (./imprint): the maker, the edition, what the
+       document is, its shelf and the date it prints. Asked once, in the first
+       batch, beside the tagging; `imprintPatch` decides what of it may be
+       written (never over a title somebody wrote). */
+    const known = {
+      source: (row.source as string | null) ?? null,
+      edition: (row.edition as string | null) ?? null,
+      title: (row.title as string | null) ?? null,
+      category: (row.category as string | null) ?? null,
+      file_name: (row.file_name as string | null) ?? null,
+    };
+    const cover = window.from === 1 ? pages.filter((p) => p.page <= 3).map((p) => p.text).join("\n") : "";
     const [tagged, embedded, imprint] = await Promise.all([
       tagChunks(texts, documentId),
       embedTexts(texts, "document"),
@@ -319,12 +357,40 @@ export async function processBatch(documentId: string, orgId: string, cache?: Pd
 
     const keywords = tagged.ok ? tagged.keywords : chunks.map(() => []);
 
+    /* A MAKER THE COVER DOESN'T PRINT (./maker): only where nobody gave one
+       and the cover named none, the pages this batch holds, then the title's
+       model codes in the data books. Never throws: no maker is still a manual. */
+    const pagesMaker =
+      window.from === 1 && !known.source?.trim() && imprint && !imprint.maker
+        ? await (async () => {
+            try {
+              const tags = await kbTagsForOrg(orgId);
+              const names = [...tags.filter((t) => t.kind === "brand").map((t) => t.label), ...KB_TAG_SEEDS.filter((t) => t.kind === "brand").map((t) => t.label)];
+              return (
+                makerFromPages(
+                  pages.map((p) => p.text),
+                  names,
+                ) ?? makerFromModels(await libraryPacks(), [imprint.title, known.title, known.file_name].filter(Boolean).join(" "), names)
+              );
+            } catch {
+              return null;
+            }
+          })()
+        : null;
+
     /* WHEN IT CAME OUT (./released), read once in the first batch: the date
-       printed on its title, file or edition, else the PDF's own date */
+       printed on its title, file, edition or cover, else the PDF's own date
+       when a scanner or converter didn't make the PDF */
     const released =
       window.from === 1 && !row.released
         ? releasedOf(
-            { title: (row.title as string | null) ?? null, fileName: (row.file_name as string | null) ?? null, edition: imprint?.edition ?? known.edition },
+            {
+              title: known.title,
+              fileName: known.file_name,
+              edition: imprint?.edition ?? known.edition,
+              issued: imprint?.issued ?? null,
+              producer: await pdf.producer?.().catch(() => null),
+            },
             await pdf.made?.().catch(() => null),
           )
         : null;
@@ -366,13 +432,20 @@ export async function processBatch(documentId: string, orgId: string, cache?: Pd
 
     const { error: updateErr } = await supabaseAdmin
       .from("kb_documents")
-      .update({ ...patch, ...(imprint ? imprintPatch(known, imprint) : {}), ...(released ? { released } : {}) })
+      .update({
+        ...patch,
+        ...(pagesMaker ? { source: pagesMaker } : {}),
+        ...(imprint ? imprintPatch({ ...known, source: known.source || pagesMaker }, imprint, cover) : {}),
+        ...(released ? { released } : {}),
+      })
       .eq("org_id", orgId)
       .eq("id", documentId);
     if (updateErr) return fail(documentId, orgId, doc, "That document couldn't be updated.");
 
     // counted AFTER the work, so a failed batch is never billed
     await addKbUsage(orgId, { pages: window.count });
+
+    if (patch.status === "ready") await notePrintedPages(documentId, orgId);
 
     return {
       status: patch.status as IngestStatus,

@@ -94,11 +94,15 @@ describe("swmsWizardContext", () => {
     expect(await swmsWizardContext("job-1")).toBeNull();
   });
 
-  it("brings the hospital the last SWMS in the same postcode named", async () => {
-    expect((await swmsWizardContext("job-1"))?.hospital).toBeNull();
-    await issueSwms(input());
-    mockDb.tables.sm8_jobs.push({ ...mockDb.tables.sm8_jobs[0], uuid: "job-2", generated_job_id: "2602", job_address: "2 Kiora Road, Miranda NSW 2228" });
-    expect((await swmsWizardContext("job-2"))?.hospital).toEqual({ name: "Sutherland Hospital, Caringbah", jobNumber: "2601" });
+  /* the nearest emergency departments to the site's pin, from the list (lib/hospitals), nearest first */
+  it("brings the three nearest emergency departments to the site, and none for a site with no pin", async () => {
+    expect((await swmsWizardContext("job-1"))?.hospitals).toEqual([]);
+    Object.assign(mockDb.tables.sm8_jobs[0], { lat: -34.035, lng: 151.1 });
+    const near = (await swmsWizardContext("job-1"))?.hospitals ?? [];
+    expect(near).toHaveLength(3);
+    expect(near[0].name).toBe("Sutherland Hospital");
+    expect(near[0].km).toBeLessThan(2);
+    expect(near[1].km).toBeGreaterThanOrEqual(near[0].km);
   });
 
   it("is behind the workboard gate", async () => {

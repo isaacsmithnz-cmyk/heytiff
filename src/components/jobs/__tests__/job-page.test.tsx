@@ -45,6 +45,9 @@ jest.mock("@/app/actions/workboard-projects", () => ({ spawnAgreementFromProject
 jest.mock("@/app/actions/workboard", () => ({ searchJobs: jest.fn(async () => []) }));
 jest.mock("@/app/actions/workboard-ai", () => ({ analyseSm8JobForAgreement: jest.fn() }));
 jest.mock("@/components/notes/note-token", () => ({ NoteToken: () => <textarea aria-label="access notes" /> }));
+/* Star the job (the Star a job mock, 24 November 2026): a "use server" action */
+const starJob = jest.fn(async (_job: string, on: boolean) => ({ ok: true as const, starred: on }));
+jest.mock("@/app/actions/job-stars", () => ({ starJob: (job: string, on: boolean) => starJob(job, on) }));
 
 import { JobPage } from "../job-page";
 import { pageNamesSnapshot } from "@/components/shell/page-names";
@@ -116,11 +119,31 @@ it("joins the sidebar's Recents as the job", () => {
   expect(remember).toHaveBeenCalledWith({ key: "job.j-3209", ref: { kind: "job", id: "j-3209" }, title: "Job 3209", sub: "Rowland Building" });
 });
 
-it("hands Actions Pin the job and Copy the link, and pins the job by its number and client", async () => {
+it("hands Actions Pin the job, Star the job and Copy the link, and pins the job by its number and client", async () => {
   draw();
-  expect(handed!.page.actions.map((a) => a.label)).toEqual(["Pin the job", "Copy the link"]);
+  expect(handed!.page.actions.map((a) => a.label)).toEqual(["Pin the job", "Star the job", "Copy the link"]);
   await act(async () => handed!.page.onAction("pin"));
   expect(pin).toHaveBeenCalledWith({ ref: { kind: "job", id: "j-3209" }, title: "Job 3209", sub: "Rowland Building" });
+});
+
+it("stars the job from Actions, then offers Unstar, and takes the star off again", async () => {
+  starJob.mockClear();
+  draw();
+  await act(async () => handed!.page.onAction("star"));
+  expect(starJob).toHaveBeenCalledWith("j-3209", true);
+  expect(await screen.findByText("Added to Starred")).toBeInTheDocument();
+  expect(handed!.page.actions.map((a) => a.label)).toContain("Unstar the job");
+  await act(async () => handed!.page.onAction("star"));
+  expect(starJob).toHaveBeenLastCalledWith("j-3209", false);
+  expect(handed!.page.actions.map((a) => a.label)).toContain("Star the job");
+});
+
+it("puts the star back and says so when it couldn't be written", async () => {
+  starJob.mockImplementationOnce(async () => ({ ok: false, error: "That didn't star. Try it again." }) as never);
+  draw();
+  await act(async () => handed!.page.onAction("star"));
+  expect(await screen.findByText("That didn't star. Try it again.")).toBeInTheDocument();
+  expect(handed!.page.actions.map((a) => a.label)).toContain("Star the job");
 });
 
 it("copies the link to the job's page", async () => {

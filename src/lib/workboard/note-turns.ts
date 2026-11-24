@@ -115,6 +115,20 @@ export const KEPT_AS_SAID = "I couldn't sort that out just now, so it's in your 
 /** The question a pick answers: its options carry their jobs. */
 export const WHICH_JOB = "Which job is this for?";
 
+/** The answer to "Which job is this for?" that files it on none. */
+export const NO_JOB = "No job";
+
+/** Which person a who-question asks for: one to go somewhere, or one to do
+    something (or who paid, or who a name is). Its answers are drawn as one
+    dropdown (bug 88). */
+export type WhoAsk = "go" | "do";
+
+/** The label a who-question's dropdown wears. */
+export const WHO_LABEL: Record<WhoAsk, string> = { go: "Who goes", do: "Who" };
+
+/** The answer to "who goes?" that names nobody in particular. */
+export const ANYONE = "Anyone";
+
 /** The room the note was first said in, if it said. */
 export const roomOf = (turns: readonly Turn[]): TiffRoom | undefined =>
   turns.find((t) => t.who === "you")?.room;
@@ -154,7 +168,9 @@ export function conversationOf(turns: readonly EarlierTurn[]): EarlierTurn[] {
   turns.forEach((t, i) => {
     if (t.who === "tiff") {
       for (let j = i + 1; j < turns.length && turns[j]!.who === "tiff"; j++) {
-        if (turns[j]!.text === doneLine(t.text)) return;
+        /* "Done." may say more after it: the job she couldn't find */
+        const done = doneLine(t.text);
+        if (turns[j]!.text === done || turns[j]!.text.startsWith(`${done} `)) return;
       }
       const last = out.at(-1);
       if (last?.who === "tiff" && !isDone(last.text) && !isDone(t.text)) {

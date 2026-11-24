@@ -9,6 +9,8 @@ import { SearchField } from "@/components/parts/search-field";
 import { StateWord } from "@/components/parts/state";
 import { ViewTabs } from "@/components/parts/tabs";
 import { RecordLink } from "@/components/records/record-link";
+import { Icon } from "@/components/shell/icon";
+import { jobPageHref } from "@/lib/shell/links";
 import { sm8Gap } from "@/components/workboard/board/sm8-gap";
 import { fmtAud } from "@/lib/workboard/project-money";
 import type { JobsListData } from "@/lib/workboard/jobs-list-query";
@@ -53,7 +55,10 @@ const firstNames = (names: readonly string[]): string => {
   return `${first.slice(0, -1).join(", ")} and ${first[first.length - 1]}`;
 };
 
-function JobRow({ row, money }: { row: JobsListRow; money: boolean }) {
+/* A JOB YOU STARRED carries a filled star at its row's end, in ink (Isaac,
+   24 November 2026, the Star a job mock: "a starred job carries the star at
+   the end of its row"). The star is yours: someone else's never shows. */
+function JobRow({ row, money, starred }: { row: JobsListRow; money: boolean; starred: boolean }) {
   const crew = firstNames(row.who);
   const line = [row.kind, row.site].filter(Boolean).join(", ");
   return (
@@ -81,6 +86,13 @@ function JobRow({ row, money }: { row: JobsListRow; money: boolean }) {
           {crew && <Fade className="jl-sub">{crew}</Fade>}
         </span>
         {money && <span className="jl-cell jl-value">{row.valueCents !== null ? fmtAud(row.valueCents) : ""}</span>}
+        <span className="jl-cell jl-star">
+          {starred && (
+            <span role="img" aria-label="Starred">
+              <Icon name="star" size={18} />
+            </span>
+          )}
+        </span>
       </RecordLink>
     </li>
   );
@@ -171,6 +183,8 @@ export function JobsListPage({ data, initial }: { data: Omit<JobsListData, "rows
 export function JobsList({ data, initial }: { data: JobsListData; initial: ListState }) {
   const [state, setState] = useState<ListState>(initial);
   const money = data.moneyVisible;
+  /* your stars, by the page each row opens */
+  const stars = useMemo(() => new Set((data.starred ?? []).map((id) => jobPageHref(id))), [data.starred]);
 
   const go = (next: Partial<ListState>) => {
     const s = { ...state, ...next };
@@ -245,10 +259,11 @@ export function JobsList({ data, initial }: { data: JobsListData; initial: ListS
               <span className="jl-cell">Where it&apos;s up to</span>
               <span className="jl-cell">Next</span>
               {money && <span className="jl-cell jl-value">Value</span>}
+              <span className="jl-cell" />
             </div>
             <ul className="jl-rows" aria-label={`${viewLabel}, ${shown.length} ${shown.length === 1 ? "job" : "jobs"}`}>
               {drawn.map((r) => (
-                <JobRow key={r.key} row={r} money={money} />
+                <JobRow key={r.key} row={r} money={money} starred={stars.has(r.href.split("?")[0] ?? r.href)} />
               ))}
             </ul>
             {drawn.length < shown.length && (

@@ -13,6 +13,7 @@
 import { issueLog, jobHistory, openTaskLoad, TARGET_KINDS } from "@/lib/brain/tools";
 import { searchMirrorJobs, type JobSearchHit } from "@/lib/workboard/projects-query";
 import { retrieveForQuestion } from "@/lib/tiff/retrieve";
+import { pageSpan, printedSpan } from "@/lib/tiff/printed-pages";
 import type { NoteTarget } from "@/app/actions/workboard-notes";
 import { fitDesignRead } from "@/lib/quotes/design-read";
 import { readAnyDesign } from "@/lib/quotes/design-read-server";
@@ -349,7 +350,9 @@ export const READS: readonly TiffTool[] = [
     description:
       "Look up indoor and outdoor units by model code in the makers' data books: specs, " +
       "pipe sizes, which heads pair with an outdoor, the longest run and lift, the factory " +
-      "pre-charge and the extra refrigerant by length, each with the book and page. Name " +
+      "pre-charge and the extra refrigerant by length, each with the book and its pages. A " +
+      "source names every page its figures came from ('pp. 8, 135'): cite them all, never the " +
+      "first alone, since a figure may be on any of them. Name " +
       "one or more model codes as printed (on a label, a quote, a plan); naming both the " +
       "indoor and the outdoor gives that pair alone. extraCharge is null where only the " +
       "rule says it: read chargeRule then.",
@@ -373,7 +376,11 @@ export const READS: readonly TiffTool[] = [
     description:
       "Search the knowledge base — manuals AND field notes the crew has taught. Returns " +
       "excerpts with their sources; field notes carry who learned them and where. Each " +
-      "excerpt carries its doc id and pages, for open_document.",
+      "excerpt carries its doc id and filePages, the PDF file's own pages: the page " +
+      "open_document and the viewer open, and the only page to cite. Where the book prints " +
+      "different numbers, printedPages gives the printed ones and filePageIsPrintedPlus the " +
+      "difference. A page the text itself names ('Refer to page 274', 'see P.12') is the " +
+      "book's printed number: add filePageIsPrintedPlus before citing or opening it.",
     inputSchema: {
       type: "object",
       properties: { query: str },
@@ -382,16 +389,22 @@ export const READS: readonly TiffTool[] = [
     },
     run: async (viewer, input) => {
       const found = await retrieveForQuestion(viewer.orgId, String(input.query ?? ""));
-      /* The loop wants excerpts, not the full retrieval trace. */
+      /* The loop wants excerpts, not the full retrieval trace. Pages are the
+         file's, which the viewer opens; the book's printed numbers ride
+         beside them where they differ (bug 85, ../printed-pages). */
       return result(
-        found.chunks.slice(0, 8).map((c) => ({
-          doc: c.documentId,
-          title: c.title,
-          category: c.category,
-          heading: c.heading,
-          pages: c.pageFrom === c.pageTo ? `${c.pageFrom}` : `${c.pageFrom}–${c.pageTo}`,
-          content: c.content.slice(0, 1200),
-        }))
+        found.chunks.slice(0, 8).map((c) => {
+          const printed = printedSpan(c.pageFrom, c.pageTo, c.printedOffset);
+          return {
+            doc: c.documentId,
+            title: c.title,
+            category: c.category,
+            heading: c.heading,
+            filePages: pageSpan(c.pageFrom, c.pageTo),
+            ...(printed ? { printedPages: printed, filePageIsPrintedPlus: c.printedOffset } : {}),
+            content: c.content.slice(0, 1200),
+          };
+        })
       );
     },
   },

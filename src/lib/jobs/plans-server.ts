@@ -6,8 +6,10 @@ import { newId } from "@/lib/studio/document";
 import { launchHeadless, printBase } from "@/lib/studio/pdf-render";
 import { signPlanPagesTicket, signPlanReadTicket, type PlanPagesTicket } from "@/lib/studio/pdf-request";
 import { mmPerPointOf, mmPerPxFor, printedScaleOf } from "@/lib/studio/plan-set";
-import { scaleFromDimensions, type PlanReading, type PlanWord, type SheetReading } from "@/lib/studio/reading";
-import { READING_MODEL, readDimensions, readRoof, readSchedule, readSheet, readSite, type SheetToRead, askWith, pngBlock } from "@/lib/studio/reading-server";
+import { scaleFromDimensions, type PlanReading, type PlanWord, type RoofHeights, type RoofShape, type SheetReading } from "@/lib/studio/reading";
+import { READING_MODEL, readDimensions, readRoofSlices, readSchedule, readSheet, readSite, type SheetToRead, askWith, pngBlock } from "@/lib/studio/reading-server";
+import { marksCount, printedLevels, type PrintedLevels } from "@/lib/studio/printed-levels";
+import { joinRoof } from "@/lib/studio/roof-join";
 import { isSchedulePage, itemsOf, taggedFromWords, withSchedule, type ScheduleItem } from "@/lib/studio/schedule";
 import { marksInGaps } from "@/lib/studio/gap-marks";
 import { nameRooms, prepareMeasured } from "@/lib/studio/measured-server";
@@ -524,6 +526,47 @@ export async function roofFacesOf(bytes: Uint8Array, pages: readonly JobPlanPage
   return { faces: best.faces, left: best.left };
 }
 
+/** By when, from a run's start, the set's words must be back for the roof's slices to be sent only their pages: 3570's 27 pages take about two seconds. */
+const WORDS_BY_MS = 30_000;
+/** The most pages each of the roof's slices is sent (reading-server SLICE_PAGES). */
+const SLICE_PAGES = 6;
+
+/* WHICH PAGES EACH OF THE ROOF'S SLICES IS SENT, by the set's own words: its
+   shape the roof plans (titled so, or printing three or more pitches, most
+   first), its heights the pages printing most levels with their RLs, then
+   those titled elevations or sections. The levels themselves are read off
+   the same words. A set with no words (a scan) names none, and each slice is
+   sent the set from its first floor plan, as the one question was. */
+/** The words of a set's pages other than its floors', fetched once a run for the schedule and the roof. */
+type SetTexts = Awaited<ReturnType<typeof textsInNode>>;
+
+export function roofPagesOf(texts: SetTexts, pages: readonly JobPlanPage[]): { shape: number[]; heights: number[]; printed: PrintedLevels | null } {
+  const kind = new Map(pages.map((p) => [p.n, p.kind]));
+  const words = texts.filter((t) => kind.get(t.n) !== "floor").map((t) => ({ n: t.n, words: t.words.map((w) => ({ text: w.text, x: w.x ?? 0, y: w.y ?? 0, w: w.w ?? 0 })) }));
+  const shape = words
+    .map((t) => ({ n: t.n, roof: kind.get(t.n) === "roof", pitches: t.words.filter((w) => pitchOf(w.text) != null).length }))
+    .filter((t) => t.roof || t.pitches >= 3)
+    .sort((a, b) => Number(b.roof) - Number(a.roof) || b.pitches - a.pitches)
+    .slice(0, SLICE_PAGES)
+    .map((t) => t.n - 1);
+  const marked = words
+    .map((t) => ({ n: t.n, marks: marksCount(t.words) }))
+    .filter((t) => t.marks >= 2)
+    .sort((a, b) => b.marks - a.marks)
+    .map((t) => t.n);
+  const drawn = pages.filter((p) => p.kind === "elevation" || p.kind === "section").map((p) => p.n);
+  const heights = [...new Set([...marked, ...drawn])].slice(0, SLICE_PAGES).map((n) => n - 1);
+  const printed = printedLevels(words);
+  return { shape, heights, printed: printed.floors.length || printed.ridges.length ? printed : null };
+}
+
+/** Resolves once the clock reaches `at`, looked at four times a second: a run's times are from its start, whatever happens meanwhile. */
+const clockReaches = (at: number) =>
+  new Promise<void>((done) => {
+    const look = () => (Date.now() >= at ? done() : void setTimeout(look, Math.min(250, Math.max(0, at - Date.now()))));
+    look();
+  });
+
 /** At most this many schedule sheets are read: a set's schedules are a page or two. */
 const SCHEDULE_PAGES = 3;
 
@@ -531,10 +574,10 @@ const SCHEDULE_PAGES = 3;
    that schedule them found by their words, each drawn and read once, every
    mark with its size. `onFound` is told the pages as soon as they are
    found, so a read that runs out of time can say which went unread. */
-async function schedulesOf(bytes: Uint8Array, pages: readonly JobPlanPage[], onFound?: (pages: number[]) => void): Promise<{ pages: number[]; items: ScheduleItem[] }> {
+async function schedulesOf(bytes: Uint8Array, pages: readonly JobPlanPage[], onFound?: (pages: number[]) => void, texts?: Promise<SetTexts>): Promise<{ pages: number[]; items: ScheduleItem[] }> {
   const others = pages.filter((p) => p.kind !== "floor").map((p) => p.n);
   if (!others.length) return { pages: [], items: [] };
-  const found = (await textsInNode(bytes, others)).filter((t) => isSchedulePage(t.words)).map((t) => t.n).slice(0, SCHEDULE_PAGES);
+  const found = (await (texts ?? textsInNode(bytes, others))).filter((t) => isSchedulePage(t.words)).map((t) => t.n).slice(0, SCHEDULE_PAGES);
   onFound?.(found);
   if (!found.length) return { pages: [], items: [] };
   const drawn = await fullInNode(bytes, found);
@@ -1274,9 +1317,13 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
          photo. The floors have the same time: the ones not back by then are
          left to the next run, and a plan whose floors run out twice is failed. */
       const wantRoof = !photo && !(kept && kept.roof !== undefined);
+      /* the roof's slices a run before got back are kept, and only the rest asked */
+      const keptSlices = kept?.roofSlices ?? {};
+      const wantShape = wantRoof && keptSlices.shape === undefined;
+      const wantHeights = wantRoof && keptSlices.heights === undefined;
       const wantSite = !(kept && kept.site !== undefined);
-      /* each floor, the roof and the site counted off as it comes back */
-      const total = todo.length + (wantRoof ? 1 : 0) + (wantSite ? 1 : 0);
+      /* each floor, each of the roof's slices and the site counted off as it comes back */
+      const total = todo.length + (wantShape ? 1 : 0) + (wantHeights ? 1 : 0) + (wantSite ? 1 : 0);
       let done = 0;
       tell({ step: "reading", done, total });
       const counted = <T,>(p: Promise<T>): Promise<T> =>
@@ -1288,22 +1335,6 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
       /* a roof or a site whose read failed is left unread, not kept as none:
          a run handed on reads it again, and so does the Studio when a design
          wants it (the read's null says the set has no site plan) */
-      const roofP: Promise<PlanReading["roof"]> = wantRoof
-        ? counted(readRoof(orgId, pdf, sheets, undefined, first))
-            .then(({ said: _said, ...r }) => r)
-            .catch((e) => {
-              console.error(`[job-plans] ${planId}/roof: ${String(e)}`);
-              missed.push(`The roof couldn't be read: ${why(e)}`);
-              return undefined;
-            })
-        : Promise.resolve(photo ? undefined : kept?.roof);
-      const siteP: Promise<PlanReading["site"]> = wantSite
-        ? counted(readSite(orgId, pdf, ground, first)).catch((e) => {
-            console.error(`[job-plans] ${planId}/site: ${String(e)}`);
-            missed.push(`The site couldn't be read: ${why(e)}`);
-            return undefined;
-          })
-        : Promise.resolve(kept?.site);
       const until = started + (todo.length ? READ_BY_MS : ALONE_BY_MS);
       const LATE = Symbol("late");
       const byThen = <T,>(pr: Promise<T>): Promise<T | typeof LATE> => {
@@ -1313,6 +1344,73 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
         });
         return Promise.race([pr, late]).finally(() => clearTimeout(timer));
       };
+      /* the roof in slices (reading-server readRoofSlices): each slice's
+         pages and the printed levels off the set's words, by a time of their
+         own; not back by then, each slice is sent the set as before */
+      /* the set's words, once a run, for the schedule and the roof */
+      let texts: Promise<SetTexts> | null = null;
+      const setTexts = () =>
+        (texts ??= bytesOf().then((f) =>
+          textsInNode(
+            new Uint8Array(f.bytes),
+            pages.filter((p) => p.kind !== "floor").map((p) => p.n),
+          ),
+        ));
+      const none = { shape: [], heights: [], printed: null };
+      const roofPages: Promise<ReturnType<typeof roofPagesOf>> = wantRoof && isPdf
+        ? Promise.race([
+            setTexts().then((t) => roofPagesOf(t, pages)),
+            clockReaches(started + WORDS_BY_MS).then(() => {
+              throw new Error("the set's words weren't back in time");
+            }),
+          ]).catch((e) => {
+            console.error(`[job-plans] ${planId}/roof pages: ${String(e)}`);
+            return none;
+          })
+        : Promise.resolve(none);
+      const slices = wantShape || wantHeights ? roofPages.then((on) => readRoofSlices(orgId, pdf, sheets, { shape: on.shape, heights: on.heights, from: first }, { shape: wantShape, heights: wantHeights })) : null;
+      /* a slice whose read failed is null: said, and the roof joined without it */
+      const slice = <T,>(name: string, get: (r: NonNullable<Awaited<typeof slices>>) => Promise<T> | null): Promise<T | null> =>
+        counted(
+          slices!.then((r) => get(r) ?? Promise.reject(new Error("It wasn't asked"))).catch((e) => {
+            console.error(`[job-plans] ${planId}/roof ${name}: ${String(e)}`);
+            missed.push(`The roof's ${name} couldn't be read: ${why(e)}`);
+            return null;
+          }),
+        );
+      const shapeP: Promise<RoofShape | null | undefined> = wantShape ? slice("shape", (r) => r.shape) : Promise.resolve(keptSlices.shape);
+      const heightsP: Promise<RoofHeights | null | undefined> = wantHeights ? slice("heights", (r) => r.heights) : Promise.resolve(keptSlices.heights);
+      /* the roof, once both its slices are in (or given up): joined with the levels the set prints, or left unread when neither read */
+      /* by the run's time, never later (it is awaited as it is, not raced
+         again): a slice late on a run with floors is kept for the run handed
+         on; late on a run of its own, the roof is joined without it, said */
+      let roofP: Promise<PlanReading["roof"] | typeof LATE> | null = null;
+      /* asked for where the run waits on it, so its time is counted from then, as the site's is */
+      const roofBy = () => (roofP ??= !wantRoof
+        ? Promise.resolve(photo ? undefined : kept?.roof)
+        : roofPages.then((on) => Promise.all([byThen(shapeP), byThen(heightsP), on])).then(([shape, heights, on]) => {
+            const shapeBack = shape === LATE ? undefined : shape;
+            const heightsBack = heights === LATE ? undefined : heights;
+            if ((shape === LATE || heights === LATE) && todo.length) {
+              reading.roofSlices = { ...(shapeBack !== undefined ? { shape: shapeBack } : {}), ...(heightsBack !== undefined ? { heights: heightsBack } : {}) };
+              return LATE;
+            }
+            const slow = [shape === LATE ? "shape" : "", heights === LATE ? "heights" : ""].filter(Boolean).join(" and ");
+            if (slow) {
+              console.error(`[job-plans] ${planId}: the roof's ${slow} took too long on a run of its own`);
+              missed.push(shape === LATE && heights === LATE ? "The roof took too long to read" : `The roof's ${slow} took too long to read`);
+            }
+            delete reading.roofSlices;
+            if (!shapeBack && !heightsBack) return undefined;
+            return joinRoof(shapeBack ?? null, heightsBack ?? null, on.printed, sheets.map((x) => ({ floorId: x.floorId, name: x.floorName })));
+          }));
+      const siteP: Promise<PlanReading["site"]> = wantSite
+        ? counted(readSite(orgId, pdf, ground, first, pages.filter((p) => p.kind === "site").map((p) => p.n - 1))).catch((e) => {
+            console.error(`[job-plans] ${planId}/site: ${String(e)}`);
+            missed.push(`The site couldn't be read: ${why(e)}`);
+            return undefined;
+          })
+        : Promise.resolve(kept?.site);
       if (todo.length) {
         /* each floor kept as it lands, and each page's dimensions and the
            schedule as they land: what is back when the time is up is what
@@ -1338,7 +1436,7 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
             Promise.all(pages.map((p) => measurePages(orgId, [p], photo).then(([m]) => void measured.set(p.n, m)))),
             isPdf
               ? bytesOf()
-                  .then((f) => schedulesOf(new Uint8Array(f.bytes), pages, (found) => void (schedulePages = found)))
+                  .then((f) => schedulesOf(new Uint8Array(f.bytes), pages, (found) => void (schedulePages = found), setTexts()))
                   .then((s) => void (schedule = s))
                   .catch((e) => console.error(`[job-plans] ${planId}/schedule: ${String(e)}`))
                   .finally(() => void (scheduleBack = true))
@@ -1428,7 +1526,7 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
           /* the floors back stand, with the roof and the site if they came
              back too; the rest go to a run of their own. Twice, and the plan
              is failed and said, what it has kept for Read again to go on from */
-          const [roof, site] = await Promise.all([byThen(roofP), byThen(siteP)]);
+          const [roof, site] = await Promise.all([roofBy(), byThen(siteP)]);
           if (roof !== LATE && roof !== undefined) reading.roof = roof;
           if (site !== LATE && site !== undefined) reading.site = site;
           if (lateBefore >= 1) {
@@ -1440,7 +1538,7 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
           return await handOff();
         }
       }
-      const [roof, site] = await Promise.all([byThen(roofP), byThen(siteP)]);
+      const [roof, site] = await Promise.all([roofBy(), byThen(siteP)]);
       if (roof !== LATE && roof !== undefined) reading.roof = roof;
       /* the roof's faces off the roof plan's own lines, where it draws them so they read */
       if (reading.roof && isPdf && vectorOn() && !reading.roof.faces) {

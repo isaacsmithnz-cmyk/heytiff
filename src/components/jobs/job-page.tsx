@@ -16,6 +16,7 @@ import { jobHue } from "@/lib/workboard/job-hue";
 import { noteJobOpened } from "@/lib/jobs/opened-jobs";
 import type { PriceAsk } from "@/lib/jobs/job-prices";
 import type { AllJobRow } from "@/lib/workboard/all-jobs";
+import { starJob } from "@/app/actions/job-stars";
 
 /** What a job's page opens as a document in a tab of its own: the quote
     (/dashboard/jobs/<id>/quote). */
@@ -43,8 +44,11 @@ export function JobPage({
   price = null,
   first,
   doc = null,
+  starred: firstStarred = false,
 }: {
   row: AllJobRow;
+  /** You starred it (lib/jobs/job-stars): Actions offers Unstar */
+  starred?: boolean;
   section: JobSection;
   manage: boolean;
   moneyVisible: boolean;
@@ -126,13 +130,26 @@ export function JobPage({
     window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
   };
 
+  /* your star on it (Isaac, 24 November 2026, the Star a job mock): shown
+     at once, written behind, put back if the write fails */
+  const [starred, setStarred] = useState(firstStarred);
+
   /* what the page does to the job (rule 53), after its stage */
   const actions: MenuItem[] = [
     { key: "pin", label: pinned ? "Unpin the job" : "Pin the job" },
+    ...(row.kind === "sm8" ? [{ key: "star", label: starred ? "Unstar the job" : "Star the job" }] : []),
     { key: "link", label: "Copy the link" },
   ];
   const onAction = async (key: string) => {
-    if (key === "pin") {
+    if (key === "star") {
+      const on = !starred;
+      setStarred(on);
+      const r = await starJob(row.id, on).catch(() => ({ ok: false as const, error: on ? "That didn't star. Try it again." : "That didn't unstar. Try it again." }));
+      if (!r.ok) {
+        setStarred(!on);
+        toast(r.error);
+      } else toast(on ? "Added to Starred" : "Removed from Starred");
+    } else if (key === "pin") {
       const ok = pinned ? await unpin(ref) : await pin({ ref, title, sub });
       if (!ok) toast(pinned ? "That didn't unpin. Try it again." : "That didn't pin. Try it again.");
     } else if (key === "link") {

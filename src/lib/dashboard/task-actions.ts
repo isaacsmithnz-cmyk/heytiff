@@ -38,12 +38,19 @@ const now = () => new Date().toISOString();
 
 /** A task for yourself: assigned to you and made by you, whatever the
     request says. `dueDate` where the screen offers one; Home's Save files
-    the words as they are, with none. */
-export async function addOwnTask(a: TaskActor, title: string, dueDate: string | null = null): Promise<AddTaskResult> {
+    the words as they are, with none. `job`: the job it's for, a ServiceM8
+    uuid this workspace's mirror holds (the phone's Add task on a starred
+    job, Isaac, 24 November 2026). */
+export async function addOwnTask(a: TaskActor, title: string, dueDate: string | null = null, job: string | null = null): Promise<AddTaskResult> {
   if (!a.staffId) return { ok: false, error: "Not signed in." };
   const clean = typeof title === "string" ? title.trim().slice(0, 200).trim() : "";
   if (!clean) return { ok: false, error: "Give the task a title." };
   if (dueDate !== null && !isISODate(dueDate)) return { ok: false, error: "Check the due date." };
+  const jobId = typeof job === "string" ? job.trim().slice(0, 80) : "";
+  if (jobId) {
+    const { data: found } = await supabaseAdmin.from("sm8_jobs").select("uuid").eq("org_id", a.orgId).eq("uuid", jobId).maybeSingle();
+    if (!found) return { ok: false, error: "That job isn't in HeyTiff." };
+  }
 
   const { data, error } = await supabaseAdmin
     .from("tasks")
@@ -55,6 +62,7 @@ export async function addOwnTask(a: TaskActor, title: string, dueDate: string | 
       created_by: a.staffId,
       due_date: dueDate,
       status: "open",
+      ...(jobId ? { sm8_job_uuid: jobId } : {}),
     })
     .select("id")
     .single();

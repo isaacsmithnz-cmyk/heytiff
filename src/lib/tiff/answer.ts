@@ -26,6 +26,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { REPLY_IN_KIND } from "@/lib/lang/policy";
 import type { AskTurn } from "./ask-client";
 import { logUsage } from "./usage";
+import { pageSpan, printedSpan } from "./printed-pages";
 
 const MODEL = "claude-opus-5";
 const MAX_TOKENS = 16_000;
@@ -138,16 +139,24 @@ export function systemPromptFor(mode: AnswerMode): string {
     dressed up as a manual, which is the one thing provenance must never do.
     It says what it is instead, and the chunk's own heading (author, date,
     job) rides in the excerpt beneath. The answer can then honestly say "the
-    manual says X, but a field note from Lyle says Y worked". */
+    manual says X, but a field note from Lyle says Y worked".
+
+    The pages are the file's, which the source's link opens; where the book
+    prints different numbers they ride beside them (bug 85, ./printed-pages),
+    so a "see page 274" in the text can be told from the file's page 274. */
 export function documentTitleOf(doc: {
   title: string;
   pageFrom: number;
   pageTo: number;
   category?: string;
+  printedOffset?: number | null;
 }): string {
   if (doc.category === "field") return `${doc.title} — field note, learned on the job`;
-  const pages = doc.pageTo > doc.pageFrom ? `${doc.pageFrom}–${doc.pageTo}` : `${doc.pageFrom}`;
-  return `${doc.title} — p.${pages}`;
+  const pages = pageSpan(doc.pageFrom, Math.max(doc.pageFrom, doc.pageTo));
+  const printed = printedSpan(doc.pageFrom, Math.max(doc.pageFrom, doc.pageTo), doc.printedOffset);
+  return printed
+    ? `${doc.title} — p.${pages} (printed in the book as p.${printed}: a page the text names is printed, so the file's page is it ${doc.printedOffset! > 0 ? "+" : "−"} ${Math.abs(doc.printedOffset!)})`
+    : `${doc.title} — p.${pages}`;
 }
 
 /* Prior turns, shaped into messages.

@@ -43,6 +43,7 @@ import type { SwmsTeamMember } from "@/lib/swms/query";
 import { ApproveTemplate } from "./approve-template";
 import { TemplateSteps } from "./template-steps";
 import { focusSoon, FootWord, Group, jobLine, Jumps, Q, Radio, TickWords, WizardDialog } from "./wizard";
+import { kmWords } from "@/lib/hospitals/words";
 import "./swms.css";
 
 /* THE SWMS WIZARD — four screens of choices on the job card, and the template
@@ -71,6 +72,9 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "who", label: "Who it covers" },
   { key: "review", label: "Review" },
 ];
+
+/** The chooser's Another hospital: a name typed in, off the list. */
+const OTHER_HOSPITAL = "__another";
 
 /** Where each problem is answered: the screen, and the field to land on. */
 const FIELD_AT: Record<ProblemField | "reason" | "state", { tab: Tab; id: string }> = {
@@ -164,6 +168,8 @@ export function SwmsWizard({
   /* Until someone picks one, the first aider is whoever the staff records say
      holds first aid — the person in charge first. */
   const [aiderChosen, setAiderChosen] = useState(false);
+  /* Another hospital, chosen and not yet typed */
+  const [otherHospital, setOtherHospital] = useState(false);
   /* The state, when the address doesn't name one: asked, never assumed — a
      Melbourne job whose address never spells VIC was written to NSW rules. */
   const [pickedState, setPickedState] = useState<AuState | "">("");
@@ -234,8 +240,8 @@ export function SwmsWizard({
           const people = booked.length ? booked : c.viewerStaffId && onTeam(c.viewerStaffId) ? [c.viewerStaffId] : [];
           setA({
             ...startingAnswers(kindFromCategory(c.job.categoryName) ?? "install", c.job.jurisdiction ?? "NSW"),
-            /* the area's hospital, from the last SWMS in the same postcode */
-            hospital: c.hospital?.name ?? "",
+            /* the nearest emergency department to the site's pin (lib/hospitals) */
+            hospital: c.hospitals[0]?.name ?? "",
           });
           setCovers(people);
           setResponsible(c.viewerStaffId && people.includes(c.viewerStaffId) ? c.viewerStaffId : people[0] ?? null);
@@ -666,8 +672,13 @@ export function SwmsWizard({
     </div>
   );
 
-  /* the hospital the last SWMS in this postcode named, while it's still the one filled in */
-  const nearby = !prev && ctx && ctx !== "failed" && ctx.hospital && a.hospital === ctx.hospital.name ? ctx.hospital : null;
+  /* THE NEAREST EMERGENCY DEPARTMENTS to the site, nearest first, and the one chosen; a hospital typed in is
+     Another hospital's (Isaac, 24 November 2026, "Build it" to https://claude.ai/artifact/WN4fW9vkQhVW4ZGFQ1knq3) */
+  const hospitals = ctx && ctx !== "failed" ? ctx.hospitals : [];
+  const pickedAt = hospitals.findIndex((h) => h.name === a.hospital);
+  const typingHospital = hospitals.length === 0 || otherHospital || (pickedAt < 0 && a.hospital.trim() !== "");
+  const hospitalFact =
+    pickedAt < 0 ? null : `${pickedAt === 0 ? "The nearest emergency department" : "An emergency department"}, ${kmWords(hospitals[pickedAt].km)} from the site`;
   const who = (
     <div className="wzd-form">
       <Group heading="From your team" fact={`${coveredTeam.length} chosen`}>
@@ -785,8 +796,34 @@ export function SwmsWizard({
               onChange={(v) => set({ extinguisher: v })}
             />
           </Q>
-          <Q label="Nearest hospital" htmlFor="swz-hosp" sub={nearby ? (nearby.jobNumber ? `From job #${nearby.jobNumber}, in the same postcode` : "From a SWMS in the same postcode") : null}>
-            <TextInput id="swz-hosp" className="wzd-short" value={a.hospital} onChange={(e) => set({ hospital: e.target.value })} />
+          <Q label="Nearest hospital" htmlFor={typingHospital && hospitals.length === 0 ? "swz-hosp" : "swz-hosp-pick"} sub={typingHospital ? null : hospitalFact}>
+            {hospitals.length > 0 && (
+              <Chooser
+                id="swz-hosp-pick"
+                className="wzd-short"
+                value={typingHospital ? OTHER_HOSPITAL : a.hospital}
+                options={[...hospitals.map((h) => ({ value: h.name, label: h.name, hint: kmWords(h.km) ?? undefined })), { value: OTHER_HOSPITAL, label: "Another hospital" }]}
+                onChange={(v) => {
+                  if (v === OTHER_HOSPITAL) {
+                    setOtherHospital(true);
+                    set({ hospital: "" });
+                    focusSoon("swz-hosp");
+                  } else {
+                    setOtherHospital(false);
+                    set({ hospital: v });
+                  }
+                }}
+              />
+            )}
+            {typingHospital && (
+              <TextInput
+                id="swz-hosp"
+                className="wzd-short"
+                aria-label={hospitals.length ? "Another hospital" : undefined}
+                value={a.hospital}
+                onChange={(e) => set({ hospital: e.target.value })}
+              />
+            )}
           </Q>
         </div>
       </Group>

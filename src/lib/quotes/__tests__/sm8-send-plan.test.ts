@@ -1,7 +1,7 @@
 import { priceBuildUp, roundedUp } from "../buildup";
 import { normaliseDraft } from "../proposal";
 import { allowedQuoteFields, quoteRows } from "@/lib/integrations/sm8-quote-plan";
-import { NOT_APPROVED, optionLines, planKey, quoteDescription, quoteSummary,
+import { asPerQuoteItem, NOT_APPROVED, optionLines, planKey, quoteDescription, quoteSummary,
   sendAsQuotePlan, sendPlan, usualTaxRate, type ProposalWords } from "../sm8-send-plan";
 
 /* Isaac, 2026-10-05: "if a quote is accepted, then it can turn that into the
@@ -259,5 +259,46 @@ describe("sent as a quote", () => {
     expect(sendAsQuotePlan({ ...quote, approved: false, options: [{ index: 0, build, left: 0 }] })).toEqual({ ok: false, why: NOT_APPROVED });
     expect(sendAsQuotePlan({ ...quote, approved: true, job: { status: "Completed", invoiced: false }, options: [{ index: 0, build, left: 0 }] })).toMatchObject({ ok: false, why: "The job is a Completed in ServiceM8: only a Quote or a Work Order is sent as a quote." });
     expect(sendAsQuotePlan({ ...quote, approved: true, options: [{ index: 0, build, left: 2 }] })).toMatchObject({ ok: false, why: "2 still to price: ServiceM8 must get the whole quote." });
+  });
+});
+
+/* bug 82, Luke, 24 November 2026, on 3595: "When you send two pricing
+   options it doesn't assign item code in Service m8" */
+describe("an option's line on the business's As Per Quote item", () => {
+  const quote = { draft, job: { status: "Quote", invoiced: false }, existing: [], taxRateUuid: "gst" };
+  const APQ = "5950a91c-0000-4000-8000-000000000001";
+
+  it("picks the live As Per Quote item its lines use most", () => {
+    const items = [
+      { uuid: "aaaa", name: "As Per Quote", active: 1 },
+      { uuid: "bbbb", name: " as per quote ", active: 1 },
+      { uuid: "cccc", name: "As Per Quote", active: 0 },
+      { uuid: "dddd", name: "Option 1: A, as per quote", active: 1 },
+    ];
+    expect(asPerQuoteItem(items, ["bbbb", "BBBB", "aaaa", "cccc", "cccc", "cccc", null])).toBe("bbbb");
+    expect(asPerQuoteItem(items.slice(0, 1), [])).toBe("aaaa");
+    expect(asPerQuoteItem(items.slice(2), ["cccc"])).toBeNull();
+  });
+
+  it("puts every option's line on it, sent as a quote, and queues it", () => {
+    const p = sendAsQuotePlan({ ...quote, approved: true, asPerQuote: APQ, options: [{ index: 0, build, left: 0 }, { index: 1, build, left: 0 }] });
+    if (!p.ok) throw new Error(p.why);
+    expect(p.lines.map((l) => l.materialUuid)).toEqual([APQ, APQ]);
+    const adds = quoteRows("job-1", p).filter((r) => r.op === "create");
+    expect(adds.map((r) => r.fields.material_uuid)).toEqual([APQ, APQ]);
+    expect(allowedQuoteFields("jobmaterial", adds[1]!.fields)).toMatchObject({ material_uuid: APQ, name: "Option 2: Three splits, as per quote" });
+  });
+
+  it("puts an accepted option's one line on it too, and never a line of its build", () => {
+    const one = sendPlan({ ...base, existing: [], asPerQuote: APQ, accepted: [{ index: 0, build, left: 0 }] });
+    if (!one.ok) throw new Error(one.why);
+    expect(one.lines.map((l) => l.materialUuid)).toEqual([APQ]);
+    expect(optionLines(draft, 0, build, true, APQ).every((l) => l.materialUuid === undefined)).toBe(true);
+  });
+
+  it("sends no item where the business has none", () => {
+    const p = sendAsQuotePlan({ ...quote, approved: true, asPerQuote: null, options: [{ index: 0, build, left: 0 }, { index: 1, build, left: 0 }] });
+    if (!p.ok) throw new Error(p.why);
+    expect(quoteRows("job-1", p).some((r) => "material_uuid" in r.fields)).toBe(false);
   });
 });

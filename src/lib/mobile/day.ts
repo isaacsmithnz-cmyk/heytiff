@@ -20,6 +20,7 @@ import { actAsPhoneUser, type MobileCtx } from "./auth";
 import { readCheckInFixes, withFix } from "@/lib/workboard/check-in-fixes";
 import { joinDay, type Away } from "./day-join";
 import { forgetPosition } from "./where";
+import { blockOf, BLOCK_WORDS, gapsOf, offThePay, type DayBlock, type DayGap } from "./day-blocks";
 import { HOLD_MS, isLeftOn, lastSeen, mayRestart, settlesNow, shiftEnd, SHIFT_AFTER_MS, SHIFT_BEFORE_MS, sm8Wall, stopHoursOf, stopsAt, type Seen } from "./day-stop";
 
 export { AWAY_KEPT_MS, joinDay, type Away } from "./day-join";
@@ -112,6 +113,12 @@ export type DayState = {
   normal: { start: string; end: string } | null;
   /** getting to the office clocks you on (the workspace's paid time rules) */
   officeClocksOn: boolean;
+  /** the day's stops at the office, to the minute, as the phone saw them (bug 89) */
+  office?: DayStop[];
+  /** time in the day said to be admin, travel, lunch and the rest (Add missing time, ./day-blocks) */
+  blocks?: DayBlock[];
+  /** stretches over half an hour with nothing logged, to the finish or now */
+  gaps?: DayGap[];
 };
 
 export const DAY_WORDS = {
@@ -456,6 +463,10 @@ export async function readDay(ctx: MobileCtx, now: number = Date.now(), until?: 
   /* on: the shift's end and stop, and a day left on stands at the last thing seen, never running on to 30 h */
   const shift = row.off_at ? null : await shiftOf(ctx, row, now);
   const standing = shift?.leftOn ? shift.seen.at : nowIso;
+  /* YOUR REAL DAY (bug 89): the office to the minute, the time you've said, and what's left with nothing on it */
+  const blocks = await blocksIn(ctx, row).catch(() => [] as DayBlock[]);
+  const end = row.off_at ?? standing;
+  const gaps = gapsOf({ from: row.on_at, until: end, spans: [...jobs, ...office, ...blocks] });
   return {
     day: {
       id: row.id,
@@ -470,6 +481,9 @@ export async function readDay(ctx: MobileCtx, now: number = Date.now(), until?: 
     summary: summarise({ onAt: row.on_at, until: row.off_at ?? (thinking && thinking >= row.on_at ? thinking : standing) }, jobs, office, await payOf(ctx, normal, row.work_date, zone)),
     normal,
     officeClocksOn,
+    office,
+    blocks,
+    gaps,
   };
 }
 
@@ -1128,6 +1142,56 @@ export async function setReason(ctx: MobileCtx, jobUuid: unknown, reason: unknow
   return { ok: true, state: await readDay(ctx, now), said: "" };
 }
 
+/* ADD MISSING TIME (bug 89, the real day mock's board 6): a stretch of
+   today's day said to be Admin, Travel, a Supplier run, Lunch, At the
+   office, Unpaid, or something else in your own words. Today's day, on or
+   off, inside its own on and off (or now), over no other block. Lunch and
+   Unpaid come off the paid hours Clock off puts on the timesheet
+   (onTheTimesheet); one added after Clock off is shown, and the timesheet
+   stands as Clock off wrote it. */
+
+type BlockRow = { id: string; starts_at: string; ends_at: string; kind: DayBlock["kind"]; note: string | null; source: DayBlock["source"] };
+const blockOfRow = (r: BlockRow): DayBlock => ({ id: r.id, from: new Date(r.starts_at).toISOString(), until: new Date(r.ends_at).toISOString(), kind: r.kind, note: r.note, source: r.source });
+
+/** The person's blocks on a work date, from `from` on. */
+async function blocksOn(ctx: MobileCtx, workDate: string, from?: string): Promise<DayBlock[]> {
+  let q = supabaseAdmin
+    .from("day_time_blocks")
+    .select("id, starts_at, ends_at, kind, note, source")
+    .eq("org_id", ctx.orgId)
+    .eq("user_id", ctx.userId)
+    .eq("work_date", workDate)
+    .order("starts_at", { ascending: true });
+  if (from) q = q.gte("ends_at", from);
+  const { data } = await q;
+  return ((data ?? []) as BlockRow[]).map(blockOfRow);
+}
+
+/** The blocks in a day. */
+const blocksIn = (ctx: MobileCtx, day: DayRow) => blocksOn(ctx, day.work_date, day.on_at);
+
+export async function addBlock(ctx: MobileCtx, raw: { kind?: unknown; note?: unknown; from?: unknown; until?: unknown }, now: number = Date.now()): Promise<DayAnswer> {
+  const day = (await openDay(ctx, now)) ?? (await endedToday(ctx, now));
+  if (!day) return { ok: false, error: DAY_WORDS.notOn, status: 409 };
+  const others = await blocksIn(ctx, day);
+  const b = blockOf(raw, { onAt: day.on_at, until: day.off_at ?? new Date(now).toISOString() }, others);
+  if ("error" in b) return { ok: false, error: b.error, status: 400 };
+  const { error } = await supabaseAdmin
+    .from("day_time_blocks")
+    .insert({ org_id: ctx.orgId, user_id: ctx.userId, work_date: day.work_date, starts_at: b.from, ends_at: b.until, kind: b.kind, note: b.note, source: "manual" });
+  if (error) return { ok: false, error: BLOCK_WORDS.noTime, status: 400 };
+  return { ok: true, state: await readDay(ctx, now), said: "Added." };
+}
+
+/** A block taken back off your day: today's, yours. */
+export async function removeBlock(ctx: MobileCtx, id: unknown, now: number = Date.now()): Promise<DayAnswer> {
+  const day = (await openDay(ctx, now)) ?? (await endedToday(ctx, now));
+  if (!day || typeof id !== "string" || !/^[0-9a-f-]{36}$/i.test(id)) return { ok: false, error: BLOCK_WORDS.noBlock, status: 404 };
+  const { data } = await supabaseAdmin.from("day_time_blocks").delete().eq("org_id", ctx.orgId).eq("user_id", ctx.userId).eq("work_date", day.work_date).eq("id", id).select("id");
+  if (!(data ?? []).length) return { ok: false, error: BLOCK_WORDS.noBlock, status: 404 };
+  return { ok: true, state: await readDay(ctx, now), said: DAY_WORDS.removed };
+}
+
 /** "3:00 PM", the timesheet's way, from an instant on the account's clock. */
 function sheetTime(iso: string, zone: string): string | null {
   const w = wallMinute(iso, zone);
@@ -1155,7 +1219,11 @@ async function onTheTimesheet(ctx: MobileCtx, summary: DaySummary, workDate: str
   const start = sheetTime(summary.paid.from, zone);
   const end = sheetTime(summary.until, zone);
   if (!start || !end) return "none";
-  const h = derivedDayHours(start, end, settings);
+  /* lunch past the workspace's break, and Unpaid, come off the paid hours (./day-blocks); with none, the day as before */
+  const blocks = await blocksOn(ctx, workDate, summary.from).catch(() => [] as DayBlock[]);
+  const h = blocks.length
+    ? derivedDayHours(start, end, { ...settings, breakPaid: false }, offThePay(blocks, { from: summary.paid.from, until: summary.until }, settings))
+    : derivedDayHours(start, end, settings);
   if (h === null || h <= 0) return "none";
   const week: WeekCtx = { week: t.week, today: t.today, through: t.through, workDays: t.workDays, dayHours: t.me.dayHours };
   const call = sheetCall({

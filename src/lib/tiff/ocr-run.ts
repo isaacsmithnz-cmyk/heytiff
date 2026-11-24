@@ -25,6 +25,9 @@ import { contiguousRuns, OCR_RUN_CAP, readScannedPages } from "./ocr";
 import { embedTexts } from "./embeddings";
 import { tagChunks } from "./keywords";
 import { addKbUsage, kbQuotaFor } from "./quota";
+import { makerFromPages } from "./maker";
+import { kbTagsForOrg } from "./tags-query";
+import { KB_TAG_SEEDS } from "./tags";
 
 function logOcrFailure(documentId: string, stage: string, err: unknown) {
   const detail = err instanceof Error ? `${err.name}: ${err.message}` : String(err ?? "unknown");
@@ -60,7 +63,7 @@ export type OcrPlan =
   | { kind: "done" }
   | { kind: "refused"; error: string };
 
-const DOC_COLUMNS = "status, chunk_count, scanned_pages, storage_ref";
+const DOC_COLUMNS = "status, chunk_count, scanned_pages, storage_ref, source";
 
 /* What this press is allowed to do.
 
@@ -218,11 +221,25 @@ export async function processScannedPages(
     const scannedLeft = Math.max(0, scanned.length - read.pages.length);
     const chunkCount = doc.chunkCount + chunks.length;
 
+    /* a scanned manual's maker, off the pages just read, where nobody gave
+       one: its cover was a picture to the first reading too (./maker) */
+    const maker = !String(row.source ?? "").trim() && read.pages.length
+      ? await kbTagsForOrg(orgId)
+          .then((tags) =>
+            makerFromPages(
+              read.pages.map((p) => p.text),
+              [...tags.filter((t) => t.kind === "brand").map((t) => t.label), ...KB_TAG_SEEDS.filter((t) => t.kind === "brand").map((t) => t.label)]
+            )
+          )
+          .catch(() => null)
+      : null;
+
     const { error: updateErr } = await supabaseAdmin
       .from("kb_documents")
       .update({
         scanned_pages: scannedLeft,
         chunk_count: chunkCount,
+        ...(maker ? { source: maker } : {}),
         updated_at: new Date().toISOString(),
       })
       .eq("org_id", orgId)

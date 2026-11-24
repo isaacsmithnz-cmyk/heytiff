@@ -21,7 +21,9 @@ import {
   type ReadRoofPart,
   type ReadSpace,
   type ReadSurface,
+  type RoofHeights,
   type RoofReading,
+  type RoofShape,
   type SheetReading,
   type SiteReading,
   type SpaceKind,
@@ -588,45 +590,50 @@ const FORMS = ["gable", "hip", "skillion", "flat"] as const;
    heights worked out between written RLs */
 const GUESSED = /\b(scaled|measured off|assumed|estimated|usual|approx|guess)/i;
 
-export const roofSchema = (floors: string[]): Json =>
-  S({
-    levels: arr(
-      S({
-        floor: en(floors),
-        ceiling_mm: num("floor level to the ceiling (to the top of the walls where the ceiling rakes), as the set writes it as a height or RLs; 0 when it doesn't"),
-        floor_zone_mm: num("this floor's ceiling to the floor level above, as written; 0 for the top floor or when not written"),
-        source: str("where it is written: the drawing number and the label or RL"),
-      }),
-      "one entry per floor named",
-    ),
-    roof_parts: arr(
-      S({
-        floor: en(floors),
-        form: en(FORMS),
-        footprint: OUTLINE("the rectangle the part covers AT THE WALL LINE on that floor's plan image, 4 corners"),
-        ridge: en(["across", "down"]),
-        falls_to: en(["left", "right", "up", "down", "none"]),
-        pitch_deg: num("as written on a section, an elevation or the roof plan; 0 when not written"),
-        eave_mm: num("top of the walls it sits on, above that floor's floor level, as written or from written RLs; 0 when not written"),
-        overhang_mm: num("eaves overhang past the wall line, as written or dimensioned; 0 where there are none or it isn't"),
-        existing: bool(),
-        source: str("the sheets it was read from"),
-      }),
-    ),
-    raked: arr(S({ floor: en(floors), room: str(), low_mm: num("as written"), high_mm: num("as written") }), "only rooms whose low and high heights are written"),
-    material: str(),
-    roof_space: str("what the set shows about the roof space and what could go in it"),
-    subfloor: S({
-      shown: en(["drawn", "mentioned", "none"]),
+/* each part of the roof's read on its own: its shape off the roof plan, its heights off the sections and elevations (readRoofSlices) */
+const shapeFields = (floors: string[]) => ({
+  roof_parts: arr(
+    S({
       floor: en(floors),
-      outline: OUTLINE('drawn only: the part of that floor it runs under, on that floor\'s plan image; "" when only mentioned'),
-      rooms: str('the rooms it runs under as a short list, as you would say it: "the kitchen, laundry and sitting rooms"; "" when only mentioned'),
-      height_mm: num("the ground to the underside of the floor, written or measured off a section at its printed scale; 0 when neither"),
-      height_from: str('a few words: "measured off section 1 on A401" or "written on section BB, CD202"; "" when 0'),
-      sheet: str("the drawing number it is shown or named on, as printed: A401"),
-      words: str("its own label or note as written, the one that names it, nothing more"),
+      form: en(FORMS),
+      footprint: OUTLINE("the rectangle the part covers AT THE WALL LINE on that floor's plan image, 4 corners"),
+      ridge: en(["across", "down"]),
+      falls_to: en(["left", "right", "up", "down", "none"]),
+      pitch_deg: num("as written on a section, an elevation or the roof plan; 0 when not written"),
+      eave_mm: num("top of the walls it sits on, above that floor's floor level, as written or from written RLs; 0 when not written"),
+      overhang_mm: num("eaves overhang past the wall line, as written or dimensioned; 0 where there are none or it isn't"),
+      existing: bool(),
+      source: str("the sheets it was read from"),
     }),
-  });
+  ),
+  material: str(),
+});
+
+const heightsFields = (floors: string[]) => ({
+  levels: arr(
+    S({
+      floor: en(floors),
+      ceiling_mm: num("floor level to the ceiling (to the top of the walls where the ceiling rakes), as the set writes it as a height or RLs; 0 when it doesn't"),
+      floor_zone_mm: num("this floor's ceiling to the floor level above, as written; 0 for the top floor or when not written"),
+      source: str("where it is written: the drawing number and the label or RL"),
+    }),
+    "one entry per floor named",
+  ),
+  raked: arr(S({ floor: en(floors), room: str(), low_mm: num("as written"), high_mm: num("as written") }), "only rooms whose low and high heights are written"),
+  roof_space: str("what the set shows about the roof space and what could go in it"),
+  subfloor: S({
+    shown: en(["drawn", "mentioned", "none"]),
+    floor: en(floors),
+    outline: OUTLINE('drawn only: the part of that floor it runs under, on that floor\'s plan image; "" when only mentioned'),
+    rooms: str('the rooms it runs under as a short list, as you would say it: "the kitchen, laundry and sitting rooms"; "" when only mentioned'),
+    height_mm: num("the ground to the underside of the floor, written or measured off a section at its printed scale; 0 when neither"),
+    height_from: str('a few words: "measured off section 1 on A401" or "written on section BB, CD202"; "" when 0'),
+    sheet: str("the drawing number it is shown or named on, as printed: A401"),
+    words: str("its own label or note as written, the one that names it, nothing more"),
+  }),
+});
+
+export const roofSchema = (floors: string[]): Json => S({ ...heightsFields(floors), ...shapeFields(floors) });
 
 export const roofPrompt = (plans: { floor: string; w: number; h: number; mm: number | null }[]) =>
   `The PDF is a building's drawing set. After it come the floor plan images of ${plans.map((p) => `the ${p.floor} (${p.w}×${p.h} pixels${p.mm ? `, one pixel about ${p.mm.toFixed(1)} mm` : ""})`).join(", ")}, in that order, each with its origin top-left, x right and y down.
@@ -642,7 +649,20 @@ You are reading it for an air conditioning installer who needs the building in 3
 Put coordinates on the wall lines of the plan images, not on labels or dimension strings.`;
 
 /** Her answer, back in each floor's sheet pixels. */
-export function toRoof(raw: Raw, plans: { floorId: string; floor: string; sheetId: string; k: number; left: number; top: number }[]): RoofReading {
+export function toRoof(raw: Raw, plans: RoofAt[]): RoofReading {
+  /* a pitch and an eave the set doesn't write (0) are left out with their
+     part, not set at floor level or flat; a flat roof may fall at 0 */
+  const parts = partsOf(raw, plans).filter((p) => p.eaveMm > 0 && pitchKept(p));
+  return { ...heightsOf(raw, plans), parts, material: s(raw.material) };
+}
+
+/** Where a floor's plan image sits on its sheet, by the name she was given for it. */
+export type RoofAt = { floorId: string; floor: string; sheetId: string; k: number; left: number; top: number };
+
+const pitchKept = (p: ReadRoofPart) => p.pitchDeg <= 60 && (p.form === "flat" ? p.pitchDeg >= 0 : p.pitchDeg > 0);
+
+/** Her roof parts, back in each floor's sheet pixels, each with its pitch and eave as she read them (0 for one not written). */
+export function partsOf(raw: Raw, plans: RoofAt[]): ReadRoofPart[] {
   const byName = new Map(plans.map((p) => [p.floor, p]));
   const P = (p: ReadPoint, at: (typeof plans)[number]) => ({ x: Math.round(p.x / at.k + at.left), y: Math.round(p.y / at.k + at.top) });
   const parts: ReadRoofPart[] = [];
@@ -657,10 +677,7 @@ export function toRoof(raw: Raw, plans: { floorId: string; floor: string; sheetI
        that falls nowhere, or along its own edges, has no low side to build */
     const fallsTo = form !== "skillion" ? "" : ridge === "across" ? (falls === "up" || falls === "down" ? falls : null) : falls === "left" || falls === "right" ? falls : null;
     if (fallsTo === null) continue;
-    /* a pitch and an eave the set doesn't write (0) are left out with their
-       part, not set at floor level or flat; a flat roof may fall at 0 */
     const pitch = n(r.pitch_deg);
-    if (n(r.eave_mm) <= 0 || pitch > 60 || (form === "flat" ? pitch < 0 : pitch <= 0)) continue;
     /* an overhang past 1.5 m is a misread: left out (0), not cut to 1.5 m */
     const overhang = n(r.overhang_mm);
     parts.push({
@@ -670,13 +687,20 @@ export function toRoof(raw: Raw, plans: { floorId: string; floor: string; sheetI
       outline: outline.map((p) => P(p, at)),
       ridge,
       fallsTo,
-      pitchDeg: pitch,
-      eaveMm: n(r.eave_mm),
+      pitchDeg: Math.max(0, pitch),
+      eaveMm: Math.max(0, n(r.eave_mm)),
       overhangMm: overhang > 0 && overhang <= 1500 ? overhang : 0,
       existing: r.existing === true,
       source: s(r.source),
     });
   }
+  return parts;
+}
+
+/** Her heights: each floor's ceiling, the raked rooms, the roof space and the subfloor, back in each floor's sheet pixels. */
+export function heightsOf(raw: Raw, plans: RoofAt[]): Omit<RoofReading, "parts" | "material" | "faces" | "facesLeft"> {
+  const byName = new Map(plans.map((p) => [p.floor, p]));
+  const P = (p: ReadPoint, at: (typeof plans)[number]) => ({ x: Math.round(p.x / at.k + at.left), y: Math.round(p.y / at.k + at.top) });
   const levels: ReadLevel[] = [];
   for (const l of asArr(raw.levels)) {
     const at = byName.get(s(l.floor));
@@ -694,7 +718,7 @@ export function toRoof(raw: Raw, plans: { floorId: string; floor: string; sheetI
     if (at && s(r.room) && low > 1800 && high >= low) raked.push({ floorId: at.floorId, room: s(r.room), lowMm: low, highMm: high });
   }
   const subfloor = toSubfloor(raw.subfloor, byName, P);
-  return { levels, parts, raked, material: s(raw.material), roofSpace: s(raw.roof_space), ...(subfloor ? { subfloor } : {}) };
+  return { levels, raked, roofSpace: s(raw.roof_space), ...(subfloor ? { subfloor } : {}) };
 }
 
 /** Her subfloor: drawn with its outline on the floor it is under, or only mentioned; nothing when neither. */
@@ -794,11 +818,30 @@ export async function fitted(pdf: Buffer, room: number, order: (total: number) =
   throw new Error(tooLarge);
 }
 
-/** The pages a site read is sent when the set is cut, forty at most: the
-    site plan mostly comes before the floor plans, so every page before the
-    first floor plan, nearest it first, then that plan, then the pages after
-    it, nearest first, for a set that puts its site plan (or a site and roof
-    plan) after its floors. Cut again, what goes is the far end of those. */
+/** The most site plan pages a site read is sent: a set draws its site on a page or three. */
+const SITE_PAGES = 6;
+
+/** The set cut to the pages asked for (0-based, in the set's order, `most` at most), or null when none of them is in it. */
+export async function pagesOnly(pdf: Buffer, at: number[], most = SITE_PAGES): Promise<Buffer | null> {
+  if (!at.length) return null;
+  const { PDFDocument } = await import("pdf-lib");
+  const whole = await PDFDocument.load(new Uint8Array(pdf), { ignoreEncryption: true });
+  const keep = [...new Set(at)].filter((i) => Number.isInteger(i) && i >= 0 && i < whole.getPageCount()).sort((a, b) => a - b).slice(0, most);
+  if (!keep.length) return null;
+  const cut = await PDFDocument.create();
+  for (const pg of await cut.copyPages(whole, keep)) cut.addPage(pg);
+  return Buffer.from(await cut.save());
+}
+
+/** The pages a site read is sent. The set's own site plans, where its titles
+    name them (take-in's SITE_TITLE): sent the whole set, 3570's 27 pages at
+    high effort ran past four minutes on a run of its own, twice, and the plan
+    was finished without its site (22 November 2026). A set none of whose
+    titles names a site plan is sent as before, forty pages at most: the site
+    plan mostly comes before the floor plans, so every page before the first
+    floor plan, nearest it first, then that plan, then the pages after it,
+    nearest first, for a set that puts its site plan (or a site and roof plan)
+    after its floors. Cut again, what goes is the far end of those. */
 export function sitePages(total: number, from: number): number[] {
   if (total < 1) return [];
   const start = Math.min(Math.max(0, from), total - 1);
@@ -843,14 +886,7 @@ export async function readRoof(
     blocks.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: pdf.toString("base64") } });
   }
   for (const { p } of plans) blocks.push(pngBlock(p.image));
-  /* each floor by a name of its own: two floors can share one ("Ground Floor" twice) */
-  const seen = new Map<string, number>();
-  const names = floors.map((f) => {
-    const base = f.floorName.trim() || "Floor";
-    const k = (seen.get(base) ?? 0) + 1;
-    seen.set(base, k);
-    return k > 1 ? `${base} (${k})` : base;
-  });
+  const names = floorNames(floors);
   const at = plans.map(({ f, p }, i) => ({ floorId: f.floorId, floor: names[i], sheetId: f.sheetId, k: p.k, left: p.left, top: p.top }));
   const schema = roofSchema(names);
   const prompt = roofPrompt(plans.map(({ f, p }, i) => ({ floor: names[i], w: p.ow, h: p.oh, mm: f.mmPerPx ? f.mmPerPx / p.k : null })));
@@ -863,6 +899,86 @@ export async function readRoof(
       )
     : await askWith(blocks, prompt, schema, 32000);
   return { ...toRoof(raw, at), said: s(raw.said) };
+}
+
+/* ── the roof in slices (Isaac, 24 November 2026: "Should it be done in slices?") ──
+   One question over forty pages ran to four minutes on 3570 and lost the
+   roof with the run when it was late. Its shape is asked off the roof plans
+   alone and its heights off the sections and elevations alone, at once,
+   each a few pages; a slice back in time is kept when the other isn't, and
+   the levels the set prints are read off its words by code
+   (printed-levels.ts). joinRoof puts them together. */
+
+/** The most pages each slice is sent: a set's roof plans are a page or three, its sections and elevations a handful. */
+const SLICE_PAGES = 6;
+
+export const shapePrompt = (plans: { floor: string; w: number; h: number; mm: number | null }[]) =>
+  `The PDF is the roof plans of a building's drawing set: the pages that draw its roof from above. After it come the floor plan images of ${plans.map((p) => `the ${p.floor} (${p.w}×${p.h} pixels${p.mm ? `, one pixel about ${p.mm.toFixed(1)} mm` : ""})`).join(", ")}, in that order, each with its origin top-left, x right and y down.
+
+You are reading the roof's shape for an air conditioning installer who needs the building in 3D. Its heights are read off the sections separately.
+
+1. roof_parts: the roof as rectangular parts. Break an L, T or U roof into rectangles, one per ridge. For each part: which floor's walls carry it, its form (gable: two slopes and gable ends; hip: slopes on all four sides; skillion: one slope; flat), its footprint as the 4 corners of the rectangle it covers AT THE WALL LINE, on THAT floor's plan image, in that image's pixels; which way its ridge runs on that image (across = along x, down = along y; for a skillion, the direction its edges run, not its slope); for a skillion, the side of the image it falls to (left, right, up or down; none for the others); its pitch in degrees as these pages write it (0 when they don't); the top of the walls it sits on above that floor's level, in mm, only where these pages write it (0 otherwise); its eaves overhang in mm, as written or dimensioned (0 where it isn't); and whether it is existing. A verandah or patio roof is its own part. A neighbouring building or an existing garage drawn on the plan only gets a part if these pages show its roof.
+2. material, as written.
+
+Put coordinates on the wall lines of the plan images, not on labels or dimension strings.`;
+
+export const heightsPrompt = (plans: { floor: string; w: number; h: number; mm: number | null }[]) =>
+  `The PDF is the sections and elevations of a building's drawing set. After it come the floor plan images of ${plans.map((p) => `the ${p.floor} (${p.w}×${p.h} pixels${p.mm ? `, one pixel about ${p.mm.toFixed(1)} mm` : ""})`).join(", ")}, in that order, each with its origin top-left, x right and y down.
+
+You are reading the building's heights for an air conditioning installer who needs it in 3D. Its roof's shape is read off the roof plan separately.
+
+1. levels: for every floor named, the ceiling height above its floor level, and the floor zone between its ceiling and the next floor level (0 on the top floor), as the pages write them (heights or RLs), and where. A height they don't write is 0: never one scaled off a drawing or taken as usual.
+2. raked: every room whose ceiling follows the roof, with its low and high ceiling heights above its floor as the pages write them. Leave out a room whose heights they don't write.
+3. pitches: every roof pitch the pages write, in degrees, each once.
+4. What the pages show about the roof space: how high it is at the ridge, whether anything is noted for it, and what would fit.
+5. subfloor: the space between the ground and a suspended floor, where equipment can go. drawn: a section or a plan draws it as a space (labelled subfloor, sub-floor void, store under floor, crawl space, or a band or hatch marked as one). mentioned: a note only names one. none: neither. Underfloor heating, a subfloor sheet or board under the flooring, or a slab on ground is not a subfloor. When drawn: the floor it is under, its outline on that floor's plan image round the rooms it runs under (where a section shows it under only some rooms, only those), those rooms in words, its height from the ground to the floor's underside (written, or measured off the section at its printed scale), and where that came from. Either way, the drawing number it is on and its words as written.`;
+
+/** The roof's two slices, asked at once off the pages each is for (0-based; none named, the set from its first floor plan as one question had it). */
+export async function readRoofSlices(
+  orgId: string,
+  pdfRef: string | null,
+  floors: SheetToRead[],
+  pages: { shape: number[]; heights: number[]; from: number },
+  want: { shape: boolean; heights: boolean } = { shape: true, heights: true },
+): Promise<{ at: RoofAt[]; shape: Promise<RoofShape> | null; heights: Promise<RoofHeights> | null }> {
+  if (!floors.length) throw new Error("There is no floor plan to set the roof out on");
+  const plans = await Promise.all(floors.map(async (f) => ({ f, p: await prepare(orgId, f) })));
+  const names = floorNames(floors);
+  const at = plans.map(({ f, p }, i) => ({ floorId: f.floorId, floor: names[i], sheetId: f.sheetId, k: p.k, left: p.left, top: p.top }));
+  const images = plans.reduce((t, { p }) => t + base64(p.image.byteLength), 0);
+  const whole = pdfRef ? await fetchOwn(orgId, pdfRef) : null;
+  const sized = plans.map(({ f, p }, i) => ({ floor: names[i], w: p.ow, h: p.oh, mm: f.mmPerPx ? f.mmPerPx / p.k : null }));
+  const ask = async (on: number[], prompt: string, schema: Json, tooLarge: string): Promise<Raw> => {
+    const blocks: Block[] = [];
+    if (whole) {
+      const own = await pagesOnly(whole, on, SLICE_PAGES);
+      const pdf = await fitted(own ?? whole, REQUEST_MAX - images, (total) => (own ? Array.from({ length: total }, (_, i) => i) : pagesToSend(total, pages.from, 40)), own ? 1 : 4, tooLarge);
+      blocks.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: pdf.toString("base64") } });
+    }
+    for (const { p } of plans) blocks.push(pngBlock(p.image));
+    return askWith(blocks, prompt, schema, 16000);
+  };
+  return {
+    at,
+    shape: want.shape ? ask(pages.shape, shapePrompt(sized), S(shapeFields(names)), "The drawing set is too large to read the roof from").then((raw) => ({ parts: partsOf(raw, at), material: s(raw.material) })) : null,
+    heights: want.heights
+      ? ask(pages.heights, heightsPrompt(sized), S({ ...heightsFields(names), pitches: arr(num("degrees, as written")) }), "The drawing set is too large to read the heights from").then((raw) => ({
+          ...heightsOf(raw, at),
+          pitches: [...new Set(asArr(raw.pitches).map((x) => Math.round(n(x) * 2) / 2))].filter((d) => d > 0 && d <= 60),
+        }))
+      : null,
+  };
+}
+
+/** Each floor by a name of its own: two floors can share one ("Ground Floor" twice). */
+function floorNames(floors: SheetToRead[]): string[] {
+  const seen = new Map<string, number>();
+  return floors.map((f) => {
+    const base = f.floorName.trim() || "Floor";
+    const k = (seen.get(base) ?? 0) + 1;
+    seen.set(base, k);
+    return k > 1 ? `${base} (${k})` : base;
+  });
 }
 
 /* ── the site round the house, off the site plan ── */
@@ -931,10 +1047,20 @@ export function toSite(raw: Raw, at: { floorId: string; sheetId: string; k: numb
     plan to set it out on. Null only when there is no set, or it has no site
     plan; a set too large to send, or a read that fails, throws, so the site
     is read again next time rather than kept as none. */
-export async function readSite(orgId: string, pdfRef: string | null, ground: SheetToRead, pdfFrom = 0): Promise<SiteReading | null> {
+export async function readSite(
+  orgId: string,
+  pdfRef: string | null,
+  ground: SheetToRead,
+  pdfFrom = 0,
+  /** the set's pages its titles name as site plans, 0-based: sent alone when there are any */
+  sitesAt: number[] = [],
+): Promise<SiteReading | null> {
   if (!pdfRef) return null;
   const p = await prepare(orgId, ground);
-  const pdf = await fitted(await fetchOwn(orgId, pdfRef), REQUEST_MAX - base64(p.image.byteLength), (total) => sitePages(total, pdfFrom), 1, "The drawing set is too large to read the site from");
+  const whole = await fetchOwn(orgId, pdfRef);
+  /* its site plans alone, where its titles name them, whatever the set's size; else the set, cut only to fit */
+  const own = await pagesOnly(whole, sitesAt);
+  const pdf = await fitted(own ?? whole, REQUEST_MAX - base64(p.image.byteLength), (total) => (own ? Array.from({ length: total }, (_, i) => i) : sitePages(total, pdfFrom)), 1, "The drawing set is too large to read the site from");
   const blocks: Block[] = [{ type: "document", source: { type: "base64", media_type: "application/pdf", data: pdf.toString("base64") } }, pngBlock(p.image)];
   const raw = await askWith(blocks, sitePrompt({ w: p.ow, h: p.oh, mm: ground.mmPerPx ? ground.mmPerPx / p.k : null }), siteSchema(), 16000);
   return toSite(raw, { floorId: ground.floorId, sheetId: ground.sheetId, k: p.k, left: p.left, top: p.top });

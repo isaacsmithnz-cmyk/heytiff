@@ -10,6 +10,8 @@ const WHEN = { day: (d: string) => `day ${d}`, time: (at: string) => `at ${at}` 
 const facts = (over: Partial<QuoteFacts> = {}): QuoteFacts => ({
   lines: 4,
   options: 1,
+  asked: 0,
+  toPrice: 0,
   toConfirm: 0,
   changedAt: null,
   talked: true,

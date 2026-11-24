@@ -5677,6 +5677,8 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .tm-needs { font-size:13px; font-weight:600; color:var(--warn-t); white-space:nowrap; }
 .fg .tm-added { font-size:13px; font-weight:500; color:var(--q); white-space:nowrap; }
 .fg .tm-quick { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+/* a who-question's answers: one dropdown, its label then the team (bug 88) */
+.fg .tm-quick .pt-chooser.tm-quick-who { width:auto; min-width:240px; }
 .fg .tm-doors { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-top:12px;
   font-size:13px; font-weight:500; color:var(--q); }
 
@@ -6517,6 +6519,12 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .qx-askq { margin:0; padding:12px 16px; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
 .fg .qx-askput { margin:0; padding:8px 16px; font-size:14px; line-height:20px; color:var(--q); }
 .fg .qx-ask .qx-row.picked > b { font-weight:600; }
+/* a question still open: its answers as buttons, the likely one blue, what each does to the price at its right, as the phone has them (24 November 2026) */
+.fg .qx-answers { display:flex; flex-direction:column; gap:8px; padding:4px 16px 16px; }
+.fg .qx-ask > .qx-answers { border-top:0; }
+.fg .qx-answer { width:100%; }
+.fg .qx-answer .pt-btn__word { flex:1 1 auto; min-width:0; display:flex; align-items:center; justify-content:space-between; gap:12px; text-align:left; }
+.fg .qx-answer.pt-btn--main .qx-r { color:inherit; }
 .fg .qx-ask .qx-row:disabled { cursor:default; }
 .fg .qx-tick { flex:none; display:flex; color:var(--press); }
 /* Proposal: the page in the middle of the ground, Saved over it */
@@ -7224,8 +7232,8 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jl-pick .pt-chooser.jl-pick-ch { width:auto; min-width:176px; padding-left:48px; }
 .fg .jl-note { margin:0; font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
 /* the table: a grid per row, so the head and the rows share the columns */
-.fg .jl-table { --jl-cols:minmax(0,2fr) minmax(0,1.4fr) minmax(0,1.2fr); min-width:0; }
-.fg .jl-table.jl-table--money { --jl-cols:minmax(0,2fr) minmax(0,1.4fr) minmax(0,1.2fr) 112px; }
+.fg .jl-table { --jl-cols:minmax(0,2fr) minmax(0,1.4fr) minmax(0,1.2fr) 18px; min-width:0; }
+.fg .jl-table.jl-table--money { --jl-cols:minmax(0,2fr) minmax(0,1.4fr) minmax(0,1.2fr) 112px 18px; }
 .fg .jl-rows { margin:0; padding:0; list-style:none; }
 /* Show more, under the hundred a view draws */
 .fg .jl-more { display:flex; justify-content:center; padding:24px 0; }
@@ -7261,6 +7269,10 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jl-state .pt-state { font-size:14px; line-height:20px; max-width:100%; }
 .fg .jl-when { color:var(--ink); }
 .fg .jl-value { align-items:flex-end; text-align:right; font-variant-numeric:tabular-nums; }
+/* your star, filled in ink at the row's end (the Star a job mock, 24
+   November 2026): fill:currentColor beats the glyph's fill="none" */
+.fg .jl-star { align-items:flex-end; color:var(--ink); }
+.fg .jl-star .i { display:block; fill:currentColor; }
 
 /* ===== V2: CONVERSATIONS (v2, step 5; components/conversations, and
    components/tiff/assistant.tsx) =====

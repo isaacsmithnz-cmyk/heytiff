@@ -23,6 +23,7 @@ import { jobsListRows, type JobsListRow } from "./jobs-list";
 import { loadProjectsBoard } from "./projects-board-query";
 import { getSm8Timezone } from "./query";
 import { readReadyToSend } from "@/lib/quotes/ready-to-send-server";
+import { readStars } from "@/lib/jobs/job-stars";
 
 export type JobsListData = {
   rows: JobsListRow[];
@@ -36,6 +37,9 @@ export type JobsListData = {
   syncing: boolean;
   /** the open jobs ran past the board's cap */
   truncated: boolean;
+  /** the ServiceM8 jobs the person signed in starred: a star at the end of
+      each one's row (Isaac, 24 November 2026, the Star a job mock) */
+  starred?: string[];
 };
 
 
@@ -60,12 +64,14 @@ export async function loadJobsList(): Promise<JobsListData | null> {
   /* who is on each job and when each was won come in the jobs' own waits
      (`crew`): they were a wait of their own after the jobs landed, then a
      third for the staff names (the Jobs list's timing, 26 October 2026) */
-  const [board, projectsBoard, allJobs, sync, ready] = await Promise.all([
+  const userId = (session?.user?.sub as string | undefined) ?? null;
+  const [board, projectsBoard, allJobs, sync, ready, stars] = await Promise.all([
     loadMaintenanceBoard(orgId, today),
     loadProjectsBoard(orgId, today, { includeMoney: false }),
     connected ? loadAllJobs(orgId, today, { includeMoney: moneyVisible, crew: true }) : Promise.resolve(EMPTY_ALL_JOBS),
     connected ? listSm8SyncStatus(orgId) : Promise.resolve(null),
     connected ? readReadyToSend(orgId, zone) : Promise.resolve({}),
+    connected && userId ? readStars({ orgId, userId }, 500).catch(() => []) : Promise.resolve([]),
   ]);
 
   /* looking at the list counts as looking, as the board's does */
@@ -132,5 +138,6 @@ export async function loadJobsList(): Promise<JobsListData | null> {
     connected,
     syncing: connected && !(sync?.objects.find((o) => o.object === "jobs")?.backfillDone ?? false),
     truncated: allJobs.truncated,
+    ...(stars.length ? { starred: stars.map((s) => s.job) } : {}),
   };
 }

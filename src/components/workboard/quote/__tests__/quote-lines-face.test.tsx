@@ -878,8 +878,9 @@ describe("the proposal (7.1)", () => {
           : view([indoor]),
     }));
     render(<QuoteLinesFace job="job-3377" price={pricedWhole} onPriced={jest.fn()} />);
-    expect(await screen.findByText("2 questions to answer")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Mark ready to send" })).toBeDisabled();
+    /* answering them is the next step, as on the phone: one button, to her questions */
+    expect(await screen.findByRole("button", { name: "Answer 2 questions" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Mark ready to send" })).not.toBeInTheDocument();
   });
 });
 
@@ -1490,7 +1491,8 @@ describe("the page turned round", () => {
     const onStage = jest.fn();
     render(<QuoteLinesFace job="job-3377" price={price} onStage={onStage} onPriced={jest.fn()} />);
     await screen.findByText("Priced from your book.");
-    expect(onStage).toHaveBeenLastCalledWith(expect.objectContaining({ word: "1 to settle", settle: true }));
+    /* the phone's words and its count: the lines still to price, across the options (it said "1 to settle") */
+    expect(onStage).toHaveBeenLastCalledWith(expect.objectContaining({ word: "2 to price", settle: true }));
   });
 
   /* 11.1 with her on: the paper stands where the conversation was, so the

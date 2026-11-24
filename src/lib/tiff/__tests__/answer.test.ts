@@ -97,6 +97,14 @@ describe("labelling an excerpt", () => {
       "Install manual — p.12–14"
     );
   });
+
+  /* bug 85: a book numbered six pages behind its file */
+  it("gives the book's printed page beside the file's where they differ", () => {
+    const label = documentTitleOf({ title: "Service manual", pageFrom: 280, pageTo: 280, printedOffset: 6 });
+    expect(label).toMatch(/^Service manual — p\.280 \(printed in the book as p\.274/);
+    expect(label).toMatch(/\+ 6\)$/);
+    expect(documentTitleOf({ title: "Fault book", pageFrom: 41, pageTo: 41, printedOffset: 0 })).toBe("Fault book — p.41");
+  });
 });
 
 describe("replaying prior turns", () => {

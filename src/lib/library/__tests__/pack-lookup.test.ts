@@ -1,7 +1,7 @@
 import path from "node:path";
 import { installedPacks, loadInstalledPack } from "@/lib/studio/packs/server";
 import type { DataPack } from "@/lib/studio/packs/schema";
-import { lookUpModels, modelWords } from "../pack-lookup";
+import { lookUpModels, modelWords, pagesOf } from "../pack-lookup";
 
 /* Against the real packs: bug 74 (23 November 2026), the RZA60's label and
    Tiff saying she couldn't find its pre-charged length. */
@@ -31,6 +31,16 @@ describe("Tiff's data pack lookup", () => {
       extraCharge: "None to 30 m, then 350 g to 40 m, 700 g to 50 m on 6.35 liquid",
     });
     expect(found.pairs[0].source).toContain("EDAU282225A");
+    /* bug 85: the extra charge is on page 135, the pair on page 8 */
+    expect(found.pairs[0].source).toMatch(/pp\. 8, 135$/);
+  });
+
+  it("names one page p. and several pp., in the pack's own words", () => {
+    expect(pagesOf("7")).toBe("p. 7");
+    expect(pagesOf("8, 135")).toBe("pp. 8, 135");
+    expect(pagesOf("30-31")).toBe("pp. 30-31");
+    expect(pagesOf("B-2")).toBe("p. B-2");
+    expect(pagesOf(" ")).toBeNull();
   });
 
   it("an outdoor alone brings its pairs", () => {

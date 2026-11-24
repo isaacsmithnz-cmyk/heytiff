@@ -66,6 +66,10 @@ it("on the quote's own tab, puts her open questions in the talk as groups of ans
   const asks = within(await screen.findByRole("region", { name: "Tiff's questions" }));
   expect(asks.getByText("Single or three phase?")).toBeInTheDocument();
   expect(asks.getAllByRole("button").map((b) => b.textContent)).toEqual(["Single phase", "Three phase+$520"]);
+  /* buttons, the likely one blue, as the phone has them (Isaac, 24 November 2026) */
+  const [likely, other] = asks.getAllByRole("button");
+  expect(likely).toHaveClass("pt-btn--main", "pt-btn--44", "qx-answer");
+  expect(other).toHaveClass("pt-btn--second", "qx-answer");
   /* her words come first, the questions under them, then the box */
   const said = screen.getByText("A 12.5 kW ducted, priced from your book.");
   expect((said.compareDocumentPosition(asks.getByText("Single or three phase?")) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0).toBe(true);
@@ -209,7 +213,7 @@ it("sends on Enter, never on Shift+Enter or mid-word in an input method", async 
   });
   render(<TiffPanel job="j" onChanged={jest.fn()} />);
   const box = await screen.findByLabelText("Message Tiff");
-  expect(box).toHaveAttribute("placeholder", "Reply");
+  expect(box).toHaveAttribute("placeholder", "Reply to Tiff");
   fireEvent.change(box, { target: { value: "Three phase" } });
   await act(async () => {
     fireEvent.keyDown(box, { key: "Enter", shiftKey: true });
@@ -384,7 +388,7 @@ it("reads the job: every source listed to untick, and only the ticked ones sent"
   });
   render(<TiffPanel job="j" onChanged={jest.fn()} />);
   expect(await screen.findByText("Hi Isaac")).toBeInTheDocument();
-  expect(screen.getByLabelText("Message Tiff")).toHaveAttribute("placeholder", "Tell Tiff about the job");
+  expect(screen.getByLabelText("Message Tiff")).toHaveAttribute("placeholder", "Tell Tiff what to quote");
   await act(async () => {
     fireEvent.click(screen.getByRole("button", { name: "Read the job" }));
   });
@@ -505,7 +509,7 @@ it("numbers her questions as her message does, says what the quote has, and tick
   const board = await screen.findByText("How far is the switchboard from the outdoor unit?");
   /* numbered from her asking: the answered one keeps its 1 */
   expect(board.querySelector(".qt-qn")).toHaveTextContent("2");
-  expect(screen.getByText("I've put 15 m")).toBeInTheDocument();
+  expect(screen.getByText("On the quote now: 15 m")).toBeInTheDocument();
   /* a figure to type has nothing to tap; a few-answer one has its answers */
   expect(screen.getByRole("button", { name: /2 lengths/ })).toBeInTheDocument();
   const done = within(screen.getByRole("list", { name: "Answered" }));

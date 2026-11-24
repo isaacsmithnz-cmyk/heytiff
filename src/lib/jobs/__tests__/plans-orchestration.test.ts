@@ -114,6 +114,9 @@ const readSheet = jest.fn(async (_o: string, s: { floorId: string }) => sheetOf(
 const hung: (() => void)[] = [];
 const hang = (floorId: string) => new Promise<ReturnType<typeof sheetOf>>((r) => hung.push(() => r(sheetOf(floorId))));
 const readRoof = jest.fn(async (..._a: unknown[]): Promise<Record<string, unknown>> => ({ said: null, levels: [], parts: [], raked: [], material: "", roofSpace: "" }));
+/* what each run asked of the roof's slices, and a test's heights slice held so it is late */
+const slicesAsked: { shape: boolean; heights: boolean }[] = [];
+const heightsHeld = { on: false };
 const readSite = jest.fn(async (..._a: unknown[]): Promise<unknown> => null);
 const readDimensions = jest.fn(async (..._a: unknown[]): Promise<unknown[]> => []);
 const scheduleRead = async () => ({ items: [{ mark: "GD.10", type: "", kind: "door", width_mm: 820, height_mm: 2040, sill_mm: 0 }] });
@@ -122,6 +125,16 @@ jest.mock("@/lib/studio/reading-server", () => ({
   READING_MODEL: "claude-opus-5-5",
   readSheet: (...a: unknown[]) => readSheet(...(a as [string, { floorId: string }])),
   readRoof: (...a: unknown[]) => readRoof(...a),
+  readRoofSlices: async (o: unknown, pdf: unknown, sheets: unknown, pages: { from: number }, want: { shape: boolean; heights: boolean }) => {
+    /* the one roof read the tests answer, split as the slices give it */
+    slicesAsked.push(want);
+    const whole = Promise.resolve(readRoof(o, pdf, sheets, undefined, pages.from)) as Promise<Record<string, unknown>>;
+    return {
+      at: [],
+      shape: want.shape ? whole.then((r) => ({ parts: (r.parts as unknown[]) ?? [], material: (r.material as string) ?? "" })) : null,
+      heights: !want.heights ? null : heightsHeld.on ? new Promise(() => {}) : whole.then((r) => ({ levels: (r.levels as unknown[]) ?? [], raked: (r.raked as unknown[]) ?? [], roofSpace: (r.roofSpace as string) ?? "", pitches: [], ...(r.subfloor ? { subfloor: r.subfloor } : {}) })),
+    };
+  },
   readSite: (...a: unknown[]) => readSite(...a),
   readDimensions: (...a: unknown[]) => readDimensions(...a),
   readSchedule: () => readSchedule(),
@@ -133,7 +146,7 @@ jest.mock("@/lib/studio/reading-server", () => ({
 const fetchMock = jest.fn(async (..._a: unknown[]): Promise<Response> => new Response("{}"));
 global.fetch = fetchMock as unknown as typeof fetch;
 
-import { addJobPlans, choosePlanFloors, jobPlanRooms, readJobPlan, readPlan, readPlanAgain } from "../plans-server";
+import { addJobPlans, choosePlanFloors, jobPlanRooms, readJobPlan, readPlan, readPlanAgain, roofPagesOf } from "../plans-server";
 import { plansToAskAgain } from "../plans-client";
 import { planLine } from "../plans";
 
@@ -170,6 +183,8 @@ beforeEach(() => {
   for (const f of [previewsInNode, fullInNode, vectorsInNode, textsInNode, readSheet, readRoof, readSite, readDimensions, readSchedule, fetchMock, look, snapped]) f.mockClear();
   readSheet.mockImplementation(async (_o: string, s: { floorId: string }) => sheetOf(s.floorId));
   readSite.mockImplementation(async () => null);
+  slicesAsked.length = 0;
+  heightsHeld.on = false;
   readRoof.mockImplementation(async () => ({ said: null, levels: [], parts: [], raked: [], material: "", roofSpace: "" }));
   readDimensions.mockImplementation(async () => []);
   readSchedule.mockImplementation(scheduleRead);
@@ -253,6 +268,20 @@ describe("a floor read that runs past the run's time", () => {
   });
 });
 
+describe("the site", () => {
+  it("is read off the pages the set titles as site plans, alone", async () => {
+    drawn([otherPage(1), { ...otherPage(2), kind: "site" }, floorPage(3, 0, "Ground floor"), floorPage(4, 1, "Level 1"), { ...otherPage(5), kind: "site" }]);
+    expect(await run()).toMatchObject({ ok: true });
+    expect(readSite.mock.calls[0][4]).toEqual([1, 4]);
+  });
+
+  it("is sent no pages of its own when no title names a site plan, so the set is sent as before", async () => {
+    threeFloors();
+    expect(await run()).toMatchObject({ ok: true });
+    expect(readSite.mock.calls[0][4]).toEqual([]);
+  });
+});
+
 describe("a roof or a site that couldn't be read", () => {
   it("is left unread rather than kept as none, and said on the row, which asks to be checked", async () => {
     threeFloors();
@@ -329,6 +358,58 @@ describe("a run with only the roof and the site left", () => {
     expect(read.partial).toBeUndefined();
     expect(fetchMock).not.toHaveBeenCalled();
     expect(await rowLine()).toContain("The roof took too long to read");
+  });
+});
+
+describe("the roof in slices", () => {
+  it("keeps the slice back in time when the other is late, and the run handed on asks only for that one", async () => {
+    readSheet.mockImplementationOnce(async (_o: string, sh: { floorId: string }) => {
+      clock += 240_000;
+      return sheetOf(sh.floorId);
+    });
+    threeFloors();
+    readRoof.mockImplementation(async () => ({ said: null, levels: [{ floorId: "p2", ceilingMm: 2700, floorZoneMm: 0, source: "A301" }], parts: [], raked: [], material: "metal", roofSpace: "" }));
+    heightsHeld.on = true;
+    expect(await run()).toMatchObject({ ok: true, state: "reading" });
+    const first = plan().reading as Row;
+    expect(first.roofSlices).toEqual({ shape: { parts: [], material: "metal" } });
+    expect("roof" in first).toBe(false);
+    heightsHeld.on = false;
+    expect(await run()).toMatchObject({ ok: true, finished: { jobUuid: "job-1" } });
+    expect(slicesAsked).toEqual([
+      { shape: true, heights: true },
+      { shape: false, heights: true },
+    ]);
+    const read = plan().reading as Row;
+    expect(read.roofSlices).toBeUndefined();
+    expect(read.roof).toMatchObject({ material: "metal", levels: [{ floorId: "p2", ceilingMm: 2700 }] });
+  });
+
+  it("joins the roof without a slice still late on a run of its own, and says which", async () => {
+    threeFloors();
+    const floors = Object.fromEntries(["p2", "p3", "p4"].map((id) => [id, [sheetOf(id)]]));
+    plan().reading = { at: "2026-11-22T00:00:00Z", model: "claude-opus-5-5", floors, failed: [], site: null, partial: true };
+    readRoof.mockImplementation(async () => {
+      clock += 270_000;
+      return { said: null, levels: [], parts: [], raked: [], material: "tiles", roofSpace: "" };
+    });
+    heightsHeld.on = true;
+    expect(await run()).toMatchObject({ ok: true, state: "check", finished: { jobUuid: "job-1" } });
+    expect(plan()).toMatchObject({ said: "The roof's heights took too long to read" });
+    expect((plan().reading as Row).roof).toMatchObject({ material: "tiles", levels: [] });
+  });
+
+  it("sends its shape the roof plans and its heights the pages that print most levels, and reads those levels", () => {
+    const at = (text: string, x: number, y: number) => ({ text, x, y, w: 20 });
+    const texts = [
+      { n: 1, words: [at("40°", 10, 10), at("40°", 50, 10), at("20°", 90, 10)] },
+      { n: 2, words: [at("ROOF PLAN", 10, 10)] },
+      { n: 3, words: [at("GF FFL", 100, 400), at("RL 194000 mm", 100, 407.8), at("GF FCL", 100, 300), at("RL 197200 mm", 100, 307.8)] },
+      { n: 4, words: [at("NORTH ELEVATION", 10, 10)] },
+      { n: 6, words: [at("NOTES", 10, 10)] },
+    ];
+    const pages = [otherPage(1), { ...otherPage(2), kind: "roof" }, otherPage(3), { ...otherPage(4), kind: "elevation" }, floorPage(5, 0, "Ground floor"), otherPage(6)] as Parameters<typeof roofPagesOf>[1];
+    expect(roofPagesOf(texts, pages)).toEqual({ shape: [1, 0], heights: [2, 3], printed: { floors: [{ level: 0, ffl: 194, fcl: 197.2, pages: [3] }], ridges: [] } });
   });
 });
 

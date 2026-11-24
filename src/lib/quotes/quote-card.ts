@@ -12,7 +12,11 @@ export type QuoteFacts = {
   /** the lines on the quote, across its options */
   lines: number;
   options: number;
-  /** lines nobody knows yet and Tiff's questions still open */
+  /** Tiff's questions still open */
+  asked: number;
+  /** lines nobody has a price for yet */
+  toPrice: number;
+  /** her estimates, not yet confirmed */
   toConfirm: number;
   /** the latest change to a line: a timestamp */
   changedAt: string | null;
@@ -27,10 +31,13 @@ export type QuoteFacts = {
   accepted: number[];
 };
 
-/** The lines nobody knows yet, and Tiff's questions still open: To confirm,
-    on the card as on the quote page's progress line. */
-export const toConfirmOf = (lines: readonly Pick<QuoteLine, "source" | "costCents" | "sellCents" | "estimate">[], asked: number) =>
-  lines.filter((l) => (l.source === "unknown" && l.costCents <= 0 && l.sellCents == null) || l.estimate).length + asked;
+/** The lines nobody has a price for yet: to price, on the card as on the
+    quote. Her open questions are counted apart, as the phone counts them. */
+export const unpricedOf = (lines: readonly Pick<QuoteLine, "source" | "costCents" | "sellCents">[]) =>
+  lines.filter((l) => l.source === "unknown" && l.costCents <= 0 && l.sellCents == null).length;
+
+/** Her estimates still on the quote, each to confirm. */
+export const estimatesOf = (lines: readonly Pick<QuoteLine, "estimate">[]) => lines.filter((l) => l.estimate).length;
 
 /** Anything to continue: lines, a talk with Tiff, or an old draft. */
 export const quoteStarted = (f: Pick<QuoteFacts, "lines" | "talked" | "drafted">) => f.lines > 0 || f.talked || f.drafted;

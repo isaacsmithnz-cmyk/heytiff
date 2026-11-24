@@ -19,7 +19,7 @@ import { execFile } from "node:child_process";
 import path from "node:path";
 import { promisify } from "node:util";
 
-import { isScannedPage, MIN_TEXT_CHARS, PAGE_BATCH, pageWindow } from "../extract";
+import { cleanPdfText, isScannedPage, MIN_TEXT_CHARS, PAGE_BATCH, pageWindow } from "../extract";
 
 const run = promisify(execFile);
 const RUNNER = path.join(__dirname, "fixtures", "extract-runner.mjs");
@@ -91,5 +91,15 @@ describe("the batch window", () => {
   it("never returns a page 0, whatever the bookmark says", () => {
     expect(pageWindow(0, 10).from).toBe(1);
     expect(pageWindow(-5, 10).from).toBe(1);
+  });
+});
+
+describe("cleanPdfText", () => {
+  it("drops NUL and other control characters Postgres or a reader can't use", () => {
+    expect(cleanPdfText("E\u000012 PFC\u0001 board\u007F")).toBe("E12 PFC board");
+  });
+
+  it("keeps tabs, line breaks and ordinary text", () => {
+    expect(cleanPdfText("D03\tdefrost\nstart 17°C — ok")).toBe("D03\tdefrost\nstart 17°C — ok");
   });
 });

@@ -24,6 +24,10 @@ describe("a cover's name is the title less its maker and what kind of document i
     ["PAC-MK34BC / PAC-MK54BC branch box installation manual", "Mitsubishi Electric", "PAC\nMK34 / MK54\nbranch box"],
     ["Daikin RZA R32 Ducted", "Daikin", "RZA R32 Ducted"],
     ["Daikin VRV Diagnosis Manual", "Daikin", "VRV"],
+    /* 24 November 2026: nothing left hanging, and a bare number is part of the name */
+    ["SAT-2 thermostat user manual", "Temperzone", "SAT-2 thermostat"],
+    ["KRS electronic controller service and installation manual", null, "KRS electronic controller"],
+    ["SAT-3 display fault codes", "Temperzone", "SAT-3 display fault codes"],
   ])("%s", (title, maker, name) => {
     expect(coverName(title, maker)).toBe(name);
   });
@@ -69,6 +73,13 @@ describe("shelves", () => {
 
   test("a document nobody tagged is shelved by the maker its name says", () => {
     expect(s.get("vrv")).toMatchObject({ maker: "Daikin", shelfName: "Daikin", name: "VRV" });
+  });
+
+  /* 24 November 2026: "Other documents" held 14 of Fujitsu's 28 */
+  test("a maker's document for no system sits on its kind's shelf on the brand's page, not Other documents", () => {
+    expect(s.get("vrv")).toMatchObject({ systems: "Service documents", bySystem: false });
+    expect(s.get("vrv")!.shelf).toContain("kind:faults");
+    expect(s.get("pumy")).toMatchObject({ bySystem: true });
   });
 
   test("a document with no maker sits on its kind's shelf, in plain", () => {

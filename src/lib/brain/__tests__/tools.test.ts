@@ -250,8 +250,34 @@ describe("the registry", () => {
       title: "Clearing an E6",
       category: "field",
       heading: "Learned on the job — Lyle, Wed 6 Aug",
-      pages: "1",
+      filePages: "1",
     });
+    expect(items[0]).not.toHaveProperty("printedPages");
+  });
+
+  /* bug 85: the file's page is the one to cite; the book's printed number,
+     and the difference, ride beside it where they differ */
+  it("kb_search gives the book's printed pages beside the file's", async () => {
+    retrieveForQuestion.mockResolvedValueOnce({
+      chunks: [
+        {
+          id: "c-9",
+          documentId: "d-9",
+          content: "Check SiAU282005EA 274 Part 6 Service Diagnosis 7.7 Wet Operation Check CHECK 9",
+          pageFrom: 280,
+          pageTo: 281,
+          heading: null,
+          title: "Service manual",
+          category: "manuals",
+          printedOffset: 6,
+        },
+      ],
+      trace: {},
+      sources: [],
+    } as never);
+    const res = await runTool("kb_search", { query: "CHECK 9" });
+    const [item] = valueOf(res) as Record<string, unknown>[];
+    expect(item).toMatchObject({ filePages: "280–281", printedPages: "274–275", filePageIsPrintedPlus: 6 });
   });
 
   it("EVERY tool is a reader — the registry contains no writes", () => {

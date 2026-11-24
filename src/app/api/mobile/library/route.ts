@@ -25,13 +25,14 @@ export async function GET(request: Request) {
         title: d.title,
         source: d.source,
         edition: d.edition,
-        status: d.status,
+        /* a photographed manual is still being read until Tiff has read its pages */
+        status: d.pagesReading && d.status === "ready" ? "processing" : d.status,
         pageCount: d.pageCount,
         hasFile: !!d.storageRef,
         uploadedAt: d.uploadedAt,
         /* the year it came out, on its cover (lib/tiff/released) */
         year: d.released ? Number(d.released.slice(0, 4)) : null,
-        ...(s ? { shelf: s.shelf, shelfName: s.shelfName, systems: s.systems, maker: s.maker, color: s.color, cover: s.name } : {}),
+        ...(s ? { shelf: s.shelf, shelfName: s.shelfName, systems: s.systems, bySystem: s.bySystem, maker: s.maker, color: s.color, cover: s.name } : {}),
       };
     }),
   );

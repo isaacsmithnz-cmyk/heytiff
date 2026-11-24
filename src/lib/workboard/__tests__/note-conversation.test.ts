@@ -7,6 +7,7 @@
    that does not turn them on is routed as the card's notes were (the card
    went with the old capture UI, 2026-09-27). */
 
+import { askLine } from "@/components/tiff/modal/plan-view";
 import {
   NOTE_SCHEMA,
   SAY_MAX,
@@ -151,12 +152,14 @@ describe("say", () => {
 });
 
 describe("a task with nobody on it", () => {
-  it("becomes a question on the modal's notes: Me, then the people the note names", () => {
+  it("becomes a question on the modal's notes, answered from the whole team in one dropdown", () => {
     const p = shapeProposal(nobodysTask, modal, "Callum reckons the grilles need ordering, ask Lyle or Jo");
     expect(p.tasks[0].assigneeId).toBeNull();
+    // bug 88: the speaker by their own name, never a "Me" beside it; nobody to go, so no Anyone
     expect(p.clarify).toEqual({
       question: "Who should do this: Order the grilles?",
-      options: ["Me", "Callum", "Lyle"],
+      options: ["Callum Reid", "Isaac Smith", "Jo Baker", "Lyle Nguyen"],
+      who: "do",
     });
     // her line was written for a plan the app just stopped: the question is all she says
     expect(p.say).toBe("Who should do this: Order the grilles?");
@@ -170,9 +173,38 @@ describe("a task with nobody on it", () => {
     expect(whoBlock(modal)).toMatch(/cannot\s+wait for a dropdown/);
   });
 
-  it("offers no Me when nobody is speaking", () => {
+  it("offers the same team when nobody is speaking", () => {
     const p = shapeProposal(nobodysTask, { ...modal, author: undefined }, "tell Jo");
-    expect(p.clarify?.options).toEqual(["Jo"]);
+    expect(p.clarify?.options).toEqual(["Callum Reid", "Isaac Smith", "Jo Baker", "Lyle Nguyen"]);
+  });
+
+  it("answers the model's own who-question from the team, Anyone first when someone is to go (bug 88)", () => {
+    const p = shapeProposal(
+      raw({
+        clarify_needed: true,
+        clarify_question: "Who should go to Exampleton to move the grille, and when?",
+        clarify_options: ["Me", "Isaac Smith", "Lyle Nguyen", "Jo Baker"],
+        say: "I'll file a variation. Who should go to Exampleton to move it, and when?",
+      }),
+      modal,
+    );
+    expect(p.clarify).toEqual({
+      question: "Who should go to Exampleton to move the grille, and when?",
+      options: ["Anyone", "Callum Reid", "Isaac Smith", "Jo Baker", "Lyle Nguyen"],
+      who: "go",
+    });
+    // her own line asks it, so it is said once
+    expect(askLine(p.say, p.clarify!.question)).toBe("I'll file a variation. Who should go to Exampleton to move it, and when?");
+  });
+
+  it("leaves a who-question about a client, and a question that isn't who, as chips", () => {
+    const client = shapeProposal(
+      raw({ clarify_needed: true, clarify_question: "Who is the builder on this one?", clarify_options: ["Sampleco", "Exampleco"] }),
+      modal,
+    );
+    expect(client.clarify).toEqual({ question: "Who is the builder on this one?", options: ["Sampleco", "Exampleco"] });
+    const which = shapeProposal(raw({ clarify_needed: true, clarify_question: "Which grilles?", clarify_options: ["Supply", "Return"] }), modal);
+    expect(which.clarify?.who).toBeUndefined();
   });
 
   it("gives way to the model's own question", () => {

@@ -12,6 +12,8 @@ export type CoverReading = {
   groupName: string;
   /** the kind of system it is for, on its brand's page: "Ducted and zoning" */
   systems: string;
+  /** false when `systems` names the kind of document instead (no system tagged) */
+  bySystem: boolean;
   maker: string | null;
   color: string | null;
   /** the cover's big words */
@@ -22,6 +24,7 @@ export const coverReading = (s: Shelving): CoverReading => ({
   group: s.shelf,
   groupName: s.shelfName,
   systems: s.systems,
+  bySystem: s.bySystem,
   maker: s.maker,
   color: s.color,
   name: s.name,

@@ -42,6 +42,7 @@ export const SKILL_KINDS = [
   "stock_taken",
   "quote_add",
   "swap_visit",
+  "star_job",
 ] as const;
 export type SkillKind = (typeof SKILL_KINDS)[number];
 export const isSkillKind = (v: unknown): v is SkillKind => (SKILL_KINDS as readonly unknown[]).includes(v);
@@ -75,7 +76,10 @@ type SkillBody =
   | { kind: "job_contact"; name: string; phone: string; email: string; role: string }
   | { kind: "stock_taken"; what: string; qty: number; from: string }
   | { kind: "quote_add"; what: string; lines: SkillLine[] }
-  | { kind: "swap_visit"; booking: string; fromHint: string; toHint: string; day: string };
+  | { kind: "swap_visit"; booking: string; fromHint: string; toHint: string; day: string }
+  /** the speaker's star on this job (Isaac, 24 November 2026: "Star 3602 and remind me to contact them" stars it
+      and adds the task; the task is the task lane's) */
+  | { kind: "star_job"; on: boolean };
 
 /** At most this many skills come off one note. */
 export const SKILLS_MAX = 12;
@@ -156,6 +160,10 @@ export const SKILL_TOOLS: Record<SkillKind, { description: string; item: ReturnT
     description: "A booking already made, given to someone else.",
     item: obj({ booking: str, from_hint: str, to_hint: str, day: str }),
   },
+  star_job: {
+    description: "Star this job for the speaker, to keep it in their Starred, or take its star off.",
+    item: obj({ on: { type: "boolean" } }),
+  },
 };
 
 /** What the router is told about the skills, after the lanes: one line
@@ -187,6 +195,9 @@ export const SKILL_RULES = [
   "  has accepted; a variation is after. Not also a task.",
   "- swap_visit: `booking` the words naming which one, `from_hint` whose it",
   "  is now (empty for the speaker's), `to_hint` who takes it, `day` when.",
+  "- star_job: 'star 3602', 'unstar it'. `on` false only to take the star",
+  "  off. What they want done as well ('and remind me to call them') is a",
+  "  task for the speaker, as ever.",
 ].join("\n");
 
 /* ── the model's words, checked ────────────────────────────────────────── */
@@ -308,6 +319,8 @@ export function skillFields(kind: SkillKind, r: Record<string, unknown>): Propos
         ? { kind, booking: text(r.booking), fromHint: text(field(r, "from_hint", "fromHint"), 80), toHint, day: visitDay(r.day) }
         : null;
     }
+    case "star_job":
+      return { kind, on: r.on !== false };
   }
 }
 
@@ -405,6 +418,8 @@ export function skillRow(s: ProposedSkill, who: string): { lead: string; text: s
       return { lead: "Quote", text: join(s.what, linesWords(s.lines)), needs: false };
     case "swap_visit":
       return { lead: who || s.toHint, text: join(`takes ${s.fromHint ? `${s.fromHint}'s` : "your"} ${s.booking || "booking"}`, s.day ? shortDay(s.day) : ""), needs: true };
+    case "star_job":
+      return { lead: "Starred", text: s.on ? "added to your Starred" : "taken off your Starred", needs: false };
   }
 }
 

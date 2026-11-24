@@ -60,7 +60,7 @@ it("tells a tech where the quote stands, with no money in it", async () => {
   const a = (await (await get()).json()) as { ok: boolean; facts: Record<string, unknown> };
   expect(a).toEqual({
     ok: true,
-    facts: { lines: 2, options: 2, toConfirm: 2, changedAt: "2026-10-12T00:00:00Z", talked: true, drafted: false, approved: false, version: 1, sent: null, accepted: [] },
+    facts: { lines: 2, options: 2, asked: 1, toPrice: 1, toConfirm: 0, changedAt: "2026-10-12T00:00:00Z", talked: true, drafted: false, approved: false, version: 1, sent: null, accepted: [] },
   });
   expect(JSON.stringify(a)).not.toMatch(/400000|520000|Cents/);
 });

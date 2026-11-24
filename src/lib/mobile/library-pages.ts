@@ -27,6 +27,10 @@ export const PAGES_MOST = 60;
 const PAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const NOT_ADDED = "Those pages couldn't go in the Library. Try again.";
+/** How long the Library says a photographed manual is still being read, if
+    nothing says it's done sooner: the read clears it (lib/tiff/after-ready),
+    and one that died lets it say Ready again on its own. */
+const READING_FOR_MS = 15 * 60_000;
 
 export const pagePath = (orgId: string, batch: string, n: number) => `org/${orgId}/kb-pages/${batch}/${n}`;
 
@@ -90,6 +94,12 @@ export async function addPages(
     await forget(ctx.orgId, documentId);
     return { ok: false, error: landed.error, status: 409 };
   }
+  /* its pages are to be read: the Library says Reading until they are */
+  await supabaseAdmin
+    .from("kb_documents")
+    .update({ pages_reading_until: new Date(Date.now() + READING_FOR_MS).toISOString() })
+    .eq("org_id", ctx.orgId)
+    .eq("id", documentId);
   await supabaseAdmin.storage.from(DOCUMENTS_BUCKET).remove(paths);
   return { ok: true, value: { id: documentId, title, category: choice.category, status: "processing" } };
 }

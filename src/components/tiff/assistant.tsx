@@ -970,6 +970,16 @@ function CvSource({ m, docs, canManage }: { m: Msg; docs: SourceDoc[]; canManage
     words = canManage
       ? "General knowledge: nothing in your library covered this. Add the manual that does and ask again."
       : "General knowledge: nothing in your library covered this. Ask a manager to add the manual that does.";
+  } else if (m.steps?.some((s) => /librar/i.test(s))) {
+    /* SHE SEARCHED THE LIBRARY, but today's answers don't carry what she read
+       back, so there is no list to name. "General knowledge, not from your
+       documents" under an answer that quoted the dehumidifier's own manual
+       (24 November 2026) was the opposite of true. */
+    words = "From your library";
+  } else if (m.steps && m.steps.length > 0) {
+    /* she looked something up (a job, the data pack, the schedule): not
+       general knowledge, and not the library either, so say nothing */
+    return null;
   } else {
     icon = "info";
     words = "General knowledge, not from your documents";

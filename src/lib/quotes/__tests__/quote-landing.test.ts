@@ -9,6 +9,8 @@ import { acceptedRows, landingKind, landingMoney, landingOf, landingPeople, prog
 const facts = (o: Partial<QuoteFacts> = {}): QuoteFacts => ({
   lines: 6,
   options: 1,
+  asked: 0,
+  toPrice: 0,
   toConfirm: 0,
   changedAt: "2026-10-10T00:00:00Z",
   talked: true,
@@ -131,7 +133,7 @@ describe("the words", () => {
   });
 
   it("words where a quote in progress stands, in its state's colour", () => {
-    expect(progressState(facts({ toConfirm: 4 }), WHEN)).toEqual({ tone: "look", word: "Scope, 4 to settle", rest: "" });
+    expect(progressState(facts({ asked: 4 }), WHEN)).toEqual({ tone: "look", word: "4 to answer", rest: "" });
     expect(progressState(facts(), WHEN)).toEqual({ tone: "info", word: "Scope, 6 lines", rest: "" });
     expect(progressState(facts({ lines: 0 }), WHEN)).toEqual({ tone: "info", word: "Brief, with Tiff", rest: "" });
     expect(progressState(facts({ approved: true, version: 2 }), WHEN)).toEqual({ tone: "good", word: "Version 2 ready to send", rest: "" });

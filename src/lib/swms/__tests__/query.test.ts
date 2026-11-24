@@ -8,7 +8,7 @@ jest.mock("@/lib/supabase-server", () => ({
 }));
 jest.mock("@/lib/integrations/links", () => ({ sm8StaffLinkMap: async () => new Map() }));
 
-import { hasStandingSignon, libraryApproval, licencesFor, listJobSwms, listOrgSwms, loadSwmsDocument, loadSwmsJob, nearbyHospital, ownerName, pendingSignons, raisedIssues } from "../query";
+import { hasStandingSignon, libraryApproval, licencesFor, listJobSwms, listOrgSwms, loadSwmsDocument, loadSwmsJob, ownerName, pendingSignons, raisedIssues } from "../query";
 
 const ORG = "org-1";
 const person = (id: string, version_id: string, who: { staff?: string; outside?: string }) => ({
@@ -287,35 +287,6 @@ describe("a correction", () => {
   it("carries nothing when the change was to how the work is done", async () => {
     mockDb.tables.swms_versions[1].material = true;
     expect(await pendingSignons(ORG, "dane")).toHaveLength(1);
-  });
-});
-
-/* THE NEAREST HOSPITAL WAS TYPED ON EVERY SWMS. It belongs to the area, so
-   a new one starts with the hospital the last SWMS in the same postcode named
-   — and never one from further away. */
-describe("nearbyHospital", () => {
-  const job = async (uuid: string) => (await loadSwmsJob(ORG, uuid))!;
-  beforeEach(() => {
-    mockDb.tables.swms_versions[0].answers = { hospital: "Sutherland Hospital, Caringbah" };
-    mockDb.tables.swms_versions[1].answers = { hospital: "  " };
-    mockDb.tables.swms_versions[2].answers = { hospital: "Princess Alexandra Hospital" };
-    mockDb.tables.sm8_jobs.push({ org_id: ORG, uuid: "job-4", generated_job_id: "2604", job_address: "2 Kiora Road, Miranda NSW 2228", geo_state: "NSW", active: 1 });
-  });
-
-  it("starts with the hospital the last SWMS in the same postcode named", async () => {
-    expect(await nearbyHospital(ORG, await job("job-4"))).toEqual({ name: "Sutherland Hospital, Caringbah", jobNumber: "2601" });
-  });
-
-  it("takes the newest one named", async () => {
-    mockDb.tables.swms_versions[1].answers = { hospital: "St George Hospital" };
-    expect((await nearbyHospital(ORG, await job("job-4")))?.name).toBe("St George Hospital");
-  });
-
-  it("offers nothing from another postcode, or for a site with none", async () => {
-    mockDb.tables.sm8_jobs.push({ org_id: ORG, uuid: "job-5", generated_job_id: "2605", job_address: "9 Beach Road, Cronulla NSW 2230", geo_state: "NSW", active: 1 });
-    expect(await nearbyHospital(ORG, await job("job-5"))).toBeNull();
-    expect(await nearbyHospital(ORG, { ...(await job("job-4")), postcode: null })).toBeNull();
-    expect(await nearbyHospital("org-2", await job("job-4"))).toBeNull();
   });
 });
 

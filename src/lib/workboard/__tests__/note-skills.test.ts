@@ -83,6 +83,17 @@ describe("checks", () => {
     const [b] = skillsFromCalls([{ name: "block_out", input: { items: [{ who_hint: "", day: "2026-11-20", start: "12:00", end: "15:30", what: "dentist" }] } }]);
     expect(skillRow(b!, "Isaac")).toEqual({ lead: "Isaac", text: "blocked out Fri 12:00 to 3:30, dentist", needs: false });
   });
+
+  /* "Star 3602 and remind me to contact them" (Isaac, 24 November 2026): the star is a skill, the reminder a task */
+  it("stars the job, or takes its star off, at once, with nothing asked", () => {
+    const [on, off] = skillsFromCalls([{ name: "star_job", input: { items: [{ on: true }, { on: false }] } }]);
+    expect(on).toEqual({ kind: "star_job", on: true });
+    expect(off).toEqual({ kind: "star_job", on: false });
+    expect(confirms(on!)).toBe(false);
+    expect(skillGap(on!)).toBeNull();
+    expect(skillRow(on!, "")).toEqual({ lead: "Starred", text: "added to your Starred", needs: false });
+    expect(skillsOf([{ kind: "star_job", on: true }])).toEqual([{ kind: "star_job", on: true }]);
+  });
 });
 
 describe("Dan Moorcroft's variation, with its lines", () => {

@@ -30,4 +30,14 @@ describe("the model asked about, first", () => {
       "3",
     ]);
   });
+
+  it("leaves room for the library's best pages when the model has many", () => {
+    const model = Array.from({ length: 16 }, (_, i) => ({ id: `m${i}` }));
+    const rest = [{ id: "m0" }, { id: "pfc" }, { id: "r2" }];
+    const top12 = modelAhead(model, rest).slice(0, 12).map((r) => r.id);
+    expect(top12.slice(0, 4)).toEqual(["m0", "m1", "m2", "m3"]);
+    expect(top12).toContain("pfc");
+    expect(top12).toContain("r2");
+    expect(new Set(modelAhead(model, rest).map((r) => r.id)).size).toBe(18);
+  });
 });

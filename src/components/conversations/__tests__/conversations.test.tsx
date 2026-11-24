@@ -355,6 +355,32 @@ describe("Chats: the threads and the open one", () => {
     expect(within(pane).getByText("General knowledge, not from your documents")).toBeInTheDocument();
   });
 
+  /* 24 November 2026: an answer quoting the dehumidifier manual said
+     "General knowledge, not from your documents" — Conversations' answers
+     don't carry their sources, only her steps. */
+  it("doesn't call an answer general knowledge when she searched the library or looked something up", () => {
+    const at = Date.parse("2026-11-24T08:57:00Z");
+    localStorage.setItem(
+      STORE_KEY,
+      JSON.stringify([
+        {
+          id: "t-steps",
+          title: "Defrost",
+          updatedAt: at,
+          messages: [
+            { role: "user", text: "How do I set the defrost temperature?", at },
+            { role: "tiff", text: "Change D03 in the factory settings.", at, steps: ["Searching the library"] },
+            { role: "user", text: "When is 3318 booked?", at },
+            { role: "tiff", text: "Thursday.", at, steps: ["Looking at jobs"] },
+          ],
+        },
+      ])
+    );
+    render(<Conversations {...props({ initial: { view: "chats", open: "t-steps" } })} />);
+    expect(screen.getByText("From your library")).toBeInTheDocument();
+    expect(screen.queryByText(/General knowledge/)).toBeNull();
+  });
+
   it("opens the thread the address names", () => {
     localStorage.setItem(STORE_KEY, JSON.stringify(threads()));
     render(<Conversations {...props({ initial: { view: "chats", open: "t-ducted" } })} />);

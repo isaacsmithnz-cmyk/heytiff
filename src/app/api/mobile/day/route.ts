@@ -1,12 +1,14 @@
 import { sm8PressFromMobile } from "@/lib/integrations/sm8-press";
 import { ok, requireMobile } from "@/lib/mobile/auth";
-import { addStint, arriveAt, atOffice, changeStint, clockOffDay, clockOnDay, finishStopped, holdDay, homeAt, leave, readDay, restartDay, rosteredDays, setReason, settleStopped, skipJob, undoClockOn, type DayAnswer } from "@/lib/mobile/day";
+import { addBlock, addStint, arriveAt, atOffice, changeStint, clockOffDay, clockOnDay, finishStopped, holdDay, homeAt, leave, readDay, removeBlock, restartDay, rosteredDays, setReason, settleStopped, skipJob, undoClockOn, type DayAnswer } from "@/lib/mobile/day";
 import { todayInAu } from "@/lib/au-dates";
 
 /* YOUR DAY, from the phone: where it stands (GET, with `until` for the
    finish you're thinking of), and Clock on, Arrived, Left, At the office,
    a job's time changed or taken off, a job the phone missed added, and Clock off (POST); and the day clock's
-   safeties (lib/mobile/day-stop): home, Still here's hold, Restart, a stopped day finished, Not this job. The token check comes first and the press is minted from
+   safeties (lib/mobile/day-stop): home, Still here's hold, Restart, a stopped day finished, Not this job.
+   And Add missing time (block, unblock): a stretch of the day said to be admin, travel, lunch and the rest
+   (lib/mobile/day-blocks). The token check comes first and the press is minted from
    it alone; every rule is lib/mobile/day's. Your own day needs no grant
    beyond being a member. The phone says when you arrive and leave here;
    where you are goes to /api/mobile/where, and only where the business has
@@ -40,6 +42,9 @@ export async function POST(request: Request) {
     reason?: unknown;
     /** where the morning watch saw you arrive before you clocked on */
     arrived?: unknown;
+    /** Add missing time: what it was, and your own words for Something else */
+    kind?: unknown;
+    note?: unknown;
     /** the stints joined onto the one being changed */
     joined?: unknown;
   } | null;
@@ -58,7 +63,9 @@ export async function POST(request: Request) {
   else if (body?.do === "restart") answer = await restartDay(ctx, body.id);
   else if (body?.do === "finish") answer = await finishStopped(ctx, await sm8PressFromMobile(ctx), body.id, body.at);
   else if (body?.do === "skip") answer = await skipJob(ctx, body.jobUuid, body.at);
-  else return no(400, "Say on, undo, arrive, leave, office, reason, stint, add, off, home, hold, restart, finish or skip.");
+  else if (body?.do === "block") answer = await addBlock(ctx, { kind: body.kind, note: body.note, from: body.from, until: body.until });
+  else if (body?.do === "unblock") answer = await removeBlock(ctx, body.id);
+  else return no(400, "Say on, undo, arrive, leave, office, reason, stint, add, off, home, hold, restart, finish, skip, block or unblock.");
   if (!answer.ok) return no(answer.status, answer.error);
   return ok({ state: answer.state, said: answer.said });
 }

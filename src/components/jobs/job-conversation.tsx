@@ -615,6 +615,10 @@ export function JobConversation({
     <UndoTalk.Provider value={undoTalk ? { undo: undoTalk, busy: undoing } : null}>
     <FileDoor.Provider value={diary.openFile ?? NO_FILE}>
     <JobSection name="Activity feed" icon="chat" hue="green" className="jc-convo" action={tabs}>
+      {/* the feed and its box on white, curling into the green head at both
+          corners (Isaac, 24 November 2026: "do the same to activity", then
+          "actually both down") */}
+      <div className="jc-body">
       <div className="jc-feed" ref={feedRef} onScroll={onFeedScroll}>
         {/* TO DO (Isaac, 14 November 2026, mock D): Open, headed by what's
             open on the job, then Done */}
@@ -779,6 +783,7 @@ export function JobConversation({
           {sm8Why && <AlsoSm8 part="why" also={false} onTick={() => {}} sender={diary.sender} notesSm8={diary.notesSm8!} onConfirm={diary.onConfirm} />}
         </div>
       )}
+      </div>
     </JobSection>
     </FileDoor.Provider>
     </UndoTalk.Provider>

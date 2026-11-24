@@ -685,7 +685,7 @@ it("shows a message that fits in sixteen lines whole, with no dots", () => {
   }
 });
 
-it("clamps a longer one, and its dots open the whole message, read only, as plain text", async () => {
+it("clamps a longer email, and its Whole email opens the whole message, read only, as plain text", async () => {
   const undo = measured();
   try {
     const f = fixture3372();
@@ -693,10 +693,10 @@ it("clamps a longer one, and its dots open the whole message, read only, as plai
     draw({ customer: customerFeed([{ ...f[4]!, text: long }], { customer: "Marco", money: true }) });
     const words = document.querySelector(".jc-bubwords") as HTMLElement;
     expect(words).toHaveClass("jc-bubwords--clamped");
-    const dots = screen.getByRole("button", { name: "Show the whole message" });
-    expect(dots).toHaveTextContent("•••");
-    expect(dots.closest(".jc-bubble")).not.toBeNull();
-    await userEvent.click(dots);
+    /* an email is a plain row (the denser page, 23 November 2026): no dots, its Whole email opens the rest */
+    expect(words.closest(".jc-bm")).toHaveClass("jc-bm--email");
+    expect(screen.queryByRole("button", { name: "Show the whole message" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Whole email" }));
     const dialog = screen.getByRole("dialog", { name: "Re: Your Quote from Acme Air (Ref #3372)" });
     expect(within(dialog).getByText(/^LONG: The rest of a long email/).closest(".cmsg-words")).not.toBeNull();
     expect(within(dialog).getByText("Tue 6 Oct, 11:06 am")).toBeInTheDocument();
@@ -766,9 +766,10 @@ it("fills each side's bubbles its own way, and says a run's name once above it a
   });
   const run = [...document.querySelectorAll(".jc-bm")] as HTMLElement[];
   expect(run.map((b) => b.className)).toEqual([
-    "jc-bm jc-bm--them jc-bm--first",
-    "jc-bm jc-bm--them jc-bm--last",
-    "jc-bm jc-bm--us jc-bm--first jc-bm--last",
+    /* emails, so each is a plain row (the denser page, 23 November 2026) */
+    "jc-bm jc-bm--them jc-bm--email jc-bm--first",
+    "jc-bm jc-bm--them jc-bm--email jc-bm--last",
+    "jc-bm jc-bm--us jc-bm--email jc-bm--first jc-bm--last",
   ]);
   expect(run.map((b) => b.querySelector(".jc-bmname")?.textContent ?? null)).toEqual(["Marco", null, "Dana"]);
   expect(run.map((b) => b.querySelector(".jc-bmtime")?.textContent ?? null)).toEqual([null, "10:01 amWhole email", "10:02 amSeen 10:05 amWhole email"]);

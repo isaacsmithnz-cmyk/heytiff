@@ -10529,7 +10529,7 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
    shorter, or its foot (tools, zoom, Tiff, the column's button) falls off the
    screen; display mode hides the header and keeps the full height */
 html:not([data-ds-display]) .fg:has(#fg-topbar) .dstudio.editing:has(> * .ds-editor.clean),
-html:not([data-ds-display]) .fg:has(#fg-topbar) .dstudio.editing:has(> .ds-editor.clean) { height: calc(100dvh - 72px); }
+html:not([data-ds-display]) .fg:has(#fg-topbar) .dstudio.editing:has(> .ds-editor.clean) { height: calc(100dvh - 48px); }
 .dstudio .ds-editor.clean { row-gap: 0; --ds-cockpit-w: 320px; --ds-stack-ground: #F5F5F6; background: var(--paper); }
 .dstudio .ds-editor.clean::before { display: none; }
 

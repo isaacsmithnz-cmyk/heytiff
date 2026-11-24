@@ -593,7 +593,8 @@ describe("the head (Isaac's mock, 25 October 2026)", () => {
     readMirrorJob.mockResolvedValueOnce(card(detail({ clientName: null, address: null })));
     render(<Job row={row({ clientName: null })} {...props} />);
     await detailLanded();
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Example Bay NSW 2029");
+    /* waits for the detail: until it lands the head is named by the row's suburb, and one flush wasn't always enough on CI */
+    await waitFor(() => expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Example Bay NSW 2029"));
   });
 });
 

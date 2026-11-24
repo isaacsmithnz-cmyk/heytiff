@@ -1,5 +1,4 @@
 import { cameFrom, noteRoute, resetTrail } from "../came-from";
-import { backLabel } from "@/components/jobs/way-back";
 
 jest.mock("@/components/notes/tiff-button", () => ({ TiffButton: () => null }));
 
@@ -25,12 +24,5 @@ describe("where a job was opened from", () => {
     window.dispatchEvent(new PopStateEvent("popstate"));
     noteRoute("/dashboard/jobs/j-1");
     expect(cameFrom("/dashboard/jobs/j-1")).toBe("/dashboard");
-  });
-
-  it("says a place by its own name", () => {
-    expect(backLabel("/dashboard")).toBe("Home");
-    expect(backLabel("/dashboard/jobs?status=won")).toBe("Jobs");
-    expect(backLabel("/dashboard/schedule")).toBe("Schedule");
-    expect(backLabel("/dashboard/jobs/j-2", { "/dashboard/jobs/j-2": { label: "3209 Rowland" } })).toBe("3209 Rowland");
   });
 });

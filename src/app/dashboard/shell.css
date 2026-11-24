@@ -435,8 +435,31 @@
 .fg .fr-mewho b { font-size:14px; font-weight:600; line-height:20px; }
 .fg .fr-mewho em { font-style:normal; font-size:13px; font-weight:500; line-height:18px; color:var(--on-ink-q); }
 
+/* THE RAIL (Isaac, 23 November 2026, "Build all six" to the denser job page,
+   https://claude.ai/artifact/8UsC9Cuf7RCMNi2tKqsP56): the sidebar is 64 wide,
+   its icons alone, so every page is 144 wider. It never opens out, so it has
+   no control for that (rule 27). A row's name shows beside its icon, ink
+   with white words, while you point at it or tab to it: the label is fixed,
+   so the rail's own scroll doesn't clip it, and its static place keeps it
+   level with its row. Pinned and Recents keep their rows under a hairline. */
+.fg .side.fr-side { width:64px; flex:0 0 64px; align-items:center; }
+.fg .fr-brand { padding:4px 0 16px; justify-content:center; }
+.fg .fr-wm { display:none; }
+.fg .side .fr-row, .fg .side .fr-new { width:48px; padding:0; justify-content:center; }
+.fg .fr-places, .fg .fr-group { align-items:center; }
+.fg .fr-grouphead { display:none; }
+.fg .fr-group { padding-top:8px; border-top:1px solid var(--on-ink-tint-2); }
+.fg .side .fr-metrig { width:48px; padding:8px; justify-content:center; }
+.fg .fr-metrig > svg { display:none; }
+.fg .side .fr-lbl, .fg .side .fr-mewho { display:none; position:fixed; left:72px; z-index:var(--z-overlay); flex:none; width:max-content; max-width:320px; padding:4px 8px; border-radius:var(--r-button); background:var(--ink); color:var(--white); font-size:13px; font-weight:500; line-height:18px; white-space:nowrap; -webkit-mask-image:none; mask-image:none; box-shadow:var(--shadow-overlay); pointer-events:none; }
+.fg .side .fr-row:hover .fr-lbl, .fg .side .fr-row:focus-visible .fr-lbl,
+.fg .side .fr-new:hover .fr-lbl, .fg .side .fr-new:focus-visible .fr-lbl,
+.fg .side .fr-metrig:hover .fr-mewho, .fg .side .fr-metrig:focus-visible .fr-mewho { display:block; }
+.fg .side .fr-new[aria-expanded="true"] .fr-lbl, .fg .side .fr-metrig[aria-expanded="true"] .fr-mewho { display:none; }
+.fg .side .fr-mewho b, .fg .side .fr-mewho em { display:block; font-size:13px; line-height:18px; }
+
 /* the header (rule 2), on the white page */
-.fg .topbar.fr-head { height:72px; flex:0 0 72px; gap:24px; padding:0 32px; background:var(--white); border-top-left-radius:var(--r-page); justify-content:flex-start; }
+.fg .topbar.fr-head { height:48px; flex:0 0 48px; gap:24px; padding:0 32px; background:var(--white); border-top-left-radius:var(--r-page); justify-content:flex-start; }
 .fg .fr-head .tbclock { flex-direction:row-reverse; align-items:baseline; gap:12px; }
 .fg .fr-head .tbclock b, .fg .fr-head .tbclock em { font-size:16px; line-height:24px; color:var(--ink); }
 .fg .fr-head .tbclock em { font-weight:600; }
@@ -6185,7 +6208,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .main:has(.jp-sheet:not(.jp-doc)) .topbar.fr-head { background:var(--jp-ground); }
 /* the card's open items (On this job) sit under the head, in the page's one column */
 .fg .jp-sheet > .wb2-jcatt { margin:16px 0 0; }
-.fg .jp-head { display:flex; flex-direction:column; gap:16px; }
+.fg .jp-head { display:flex; flex-direction:column; gap:12px; }
 .fg .jp-top { display:flex; align-items:flex-start; gap:16px; min-width:0; }
 /* the name grows from nothing, so a long one wraps beside the stages line
    rather than squeezing it until its words touch (the walk of 15 November
@@ -6243,14 +6266,18 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    while a new one comes. */
 .fg .jp-sheet { --jp-side:380px; }
 .fg .jp-top--site { align-items:flex-start; }
-.fg .jp-words { flex:1 1 0; min-width:0; display:flex; flex-direction:column; justify-content:center; gap:8px; min-height:120px; box-sizing:border-box; padding:16px 24px; border-radius:var(--r-card); background:var(--paper); box-shadow:var(--shadow-card); }
-.fg .jp-words > .jp-id { flex:none; }
+.fg .jp-words { flex:1 1 0; min-width:0; display:flex; flex-direction:row; align-items:center; gap:16px; min-height:0; box-sizing:border-box; padding:12px 16px; border-radius:var(--r-card); background:var(--paper); box-shadow:var(--shadow-card); }
+/* THE DENSER HEAD (Isaac, 23 November 2026, "Build all six" to
+   https://claude.ai/artifact/8UsC9Cuf7RCMNi2tKqsP56): the plate, the name
+   and the site on one line, the address one line too, so the card is 64
+   high and the map beside it as tall. A long name still wraps. */
+.fg .jp-words > .jp-id { flex:0 1 auto; }
+.fg .jp-words > .jp-site { flex:1 1 auto; min-width:0; }
 .fg .jp-site { display:flex; align-items:center; flex-wrap:wrap; gap:8px 16px; }
-.fg .jp-addr { display:flex; flex-direction:column; margin:0; font-size:14px; line-height:20px; color:var(--ink); }
+.fg .jp-addr { display:block; margin:0; font-size:14px; line-height:20px; color:var(--ink); }
 .fg .jp-addr b { font-weight:600; }
-.fg .jp-addr span { color:var(--q); }
 .fg .jp-site .jov-po { margin:0; }
-.fg .jp-map { position:relative; flex:none; align-self:stretch; display:block; width:var(--jp-side); min-height:120px; border-radius:var(--r-card); background:var(--soft); box-shadow:var(--shadow-card); overflow:hidden; }
+.fg .jp-map { position:relative; flex:none; align-self:stretch; display:block; width:var(--jp-side); min-height:64px; border-radius:var(--r-card); background:var(--soft); box-shadow:var(--shadow-card); overflow:hidden; }
 .fg .jp-map img { position:absolute; inset:0; display:block; width:100%; height:100%; object-fit:cover; }
 .fg .jp-map:focus-visible { outline:none; box-shadow:var(--ring); }
 /* Actions at the right end of the tabs' row, under the map, standing on the tabs' line */
@@ -6841,6 +6868,16 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 /* a web address in a message: a link in the words' own colour */
 .fg .jc-bubble .jc-link, .pt-dialog .cmsg-words .jc-link { color:inherit; text-decoration:underline; text-underline-offset:2px; overflow-wrap:anywhere; }
 .fg .jc-bmtime { display:flex; align-items:center; gap:8px; margin:0; font-size:12px; line-height:16px; color:var(--q); }
+/* AN EMAIL IS A PLAIN ROW (customer-thread.tsx, EMAIL_WHOLE_LINES): on the
+   left, the whole width, no fill; the name in ink over three lines at 14,
+   the third fading when there's more, as rule 50 has it, never a "…" */
+.fg .jc-bm--email { align-self:stretch; align-items:flex-start; max-width:100%; }
+.fg .jc-bm--email .jc-bmname { font-size:13px; line-height:18px; color:var(--ink); }
+.fg .jc-thbody .jc-bm--email .jc-bubble { padding:0; border-radius:0; background:none; color:var(--ink); }
+.fg .jc-bm--email .jc-bubble .jc-bubwords { font-size:14px; line-height:20px; }
+.fg .jc-bm--email .jc-bubble .jc-bubwords--clamped { max-height:calc(20px * 3); -webkit-mask-image:linear-gradient(to bottom, var(--ink) calc(100% - 20px), transparent); mask-image:linear-gradient(to bottom, var(--ink) calc(100% - 20px), transparent); }
+.fg .jc-bm--email + .jc-bm--email { margin-top:8px; }
+.fg .jc-bm + .jc-bm--email.jc-bm--first { margin-top:12px; }
 /* THE TIFF CONVERSATION'S SIDES (Isaac, 26 October 2026, on
    https://claude.ai/artifact/7aVi2krm8t7m6JAMNVSnVN): your words on the
    right and everyone else's on the left, both the light grey (`--bubble-them`;
@@ -6955,34 +6992,50 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    each scrolling inside itself. */
 .fg .jov.jov--fit { display:grid; grid-template-columns:320px minmax(0,1fr); gap:16px; align-items:start; }
 .fg .jov--fit > .jov-left { display:flex; flex-direction:column; min-width:0; }
-.fg .jov--fit > .jov-left > .jfc { height:var(--fit-h, auto); overflow:auto; }
+.fg .jov--fit > .jov-left > .jfc { height:var(--fit-h, auto); overflow:hidden; }
 .fg .jov--fit > .jov-side { display:flex; flex-direction:column; min-width:0; height:var(--fit-h, auto); padding:0; border:0; }
 .fg .jov--fit > .jov-side > .jov-sec { flex:1 1 auto; min-height:0; overflow:auto; }
 /* THE FEED LIKE A CHAT (job-conversation.tsx; Isaac, 14 November 2026, mock
    D): its head and tabs stay at the top, the box at the card's foot, and the
    feed between them scrolls, oldest at the top, opening at the newest */
-.fg .jov--fit > .jov-side > .jov-sec.jc-convo { display:flex; flex-direction:column; overflow:hidden; padding-bottom:16px; }
+.fg .jov--fit > .jov-side > .jov-sec.jc-convo { display:flex; flex-direction:column; overflow:hidden; }
+/* THE FEED'S GREEN HEAD (Isaac, 24 November 2026: "do the same to
+   activity"): the title and tabs in white on the green, the picked tab
+   white with green words, a tab with something to look at keeps its word
+   white with a dot in its colour; the feed and its box on white under it,
+   curling into the green at both corners, as At a glance does */
+.fg .jov .jov-sec.jc-convo { padding:0; background:var(--green-w); }
+.fg .jov .jc-convo > .jov-head { flex:none; min-height:56px; margin:0; padding:12px 16px; color:var(--white); }
+.fg .jov .jc-convo > .jov-head .jov-headact { color:var(--white); }
+.fg .jc-convo > .jov-head .pt-vtab,
+.fg .jc-convo > .jov-head .pt-vtab.pt-vtab--look:not([aria-selected="true"]),
+.fg .jc-convo > .jov-head .pt-vtab.pt-vtab--wrong:not([aria-selected="true"]) { color:var(--white); }
+.fg .jc-convo > .jov-head .pt-vtab[aria-pressed="true"] { background:var(--white); color:var(--green-w); }
+.fg .jc-convo > .jov-head .pt-vtab--look .pt-vtab-word::after,
+.fg .jc-convo > .jov-head .pt-vtab--wrong .pt-vtab-word::after { content:""; display:inline-block; width:8px; height:8px; margin-left:4px; border-radius:50%; background:var(--orange); vertical-align:2px; }
+.fg .jc-convo > .jov-head .pt-vtab--wrong .pt-vtab-word::after { background:var(--red); }
+.fg .jc-convo > .jc-body { display:flex; flex-direction:column; flex:1 1 auto; min-height:0; padding:0 16px 16px; border-radius:26px 26px 0 0; background:var(--paper); }
 /* the feed fades at both ends rather than stopping at a line: 24 fade out
    under its head and over its box, and 24 over its oldest item and under
    its newest keep each whole at the ends (Isaac, 22 November 2026: "take
    hard line under activity feed so feed doesnt look cut off. let it fade
    up", then "top and bottom yeah?") */
-.fg .jc-convo > .jc-feed { flex:1 1 auto; min-height:0; overflow:auto; border-top:0; padding:24px 0;
+.fg .jc-convo > .jc-body > .jc-feed { flex:1 1 auto; min-height:0; overflow:auto; border-top:0; padding:24px 0;
   -webkit-mask-image:linear-gradient(to bottom, transparent, var(--ink) 24px, var(--ink) calc(100% - 24px), transparent);
   mask-image:linear-gradient(to bottom, transparent, var(--ink) 24px, var(--ink) calc(100% - 24px), transparent); }
-.fg .jc-convo > .jc-foot { flex:none; margin:0; padding-top:0; border-top:0; }
-.fg .jc-convo > .jc-feed > .jc-day:last-child > .jc-entry:last-child { border-bottom:0; }
+.fg .jc-convo > .jc-body > .jc-foot { flex:none; margin:0; padding-top:0; border-top:0; }
+.fg .jc-convo > .jc-body > .jc-feed > .jc-day:last-child > .jc-entry:last-child { border-bottom:0; }
 /* a To do in the feed: its tick, its words, who it's for and when; red once overdue (calls 6 and 7) */
 /* the feed's box on one row, as the mock draws it: the +, the words, then
    the microphone, Save and Tiff's ↑; a photo's chip above them */
-.fg .jc-convo > .jc-foot .cv-field { flex-direction:row; flex-wrap:wrap; align-items:center; gap:8px; }
-.fg .jc-convo > .jc-foot .cv-field > .cv-boxbar { display:contents; }
-.fg .jc-convo > .jc-foot .cv-field > .jc-photo { order:-1; flex:1 0 100%; }
-.fg .jc-convo > .jc-foot .cv-boxbar > .jc-lead { order:0; display:flex; }
-.fg .jc-convo > .jc-foot .cv-field > .cv-wordsat { order:1; flex:1 1 0; }
-.fg .jc-convo > .jc-foot .cv-wordsat > .cv-words { margin:8px 0; }
-.fg .jc-convo > .jc-foot .cv-boxbar > .tc-sp { display:none; }
-.fg .jc-convo > .jc-foot .cv-boxbar > :not(.jc-lead):not(.tc-sp) { order:2; }
+.fg .jc-convo > .jc-body > .jc-foot .cv-field { flex-direction:row; flex-wrap:wrap; align-items:center; gap:8px; }
+.fg .jc-convo > .jc-body > .jc-foot .cv-field > .cv-boxbar { display:contents; }
+.fg .jc-convo > .jc-body > .jc-foot .cv-field > .jc-photo { order:-1; flex:1 0 100%; }
+.fg .jc-convo > .jc-body > .jc-foot .cv-boxbar > .jc-lead { order:0; display:flex; }
+.fg .jc-convo > .jc-body > .jc-foot .cv-field > .cv-wordsat { order:1; flex:1 1 0; }
+.fg .jc-convo > .jc-body > .jc-foot .cv-wordsat > .cv-words { margin:8px 0; }
+.fg .jc-convo > .jc-body > .jc-foot .cv-boxbar > .tc-sp { display:none; }
+.fg .jc-convo > .jc-body > .jc-foot .cv-boxbar > :not(.jc-lead):not(.tc-sp) { order:2; }
 .fg .jc-todo { display:flex; flex-direction:column; gap:4px; min-width:0; }
 .fg .jc-todorow { display:flex; align-items:flex-start; gap:12px; min-width:0; }
 .fg .jc-todorow .pt-tick { flex:none; margin-top:2px; }
@@ -6991,9 +7044,9 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 /* on a fitted tab the job's head stays put while a short window scrolls the
    cards under it (call 11, mock C) */
 .fg .wrap.jp:has(.jp-fit:not([hidden])) { padding-top:0; }
-.fg .wrap.jp:has(.jp-fit:not([hidden])) .jp-head { position:sticky; top:0; z-index:10; padding-top:24px; background:var(--jp-ground, var(--paper)); }
+.fg .wrap.jp:has(.jp-fit:not([hidden])) .jp-head { position:sticky; top:0; z-index:10; padding-top:8px; background:var(--jp-ground, var(--paper)); }
 /* THE FACTS CARD (job-facts.tsx): one card, its parts under hairlines */
-.fg .jfc { flex:none; display:flex; flex-direction:column; min-width:0; overflow:hidden; border-radius:var(--r-card); background:var(--paper); box-shadow:var(--shadow-card); }
+.fg .jfc { flex:none; display:flex; flex-direction:column; min-width:0; overflow:hidden; border-radius:var(--r-card); background:var(--q); box-shadow:var(--shadow-card); }
 .fg .jfc-part { position:relative; display:flex; flex-direction:column; align-items:flex-start; gap:4px; min-width:0; padding:12px 16px; transition:background-color var(--t-fast) var(--ease); }
 .fg .jfc-part + .jfc-part { border-top:1px solid var(--line); }
 .fg .jfc-part--door:hover { background:var(--hov); }
@@ -7001,6 +7054,20 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 /* the map over the site (Isaac, 14 November 2026: "Yes, add the map"): its room is kept while it loads */
 .fg .jfc .jov-addr { display:flex; flex-direction:column; margin-top:8px; white-space:normal; color:var(--q); overflow-wrap:anywhere; }
 .fg .jfc .jov-addr b { font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+/* AT A GLANCE (job-facts.tsx; Isaac, 24 and 25 November 2026): the head in
+   white on the quiet grey, the body on white curling into it at both
+   corners with the box's 26, as the page curls into the sidebar. Next
+   visit: the day and time at 20, who is booked, then its one blue button. */
+.fg .jfc-head { flex:none; display:flex; align-items:center; gap:8px; min-height:56px; padding:0 16px; color:var(--white); }
+.fg .jfc-title { margin:0; font-size:16px; line-height:24px; font-weight:600; color:inherit; }
+.fg .jfc-body { flex:1 1 auto; display:flex; flex-direction:column; min-height:0; overflow:auto; padding-top:8px; border-radius:26px 26px 0 0; background:var(--paper); }
+.fg .jfc .jfc-when { font-size:20px; line-height:28px; font-weight:600; color:var(--ink); }
+.fg .jfc .jfc-crew { display:flex; align-items:center; gap:4px; margin:0; font-size:14px; line-height:20px; color:var(--ink); }
+.fg .jfc .jfc-crew svg { flex:none; color:var(--q); }
+.fg .jfc .jfc-crew b { margin-right:4px; font-weight:600; font-variant-numeric:tabular-nums; }
+.fg .jfc .jfc-go { align-self:stretch; justify-content:center; margin-top:8px; }
+.fg .jfc .jfc-go.jov-press--held { height:36px; }
+.fg .jfc .jfc-stage { margin-left:4px; font-weight:600; color:var(--ink); }
 /* THE JOB TRACKER (job-tracker.tsx; the Billing mock, 16 November 2026):
    three side by side on grey, each a ring of what's used against what was
    quoted, green used, orange overtime, red only past the quote, the share

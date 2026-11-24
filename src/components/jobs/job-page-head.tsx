@@ -6,11 +6,12 @@ import { Menu, type MenuItem } from "@/components/parts/menu";
 import { Dot, type Hue } from "@/components/parts/state";
 import { SectionTabs, type TabItem } from "@/components/parts/tabs";
 import { Icon } from "@/components/shell/icon";
-import { WayBack } from "./way-back";
 
 /* A JOB PAGE'S HEAD (v2, step 5; the mock-ups v2-land-* and v2-leanC):
 
-     the way back, the screen you came from (way-back.tsx);
+     no way back above it: the sidebar's Jobs and the browser's Back do
+       that (Isaac, 23 November 2026, "Build all six" to the denser job
+       page, https://claude.ai/artifact/8UsC9Cuf7RCMNi2tKqsP56);
      the job's plate, as a Schedule card draws a booking (rule 19): its
        number in a solid box of the job's colour, white on it, and beside
        it the job's client, as Schedule, Jobs and the tab name a job (Isaac,
@@ -23,7 +24,8 @@ import { WayBack } from "./way-back";
        its dot. A long name wraps, to three lines at ServiceM8's 100
        characters, and never fades (Isaac, 14 November 2026, call 19,
        mock C: important text never fades);
-     under the name, the site: its address, Site notes and their PO; and on
+     beside the name, on the same line, the site: its address on one line,
+       Site notes and their PO (the denser page, 23 November 2026); and on
        the right, the map of it, fading into the words, pressed for the
        directions (Isaac, 16 November 2026: "The map can probably become
        like a hero", A on https://claude.ai/artifact/XbKL1kUEjP1YxP3qEAQnL6).
@@ -104,7 +106,6 @@ export function JobPageHead({ name, description = null, number = null, site = nu
   );
   return (
     <header className="jp-head">
-      <WayBack />
       <div className="jp-top jp-top--site">
         <div className="jp-words">
           <div className={`jp-id jp-plate jp-plate--${hue}`}>

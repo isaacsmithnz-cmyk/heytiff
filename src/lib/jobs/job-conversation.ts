@@ -307,6 +307,8 @@ export type NextVisit = {
   when: string;
   /** Who is booked, by name. */
   who: string | null;
+  /** How many are booked (Isaac, 25 November 2026: "just have person symbol and number with names"). */
+  crew: number;
   /** Where the time isn't settled: a word in orange. */
   state: { word: string; tone: Tone } | null;
 };
@@ -339,6 +341,7 @@ export function nextVisitOf(
   return {
     when: clock ? `${dayWords}, ${clock}` : dayWords,
     who: names.length ? andList(names) : null,
+    crew: names.length,
     state: noClock
       ? { word: "Time to confirm", tone: "look" }
       : unsent

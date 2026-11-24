@@ -97,7 +97,7 @@ export type BatchPlan =
   | { kind: "done" }
   | { kind: "refused"; error: string };
 
-const DOC_COLUMNS = "status, next_page, page_count, chunk_count, scanned_pages, storage_ref, source, edition, title, file_name, released";
+const DOC_COLUMNS = "status, next_page, page_count, chunk_count, scanned_pages, storage_ref, source, edition, title, file_name, released, category";
 
 /* What to do with this document right now.
 
@@ -333,12 +333,18 @@ export async function processBatch(documentId: string, orgId: string, cache?: Pd
        chunks still match on their own content; null embeddings still match on
        keywords, and a later run backfills them once a key exists. */
     const texts = chunks.map((c) => c.content);
-    /* THE MAKER AND THE EDITION, off the cover and the imprint (./imprint),
-       asked once, in the first batch, beside the tagging, and only for a
-       field nobody has filled */
-    const known = { source: (row.source as string | null) ?? null, edition: (row.edition as string | null) ?? null };
-    const wantImprint = window.from === 1 && (!known.source?.trim() || !known.edition?.trim());
-    const cover = wantImprint ? pages.filter((p) => p.page <= 3).map((p) => p.text).join("\n") : "";
+    /* WHAT THE COVER SAYS (./imprint): the maker, the edition, what the
+       document is, its shelf and the date it prints. Asked once, in the first
+       batch, beside the tagging; `imprintPatch` decides what of it may be
+       written (never over a title somebody wrote). */
+    const known = {
+      source: (row.source as string | null) ?? null,
+      edition: (row.edition as string | null) ?? null,
+      title: (row.title as string | null) ?? null,
+      category: (row.category as string | null) ?? null,
+      file_name: (row.file_name as string | null) ?? null,
+    };
+    const cover = window.from === 1 ? pages.filter((p) => p.page <= 3).map((p) => p.text).join("\n") : "";
     const [tagged, embedded, imprint] = await Promise.all([
       tagChunks(texts, documentId),
       embedTexts(texts, "document"),
@@ -348,11 +354,18 @@ export async function processBatch(documentId: string, orgId: string, cache?: Pd
     const keywords = tagged.ok ? tagged.keywords : chunks.map(() => []);
 
     /* WHEN IT CAME OUT (./released), read once in the first batch: the date
-       printed on its title, file or edition, else the PDF's own date */
+       printed on its title, file, edition or cover, else the PDF's own date
+       when a scanner or converter didn't make the PDF */
     const released =
       window.from === 1 && !row.released
         ? releasedOf(
-            { title: (row.title as string | null) ?? null, fileName: (row.file_name as string | null) ?? null, edition: imprint?.edition ?? known.edition },
+            {
+              title: known.title,
+              fileName: known.file_name,
+              edition: imprint?.edition ?? known.edition,
+              issued: imprint?.issued ?? null,
+              producer: await pdf.producer?.().catch(() => null),
+            },
             await pdf.made?.().catch(() => null),
           )
         : null;
@@ -394,7 +407,7 @@ export async function processBatch(documentId: string, orgId: string, cache?: Pd
 
     const { error: updateErr } = await supabaseAdmin
       .from("kb_documents")
-      .update({ ...patch, ...(imprint ? imprintPatch(known, imprint) : {}), ...(released ? { released } : {}) })
+      .update({ ...patch, ...(imprint ? imprintPatch(known, imprint, cover) : {}), ...(released ? { released } : {}) })
       .eq("org_id", orgId)
       .eq("id", documentId);
     if (updateErr) return fail(documentId, orgId, doc, "That document couldn't be updated.");

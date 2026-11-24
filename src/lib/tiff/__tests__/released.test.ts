@@ -1,6 +1,6 @@
 /* When a manual came out: printed on its title, file or edition, else the PDF's own date. */
 
-import { editionWords, pdfDate, printedDate, releasedOf } from "../released";
+import { editionWords, pdfDate, printedDate, releasedOf, madeByConverter } from "../released";
 
 const NOW = new Date("2026-10-30T00:00:00Z");
 
@@ -68,5 +68,23 @@ describe("editionWords", () => {
     expect(editionWords("2024")).toBeNull();
     expect(editionWords("  ")).toBeNull();
     expect(editionWords(null)).toBeNull();
+  });
+});
+
+/* 24 November 2026: a 2018 sheet photographed or saved from Word today wore
+   2026. The cover's printed date comes first; a scanner's or converter's own
+   date is never the manual's. */
+describe("a scan or a conversion", () => {
+  const now = new Date("2026-11-24T00:00:00Z");
+  it("takes the date the cover prints before the PDF's own", () => {
+    expect(releasedOf({ title: "PFC testing", fileName: "PFC testing.pdf", edition: null, issued: "21 April 2017" }, "D:20261124", now)).toBe("2017-04-01");
+  });
+  it("gives no year when only a scanner or converter dated the PDF", () => {
+    expect(madeByConverter("Skia/PDF m131 · Mozilla/5.0 Chrome/131")).toBe(true);
+    expect(madeByConverter("macOS Version 15.1 Quartz PDFContext")).toBe(true);
+    expect(madeByConverter("TinyScan")).toBe(true);
+    expect(madeByConverter("Adobe PDF Library 17.0 · Adobe InDesign 18.2")).toBe(false);
+    expect(releasedOf({ title: "EEV coil information", fileName: "EEV_Coil INFO.pdf", edition: null, producer: "Skia/PDF m131" }, "D:20261124", now)).toBeNull();
+    expect(releasedOf({ title: "Brochure", fileName: "b.pdf", edition: null, producer: "Adobe InDesign 18.2" }, "D:20230713", now)).toBe("2023-07-01");
   });
 });

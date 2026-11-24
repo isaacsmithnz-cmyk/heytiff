@@ -726,6 +726,18 @@ https://claude.ai/artifact/WN4fW9vkQhVW4ZGFQ1knq3).
 - **A step is one screen, like troubleshooting**: what to do, then one or
   two buttons 60 high, the first blue. "done can read as finished, use
   next if theres another step".
+- **On today's job, under What's happened?, on every job** (24 November
+  2026: "should each job find the nearest hospital", then "Build it" to
+  the same canvas's second row). The first aider is the one the SWMS names,
+  else someone else booked on the job who has first aid on file; the
+  hospital the one the SWMS names, else the nearest emergency department
+  to the job's pin, from a list of public hospitals with one kept in the
+  app (`lib/hospitals`), never a map search, which finds private and day
+  hospitals with none. How far is a straight line, said as "6 km away"
+  after a comma, not "· 6 km" (old law 21). Call and Directions are blue
+  words at the row's end. The SWMS's Nearest hospital is a chooser of the
+  three nearest with their distance, the nearest chosen, and Another
+  hospital types one in.
 
 #### In the Studio
 

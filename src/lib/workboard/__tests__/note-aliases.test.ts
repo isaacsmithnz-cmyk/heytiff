@@ -60,7 +60,8 @@ describe("the question and the answer", () => {
   it("(F) asks who a name is BY NAME the first time", () => {
     const p = shapeProposal(task("Bobo"), modal(STAFF), "Tell Bobo he needs to drop his van off tomorrow morning");
     expect(p.clarify?.question).toBe("Who's Bobo?");
-    expect(p.clarify?.options).toEqual(["Me"]);
+    // answered from the team (bug 88): the reply names the person it is
+    expect(p.clarify?.options).toEqual(["Bobby Tran", "Isaac Smith", "Leonardo Martins"]);
     expect(p.tasks[0]).toMatchObject({ assigneeId: null, assigneeHint: "Bobo" });
   });
 

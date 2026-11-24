@@ -575,6 +575,33 @@ describe("talking", () => {
     await user.click(within(dialog()).getByRole("button", { name: "Me" }));
     expect(continueNote).toHaveBeenCalledWith("n1", "Me", ["tasks:0"]);
   });
+
+  /* bug 88 (Isaac, 24 November 2026): "It should be a dropdown. With... The
+     label, anyone, and then specific staff underneath" */
+  it("asks who goes from one dropdown: its label, Anyone, then the team; picked, it is the reply", async () => {
+    const question = "Who should go to Exampleton to move it, and when?";
+    routeNote.mockResolvedValue(
+      routed({
+        say: `I'll file a variation. ${question}`,
+        clarify: { question, options: ["Anyone", "Isaac Smith", "Lyle Nguyen"], who: "go" },
+      })
+    );
+    continueNote.mockReturnValue(new Promise(() => {}));
+    const user = await openModal();
+    await say(user, "the client wants the grille moved");
+    await flush();
+
+    // asked once, and no row of buttons
+    expect(within(dialog()).getByText(`I'll file a variation. ${question}`, { selector: ".tm-tt" })).toBeInTheDocument();
+    expect(within(dialog()).queryByRole("button", { name: "Lyle Nguyen" })).toBeNull();
+    const who = within(dialog()).getByRole("combobox", { name: "Who goes" });
+    expect(who).toHaveTextContent("Who goes");
+    await user.click(who);
+    const list = await screen.findByRole("listbox");
+    expect(within(list).getAllByRole("option").map((o) => o.textContent)).toEqual(["Anyone", "Isaac Smith", "Lyle Nguyen"]);
+    await user.click(within(list).getByRole("option", { name: "Lyle Nguyen" }));
+    expect(continueNote).toHaveBeenCalledWith("n1", "Lyle Nguyen", []);
+  });
 });
 
 describe("after filing", () => {

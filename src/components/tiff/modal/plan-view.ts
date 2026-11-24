@@ -149,12 +149,19 @@ export function calendarRows(plan: readonly LinePlanRow[]): PlanRowView[] {
 }
 
 /** Tiff's question, said once: her line already ends with it when the model
-    followed the brief, and when it did not the question is added. */
+    followed the brief, and when it did not the question is added.
+
+    A LINE THAT ASKS ALREADY ASKS IT (bug 87, Isaac, 24 November 2026: "Who
+    should go to Exampleton to move it, and when? Who should go to Exampleton
+    to move the master bedroom grille, and when?"). Her line asked the
+    question in her own words and the question asked it in the record's, so
+    the two never matched letter for letter and both were said. A line with
+    a question in it is her question, in the language she spoke. */
 export function askLine(say: string, question: string): string {
   const s = say.trim();
   const q = question.trim();
   if (!s) return q;
-  if (!q || s.includes(q)) return s;
+  if (!q || s.includes(q) || s.includes("?")) return s;
   return `${s} ${q}`;
 }
 

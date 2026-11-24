@@ -37,7 +37,7 @@ import { freeStarts, lengthOf, type BusySpan, type ProposedVisit, type VisitWhy 
 export type VisitRoute =
   | { kind: "book"; jobUuid: string; staffUuid: string; trial: boolean }
   | { kind: "heytiff"; why: Extract<VisitWhy, "off" | "not_linked">; staffUuid: string | null }
-  | { kind: "task"; why: Extract<VisitWhy, "no_right" | "no_job"> };
+  | { kind: "task"; why: Extract<VisitWhy, "no_right" | "no_job" | "anyone"> };
 
 const low = (u: string | null | undefined) => (u ?? "").trim().toLowerCase();
 

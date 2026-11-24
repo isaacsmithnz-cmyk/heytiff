@@ -2,6 +2,7 @@
 
 import { Fade } from "@/components/parts/fade";
 import { Button, IconButton } from "@/components/parts/button";
+import { Chooser } from "@/components/parts/chooser";
 import { useContext, useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
@@ -12,7 +13,7 @@ import { WindowsContext } from "@/components/records/records-context";
 import { saveJobNote } from "@/app/actions/job-notes";
 import { useNoteScope } from "@/components/notes/note-context";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
-import type { EarlierTurn, TiffRoom } from "@/lib/workboard/note-turns";
+import { WHO_LABEL, type EarlierTurn, type TiffRoom, type WhoAsk } from "@/lib/workboard/note-turns";
 import { EASE, MOVE_MS, canAnimate, prefersStill, tokenMs, useBoxMotion, useGrow } from "./box-motion";
 import type { PlanRowView } from "./plan-view";
 import { keepChat } from "./keep-chat";
@@ -500,7 +501,7 @@ export function TurnView({
         </ul>
       )}
 
-      <Quick answers={asking ? (turn.quick ?? []) : []} onAnswer={c.answer} />
+      <Quick answers={asking ? (turn.quick ?? []) : []} people={turn.people} onAnswer={c.answer} />
 
       {/* her quick price, onto the job's quote as an option of its own */}
       {turn.offer && !turn.streaming && (
@@ -592,13 +593,38 @@ function PlanRow({
 }
 
 /** Her quick answers, under her question. They leave by their own box once
-    one is tapped or the question is answered. */
-function Quick({ answers, onAnswer }: { answers: QuickAnswer[]; onAnswer: (q: QuickAnswer) => void }) {
+    one is tapped or the question is answered.
+
+    A PERSON IS PICKED FROM ONE DROPDOWN (bug 88, Isaac, 24 November 2026:
+    "It's showing a random list of employees to go. It should be a dropdown.
+    With... The label, anyone, and then specific staff underneath"): its
+    label, then "Anyone" where someone is to go, then the team, the person
+    speaking by their own name. Picked, it is a reply in the name it showed,
+    as a tapped answer is. */
+function Quick({ answers, people, onAnswer }: { answers: QuickAnswer[]; people?: WhoAsk; onAnswer: (q: QuickAnswer) => void }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const [held, setHeld] = useState(answers);
   if (answers.length && answers !== held) setHeld(answers);
   const shown = useBoxMotion(ref, answers.length > 0);
   if (!shown || !held.length) return null;
+  if (people) {
+    return (
+      <div className="tm-quick" ref={ref}>
+        <Chooser
+          className="tm-quick-who"
+          aria-label={WHO_LABEL[people]}
+          placeholder={WHO_LABEL[people]}
+          options={held.map((q) => ({ value: q.label, label: q.label }))}
+          value={null}
+          disabled={!answers.length}
+          onChange={(label) => {
+            const q = held.find((a) => a.label === label);
+            if (q) onAnswer(q);
+          }}
+        />
+      </div>
+    );
+  }
   return (
     <div className="tm-quick" ref={ref}>
       {held.map((q) => (

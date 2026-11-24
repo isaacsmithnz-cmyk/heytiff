@@ -211,6 +211,12 @@ jest.mock("@/lib/dashboard/job-candidates", () => ({
     return candidates;
   },
 }));
+/* the ServiceM8 jobs the words name (note-job-server), as a test sets them */
+let namedJobs: Row[] = [];
+let noClient = false;
+jest.mock("@/lib/workboard/note-job-server", () => ({
+  findNamedJobs: async () => ({ jobs: namedJobs, noClient }),
+}));
 const publishFieldNote = jest.fn();
 jest.mock("@/lib/tiff/field-notes", () => ({
   publishFieldNote: (i: unknown) => publishFieldNote(i),
@@ -660,7 +666,7 @@ describe("fileNote", () => {
     expect(noteRow().status).toBe("clarifying");
   });
 
-  it("asks who when a task has nobody on it, offering Me and the people the note names", async () => {
+  it("asks who when a task has nobody on it, answered from the whole team in one dropdown", async () => {
     note({
       transcript: "Callum said the grilles need ordering, tell Lyle too",
       proposal: { ...EMPTY, tasks: [task({ assigneeId: null, assigneeHint: "" })] },
@@ -671,7 +677,8 @@ describe("fileNote", () => {
       error: "Who should do this: Order the grilles?",
       ask: {
         question: "Who should do this: Order the grilles?",
-        options: [{ label: "Me" }, { label: "Callum" }, { label: "Lyle" }],
+        options: [{ label: "Callum Reid" }, { label: "Isaac Smith" }, { label: "Lyle Nguyen" }],
+        who: "do",
       },
       turns: expect.any(Array),
     });
@@ -692,7 +699,8 @@ describe("fileNote", () => {
     expect(row.status).toBe("clarifying");
     expect((row.proposal as NoteProposal).clarify).toEqual({
       question: "Who should do this: Order the grilles?",
-      options: ["Me", "Callum"],
+      options: ["Callum Reid", "Isaac Smith", "Lyle Nguyen"],
+      who: "do",
     });
     // Tiff's own line for the plan is untouched: it is what "Done." repeats
     expect((row.proposal as NoteProposal).say).toBe("A task to order the grilles.");
@@ -702,16 +710,16 @@ describe("fileNote", () => {
     expect((await fileNote("n-1")).ok).toBe(false);
     expect((row.turns as Row[]).filter((x) => x.text === asked[1])).toHaveLength(1);
 
-    // "Me", tapped, is the answer to that question: the next read is told not to ask again
+    // a name, picked, is the answer to that question: the next read is told not to ask again
     readNote.mockResolvedValue({ ok: true, proposal: { ...EMPTY, tasks: [task({ assigneeId: "s-me" })] } });
-    await continueNote("n-1", "Me");
+    await continueNote("n-1", "Isaac Smith");
     const follow = readNote.mock.calls[0][2];
     const sent = noteContent("Callum said the grilles need ordering", follow);
-    expect(sent).toContain("You: Who should do this: Order the grilles?\nThey: Me");
+    expect(sent).toContain("You: Who should do this: Order the grilles?\nThey: Isaac Smith");
     expect(sent).toContain("They answered your question. Do not ask again.");
   });
 
-  it("offers no Me to someone without a staff card", async () => {
+  it("offers the team, and no Me, to someone without a staff card", async () => {
     me = null;
     note({
       author_id: null,
@@ -719,7 +727,58 @@ describe("fileNote", () => {
       proposal: { ...EMPTY, tasks: [task({ assigneeId: null, assigneeHint: "" })] },
     });
     const res = await fileNote("n-1");
-    expect(!res.ok && res.ask?.options).toEqual([{ label: "Callum" }]);
+    expect(!res.ok && res.ask?.options).toEqual([{ label: "Callum Reid" }, { label: "Isaac Smith" }, { label: "Lyle Nguyen" }]);
+  });
+
+  describe("the job the words name (bugs 77, 87, 88)", () => {
+    const jobAt = (uuid: string, number: string, date: string, address = "12 Sample Road\nExampleton NSW 2000") => ({
+      uuid,
+      number,
+      address,
+      client: "Sampleco Building",
+      status: "Completed",
+      date,
+    });
+    afterEach(() => {
+      namedJobs = [];
+      noClient = false;
+    });
+
+    it("files a task on the most recent job at the address said, a finished one too", async () => {
+      namedJobs = [jobAt("job-old", "3239", "2026-08-27 00:00:00"), jobAt("job-new", "3239A", "2026-09-15 00:00:00")];
+      note({ proposal: { ...EMPTY, tasks: [task({ assigneeId: "s-me", assigneeHint: "me" })], jobNamed: { client: "", place: "12 Sample Road", number: "", latest: false } } });
+      db.sm8_jobs = [{ uuid: "job-new", org_id: "org-1" }];
+      const res = await fileNote("n-1");
+      expect(res.ok).toBe(true);
+      expect(rowsOf("tasks")[0]).toMatchObject({ sm8_job_uuid: "job-new" });
+      expect(noteRow()).toMatchObject({ target_kind: "job", target_id: "job-new" });
+    });
+
+    it("asks which when several places fit, with No job for a task that needs none", async () => {
+      namedJobs = [jobAt("job-a", "1", "2026-03-01"), jobAt("job-b", "2", "2026-02-01", "2 Two St\nExampleton NSW 2000")];
+      note({ proposal: { ...EMPTY, tasks: [task()], jobNamed: { client: "Sampleco Building", place: "", number: "", latest: false } } });
+      const res = await fileNote("n-1");
+      expect(!res.ok && res.ask).toEqual({
+        question: "Which job is this for?",
+        options: [
+          { label: "#1, Sampleco Building, 12 Sample Road, Exampleton NSW 2000", target: { kind: "job", id: "job-a" } },
+          { label: "#2, Sampleco Building, 2 Two St, Exampleton NSW 2000", target: { kind: "job", id: "job-b" } },
+          { label: "No job", target: { kind: "none" } },
+        ],
+      });
+      expect(rowsOf("tasks")).toEqual([]);
+      // "No job" files it past the question, on none
+      const filed = await fileNote("n-1", { retarget: { kind: "none" } });
+      expect(filed.ok).toBe(true);
+      expect(rowsOf("tasks")[0]).toMatchObject({ sm8_job_uuid: null });
+    });
+
+    it("says what she looked for when nothing fits", async () => {
+      noClient = true;
+      note({ proposal: { ...EMPTY, tasks: [task()], say: "A task for Lyle.", jobNamed: { client: "Sampleco Building", place: "Exampleton", number: "", latest: true } } });
+      const res = await fileNote("n-1");
+      expect(res.ok && res.turns.at(-1)?.text).toBe("Done. A task for Lyle. I couldn't find Sampleco Building among your clients.");
+    });
   });
 
   it("a question never reopens a note filed in the moment since", async () => {

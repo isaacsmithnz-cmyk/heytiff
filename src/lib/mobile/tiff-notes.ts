@@ -17,7 +17,7 @@ import { looksLikeMove, looksLikeQuestion, priceIntent } from "@/lib/brain/inten
 import { openName, parseMove } from "@/lib/tiff/moves";
 import { filesNothing, planRows } from "@/lib/workboard/note-draft";
 import type { NoteProposal, NoteStaff } from "@/lib/workboard/note-brain";
-import { KEPT_AS_SAID, WHICH_JOB, earlierTurns } from "@/lib/workboard/note-turns";
+import { KEPT_AS_SAID, WHICH_JOB, WHO_LABEL, earlierTurns, type WhoAsk } from "@/lib/workboard/note-turns";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { askLine, lastTiff, planView, tiffSince } from "@/components/tiff/modal/plan-view";
 
@@ -50,7 +50,10 @@ export type PhoneTurn =
   /** a question, or a move: stream it from her answer route */
   | { kind: "ask" }
   /** she needs an answer: what she has so far, and answers to tap */
-  | { kind: "asks"; noteId: string; say: string; rows: PhoneRow[]; options: PhoneOption[]; answer: "reply" | "job" | "visit" }
+  /** `who`: the answers are people, drawn as one dropdown under this label
+      ("Who goes": "Anyone", then the team), not as chips (bug 88). Absent
+      for every other question; a phone from before it draws chips. */
+  | { kind: "asks"; noteId: string; say: string; rows: PhoneRow[]; options: PhoneOption[]; answer: "reply" | "job" | "visit"; who?: string }
   /** filed: what she made, its doors' words, and Undo */
   | { kind: "filed"; noteId: string; say: string; rows: PhoneRow[]; doors: string[]; visits: string[] }
   /** something to say and nothing to do: a refusal, or words kept as said */
@@ -75,6 +78,9 @@ const rowsOf = (proposal: NoteProposal, staff: NoteStaff[], asking: boolean): Ph
     .filter((r) => !r.off)
     .map((r) => ({ key: r.key, lead: r.lead, join: r.join, text: datesInWords(r.text), needs: r.needs }));
 
+/** A who-question's dropdown label, for the phone to draw it as one (bug 88). */
+const whoOf = (who: WhoAsk | undefined): { who?: string } => (who ? { who: WHO_LABEL[who] } : {});
+
 const optionsOf = (ask: FileAsk): PhoneOption[] => ask.options.map((o) => ({ label: o.label, ...(o.target ? { target: o.target } : {}), ...(o.visit ? { visit: o.visit } : {}) }));
 
 /** A routed note: ask what is unclear, or file it now (use-conversation's `read`). */
@@ -83,7 +89,7 @@ async function read(r: Extract<RouteResult, { ok: true }>): Promise<PhoneTurn[]>
   /* "Which job?" is the one question a pick answers, and `fileNote` asks it
      with the jobs attached; every other question is a reply. */
   if (c && c.question !== WHICH_JOB) {
-    return [{ kind: "asks", noteId: r.noteId, say: askLine(r.proposal.say, c.question), rows: rowsOf(r.proposal, r.staff, true), options: c.options.map((label) => ({ label })), answer: "reply" }];
+    return [{ kind: "asks", noteId: r.noteId, say: askLine(r.proposal.say, c.question), rows: rowsOf(r.proposal, r.staff, true), options: c.options.map((label) => ({ label })), answer: "reply", ...whoOf(c.who) }];
   }
   return file(r.noteId, {}, r);
 }
@@ -105,7 +111,7 @@ async function file(noteId: string, opts: { retarget?: NoteTarget }, routed?: Ex
        what was filed; and when nothing landed yet, there is nothing to take back, so the plan goes with the question
        and there's no Undo. */
     if (res.ask && doors.length === 0 && visits.length === 0) {
-      return [{ kind: "asks", noteId, say: res.ask.question, rows, options: optionsOf(res.ask), answer: "visit" }];
+      return [{ kind: "asks", noteId, say: res.ask.question, rows, options: optionsOf(res.ask), answer: "visit", ...whoOf(res.ask.who) }];
     }
     const said = lastTiff(res.turns);
     const out: PhoneTurn[] = [{ kind: "filed", noteId, say: (res.ask && said === res.ask.question ? "" : said) || "Done.", rows, doors, visits }];
@@ -115,7 +121,7 @@ async function file(noteId: string, opts: { retarget?: NoteTarget }, routed?: Ex
   }
   if (res.ask) {
     const job = res.ask.question === WHICH_JOB;
-    return [{ kind: "asks", noteId, say: tiffSince(res.turns) || res.ask.question, rows: routed ? rowsOf(routed.proposal, routed.staff, true) : [], options: optionsOf(res.ask), answer: job ? "job" : "reply" }];
+    return [{ kind: "asks", noteId, say: tiffSince(res.turns) || res.ask.question, rows: routed ? rowsOf(routed.proposal, routed.staff, true) : [], options: optionsOf(res.ask), answer: job ? "job" : "reply", ...whoOf(res.ask.who) }];
   }
   return [{ kind: "said", say: res.error, failed: true }];
 }

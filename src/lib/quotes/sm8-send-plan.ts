@@ -22,8 +22,32 @@ import { billsForIt } from "./sm8-quote-brief";
    A quote with anything left to price isn't sent: what ServiceM8 invoices
    must be the whole quote. Pure. */
 
-/** A line as ServiceM8 takes it: unit price and unit cost, ex GST. */
-export type SendLine = { name: string; quantity: number; unitPriceCents: number; unitCostCents: number | null };
+/** A line as ServiceM8 takes it: unit price and unit cost, ex GST; the
+    price-book item it's on, where it has one. */
+export type SendLine = { name: string; quantity: number; unitPriceCents: number; unitCostCents: number | null; materialUuid?: string };
+
+/* AN OPTION'S "AS PER QUOTE" LINE IS ON THE BUSINESS'S OWN AS PER QUOTE
+   ITEM (bug 82, Luke, 24 November 2026, on 3595: "When you send two
+   pricing options it doesn't assign item code in Service m8"). A line sent
+   with no price-book item is matched by its name: "As Per Quote" found the
+   business's own item and its code, but "Option 1: …, as per quote" found
+   nothing, so ServiceM8 made a new item of each, with no code. Every such
+   line now names the item. */
+
+/** The business's As Per Quote item in its ServiceM8 price book: of the
+    live items named so, the one its job lines use most. Null with none. */
+export function asPerQuoteItem(
+  items: readonly { uuid: string; name: string | null; active: number | boolean | null }[],
+  used: readonly (string | null)[]
+): string | null {
+  const named = items.filter((m) => m.active !== 0 && m.active !== false && (m.name ?? "").trim().toLowerCase() === "as per quote");
+  if (!named.length) return null;
+  const n = new Map<string, number>();
+  for (const u of used) if (u) n.set(u.toLowerCase(), (n.get(u.toLowerCase()) ?? 0) + 1);
+  return [...named].sort((a, b) => (n.get(b.uuid.toLowerCase()) ?? 0) - (n.get(a.uuid.toLowerCase()) ?? 0))[0]!.uuid;
+}
+
+const onItem = (uuid: string | null | undefined) => (uuid ? { materialUuid: uuid } : {});
 
 export type SendOption = { index: number; build: BuildUp; left: number };
 
@@ -126,9 +150,9 @@ export function quoteSummary(draft: ProposalDraft, indices: readonly number[], f
 
 /** One accepted option's lines: one at its total, or every line of its
     build, its labour by the person-day, its contingency. */
-export function optionLines(draft: ProposalDraft, i: number, build: BuildUp, showLines: boolean): SendLine[] {
+export function optionLines(draft: ProposalDraft, i: number, build: BuildUp, showLines: boolean, asPerQuote?: string | null): SendLine[] {
   if (!showLines) {
-    return [{ name: `${optionHeading(draft, i)}, as per quote`, quantity: 1, unitPriceCents: build.exGstCents, unitCostCents: build.buyCents }];
+    return [{ name: `${optionHeading(draft, i)}, as per quote`, quantity: 1, unitPriceCents: build.exGstCents, unitCostCents: build.buyCents, ...onItem(asPerQuote) }];
   }
   const out: SendLine[] = build.groups.flatMap((g) =>
     g.lines.map((l) => ({
@@ -172,6 +196,8 @@ export function sendPlan(input: {
   taxRateUuid: string | null;
   /** the approved proposal, whose words make the scope */
   proposal?: ProposalWords | null;
+  /** the business's As Per Quote item (asPerQuoteItem) */
+  asPerQuote?: string | null;
 }): SendPlan {
   const { draft, accepted, showLines, job } = input;
   if (accepted.length === 0) return { ok: false, why: NONE_ACCEPTED };
@@ -190,7 +216,7 @@ export function sendPlan(input: {
     ok: true,
     status: status === "Quote" ? { from: "Quote", to: "Work Order" } : null,
     workDone: accepted.map((a) => scopeOf(draft, a.index, input.proposal)).join("\n\n"),
-    lines: accepted.flatMap((a) => optionLines(draft, a.index, a.build, showLines)),
+    lines: accepted.flatMap((a) => optionLines(draft, a.index, a.build, showLines, input.asPerQuote)),
     remove: kept(input.existing),
     taxRateUuid: input.taxRateUuid,
     exGstCents: accepted.reduce((s, a) => s + a.build.exGstCents, 0),
@@ -223,6 +249,8 @@ export function sendAsQuotePlan(input: {
   taxRateUuid: string | null;
   /** the approved proposal, whose words make the description */
   proposal?: ProposalWords | null;
+  /** the business's As Per Quote item (asPerQuoteItem) */
+  asPerQuote?: string | null;
 }): SendPlan {
   const { draft, options, job } = input;
   if (!input.approved) return { ok: false, why: NOT_APPROVED };
@@ -244,6 +272,7 @@ export function sendAsQuotePlan(input: {
       quantity: 1,
       unitPriceCents: o.build.exGstCents,
       unitCostCents: o.build.buyCents,
+      ...onItem(input.asPerQuote),
     })),
     remove: kept(input.existing),
     taxRateUuid: input.taxRateUuid,

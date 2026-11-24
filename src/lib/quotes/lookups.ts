@@ -4,6 +4,7 @@ import { matchesWords, sizesOf, usesOf, type Product } from "./families";
 import { searchWords, type Offer } from "./price-book";
 import { fuzzyWord, nearestIn, wordsOf } from "./fuzzy";
 import { sameUnitKey } from "./code-links";
+import { brandOf, unitPartOf } from "./brands";
 
 /* WHAT A QUOTE LOOKS THINGS UP IN (the engine rebuild, slice 1.1) — the
    business's own book, and the shared data packs for what a unit is.
@@ -94,15 +95,57 @@ const hayOf = (p: Product) => {
   return { plain, squashed: squash(plain), words: wordsOf(plain) };
 };
 
+/* A UNIT'S kW AND ITS PART, AS ITS CODE SAYS THEM (bug 79, Luke, 24
+   November 2026, on 3594: "Finding GAA??"). Tiff searched "Mitsubishi
+   Electric ducted 14kW" and was told the book had only the PEA-M140HAA:
+   its supplier names the PEA-M140GAA "DUCTED IND 13.5KW", and the maker's
+   own list "Ducted Unit". A unit is the kW its model class says (M140 is
+   14 kW) as well as the kW its name prints, and an indoor by its code. */
+const KW = /^(\d+(?:\.\d+)?)kw$/;
+/** A unit's kW: what each of its names prints, and its model class. */
+function kwOf(p: Product): number[] {
+  return p.offers.flatMap((o) => {
+    const named = o.name.match(/(\d+(?:\.\d+)?)\s*kW\b/i);
+    const cls = p.category === "units" ? o.code.match(/^[A-Z]+-[A-Z]*?(\d{2,3})(?!\d)/i) : null;
+    return [...(named ? [Number(named[1])] : []), ...(cls ? [Number(cls[1]) / 10] : [])];
+  });
+}
+/** Whether a unit is the kW or the part a word asks for. */
+function unitIs(p: Product, w: string): boolean {
+  const kw = KW.exec(w);
+  if (kw) return kwOf(p).some((k) => Math.abs(k - Number(kw[1])) < 0.05);
+  if (p.category === "units" && (w === "indoor" || w === "outdoor")) return p.offers.some((o) => unitPartOf(o.name, o.code) === w);
+  return false;
+}
+
+/* THE MAKER ASKED FOR, AS THE BOOK NAMES IT (bug 79). Tiff names a maker
+   as its data pack does ("mitsubishi-electric", 24 of her searches), or
+   shortly ("Mitsubishi"); the book's products say "Mitsubishi Electric",
+   and a search for exactly the one found nothing of the other. A maker
+   the book doesn't know by name is found by its name in the item's. */
+function brandFits(q: string): (p: Product) => boolean {
+  const said = q.replace(/[-_]+/g, " ").trim();
+  const maker = brandOf(said);
+  if (maker) return (p) => p.brand === maker;
+  const w = said.toLowerCase();
+  return (p) => (p.brand ?? "").toLowerCase() === w || carries(hayOf(p), w);
+}
+
 export function findInBook(products: Product[], q: BookQuery): BookHit[] {
-  const words = searchWords(q.text);
+  /* "14 kW" is one word, 14kw */
+  const words = searchWords(q.text.replace(/(\d+(?:\.\d+)?)\s*kw\b/gi, "$1kw"));
+  const ofBrand = q.brand == null || !q.brand.trim() ? null : brandFits(q.brand);
   const fits = (p: Product) =>
     (q.sizeMm == null || sizesOf(p.name).includes(q.sizeMm) || p.offers.some((o) => sizesOf(o.code).includes(q.sizeMm!))) &&
-    (q.brand == null || (p.brand ?? "").toLowerCase() === q.brand.toLowerCase()) &&
+    (ofBrand == null || ofBrand(p)) &&
     (q.category == null || p.category === q.category);
-  let hits = products.filter((p) => (words.length === 0 || matchesWords(p, words)) && fits(p));
+  /* a kW asked for is the unit's kW, whatever its name prints */
+  const plainWords = words.filter((w) => !KW.test(w));
+  const kws = words.filter((w) => KW.test(w));
+  const kwFits = (p: Product) => kws.every((w) => unitIs(p, w) || matchesWords(p, [w]));
+  let hits = products.filter((p) => (words.length === 0 || (matchesWords(p, plainWords) && kwFits(p))) && fits(p));
   /* nothing as typed: every word, as a supplier might write it */
-  if (hits.length === 0 && words.length > 0) hits = products.filter((p) => fits(p) && words.every((w) => carries(hayOf(p), w)));
+  if (hits.length === 0 && words.length > 0) hits = products.filter((p) => fits(p) && words.every((w) => unitIs(p, w) || carries(hayOf(p), w)));
   /* still nothing, for a person's search or Tiff's: the items with most of
      the words, a word typed a letter out found by its nearest (fuzzy.ts),
      the nearest first */
@@ -116,7 +159,7 @@ export function findInBook(products: Product[], q: BookQuery): BookHit[] {
       let n = 0;
       let score = 0;
       for (const w of content) {
-        const s = carries(hay, w) ? 1 : fuzzyWord(w) ? nearestIn(w, hay.words) : 0;
+        const s = carries(hay, w) || unitIs(p, w) ? 1 : fuzzyWord(w) ? nearestIn(w, hay.words) : 0;
         if (s > 0) {
           n++;
           score += s;

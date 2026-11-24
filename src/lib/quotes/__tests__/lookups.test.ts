@@ -100,6 +100,46 @@ describe("the book, as the business buys", () => {
   });
 });
 
+/* bug 79, Luke, 24 November 2026, on 3594: "Finding GAA??" — Tiff said
+   the book had no 14 kW GAA indoor, only the PEA-M140HAA, and the
+   PEA-M140GAA.TH was in it */
+describe("a unit as Tiff asks for it", () => {
+  const unit = (supplierKey: string, code: string, name: string, cents: number): Product => {
+    const of = { supplierKey, supplierName: supplierKey, code, name, netCents: cents };
+    return { key: `${supplierKey}|${code}`, name, category: "units" as Product["category"], offers: [of], cheapest: of, preferred: null, brand: "Mitsubishi Electric", quotes: 0 };
+  };
+  const gaaTh = unit("mitsubishi", "PEA-M140GAA.TH", "Ducted Unit", 420000);
+  const gaa = unit("aad", "PEA-M140GAA", "MITSUBISHI ELEC. DUCTED IND 13.5KW", 410000);
+  const haa = unit("aad", "PEA-M140HAA", "MITSUBISHI ELEC. 2PCE DUCTED IND 14KW", 380000);
+  const outdoor = unit("aad", "PUZ-M140VKA2-A", "MITSUBISHI ELEC. DUCT OUT 14KW 1P R32", 300000);
+  const daikin = { ...unit("aad", "FDYAN140A", "DAIKIN DUCTED IND 14KW", 350000), brand: "Daikin" };
+  const units = [gaaTh, gaa, haa, outdoor, daikin];
+  const codes = (hits: ReturnType<typeof findInBook>) => hits.map((h) => h.product.offers[0]!.code).sort();
+
+  it("finds a maker named as its data pack names it, or shortly", () => {
+    for (const brand of ["mitsubishi-electric", "Mitsubishi", "Mitsubishi Electric", "mitsubishi electric"]) {
+      expect(codes(findInBook(units, { text: "GAA", brand, loose: true }))).toEqual(["PEA-M140GAA", "PEA-M140GAA.TH"]);
+    }
+    expect(codes(findInBook(units, { text: "ducted", brand: "daikin", loose: true }))).toEqual(["FDYAN140A"]);
+  });
+
+  it("finds a unit by its model class's kW, whatever its name prints", () => {
+    expect(codes(findInBook(units, { text: "Mitsubishi Electric ducted 14kW", loose: true }))).toEqual(["PEA-M140GAA", "PEA-M140GAA.TH", "PEA-M140HAA"]);
+    expect(codes(findInBook(units, { text: "14 kW GAA indoor", loose: true }))).toEqual(["PEA-M140GAA", "PEA-M140GAA.TH"]);
+    expect(codes(findInBook(units, { text: "GAA 14kw", brand: "mitsubishi-electric" }))).toEqual(["PEA-M140GAA", "PEA-M140GAA.TH"]);
+  });
+
+  it("finds the .TH code by its model", () => {
+    expect(codes(findInBook(units, { text: "PEA-M140GAA" }))).toEqual(["PEA-M140GAA", "PEA-M140GAA.TH"]);
+    expect(codes(findInBook(units, { text: "M140GAA" }))).toEqual(["PEA-M140GAA", "PEA-M140GAA.TH"]);
+  });
+
+  it("keeps a kW that is a part's own words", () => {
+    const grille = { ...product("RATS1400", "RA GRILLE 10-14KW 1375 X 276", 9000) };
+    expect(codes(findInBook([grille, ...units], { text: "grille 14kw" }))).toEqual(["RATS1400"]);
+  });
+});
+
 describe("which item, which supplier", () => {
   it("takes the business's preferred, else the most quoted, at its cheapest supplier", () => {
     const two = { ...vb250, offers: [offer("VB250", vb250.name, 3045), { ...offer("VB250", vb250.name, 3300), supplierKey: "jz", supplierName: "J&Z" }] };

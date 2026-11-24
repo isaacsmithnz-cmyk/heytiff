@@ -50,6 +50,7 @@ const context = (over: Partial<SwmsWizardContext> = {}): SwmsWizardContext => ({
     jurisdiction: "NSW",
     postcode: "2228",
     categoryName: "Install",
+    pin: null,
   },
   team: [
     { id: "troy", name: "Troy Northam", role: "Supervisor", booked: true, tickets: [{ name: "White Card", expires: null, current: true }] },
@@ -61,7 +62,7 @@ const context = (over: Partial<SwmsWizardContext> = {}): SwmsWizardContext => ({
   canApprove: false,
   ownerName: "Isaac Smith",
   viewerStaffId: "troy",
-  hospital: null,
+  hospitals: [],
   ...over,
 });
 
@@ -225,17 +226,34 @@ describe("what the job already says", () => {
     expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
   });
 
-  /* the nearest hospital was typed from scratch on every SWMS */
-  it("starts with the hospital the last SWMS in the same postcode named, and says where it came from", async () => {
-    swmsWizardContext.mockImplementation(async () => context({ hospital: { name: "Sutherland Hospital, Caringbah", jobNumber: "2598" } }));
+  /* the nearest hospital was typed from scratch on every SWMS; now the nearest emergency departments are offered */
+  it("starts with the nearest emergency department, offers the next two, and takes another hospital typed in", async () => {
+    swmsWizardContext.mockImplementation(async () =>
+      context({ hospitals: [{ name: "Sutherland Hospital", km: 1.4 }, { name: "St George Hospital", km: 8.6 }, { name: "Sydney Hospital", km: 24.2 }] })
+    );
     open();
     await ready();
     await tab("Who it covers");
-    expect(screen.getByLabelText("Nearest hospital")).toHaveValue("Sutherland Hospital, Caringbah");
-    expect(screen.getByText("From job #2598, in the same postcode")).toBeInTheDocument();
-    await userEvent.clear(screen.getByLabelText("Nearest hospital"));
-    await userEvent.type(screen.getByLabelText("Nearest hospital"), "St George Hospital");
-    expect(screen.queryByText("From job #2598, in the same postcode")).toBeNull();
+    expect(screen.getByLabelText("Nearest hospital")).toHaveTextContent("Sutherland Hospital");
+    expect(screen.getByText("The nearest emergency department, 1 km from the site")).toBeInTheDocument();
+
+    await choose("Nearest hospital", /^St George Hospital/);
+    expect(screen.getByText("An emergency department, 9 km from the site")).toBeInTheDocument();
+
+    await choose("Nearest hospital", "Another hospital");
+    expect(screen.queryByText(/from the site$/)).toBeNull();
+    await userEvent.type(screen.getByRole("textbox", { name: "Another hospital" }), "Miranda Private");
+    expect(screen.getByRole("textbox", { name: "Another hospital" })).toHaveValue("Miranda Private");
+    expect(screen.getByLabelText("Nearest hospital")).toHaveTextContent("Another hospital");
+  });
+
+  it("types the hospital in where the site has no pin", async () => {
+    open();
+    await ready();
+    await tab("Who it covers");
+    expect(screen.getByLabelText("Nearest hospital")).toHaveValue("");
+    await userEvent.type(screen.getByLabelText("Nearest hospital"), "Sutherland Hospital");
+    expect(screen.getByLabelText("Nearest hospital")).toHaveValue("Sutherland Hospital");
   });
 
   /* the first aider started "Not named" though staff records said who holds first aid */

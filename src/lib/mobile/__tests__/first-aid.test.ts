@@ -4,10 +4,12 @@
 
 /* First aid's "On today's job": the job you're on now, else next, else the last today; its latest
    SWMS's first aider (with the number off their card, only when the name is theirs alone) and
-   nearest hospital; and nothing made up when there's no SWMS, no name or no number. Every read is
-   the phone's own workspace's. Fake people and places only. */
+   hospital; where the SWMS names nobody, someone else booked on the job with a current first aid
+   ticket, and where it names no hospital, the nearest emergency department to the job's pin; and
+   nothing made up past that. Every read is the phone's own workspace's. Fake people and sites only;
+   the hospitals are the list's own. */
 
-import { callable, namedOrNull, todaysBooking } from "../first-aid-plan";
+import { bookedFirstAider, callable, namedOrNull, todaysBooking } from "../first-aid-plan";
 
 type Rows = Record<string, Record<string, unknown>[]>;
 let rows: Rows = {};
@@ -45,11 +47,17 @@ jest.mock("@/lib/integrations/sm8-writes", () => ({ readSm8WriteState: async () 
 jest.mock("@/lib/integrations/sm8-booking-zone", () => ({ bookingZone: async () => ({ zone: "Australia/Sydney" }) }));
 jest.mock("../clock", () => {
   const { localNow } = jest.requireActual("@/lib/integrations/sm8-booking-plan");
-  return {
-    staffUuidOf: async () => "STAFF-1",
-    wallMinute: (iso: string, zone: string) => `${String(localNow(zone, Date.parse(iso))).slice(0, 16)}:00`,
-  };
+  return { wallMinute: (iso: string, zone: string) => `${String(localNow(zone, Date.parse(iso))).slice(0, 16)}:00` };
 });
+/* you are p0, STAFF-1 in ServiceM8; Sam Lee is p1 (STAFF-2), Alex Example p2 (STAFF-3) */
+jest.mock("@/lib/fleet/query", () => ({ staffProfileIdFor: async () => "p0" }));
+jest.mock("@/lib/integrations/links", () => ({
+  listSm8StaffLinks: async () => [
+    { remoteId: "STAFF-1", staffProfileId: "p0" },
+    { remoteId: "staff-2", staffProfileId: "p1" },
+    { remoteId: "STAFF-3", staffProfileId: "p2" },
+  ],
+}));
 
 import { readFirstAid } from "../first-aid";
 import type { MobileCtx } from "../auth";
@@ -60,9 +68,12 @@ const NOW = Date.parse("2026-11-23T23:30:00Z");
 const act = (job: string, start: string, end: string, org = "org-1") => ({
   org_id: org, job_uuid: job, staff_uuid: "STAFF-1", active: 1, activity_was_scheduled: 1, start_date: `2026-11-24 ${start}:00`, end_date: `2026-11-24 ${end}:00`,
 });
-const job = (uuid: string, n: string) => ({
-  org_id: "org-1", uuid, generated_job_id: n, job_address: "12 Example Street\nSampleton NSW 2000", geo_city: "Sampleton", geo_state: "NSW", geo_postcode: "2000",
+/* a pin a short walk from Westmead Hospital */
+const job = (uuid: string, n: string, pin: [number, number] = [-33.8, 150.99]) => ({
+  org_id: "org-1", uuid, generated_job_id: n, job_address: "12 Example Street\nSampleton NSW 2000", geo_city: "Sampleton", geo_state: "NSW", geo_postcode: "2000", lat: pin[0], lng: pin[1],
 });
+const booked = (job: string, staff: string) => ({ ...act(job, "10:00", "12:00"), staff_uuid: staff });
+const ticket = (id: string, type = "Provide First Aid HLTAID011", expiry: string | null = "2027-06-30") => ({ org_id: "org-1", staff_profile_id: id, type_name: type, expiry_date: expiry });
 const swmsFor = (jobUuid: string, versionId: string, emergency: Record<string, string>, issued = "2026-11-20T00:00:00Z") => [
   { table: "swms", row: { org_id: "org-1", id: `s-${versionId}`, sm8_job_uuid: jobUuid } },
   { table: "swms_versions", row: { org_id: "org-1", id: versionId, swms_id: `s-${versionId}`, issued_at: issued, content: { emergency } } },
@@ -80,9 +91,11 @@ beforeEach(() => {
       { org_id: "org-1", version_id: "v2", staff_profile_id: "p2" },
     ],
     staff_profiles: [
-      { org_id: "org-1", id: "p1", first_name: "Sam", last_name: "Lee", full_name: "Sam Lee", preferred_name: null, phone: "0400 000 000" },
-      { org_id: "org-1", id: "p2", first_name: "Alex", last_name: "Example", full_name: "Alex Example", preferred_name: null, phone: "0411 111 111" },
+      { org_id: "org-1", id: "p0", first_name: "Jo", last_name: "Viewer", full_name: "Jo Viewer", preferred_name: null, phone: "0422 222 222", status: "Active" },
+      { org_id: "org-1", id: "p1", first_name: "Sam", last_name: "Lee", full_name: "Sam Lee", preferred_name: null, phone: "0400 000 000", status: "Active" },
+      { org_id: "org-1", id: "p2", first_name: "Alex", last_name: "Example", full_name: "Alex Example", preferred_name: null, phone: "0411 111 111", status: "Active" },
     ],
+    staff_licences: [],
   };
   asked.length = 0;
 });
@@ -123,46 +136,76 @@ describe("namedOrNull and callable", () => {
   });
 });
 
+describe("bookedFirstAider", () => {
+  it("is never you, and the same one each time", () => {
+    const people = [{ staffProfileId: "p2", name: "Sam Lee" }, { staffProfileId: "p1", name: "Alex Example" }, { staffProfileId: "p0", name: "Aaron Viewer" }];
+    expect(bookedFirstAider(people, "p0")?.staffProfileId).toBe("p1");
+    expect(bookedFirstAider([{ staffProfileId: "p0", name: "Jo" }], "p0")).toBeNull();
+  });
+});
+
 describe("readFirstAid", () => {
-  it("names the first aider with their number and the hospital where the job is", async () => {
+  it("names the SWMS's first aider with their number, and its hospital with how far when it's on the list", async () => {
     put(...swmsFor("job-b", "v1", { firstAider: "Alex Example", hospital: "Old Hospital", extinguisher: "In the van" }, "2026-11-01T00:00:00Z"));
-    put(...swmsFor("job-b", "v2", { firstAider: "Sam Lee", hospital: "Sampleton Hospital", extinguisher: "In the van" }));
+    put(...swmsFor("job-b", "v2", { firstAider: "Sam Lee", hospital: "Westmead Hospital", extinguisher: "In the van" }));
     const got = await readFirstAid(ctx, NOW);
-    expect(got).toEqual({
-      job: {
-        jobUuid: "job-b",
-        number: "101",
-        where: "12 Example Street, Sampleton",
-        swms: {
-          versionId: "v2",
-          firstAider: { name: "Sam Lee", phone: "0400000000" },
-          hospital: { name: "Sampleton Hospital", near: "Sampleton NSW 2000" },
-          extinguisher: "In the van",
-        },
-      },
+    expect(got.job).toMatchObject({
+      jobUuid: "job-b",
+      number: "101",
+      where: "12 Example Street, Sampleton",
+      swmsVersionId: "v2",
+      firstAider: { name: "Sam Lee", phone: "0400000000", from: "swms" },
+      hospital: { name: "Westmead Hospital", near: "Sampleton NSW 2000", from: "swms" },
+      extinguisher: "In the van",
     });
+    expect(got.job?.hospital?.km).toBeGreaterThan(0);
+    expect(got.job?.hospital?.km).toBeLessThan(2);
+    expect(got.job?.hospital?.lat).toBeCloseTo(-33.804, 2);
     /* nothing read outside the phone's workspace */
     expect(asked.every((a) => a.endsWith("@org-1"))).toBe(true);
   });
 
-  it("says there's no SWMS rather than guessing", async () => {
-    const got = await readFirstAid(ctx, NOW);
-    expect(got.job?.jobUuid).toBe("job-b");
-    expect(got.job?.swms).toBeNull();
+  it("keeps a hospital the SWMS names that isn't on the list, with no distance", async () => {
+    put(...swmsFor("job-b", "v2", { firstAider: "Sam Lee", hospital: "Sampleton Private", extinguisher: "In the van" }));
+    expect((await readFirstAid(ctx, NOW)).job?.hospital).toEqual({ name: "Sampleton Private", km: null, lat: null, lng: null, near: "Sampleton NSW 2000", from: "swms" });
   });
 
-  it("leaves out a first aider nobody named, and a hospital left blank", async () => {
+  it("with no SWMS, finds the nearest emergency department and someone booked on it with first aid", async () => {
+    rows.sm8_job_activities.push(booked("job-b", "STAFF-2"), booked("job-b", "STAFF-3"));
+    rows.staff_licences = [ticket("p1"), ticket("p2", "Provide CPR HLTAID009")];
+    const got = await readFirstAid(ctx, NOW);
+    expect(got.job?.swmsVersionId).toBeNull();
+    expect(got.job?.firstAider).toEqual({ name: "Sam Lee", phone: "0400000000", from: "booked" });
+    expect(got.job?.hospital).toMatchObject({ name: "Westmead Hospital", from: "nearest" });
+    expect(got.job?.hospital?.km).toBeLessThan(2);
+    expect(got.job?.extinguisher).toBeNull();
+  });
+
+  it("names no booked first aider whose ticket has run out, and never you", async () => {
+    rows.sm8_job_activities.push(booked("job-b", "STAFF-2"));
+    rows.staff_licences = [ticket("p1", "First Aid", "2026-01-01"), ticket("p0")];
+    expect((await readFirstAid(ctx, NOW)).job?.firstAider).toBeNull();
+  });
+
+  it("leaves out a first aider nobody named and nobody booked has, and finds the hospital when the SWMS left it blank", async () => {
     put(...swmsFor("job-b", "v2", { firstAider: "Not named", hospital: "", extinguisher: "On site, marked" }));
     const got = await readFirstAid(ctx, NOW);
-    expect(got.job?.swms).toEqual({ versionId: "v2", firstAider: null, hospital: null, extinguisher: "On site, marked" });
+    expect(got.job?.firstAider).toBeNull();
+    expect(got.job?.hospital?.from).toBe("nearest");
+    expect(got.job?.extinguisher).toBe("On site, marked");
+  });
+
+  it("finds no hospital for a job with no pin", async () => {
+    rows.sm8_jobs = [job("job-b", "101", [0, 0])];
+    expect((await readFirstAid(ctx, NOW)).job?.hospital).toBeNull();
   });
 
   it("gives no number for a first aider from outside the business, or a name two people share", async () => {
-    put(...swmsFor("job-b", "v2", { firstAider: "Jo Outside", hospital: "Sampleton Hospital", extinguisher: "In the van" }));
-    expect((await readFirstAid(ctx, NOW)).job?.swms?.firstAider).toEqual({ name: "Jo Outside", phone: null });
-    rows.staff_profiles[1] = { ...rows.staff_profiles[1], first_name: "Sam", last_name: "Lee", full_name: "Sam Lee" };
-    rows.swms_versions[0] = { ...rows.swms_versions[0], content: { emergency: { firstAider: "Sam Lee", hospital: "Sampleton Hospital", extinguisher: "In the van" } } };
-    expect((await readFirstAid(ctx, NOW)).job?.swms?.firstAider).toEqual({ name: "Sam Lee", phone: null });
+    put(...swmsFor("job-b", "v2", { firstAider: "Jo Outside", hospital: "Westmead Hospital", extinguisher: "In the van" }));
+    expect((await readFirstAid(ctx, NOW)).job?.firstAider).toEqual({ name: "Jo Outside", phone: null, from: "swms" });
+    rows.staff_profiles[2] = { ...rows.staff_profiles[2], first_name: "Sam", last_name: "Lee", full_name: "Sam Lee" };
+    rows.swms_versions[0] = { ...rows.swms_versions[0], content: { emergency: { firstAider: "Sam Lee", hospital: "Westmead Hospital", extinguisher: "In the van" } } };
+    expect((await readFirstAid(ctx, NOW)).job?.firstAider).toEqual({ name: "Sam Lee", phone: null, from: "swms" });
   });
 
   it("is no job with no booking today", async () => {

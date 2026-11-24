@@ -55,6 +55,9 @@ const MONTH = "(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*";
 const TAIL = new RegExp(
   `(?:${[
     "\\b(?:im|sm|sh|om|iom|manuals?|installation|install|service|diagnosis|troubleshooting|brochure|flyer|leaflet|data ?sheets?|specifications?|specs|guide|handbook|catalogue|catalog|edition|revised|product release)",
+    /* what's left hanging once the kind of book goes: "SAT-2 thermostat user" (manual), "KRS electronic controller
+       service and" (installation manual), 24 November 2026 */
+    "\\b(?:and|&|or|user'?s?|owner'?s?|operating|operation|instructions?)",
     `\\b${MONTH}\\s?\\d{2,4}`,
     "\\b[a-z]{1,3}\\d{4}",
     "\\b\\d{4}(?:[-/]\\d{1,2})?",
@@ -88,6 +91,8 @@ export function modelName(name: string): string | null {
     rest = rest.slice(code[0].length);
   }
   if (!sizes.length) return null;
+  /* a bare number isn't a size range: "SAT-2" is one name, not "SAT" over "2" */
+  if (sizes.every((z) => /^\d{1,2}$/.test(z))) return null;
   return [series, sizes.join(" / "), rest.trim()].filter(Boolean).join("\n");
 }
 

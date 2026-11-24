@@ -4,7 +4,7 @@ import { areaUnitsToM2, polygonArea } from "./geometry";
 import { plansInDesign, withJobPlans } from "./job-plan-floors";
 import { roomLoadKw, type RoomObj } from "./loads-room";
 import { keepFound, readyFloor } from "./room-edit";
-import { glassOf } from "./rooms-from-reading";
+import { glassM2, glassOf } from "./rooms-from-reading";
 import type { PlanReading, ReadOpening, ReadSpace } from "./reading";
 
 /* UPDATE PLANS (Isaac, 11 November 2026, "new plans can get uploaded, which
@@ -258,8 +258,15 @@ const FACING: Record<string, string> = { N: "north", NE: "north-east", E: "east"
 const facingsOf = (s: Space) => new Set(s.glass.filter((o) => o.external).map((o) => FACING[o.facing.toUpperCase().trim()]).filter(Boolean));
 const m2 = (n: number) => `${n < 10 ? n.toFixed(1) : Math.round(n)} m²`;
 
-/** What changed about one room, or null when it's as it was. `mm`: the old page's millimetres per pixel. */
-function roomChange(m: Match, k: number, mm: number | null): { renamed: boolean; reshaped: boolean; windows: boolean; said: string } | null {
+/* a room's glass, as its load takes it (rooms-from-reading glassM2): null where a width isn't read */
+const glassRead = (x: Space) => glassM2({ windows: x.glass, kind: x.s.kind });
+
+/** What changed about one room, or null when it's as it was. `mm`: the old page's millimetres per pixel.
+    `glass`: its windows are where they were and as many, and how much glass
+    they are isn't (Isaac's job 3570, 24 November 2026: read again with its
+    door and window schedule, its windows had their heights and its rooms
+    kept the glazing of the read before, the house 20 kW under). */
+function roomChange(m: Match, k: number, mm: number | null): { renamed: boolean; reshaped: boolean; windows: boolean; glass: boolean; said: string } | null {
   const renamed = norm(m.old.s.name) !== norm(m.now.s.name);
   const a0 = polygonArea(m.old.s.outline);
   const a1 = polygonArea(m.now.s.outline) * k * k;
@@ -269,18 +276,27 @@ function roomChange(m: Match, k: number, mm: number | null): { renamed: boolean;
   const gained = [...after].filter((f) => !before.has(f));
   const lost = [...before].filter((f) => !after.has(f));
   const windows = gained.length > 0 || lost.length > 0 || m.old.glass.length !== m.now.glass.length;
-  if (!renamed && !reshaped && !windows) return null;
+  const g0 = glassRead(m.old);
+  const g1 = glassRead(m.now);
+  const glass = !windows && ((g0 == null) !== (g1 == null) || (g0 != null && g1 != null && Math.abs(g1 - g0) > Math.max(g0, g1) * SAME_AREA));
+  if (!renamed && !reshaped && !windows && !glass) return null;
   const size = mm ? m2(areaUnitsToM2(a1, mm)) : null;
-  const glass = [gained.length ? `with a window to the ${gained.join(" and ")}` : null, lost.length ? `no window to the ${lost.join(" and ")}` : null]
+  const facing = [gained.length ? `with a window to the ${gained.join(" and ")}` : null, lost.length ? `no window to the ${lost.join(" and ")}` : null]
     .filter(Boolean)
     .join(" and ");
+  const sized = g1 == null ? "glass that isn't sized" : g0 == null ? "its glass sized" : g1 > g0 ? "more glass" : "less glass";
   const said = renamed
-    ? `${m.old.s.name} is ${m.now.s.name} now${size ? `, ${size}` : ""}${glass ? ` ${glass}` : ""}`
+    ? `${m.old.s.name} is ${m.now.s.name} now${size ? `, ${size}` : ""}${facing ? ` ${facing}` : ""}`
     : reshaped
-      ? `${m.now.s.name} is ${size ? `${size} now, was ${m2(areaUnitsToM2(a0, mm!))}` : "a new shape"}${glass ? `, ${glass}` : ""}`
-      : `${m.now.s.name} has ${gained.length ? `a window to the ${gained.join(" and ")}` : lost.length ? `no window to the ${lost.join(" and ")}` : "different windows"} now`;
-  return { renamed, reshaped, windows, said };
+      ? `${m.now.s.name} is ${size ? `${size} now, was ${m2(areaUnitsToM2(a0, mm!))}` : "a new shape"}${facing ? `, ${facing}` : ""}`
+      : windows
+        ? `${m.now.s.name} has ${gained.length ? `a window to the ${gained.join(" and ")}` : lost.length ? `no window to the ${lost.join(" and ")}` : "different windows"} now`
+        : `${m.now.s.name} has ${sized} now`;
+  return { renamed, reshaped, windows, glass, said };
 }
+
+/** A room whose glass alone changed: it keeps its outline, and takes its glazing and the way it faces. */
+const glassOnly = (c: { renamed: boolean; reshaped: boolean; windows: boolean; glass: boolean }) => c.glass && !c.renamed && !c.reshaped && !c.windows;
 
 /** Where the old page sits in the design: its sheet and floor. */
 function sheetOfRef(doc: DesignDocument, ref: string | null): { floorId: string; sheet: PlanSheet; mm: number | null } | null {
@@ -354,7 +370,8 @@ export function planUpdate(doc: DesignDocument, plans: readonly JobPlan[], up: N
   const fresh: (RoomOffer & { roomId: string })[] = [];
   const said: PlanUpdate["said"] = [];
   const all = new Set<string>();
-  const changes: { room: DesignObject; title: string; why: string }[] = [];
+  /* `lines`: where a room whose glass alone changed is said, once it's known the change moves its load */
+  const changes: { room: DesignObject; title: string; why: string; glass?: { said: string; lines: string[] } }[] = [];
 
   for (const { old, now } of pairs) {
     const m = matched.get(now.n)!;
@@ -369,12 +386,13 @@ export function planUpdate(doc: DesignDocument, plans: readonly JobPlan[], up: N
     for (const p of m.pairs) {
       const c = roomChange(p, m.k, at.mm);
       if (!c) continue;
-      lines.push(c.said);
+      const glass = glassOnly(c) ? { said: c.said, lines } : undefined;
+      if (!glass) lines.push(c.said);
       for (const room of drawn.get(p.old.i) ?? []) {
         const name = String(room.props.name ?? p.old.s.name);
         const title = c.renamed ? `${name} becomes ${p.now.s.name}` : `${name} takes the new plans`;
-        const what = andWords([c.reshaped || c.renamed ? "outline" : null, c.windows ? "windows" : null]);
-        changes.push({ room, title, why: `Its ${what || "outline"} off ${caption}` });
+        const what = andWords([c.reshaped || c.renamed ? "outline" : null, c.windows || c.glass ? "windows" : null]);
+        changes.push({ room, title, why: `Its ${what || "outline"} off ${caption}`, ...(glass ? { glass } : {}) });
         all.add(room.id);
       }
     }
@@ -390,7 +408,7 @@ export function planUpdate(doc: DesignDocument, plans: readonly JobPlan[], up: N
         all.add(newKey(now.n, a.i));
       }
     }
-    if (lines.length) pages.push({ n: now.n, title: caption, lines });
+    pages.push({ n: now.n, title: caption, lines });
   }
 
   /* each room's load before and after, off the design as it would be with every change taken */
@@ -399,7 +417,14 @@ export function planUpdate(doc: DesignDocument, plans: readonly JobPlan[], up: N
     const o = after.objects.find((x) => x.id === id);
     return o ? kw(roomLoadKw(after, o as RoomObj)) : null;
   };
-  const offers: RoomOffer[] = changes.map((c) => {
+  /* glass alone: offered, and said, only where the room's glazing or the way it faces moves with it */
+  const moved = (room: DesignObject) => {
+    const o = after.objects.find((x) => x.id === room.id);
+    return !!o && (o.props.glazing !== room.props.glazing || o.props.orientation !== room.props.orientation);
+  };
+  const offered = changes.filter((c) => !c.glass || moved(c.room));
+  for (const c of offered) if (c.glass && !c.glass.lines.includes(c.glass.said)) c.glass.lines.push(c.glass.said);
+  const offers: RoomOffer[] = offered.map((c) => {
     const was = kw(roomLoadKw(doc, c.room as RoomObj));
     const is = loadOf(c.room.id);
     const load = was && is ? (was === is ? `Its load stays ${is}` : `Its load goes from ${was} to ${is}`) : null;
@@ -409,7 +434,7 @@ export function planUpdate(doc: DesignDocument, plans: readonly JobPlan[], up: N
     const load = loadOf(o.roomId);
     offers.push({ id: o.id, title: o.title, line: load ? `${o.line}. Its load is ${load}` : o.line });
   }
-  return { ...up, pages, offers, said };
+  return { ...up, pages: pages.filter((p) => p.lines.length > 0), offers, said };
 }
 
 function andWords(words: (string | null)[]): string {
@@ -455,17 +480,18 @@ export function updatePlans(doc: DesignDocument, plans: readonly JobPlan[], up: 
           : null;
         if (!p) continue;
         const key = keyOf(p.now.i);
-        const changed = !!roomChange(p, m.k, null);
-        if (ticked.has(room.id) && changed) {
+        const c = roomChange(p, m.k, null);
+        if (ticked.has(room.id) && c) {
           const fresh = freshRoom(d, is.floorId, key);
           if (fresh) {
             const renamed = norm(p.old.s.name) !== norm(p.now.s.name);
+            const glass = glassOnly(c);
             d = replaceRoom(d, {
               ...room,
-              geometry: fresh.geometry,
+              geometry: glass ? room.geometry : fresh.geometry,
               props: {
                 ...room.props,
-                ...pick(fresh.props, ["externalWalls", "hasExternalWalls", "glazing", "orientation", "shape", "roomAbove"]),
+                ...pick(fresh.props, glass ? ["glazing", "orientation"] : ["externalWalls", "hasExternalWalls", "glazing", "orientation", "shape", "roomAbove"]),
                 ...(renamed ? { name: p.now.s.name } : {}),
                 readKey: key,
                 ...(joined ? { joinedKeys: joined } : {}),

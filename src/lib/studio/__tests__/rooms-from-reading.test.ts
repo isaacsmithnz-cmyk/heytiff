@@ -112,6 +112,14 @@ describe("what the Rooms page offers", () => {
     expect(glassM2({ ...s, kind: "garage" })).toBeCloseTo(1.44);
   });
 
+  it("sizes a glazed door with no height as a door, 2.1 m, and a window as before, 1.2 m", () => {
+    const slider = { ...win("Living", "N", 3000), kind: "door" as const };
+    const s: Suggestion = { key: "k", name: "Living", kind: "room", points: rect(0, 0, 300, 250), keep: true, notes: [], windows: [slider, win("Living", "N", 1200)], openings: [slider] };
+    expect(glassM2(s)).toBeCloseTo(3 * 2.1 + 1.2 * 1.2);
+    /* its own height, where the schedule gives one */
+    expect(glassM2({ ...s, windows: [{ ...slider, heightMm: 2700 }] })).toBeCloseTo(8.1);
+  });
+
   it("faces no way where its glass faces two ways and a width isn't read", () => {
     expect(orientationFor({ windows: [win("x", "N", 2400), win("x", "W", 0)] })).toBeUndefined();
     expect(orientationFor({ windows: [win("x", "N", 0), win("x", "N", 900)] })).toBe("N");

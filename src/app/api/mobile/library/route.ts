@@ -32,7 +32,7 @@ export async function GET(request: Request) {
         uploadedAt: d.uploadedAt,
         /* the year it came out, on its cover (lib/tiff/released) */
         year: d.released ? Number(d.released.slice(0, 4)) : null,
-        ...(s ? { shelf: s.shelf, shelfName: s.shelfName, systems: s.systems, maker: s.maker, color: s.color, cover: s.name } : {}),
+        ...(s ? { shelf: s.shelf, shelfName: s.shelfName, systems: s.systems, bySystem: s.bySystem, maker: s.maker, color: s.color, cover: s.name } : {}),
       };
     }),
   );

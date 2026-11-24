@@ -72,7 +72,8 @@ export function brandsOf<T extends CoveredDoc>(docs: readonly T[]): BrandCard<T>
       by.set(key, b);
     }
     b.docs.push(d);
-    if (s?.maker && s.systems && !b.systems.includes(s.systems)) b.systems.push(s.systems);
+    /* a brand's card names its systems; a shelf named for a kind of document isn't one */
+    if (s?.maker && s.systems && s.bySystem !== false && !b.systems.includes(s.systems)) b.systems.push(s.systems);
   }
   return [...by.values()].sort((a, b) => Number(b.brand) - Number(a.brand) || b.docs.length - a.docs.length || a.name.localeCompare(b.name));
 }

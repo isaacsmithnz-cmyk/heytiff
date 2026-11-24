@@ -71,6 +71,13 @@ describe("shelves", () => {
     expect(s.get("vrv")).toMatchObject({ maker: "Daikin", shelfName: "Daikin", name: "VRV" });
   });
 
+  /* 24 November 2026: "Other documents" held 14 of Fujitsu's 28 */
+  test("a maker's document for no system sits on its kind's shelf on the brand's page, not Other documents", () => {
+    expect(s.get("vrv")).toMatchObject({ systems: "Service documents", bySystem: false });
+    expect(s.get("vrv")!.shelf).toContain("kind:faults");
+    expect(s.get("pumy")).toMatchObject({ bySystem: true });
+  });
+
   test("a document with no maker sits on its kind's shelf, in plain", () => {
     expect(s.get("sop")).toMatchObject({ shelf: "kind:sops", shelfName: "Company SOPs", systems: "Company SOPs", maker: null, color: null });
   });

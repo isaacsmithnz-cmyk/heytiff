@@ -29,6 +29,9 @@ export type Shelving = {
   shelfName: string;
   /** the shelf's name on its brand's own page: "Ducted and zoning" */
   systems: string;
+  /** true when `systems` names systems, false when it names the kind of
+      document (a maker's document tagged with no system) */
+  bySystem: boolean;
   /** the maker's name on the cover, or null */
   maker: string | null;
   /** the cover's colour: the maker's tag colour, or null for the plain cover */
@@ -160,15 +163,21 @@ export function shelvesOf(docs: readonly ShelfDoc[], tagsOf: Readonly<Record<str
   for (const { d, brand, systems } of read) {
     if (!brand) {
       const shelfName = KIND_SHELF[d.category] ?? "Other documents";
-      out.set(d.id, { shelf: `kind:${d.category}`, shelfName, systems: shelfName, maker: null, color: null, name: coverName(d.title, null) });
+      out.set(d.id, { shelf: `kind:${d.category}`, shelfName, systems: shelfName, bySystem: false, maker: null, color: null, name: coverName(d.title, null) });
       continue;
     }
     const root = systems.length ? find(`${brand.id}|${systems[0]}`) : null;
     const together = root ? (members.get(root) ?? systems) : [];
+    /* A MAKER'S DOCUMENT FOR NO SYSTEM goes on its kind's shelf on the brand's
+       page, not "Other documents": that held 14 of Fujitsu's 28, its test
+       sheets, zone interface and outdoor manuals together (Isaac, 24 November
+       2026, "Build it" to https://claude.ai/artifact/9Cw9RKq4GjjWop6qamwZs8) */
+    const kind = KIND_SHELF[d.category] ?? "Other documents";
     out.set(d.id, {
-      shelf: root ? `brand:${root}` : `brand:${brand.id}`,
+      shelf: root ? `brand:${root}` : `brand:${brand.id}|kind:${d.category}`,
       shelfName: together.length ? `${brand.label} · ${systemsName(together)}` : brand.label,
-      systems: together.length ? systemsName(together) : "Other documents",
+      systems: together.length ? systemsName(together) : kind,
+      bySystem: together.length > 0,
       maker: brand.label,
       color: brand.color,
       name: coverName(d.title, brand.label),

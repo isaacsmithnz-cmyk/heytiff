@@ -25,9 +25,11 @@ const TABLES: Record<string, Record<string, unknown>[]> = {
   ],
   mention_asks: [{ task_id: "a", sm8_job_uuid: "job-2041", sm8_note_uuid: "note-9" }],
   sm8_jobs: [
-    { uuid: "job-3516", generated_job_id: "3516", geo_city: "Mockville" },
-    { uuid: "job-2041", generated_job_id: "2041", geo_city: "Testcraft" },
+    { uuid: "job-3516", generated_job_id: "3516", geo_city: "Mockville", status: "Work Order", company_uuid: "co-1", category_uuid: "cat-1" },
+    { uuid: "job-2041", generated_job_id: "2041", geo_city: "Testcraft", status: "Quote", company_uuid: null, category_uuid: null },
   ],
+  sm8_companies: [{ uuid: "co-1", name: "Example Strata" }],
+  sm8_categories: [{ uuid: "cat-1", colour: "#7e22ce" }],
 };
 jest.mock("@/lib/supabase-server", () => ({
   supabaseAdmin: {
@@ -59,7 +61,7 @@ jest.mock("@/lib/shell/revalidate-home", () => ({ revalidateHome: () => {} }));
 
 const asked: string[] = [];
 jest.mock("@/lib/dashboard/task-actions", () => ({
-  addOwnTask: async (a: { staffId: string }, title: string, due: string | null) => (asked.push(`add ${a.staffId} ${title} ${due}`), { ok: true, taskId: "t-new" }),
+  addOwnTask: async (a: { staffId: string }, title: string, due: string | null, job?: string | null) => (asked.push(`add ${a.staffId} ${title} ${due}${job ? ` on ${job}` : ""}`), { ok: true, taskId: "t-new" }),
   tickTask: async (a: { staffId: string }, id: string) => (asked.push(`tick ${a.staffId} ${id}`), id === "11111111-1111-4111-8111-111111111111" ? { ok: false, error: "That task is already done." } : { ok: true }),
   untickTask: async (a: { staffId: string }, id: string) => (asked.push(`untick ${a.staffId} ${id}`), { ok: true }),
   moveTaskDue: async (a: { staffId: string }, id: string, due: string | null) => (asked.push(`due ${a.staffId} ${id} ${due}`), { ok: true }),
@@ -82,6 +84,12 @@ jest.mock("@/lib/dashboard/tasks-query", () => ({
     { id: "a", title: "Call Mary", detail: null, assigneeId: staffId, assigneeName: "Isaac", dueDate: null, status: "open", createdBy: staffId, createdAt: "2026-09-26T00:00:00Z", doneAt: null, doneByName: null, remindAt: null, remindKind: "at" },
     { id: "b", title: "Order the grilles", detail: null, assigneeId: staffId, assigneeName: "Isaac", dueDate: "2026-10-07", status: "open", createdBy: "card-auth0|luke", createdAt: "2026-10-06T00:00:00Z", doneAt: null, doneByName: null, remindAt: null, remindKind: "at" },
   ],
+}));
+
+/* the last open task on a job you starred: Isaac's TASK is his last on 3602 */
+jest.mock("@/lib/jobs/job-stars", () => ({
+  starredLastTask: async (o: { userId: string }, staffId: string | null, taskId: string) =>
+    o.userId === "auth0|isaac" && staffId === "card-auth0|isaac" && taskId === "8f2b6c1e-3d4a-4b5c-9e7f-0a1b2c3d4e5f" ? { job: "job-3602", number: "3602" } : null,
 }));
 
 import { GET, POST as ADD } from "../tasks/route";
@@ -131,8 +139,9 @@ test("your open tasks, in Home's order, with who gave each one where it wasn't y
   expect(body.tasks[0]).toMatchObject({ from: "Luke Ingold", own: false, dueDate: "2026-10-07" });
   expect(body.tasks[1]).toMatchObject({ from: null, own: true });
   /* each opens its job: the one it was made on, or the one of the note Tiff read it from, at that note */
-  expect(body.tasks[0].job).toEqual({ uuid: "job-3516", label: "3516 Mockville", note: null });
-  expect(body.tasks[1].job).toEqual({ uuid: "job-2041", label: "2041 Testcraft", note: "note-9" });
+  /* with its number, client, colour and state for the number's box at the row's end (the Star a job mock) */
+  expect(body.tasks[0].job).toEqual({ uuid: "job-3516", label: "3516 Mockville", note: null, number: "3516", client: "Example Strata", colour: "#7e22ce", status: "Work Order" });
+  expect(body.tasks[1].job).toEqual({ uuid: "job-2041", label: "2041 Testcraft", note: "note-9", number: "2041", client: null, colour: null, status: "Quote" });
   /* no staff card, no tasks */
   expect((await (await GET(req("tasks", "auth0|nocard"))).json()).tasks).toEqual([]);
 });
@@ -141,6 +150,16 @@ test("a task for yourself, with the date you picked", async () => {
   expect((await ADD(req("tasks", "auth0|isaac", "POST", { title: "Order the line set", dueDate: "2026-10-28" }))).status).toBe(200);
   expect((await ADD(req("tasks", "auth0|nocard", "POST", { title: "x" }))).status).toBe(403);
   expect(asked).toEqual(["add card-auth0|isaac Order the line set 2026-10-28"]);
+});
+
+test("a task for a job, from a starred job's Add task, with no day", async () => {
+  expect((await ADD(req("tasks", "auth0|isaac", "POST", { title: "Contact about the plans", job: "job-3602" }))).status).toBe(200);
+  expect(asked).toEqual(["add card-auth0|isaac Contact about the plans null on job-3602"]);
+});
+
+test("ticking your last open task on a job you starred asks whether the star goes too", async () => {
+  expect(await (await POST(req(`tasks/${TASK}`, "auth0|isaac", "POST", { do: "done" }), params(TASK))).json()).toEqual({ done: true, unstar: { job: "job-3602", number: "3602" } });
+  expect(await (await POST(req(`tasks/${TASK}`, "auth0|lyle", "POST", { do: "done" }), params(TASK))).json()).toEqual({ done: true });
 });
 
 test("a tick files its Done with the phone's own press, only with the Workboard; a refused tick files none", async () => {

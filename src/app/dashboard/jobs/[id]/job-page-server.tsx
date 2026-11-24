@@ -11,6 +11,7 @@ import { resolveJobCard } from "@/lib/workboard/all-jobs-query";
 import { parseSection } from "@/lib/jobs/job-sections";
 import { invoiceHref, jobPageHref, quoteHref } from "@/lib/shell/links";
 import { JobPage, type JobDoc } from "@/components/jobs/job-page";
+import { isStarred } from "@/lib/jobs/job-stars";
 
 /* ONE JOB, A PAGE OF ITS OWN (v2, step 5, "Jobs and a job"), inside the
    dashboard frame: its name, one grey line, Open in ServiceM8, Add and
@@ -87,7 +88,8 @@ export async function renderJobPage({
      full. A read that fails is left out, and the card reads it itself. */
   const card = target.parentRemoteId;
   const kept = <T,>(p: Promise<T>): Promise<T | undefined> => p.catch(() => undefined);
-  const [row, mirror, record, files, picklist, favourites, conversation, customerEdit] = await Promise.all([
+  const userId = session?.user?.sub as string | undefined;
+  const [row, mirror, record, files, picklist, favourites, conversation, customerEdit, starred] = await Promise.all([
     openMirrorJob(card),
     kept(readMirrorJob(card)),
     kept(readJobRecord(card)),
@@ -96,6 +98,8 @@ export async function renderJobPage({
     kept(listJobPhotoFavourites(card).then((rows) => rows.map((r) => r.remoteId))),
     kept(readJobConversation(card)),
     manage ? kept(customerEditOffered()) : Promise.resolve(undefined),
+    /* your star on it, for Actions' Star the job */
+    userId ? isStarred({ orgId, userId }, card).catch(() => false) : Promise.resolve(false),
   ]);
   if (!row) notFound();
   const first: JobCardFirst = { cardId: card, mirror, record, files, picklist, favourites, conversation, customerEdit };
@@ -125,6 +129,7 @@ export async function renderJobPage({
       price={price}
       first={first}
       doc={doc}
+      starred={starred}
     />
   );
 }

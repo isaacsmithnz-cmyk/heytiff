@@ -36,6 +36,7 @@ jest.mock("@/app/actions/job-conversation", () => ({ readJobConversation: async 
 const customerEditOffered = jest.fn(async () => true);
 jest.mock("@/app/actions/job-customer", () => ({ customerEditOffered: () => customerEditOffered() }));
 jest.mock("@/components/jobs/job-page", () => ({ JobPage: () => null }));
+jest.mock("@/lib/jobs/job-stars", () => ({ isStarred: async () => false }));
 
 import JobPageRoute from "../jobs/[id]/page";
 

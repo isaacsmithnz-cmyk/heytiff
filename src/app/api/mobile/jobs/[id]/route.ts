@@ -9,6 +9,7 @@ import { senderWords } from "@/lib/integrations/sm8-note-words";
 import { comingVisits, missedVisits } from "@/lib/mobile/visits";
 import { changeAllowed } from "@/lib/mobile/schedule-gate";
 import { ok, requireMobile } from "@/lib/mobile/auth";
+import { isStarred } from "@/lib/jobs/job-stars";
 
 /* ONE JOB for the phone's job page: what the job sheet's card reads
    (actions/workboard's readMirrorJob) and its written record's notes
@@ -53,7 +54,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const job = target.parentRemoteId;
   const today = todayInZone(timezone);
   const claimsRead = familyMediaSources(ctx.orgId, job);
-  const [detail, notes, ourNotes, coming, missedAll] = await Promise.all([
+  const [detail, notes, ourNotes, coming, missedAll, starred] = await Promise.all([
     readMirrorJobDetail(ctx.orgId, job, today, {
       includeMoney: ctx.caps.has("workboard_money"),
       includeDesigns: ctx.caps.has("studio"),
@@ -63,6 +64,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     viewer ? readOurJobNotes(ctx.orgId, job, 60, viewer) : readOurJobNotes(ctx.orgId, job),
     comingVisits(ctx.orgId, job, today),
     timezone ? missedVisits(ctx.orgId, job, Date.now(), timezone).catch(() => []) : Promise.resolve([]),
+    /* your star on it, for the head's Star (Isaac, 24 November 2026) */
+    isStarred({ orgId: ctx.orgId, userId: ctx.userId }, job).catch(() => false),
   ]);
   if (!detail) return Response.json({ error: "That job isn't here." }, { status: 404, headers: { "cache-control": "no-store" } });
 
@@ -72,5 +75,5 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const sm8Notes = viewer && offersSend(viewer.state, "note") ? { ready: sender.state === "ready", why: senderWords(sender) } : null;
   /* the notes that ask you, each to the ServiceM8 note a reply answers (lib/mobile/note-replies) */
   const replyable = sm8Notes?.ready ? replyableNotes(sender, notes, ourNotes) : {};
-  return ok({ detail, notes, ourNotes, sm8Notes, ...(Object.keys(replyable).length ? { replyable } : {}), coming, ...(missed.length ? { missed } : {}), focusRemoteId: target.focusRemoteId, ...(gate?.ok ? { canChange: true } : {}) });
+  return ok({ detail, notes, ourNotes, sm8Notes, ...(Object.keys(replyable).length ? { replyable } : {}), coming, ...(missed.length ? { missed } : {}), focusRemoteId: target.focusRemoteId, ...(gate?.ok ? { canChange: true } : {}), ...(starred ? { starred: true } : {}) });
 }

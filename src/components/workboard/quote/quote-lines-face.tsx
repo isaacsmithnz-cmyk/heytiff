@@ -8,9 +8,10 @@ import type { Fit } from "@/lib/quotes/fit";
 import type { QuotePrice } from "@/lib/quotes/quote-price-server";
 import { designState, linesSteps } from "@/lib/quotes/quote-steps";
 import { QuoteDesign, type QuoteDesignRow } from "./quote-design";
-import { toConfirmOf } from "@/lib/quotes/quote-card";
 import { cents2 } from "@/lib/quotes/quote-sum";
 import { QuoteStepsLine, leftOn, priceState } from "./quote-parts";
+import { answerWord, confirmWord, priceWord } from "@/lib/quotes/quote-left";
+import { estimatesOf, unpricedOf } from "@/lib/quotes/quote-card";
 import { TiffPanel, type QuoteFace } from "./tiff-panel";
 import { LinesProposalPaper } from "./lines-proposal-paper";
 import { proposalOf, type LinesProposal } from "@/lib/quotes/lines-proposal";
@@ -321,8 +322,10 @@ export function QuoteLinesFace({
     version,
     sent: view?.sent ?? null,
     lines: all.length,
-    /* the lines nobody knows yet, and Tiff's questions still open */
-    unknown: toConfirmOf(all, asked),
+    /* Tiff's questions still open, and apart from them the lines nobody
+       knows yet and her estimates */
+    asked,
+    unknown: unpricedOf(all) + estimatesOf(all),
     price: priceState(price),
     approvedAt: view?.approved ? (view?.proposal?.approvedAt ?? null) : null,
   });
@@ -406,7 +409,12 @@ export function QuoteLinesFace({
 
   /* the quote's state word, for the line under the job's name: where it has
      got to, or what's left to settle on the way */
-  const unknownNow = toConfirmOf(all, asked);
+  /* in the phone's words, and counted as the phone counts: her open
+     questions first, then the lines still to price across every option
+     (Isaac, 24 November 2026: "fix wording and buttons so they match either
+     device"). It said "2 to settle", the two counted together. */
+  const priceNow = priceState(price);
+  const toPriceAll = priceNow.kind === "priced" ? priceNow.left : 0;
   const sentForReal = !!view?.sent && !view.sent.trial;
   /* the customer's yes taken back from the head of the quote's tab: the
      accept below, as it stands when Undo is pressed */
@@ -420,11 +428,15 @@ export function QuoteLinesFace({
         ? { word: "Sent", settle: false, good: true }
         : view.approved
           ? { word: "Ready to send", settle: false, good: true }
-          : unknownNow > 0
-            ? { word: `${unknownNow} to settle`, settle: true }
-            : all.length > 0
-              ? { word: "Draft", settle: false }
-              : { word: "Not started", settle: false };
+          : asked > 0
+            ? { word: answerWord(asked), settle: true }
+            : toPriceAll > 0
+              ? { word: priceWord(toPriceAll), settle: true }
+              : estimatesOf(all) > 0
+                ? { word: confirmWord(estimatesOf(all)), settle: true }
+                : all.length > 0
+                  ? { word: money && priceNow.kind === "priced" ? "Priced" : "Draft", settle: false }
+                  : { word: "Not started", settle: false };
   const undoable = yesUndoable && accepted.length > 0;
   /* where it's up to, and no title: the proposal's title is written to the
      customer ("Air conditioning for your apartment…"), and the head beside
@@ -871,6 +883,17 @@ export function QuoteLinesFace({
         approved={view?.approved ?? false}
         ready={ready}
         why={why}
+        asked={asked}
+        /* to her questions, at the end of the talk in Build */
+        onAnswer={
+          chat
+            ? () => {
+                setPaper(false);
+                setViewing(null);
+                setTab("chat");
+              }
+            : undefined
+        }
         send={toSm8}
         /* the paper as a PDF, once it's approved (api/workboard/quote-pdf) */
         pdf={pdfHref}

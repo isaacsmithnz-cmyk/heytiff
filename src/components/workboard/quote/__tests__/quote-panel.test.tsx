@@ -72,7 +72,7 @@ describe("the total, one card the panel's width", () => {
 
 describe("where it's up to, as rows", () => {
   it("says the last step done, each step that needs a look, what's to confirm, then what's next", () => {
-    const steps = linesSteps({ lines: 3, unknown: 2, price: { kind: "priced", left: 1 }, design: "skipped" });
+    const steps = linesSteps({ lines: 3, asked: 2, price: { kind: "priced", left: 1 }, design: "skipped" });
     render(
       <WhereUpTo steps={steps}>
         <ul aria-label="To confirm">
@@ -81,7 +81,7 @@ describe("where it's up to, as rows", () => {
       </WhereUpTo>,
     );
     const where = screen.getByRole("region", { name: "Where it's up to" });
-    expect(Array.from(where.querySelectorAll("li")).map((li) => li.textContent)).toEqual(["BriefBy hand", "Scope2 to settle", "Priced1 to price", "2 lines assumed", "Ready to sendNot yet"]);
+    expect(Array.from(where.querySelectorAll("li")).map((li) => li.textContent)).toEqual(["BriefBy hand", "Scope2 to answer", "Priced1 to price", "2 lines assumed", "Ready to sendNot yet"]);
     expect(within(where).getByText("Scope").closest("li")).toHaveClass("look");
     expect(within(where).getByText("Ready to send").closest("li")).toHaveAttribute("aria-current", "step");
     /* not all seven */
@@ -90,7 +90,7 @@ describe("where it's up to, as rows", () => {
   });
 
   it("keeps Undo beside the customer's yes, and nothing after it", () => {
-    const steps = linesSteps({ lines: 3, unknown: 0, price: { kind: "priced", left: 0 }, approved: true, accepted: [0] });
+    const steps = linesSteps({ lines: 3, asked: 0, price: { kind: "priced", left: 0 }, approved: true, accepted: [0] });
     const undo = jest.fn();
     render(<WhereUpTo steps={steps} onUndoAccepted={undo} />);
     const yes = screen.getByText("Customer accepted").closest("li")!;

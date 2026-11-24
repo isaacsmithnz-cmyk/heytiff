@@ -1,6 +1,7 @@
 import { auDayOf } from "@/lib/au-dates";
 import type { ByHand } from "./lines-job";
 import { quoteStarted, type QuoteFacts } from "./quote-card";
+import { answerWord, confirmWord, priceWord } from "./quote-left";
 import type { QuoteVersion } from "./quote-versions";
 
 /* THE QUOTE TAB'S LANDING, "QUOTES" (Isaac, 2026-10-18, layout plan
@@ -144,7 +145,10 @@ export function landingKind(f: Pick<QuoteFacts, "lines" | "talked" | "drafted" |
 export function progressState(f: QuoteFacts, when: LandingWhen): LandingState {
   if (f.sent && !f.sent.trial) return { tone: "look", word: "Waiting for the client", rest: `, sent ${dayOf(when, f.sent.at)}` };
   if (f.approved) return { tone: "good", word: f.version > 1 ? `Version ${f.version} ready to send` : "Ready to send", rest: f.sent?.trial ? ", trial run to ServiceM8" : "" };
-  if (f.toConfirm > 0) return { tone: "look", word: `Scope, ${f.toConfirm} to settle`, rest: "" };
+  /* the quote's own words, as its head and the phone have them */
+  if (f.asked > 0) return { tone: "look", word: answerWord(f.asked), rest: "" };
+  if (f.toPrice > 0) return { tone: "look", word: priceWord(f.toPrice), rest: "" };
+  if (f.toConfirm > 0) return { tone: "look", word: confirmWord(f.toConfirm), rest: "" };
   if (f.lines > 0) return { tone: "info", word: `Scope, ${f.lines} ${f.lines === 1 ? "line" : "lines"}`, rest: "" };
   return { tone: "info", word: f.talked ? "Brief, with Tiff" : "Drafted", rest: "" };
 }

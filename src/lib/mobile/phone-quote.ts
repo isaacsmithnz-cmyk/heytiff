@@ -1,4 +1,4 @@
-import { leftOn } from "@/lib/quotes/quote-left";
+import { answerWord, leftOn, priceWord } from "@/lib/quotes/quote-left";
 import type { OptionPrice, QuotePrice } from "@/lib/quotes/quote-price-server";
 import { labourOf, unitsOf } from "@/lib/quotes/quote-sum";
 import { plainWords, type LinesProposal } from "@/lib/quotes/lines-proposal";
@@ -306,9 +306,9 @@ export function wordOf(q: { working: boolean; accepted: boolean; sent: boolean; 
   if (q.accepted) return { word: "Customer accepted", tone: "good" };
   if (q.sent) return { word: "Sent", tone: "info" };
   if (q.approved) return { word: "Ready to send", tone: "good" };
-  if (q.asked > 0) return { word: `${q.asked} to answer`, tone: "look" };
+  if (q.asked > 0) return { word: answerWord(q.asked), tone: "look" };
   if (q.lines === 0) return null;
-  if (q.toPrice > 0) return { word: `${q.toPrice} to price`, tone: "look" };
+  if (q.toPrice > 0) return { word: priceWord(q.toPrice), tone: "look" };
   return q.money ? { word: "Priced", tone: "info" } : null;
 }
 

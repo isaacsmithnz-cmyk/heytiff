@@ -109,6 +109,8 @@ export function QuoteActions({
   approved,
   ready,
   why,
+  asked = 0,
+  onAnswer,
   send,
   pdf = null,
   acceptable,
@@ -144,6 +146,10 @@ export function QuoteActions({
   ready: boolean;
   /** what's left before it can be, in words: "4 questions to answer, 1 line to price" */
   why: string;
+  /** her questions still open: answering them is the next step, as on the phone */
+  asked?: number;
+  /** to her questions, in Build */
+  onAnswer?: () => void;
   /** Send to ServiceM8, once it's approved (job-quote-send.tsx); null otherwise */
   send: ReactNode;
   /** the quote's PDF, once it's approved: Share offers it (Isaac, 21 October
@@ -176,18 +182,26 @@ export function QuoteActions({
   ) : null;
   /* Approve shows from the first line, held until it can be pressed */
   const waiting = !money || kept || lines === 0 ? null : variation ? !variation.approvedAt : !approved;
+  const answering = !!waiting && asked > 0 && !!onAnswer;
   const approve =
     waiting === null ? null : !waiting ? (
       /* on the Price tab the steps say it (the Price mock, 16 November 2026) */
       views && !variation ? null : (
         given(variation ? `Variation ${variation.n} approved` : "Ready to send")
       )
+    ) : answering ? (
+      /* her questions come first, and the button goes to them: one next
+         step, as the phone's foot has it (Isaac, 24 November 2026). It was
+         Mark ready to send greyed out, with the reason under it. */
+      <Button kind="main" disabled={busy} onClick={onAnswer}>
+        {`Answer ${asked} ${asked === 1 ? "question" : "questions"}`}
+      </Button>
     ) : (
       <Button kind="main" disabled={busy || !ready} onClick={onApprove}>
         {variation ? "Approve variation" : "Mark ready to send"}
       </Button>
     );
-  const left = waiting && !ready && why ? <StateWord tone="look">{why}</StateWord> : null;
+  const left = waiting && !ready && why && !answering ? <StateWord tone="look">{why}</StateWord> : null;
   const accept =
     !money || lines === 0 || kept ? null : variation ? (
       variation.acceptedAt ? (

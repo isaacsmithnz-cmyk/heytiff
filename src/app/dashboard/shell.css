@@ -6492,6 +6492,12 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .qx-askq { margin:0; padding:12px 16px; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
 .fg .qx-askput { margin:0; padding:8px 16px; font-size:14px; line-height:20px; color:var(--q); }
 .fg .qx-ask .qx-row.picked > b { font-weight:600; }
+/* a question still open: its answers as buttons, the likely one blue, what each does to the price at its right, as the phone has them (24 November 2026) */
+.fg .qx-answers { display:flex; flex-direction:column; gap:8px; padding:4px 16px 16px; }
+.fg .qx-ask > .qx-answers { border-top:0; }
+.fg .qx-answer { width:100%; }
+.fg .qx-answer .pt-btn__word { flex:1 1 auto; min-width:0; display:flex; align-items:center; justify-content:space-between; gap:12px; text-align:left; }
+.fg .qx-answer.pt-btn--main .qx-r { color:inherit; }
 .fg .qx-ask .qx-row:disabled { cursor:default; }
 .fg .qx-tick { flex:none; display:flex; color:var(--press); }
 /* Proposal: the page in the middle of the ground, Saved over it */

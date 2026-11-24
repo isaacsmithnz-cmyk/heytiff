@@ -43,14 +43,29 @@ export function topDocs(rows: readonly { documentId: string }[], most = 2): stri
   return [...count.entries()].sort((a, b) => b[1] - a[1]).slice(0, most).map(([d]) => d);
 }
 
-/** The model's own pages ahead, then the rest, each once. */
-export function modelAhead<T extends { id: string }>(ahead: readonly T[], rest: readonly T[]): T[] {
+/** The model's own pages lead, then the two lists take turns, each page once.
+
+    NOT ALL OF THE MODEL'S PAGES AHEAD. Asked "ARTC45LCTU won't start, how do I
+    test the PFC?" (24 November 2026), the LCTU service manual's sixteen pages
+    filled all twelve places Tiff reads, and the one-page "PFC testing" sheet,
+    second in the whole library's search, was never read: it names the outdoor
+    unit (AOTD**LATT), not the indoor one asked about, so it was in the rest.
+    Tiff said nothing on file showed a PFC test. So the model's first `lead`
+    pages go first, as bug 75 needs, and after them the library's best pages
+    and the model's take turns. */
+export function modelAhead<T extends { id: string }>(ahead: readonly T[], rest: readonly T[], lead = 4): T[] {
   const seen = new Set<string>();
   const out: T[] = [];
-  for (const r of [...ahead, ...rest]) {
-    if (seen.has(r.id)) continue;
+  const take = (r: T | undefined) => {
+    if (!r || seen.has(r.id)) return;
     seen.add(r.id);
     out.push(r);
+  };
+  ahead.slice(0, lead).forEach(take);
+  const more = ahead.slice(lead);
+  for (let i = 0; i < Math.max(more.length, rest.length); i++) {
+    take(rest[i]);
+    take(more[i]);
   }
   return out;
 }

@@ -109,6 +109,15 @@ function ensurePdfGlobals() {
   }
 }
 
+/* A PDF's text can carry control characters its fonts map nothing to — NUL
+   above all, which Postgres refuses in any text column, so ONE such character
+   failed the whole batch's insert ("Those pages couldn't be saved") and the
+   manual never got past its first page. Two Fujitsu and Daikin sheets did
+   exactly this on 24 November 2026. Tabs and line breaks stay; the rest of the
+   C0 range and DEL go, as nothing a person reads is made of them. */
+const CONTROL = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g;
+export const cleanPdfText = (s: string): string => s.replace(CONTROL, "");
+
 export async function openPdf(bytes: Uint8Array): Promise<PdfDoc> {
   ensurePdfGlobals();
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
@@ -139,7 +148,7 @@ export async function openPdf(bytes: Uint8Array): Promise<PdfDoc> {
     async title() {
       const meta = await doc.getMetadata().catch(() => null);
       const t = (meta?.info as { Title?: unknown } | undefined)?.Title;
-      return typeof t === "string" && t.trim() ? t.trim() : null;
+      return typeof t === "string" && cleanPdfText(t).trim() ? cleanPdfText(t).trim() : null;
     },
     async pagePlaced(n: number) {
       const page = await doc.getPage(n);
@@ -147,9 +156,9 @@ export async function openPdf(bytes: Uint8Array): Promise<PdfDoc> {
       const content = await page.getTextContent();
       const out: PlacedWord[] = [];
       for (const item of content.items) {
-        if (!("str" in item) || !item.str.trim()) continue;
+        if (!("str" in item) || !cleanPdfText(item.str).trim()) continue;
         const [x, y] = v.convertToViewportPoint(item.transform[4], item.transform[5]);
-        out.push({ s: item.str.trim(), fx: x / v.width, fy: y / v.height, size: Math.hypot(item.transform[2], item.transform[3]) });
+        out.push({ s: cleanPdfText(item.str).trim(), fx: x / v.width, fy: y / v.height, size: Math.hypot(item.transform[2], item.transform[3]) });
       }
       return out;
     },
@@ -162,7 +171,7 @@ export async function openPdf(bytes: Uint8Array): Promise<PdfDoc> {
       const page = await doc.getPage(n);
       const content = await page.getTextContent();
       return content.items
-        .map((item) => ("str" in item ? item.str : ""))
+        .map((item) => ("str" in item ? cleanPdfText(item.str) : ""))
         .join(" ")
         .replace(/[ \t]+/g, " ")
         .trim();
@@ -173,8 +182,8 @@ export async function openPdf(bytes: Uint8Array): Promise<PdfDoc> {
       type Piece = { str: string; x: number; y: number; w: number };
       const pieces: Piece[] = [];
       for (const item of content.items) {
-        if (!("str" in item) || !item.str.trim()) continue;
-        pieces.push({ str: item.str, x: item.transform[4], y: item.transform[5], w: item.width });
+        if (!("str" in item) || !cleanPdfText(item.str).trim()) continue;
+        pieces.push({ str: cleanPdfText(item.str), x: item.transform[4], y: item.transform[5], w: item.width });
       }
       /* a row is the pieces within 2 points of each other's baseline */
       pieces.sort((a, b) => b.y - a.y || a.x - b.x);

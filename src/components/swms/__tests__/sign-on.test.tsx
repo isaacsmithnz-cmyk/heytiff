@@ -43,7 +43,7 @@ const doc = (over: Partial<SwmsDocument> = {}): SwmsDocument => ({
   answers,
   content: buildSwms(answers, { work: "Install a split system", electricianName: "Sam Ikpeba", firstAiderName: "Troy Northam" }),
   libraryVersion: "hvac-2026.09",
-  job: { uuid: "job-1", number: "2601", clientName: null, address: "14 Attunga Road, Miranda NSW 2228", description: null, status: "Work Order", state: "NSW", jurisdiction: "NSW", postcode: "2228", categoryName: "Install" },
+  job: { uuid: "job-1", number: "2601", clientName: null, address: "14 Attunga Road, Miranda NSW 2228", description: null, status: "Work Order", state: "NSW", jurisdiction: "NSW", postcode: "2228", categoryName: "Install", pin: null },
   responsibleStaffId: "troy",
   responsible: "Troy Northam",
   siteCheckedBy: "Troy Northam",

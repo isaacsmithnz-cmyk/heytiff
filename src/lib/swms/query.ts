@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { sm8StaffLinkMap } from "@/lib/integrations/links";
+import { pinOf } from "@/lib/hospitals/nearest";
 import { displayNameOf, type NameParts } from "@/lib/staff/name";
 import {
   jurisdictionOf,
@@ -28,7 +29,7 @@ export type SwmsJob = {
   /** The rules the template writes to there; null when the state is unknown
       or not one it covers. */
   jurisdiction: Jurisdiction | null;
-  /** The site's postcode — the area a nearest hospital belongs to. */
+  /** The site's postcode. */
   postcode: string | null;
   /** Where the job is up to in ServiceM8 — a sign-on isn't asked for once
       the work is over. */
@@ -36,6 +37,8 @@ export type SwmsJob = {
   /** The job's ServiceM8 category — "Install", "Service" — which answers
       whether this is an install without asking. */
   categoryName: string | null;
+  /** The site's pin, for the nearest emergency department (lib/hospitals); null where ServiceM8 hasn't placed it. */
+  pin: { lat: number; lng: number } | null;
 };
 
 export type SwmsTicket = { name: string; expires: string | null; current: boolean };
@@ -51,7 +54,7 @@ export type SwmsTeamMember = {
 export async function loadSwmsJob(orgId: string, jobUuid: string): Promise<SwmsJob | null> {
   const { data } = await supabaseAdmin
     .from("sm8_jobs")
-    .select("uuid, generated_job_id, company_uuid, category_uuid, status, job_address, geo_state, geo_postcode, job_description")
+    .select("uuid, generated_job_id, company_uuid, category_uuid, status, job_address, geo_state, geo_postcode, job_description, lat, lng")
     .eq("org_id", orgId)
     .eq("uuid", jobUuid)
     .eq("active", 1)
@@ -66,6 +69,8 @@ export async function loadSwmsJob(orgId: string, jobUuid: string): Promise<SwmsJ
     geo_state: string | null;
     geo_postcode?: string | null;
     job_description: string | null;
+    lat?: number | string | null;
+    lng?: number | string | null;
   } | null;
   if (!job) return null;
 
@@ -91,6 +96,7 @@ export async function loadSwmsJob(orgId: string, jobUuid: string): Promise<SwmsJ
     jurisdiction: jurisdictionOf(state),
     postcode: postcodeOf(job.geo_postcode ?? null, job.job_address),
     categoryName: (cat as { name: string | null } | null)?.name?.trim() || null,
+    pin: pinOf(job.lat, job.lng),
   };
 }
 
@@ -99,51 +105,6 @@ function postcodeOf(geo: string | null, address: string | null): string | null {
   const g = (geo ?? "").trim();
   if (/^\d{4}$/.test(g)) return g;
   return /\b(\d{4})\s*(,\s*australia)?\s*$/i.exec(address ?? "")?.[1] ?? null;
-}
-
-/* THE NEAREST HOSPITAL BELONGS TO THE AREA, not the job. Typed once for a
-   postcode, it is the same for the next job there, so a new SWMS starts with
-   the hospital the last SWMS in that postcode named. Never from further
-   away: a hospital an hour off, filled in and not noticed, is worse than a
-   blank that asks. */
-export async function nearbyHospital(
-  orgId: string,
-  job: SwmsJob
-): Promise<{ name: string; jobNumber: string | null } | null> {
-  if (!job.postcode) return null;
-  const { data: versionRows } = await supabaseAdmin
-    .from("swms_versions")
-    .select("swms_id, answers, issued_at")
-    .eq("org_id", orgId)
-    .order("issued_at", { ascending: false })
-    .limit(200);
-  const named = ((versionRows ?? []) as { swms_id: string; answers: { hospital?: unknown } | null }[])
-    .map((v) => ({ swmsId: v.swms_id, hospital: typeof v.answers?.hospital === "string" ? v.answers.hospital.trim() : "" }))
-    .filter((v) => v.hospital);
-  if (!named.length) return null;
-
-  const { data: swmsRows } = await supabaseAdmin
-    .from("swms")
-    .select("id, sm8_job_uuid")
-    .eq("org_id", orgId)
-    .in("id", [...new Set(named.map((v) => v.swmsId))]);
-  const jobOf = new Map(((swmsRows ?? []) as { id: string; sm8_job_uuid: string }[]).map((x) => [x.id, x.sm8_job_uuid]));
-  const { data: jobRows } = await supabaseAdmin
-    .from("sm8_jobs")
-    .select("uuid, generated_job_id, geo_postcode, job_address")
-    .eq("org_id", orgId)
-    .in("uuid", [...new Set(jobOf.values())]);
-  const jobs = new Map(
-    ((jobRows ?? []) as { uuid: string; generated_job_id: string | null; geo_postcode?: string | null; job_address: string | null }[]).map((j) => [j.uuid, j])
-  );
-
-  for (const v of named) {
-    const j = jobs.get(jobOf.get(v.swmsId) ?? "");
-    if (j && postcodeOf(j.geo_postcode ?? null, j.job_address) === job.postcode) {
-      return { name: v.hospital, jobNumber: j.generated_job_id };
-    }
-  }
-  return null;
 }
 
 type ProfileRow = NameParts & { id: string; job_title: string | null; status: string | null };

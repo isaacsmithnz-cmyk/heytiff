@@ -6,6 +6,7 @@ import { getDbRole, requireOrg } from "@/lib/permissions-server";
 import { hasMinRole } from "@/lib/roles-shared";
 import { staffIdFor } from "@/lib/workboard/projects-query";
 import { todayInAu } from "@/lib/au-dates";
+import { nearestEmergency } from "@/lib/hospitals/nearest";
 import {
   andList,
   buildSwms,
@@ -23,7 +24,6 @@ import {
   loadSwmsDocument,
   loadSwmsJob,
   loadSwmsTeam,
-  nearbyHospital,
   standingSignonFor,
   ownerName,
   type SwmsJob,
@@ -89,8 +89,8 @@ export type SwmsWizardContext = {
   ownerName: string | null;
   /** The person issuing — the one who ticks "I've walked this site". */
   viewerStaffId: string | null;
-  /** The hospital the last SWMS in this postcode named, for a new one to start with. */
-  hospital: { name: string; jobNumber: string | null } | null;
+  /** The three nearest emergency departments to the site's pin, nearest first (lib/hospitals); none with no pin. */
+  hospitals: { name: string; km: number }[];
 };
 
 /** Everything the wizard opens on: the job, the team and the library's state. */
@@ -100,13 +100,12 @@ export async function swmsWizardContext(jobUuid: string): Promise<SwmsWizardCont
   if (!uuid) return null;
   const job = await loadSwmsJob(orgId, uuid);
   if (!job) return null;
-  const [team, libraryApproved, role, viewerStaffId, owner, hospital] = await Promise.all([
+  const [team, libraryApproved, role, viewerStaffId, owner] = await Promise.all([
     loadSwmsTeam(orgId, uuid, todayInAu()),
     isLibraryApproved(orgId),
     getDbRole(),
     staffIdFor(orgId, userId),
     ownerName(orgId),
-    nearbyHospital(orgId, job),
   ]);
   return {
     job,
@@ -116,7 +115,7 @@ export async function swmsWizardContext(jobUuid: string): Promise<SwmsWizardCont
     canApprove: hasMinRole(role, "owner"),
     ownerName: owner,
     viewerStaffId,
-    hospital,
+    hospitals: nearestEmergency(job.pin, 3).map((h) => ({ name: h.name, km: h.km })),
   };
 }
 

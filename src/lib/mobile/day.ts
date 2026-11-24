@@ -838,10 +838,13 @@ export function clockOnPlan(
   /* pressed at the office after a job earlier in the morning: the office from the press, the job
      ending there at the latest, never the office over the job (the review of 29 October 2026) */
   const atOffice = where === "office";
+  /* left in the same minute it arrived is a geofence blip, never a visit: the stint stays open (bug 92, Isaac,
+     25 November 2026: "My day is not accurate", a Clock on at 3576 kept 8:34 to 8:34) */
+  const left = arrived?.left && Date.parse(arrived.left) - Date.parse(arrived.at) >= 60_000 ? arrived.left : null;
   return {
     onAt,
     office: atOffice ? [{ from: pressed, until: null }] : [],
-    stint: arrived ? { jobUuid: arrived.place, from: arrived.at, until: arrived.left ?? (atOffice ? pressed : null) } : null,
+    stint: arrived ? { jobUuid: arrived.place, from: arrived.at, until: left ?? (atOffice ? pressed : null) } : null,
   };
 }
 

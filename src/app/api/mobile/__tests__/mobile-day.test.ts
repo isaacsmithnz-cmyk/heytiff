@@ -287,6 +287,10 @@ describe("Clock on, with where the morning watch saw you arrive", () => {
     });
     expect(clockOnPlan("2026-10-28T20:28:00.000Z", "office", null)).toEqual({ onAt: "2026-10-28T20:28:00.000Z", office: [{ from: "2026-10-28T20:28:00.000Z", until: null }], stint: null });
   });
+  it("an arrival that left in the same minute is a geofence blip: the stint stays open (bug 92)", () => {
+    const blip = "2026-11-24T21:34:52.239Z";
+    expect(clockOnPlan(blip, undefined, { place: J, at: blip, left: blip }).stint).toEqual({ jobUuid: J, from: blip, until: null });
+  });
 });
 
 /* The review of 29 October 2026, each seen failing before its fix. */

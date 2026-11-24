@@ -137,7 +137,8 @@ export function recordStrings(p: NoteProposal): string[] {
   /* a skill's words that the team reads; names, numbers and places stay */
   for (const k of p.skills ?? []) out.push(...skillWords(k));
   out.push(p.plainNote, p.jobNote);
-  if (p.clarify) out.push(p.clarify.question, ...p.clarify.options);
+  /* a who-question's answers are the team's names, kept as they are */
+  if (p.clarify) out.push(p.clarify.question, ...(p.clarify.who ? [] : p.clarify.options));
   return out.filter((s) => s.trim() !== "");
 }
 
@@ -181,7 +182,7 @@ export function withTranslations(
     plainNote: s(p.plainNote),
     jobNote: s(p.jobNote),
     clarify: p.clarify
-      ? { question: s(p.clarify.question), options: p.clarify.options.map(s) }
+      ? { ...p.clarify, question: s(p.clarify.question), options: p.clarify.options.map(s) }
       : null,
   };
 }

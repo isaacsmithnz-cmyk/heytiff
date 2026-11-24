@@ -55,6 +55,8 @@ jest.mock("@/app/actions/workboard-notes", () => ({
   routeNote: async (input: { transcript: string; target: { kind: string } }) => {
     asked.push(`route as ${await as()}: ${input.transcript} on ${input.target.kind}`);
     if (input.transcript.includes("nothing")) return { ok: true, noteId: "n-0", proposal: proposal({ nothing: true }), staff: [], turns: [] };
+    if (input.transcript.includes("grille moved"))
+      return { ok: true, noteId: "n-3", proposal: proposal({ say: "I'll file a variation. Who should go to move it?", clarify: { question: "Who should go to move the grille?", options: ["Anyone", "Isaac Smith", "Luke Ingram"], who: "go" } }), staff: [], turns: [] };
     if (input.transcript.includes("Book Leo")) return { ok: true, noteId: "n-2", proposal: proposal({ say: "Leo on 3304.", clarify: { question: "Which day?", options: ["Tomorrow", "Friday"] } }), staff: [], turns: [] };
     return { ok: true, noteId: "n-1", proposal: proposal(), staff: [], turns: [] };
   },
@@ -155,6 +157,26 @@ test("a question comes once: with nothing filed yet it carries the plan and no U
     ["filed", "Done."],
     ["asks", "Make the job in ServiceM8?"],
   ]);
+});
+
+/* bug 88 (Isaac, 24 November 2026): "It should be a dropdown. With... The label, anyone, and then specific staff underneath" */
+test("who goes is asked once and drawn as one dropdown under its label", async () => {
+  const r = await say("auth0|isaac", words("the client wants the grille moved"));
+  expect(r.body.turns).toEqual([
+    expect.objectContaining({
+      kind: "asks",
+      say: "I'll file a variation. Who should go to move it?",
+      options: [{ label: "Anyone" }, { label: "Isaac Smith" }, { label: "Luke Ingram" }],
+      answer: "reply",
+      who: "Who goes",
+    }),
+  ]);
+});
+
+test("No job is an answer to which job: it files past the question, on none", async () => {
+  // filed with a target of none, which `fileNote` reads as the note's own
+  await say("auth0|isaac", { do: "job", noteId: "n-1", target: { kind: "none" } });
+  expect(asked.slice(-1)).toEqual(["file as auth0|isaac@org-1: n-1 on undefined"]);
 });
 
 test("her dates are said in words", () => {

@@ -42,6 +42,8 @@ function shape(b: Record<string, unknown> | null): SayInput | null {
       return noteId ? { do: "reply", noteId, words: str(b.words, 500) } : null;
     case "job": {
       const t = b.target as { kind?: unknown; id?: unknown } | undefined;
+      /* "No job" (bug 77): it files on none, past the question */
+      if (noteId && t?.kind === "none") return { do: "job", noteId, target: { kind: "none" } };
       return noteId && t?.kind === "job" && typeof t.id === "string" ? { do: "job", noteId, target: { kind: "job", id: t.id.slice(0, 80) } } : null;
     }
     case "visit":

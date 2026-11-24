@@ -32,7 +32,7 @@ import {
 import type { NoteProposal, NoteStaff } from "@/lib/workboard/note-brain";
 import { filesNothing } from "@/lib/workboard/note-draft";
 import type { NoteDoor, NoteDoorKind } from "@/lib/workboard/note-applied";
-import { KEPT_AS_SAID, WHICH_JOB, earlierTurns, type EarlierTurn, type TiffRoom } from "@/lib/workboard/note-turns";
+import { KEPT_AS_SAID, WHICH_JOB, earlierTurns, type EarlierTurn, type TiffRoom, type WhoAsk } from "@/lib/workboard/note-turns";
 import { notedLine } from "@/lib/calendar/line";
 import { askLine, calendarRows, lastTiff, planView, tiffSince, withVariationCards, type PlanRowView } from "./plan-view";
 import { quietLimit } from "./quiet";
@@ -126,6 +126,8 @@ export type ModalTurn = {
   rows?: PlanRowView[];
   /** Answers you can tap, under her question. */
   quick?: QuickAnswer[];
+  /** The answers are people: one dropdown, not a row of buttons (bug 88). */
+  people?: WhoAsk;
   /** What landed, once filed. */
   doors?: TurnDoor[];
   /** The note this turn is about: Undo, the rows' crosses, the Library. */
@@ -406,10 +408,10 @@ export function useConversation({
     if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(TIFF_FILED, { detail: { noteId } }));
   };
 
-  const asks = (n: Note, text: string, quick: QuickAnswer[]) => {
+  const asks = (n: Note, text: string, quick: QuickAnswer[], people?: WhoAsk) => {
     const gone = new Set(leave.current);
     const rows = planView(n.proposal, n.staff, true).filter((r) => !gone.has(r.key));
-    tiffSays(text, "asking", { rows, quick, noteId: n.id });
+    tiffSays(text, "asking", { rows, quick, noteId: n.id, ...(people ? { people } : {}) });
   };
 
   const file = async (n: Note, opts: { retarget?: NoteTarget; answer?: string }) => {
@@ -459,7 +461,7 @@ export function useConversation({
            (decision 13): "which time?", the person's free starts tapped. */
         if (res.ask) {
           n.waiting = true;
-          asks(n, res.ask.question, res.ask.options);
+          asks(n, res.ask.question, res.ask.options, res.ask.who);
         }
       });
     }
@@ -468,7 +470,7 @@ export function useConversation({
       if (closed.current) return walkAway(n.id);
       n.waiting = true;
       const ask = res.ask;
-      return settle(() => asks(n, tiffSince(res.turns) || ask.question, ask.options));
+      return settle(() => asks(n, tiffSince(res.turns) || ask.question, ask.options, ask.who));
     }
     return settle(() => tiffSays(res.error, "failed"));
   };
@@ -485,7 +487,7 @@ export function useConversation({
        it with the jobs attached; every other question is a reply. */
     if (c && c.question !== WHICH_JOB) {
       n.waiting = true;
-      return settle(() => asks(n, askLine(r.proposal.say, c.question), c.options.map((label) => ({ label }))));
+      return settle(() => asks(n, askLine(r.proposal.say, c.question), c.options.map((label) => ({ label })), c.who));
     }
     void file(n, {});
   };
@@ -1090,7 +1092,7 @@ export function useConversation({
     return settle(() => {
       if (res.ask) {
         n.waiting = true;
-        return asks(n, line || res.ask.question, res.ask.options);
+        return asks(n, line || res.ask.question, res.ask.options, res.ask.who);
       }
       n.waiting = false;
       tiffSays(line, res.ok ? "filed" : "failed", res.ok && res.visit ? { noteId: n.id } : {});

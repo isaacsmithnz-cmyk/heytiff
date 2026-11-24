@@ -148,8 +148,15 @@ describe("the shaper", () => {
     expect(two.clarify).toEqual({ question: "Which Lyle did you mean?", options: ["Lyle I", "Lyle T"] });
 
     const nobody = shapeProposal(raw([visit({ assignee_hint: "" })]), ctx, "book commissioning for Friday arvo");
-    expect(nobody.clarify).toEqual({ question: "Who's going: commissioning?", options: ["Me"] });
+    // bug 88: one dropdown, "Anyone" then the team
+    expect(nobody.clarify).toEqual({ question: "Who's going: commissioning?", options: ["Anyone", "Callum Reid", "Lyle Irving"], who: "go" });
     expect(nobody.say).toBe("Who's going: commissioning?");
+  });
+
+  it("takes Anyone as an answer: the visit goes to nobody in particular, and nothing is asked", () => {
+    const p = shapeProposal(raw([visit({ assignee_hint: "anyone" })]), ctx, "anyone");
+    expect(p.clarify).toBeNull();
+    expect(p.visits[0]).toMatchObject({ assigneeId: null, assigneeHint: "anyone" });
   });
 
   /* Isaac, 2 November 2026: "Move ... my booking this afternoon to Friday, seven AM" booked a second visit */

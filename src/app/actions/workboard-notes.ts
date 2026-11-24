@@ -12,16 +12,21 @@ import type { Capability } from "@/lib/permissions";
 import { staffIdFor } from "@/lib/workboard/projects-query";
 import {
   clean,
+  isAnyone,
+  isEmptyProposal,
   isSeverity,
-  namesMentioned,
   peopleNamed,
   readNote,
+  whoOptions,
   type NoteContext,
   type NoteFollow,
   type NoteProposal,
   type NoteStaff,
   type Severity,
+  type WhoAsk,
 } from "@/lib/workboard/note-brain";
+import { findNamedJobs } from "@/lib/workboard/note-job-server";
+import { foundJobLine, namedJobLabel, notFoundLine, pickNamedJob, type JobNamed, type JobPick, type JobsFound } from "@/lib/workboard/note-job";
 import { todayInZone } from "@/lib/workboard/dates";
 import { getSm8Timezone } from "@/lib/workboard/query";
 import { fullNameOf } from "@/lib/staff/name";
@@ -69,6 +74,7 @@ import {
 import {
   KEPT_AS_SAID,
   REPLIES_MAX,
+  NO_JOB,
   WHICH_JOB,
   doneLine,
   earlierTurns,
@@ -103,7 +109,7 @@ import {
   type VisitCard,
   type VisitMade,
 } from "@/lib/workboard/note-visit";
-import { bookVisit, crewStarts, visitRoute } from "@/lib/workboard/note-visit-book";
+import { bookVisit, crewStarts, visitRoute, type VisitRoute } from "@/lib/workboard/note-visit-book";
 import { takeBackBooking } from "./booking-sm8";
 import {
   costCards,
@@ -240,6 +246,9 @@ export type FileAsk = {
       or null for "Another time", which asks for one. Sent back to
       `answerVisit` as its label, the words the button showed. */
   options: { label: string; target?: NoteTarget; visit?: { index: number; start: string | null } }[];
+  /** The answers are people, drawn as one dropdown (bug 88; note-brain's
+      `WHO_LABEL`): "Anyone" first for someone to go, then the team. */
+  who?: WhoAsk;
 };
 
 export type FileResult =
@@ -563,24 +572,55 @@ export async function routeNote(input: {
     return { ok: false, error: read.error };
   }
 
+  const landed = await landOnNamedJob(ctx.orgId, target, read.proposal);
+  const proposal = landed.proposal;
   /* a photo that couldn't be found is said, never dropped in silence */
   const turns = withTurns(
     [said],
-    turn("tiff", read.proposal.say),
+    turn("tiff", proposal.say),
     ...(receipt && !receipt.ok ? [turn("tiff", receipt.error)] : []),
   );
   await supabaseAdmin
     .from("workboard_notes")
     .update({
-      proposal: withNoteReceipt(read.proposal, receipt?.ok ? receipt.receipt : null),
-      status: read.proposal.clarify ? "clarifying" : "pending",
+      proposal: withNoteReceipt(proposal, receipt?.ok ? receipt.receipt : null),
+      status: proposal.clarify ? "clarifying" : "pending",
       turns,
+      ...(landed.target !== target ? { target_kind: landed.target.kind, target_id: landed.target.id ?? null } : {}),
     })
     .eq("org_id", ctx.orgId)
     .eq("id", noteId);
 
-  refresh(target);
-  return { ok: true, noteId, proposal: read.proposal, staff: routing.staff, turns };
+  refresh(landed.target);
+  return { ok: true, noteId, proposal, staff: routing.staff, turns };
+}
+
+/** The jobs the words name, and which one that is (note-job). A failed
+    read finds nothing, and the note goes on as it was said. */
+async function namedJob(orgId: string, named: JobNamed): Promise<{ found: JobsFound; pick: JobPick }> {
+  const found = await findNamedJobs(orgId, named).catch((): JobsFound => ({ jobs: [], noClient: false }));
+  return { found, pick: pickNamedJob(found.jobs, named) };
+}
+
+/** A NOTE SAID ON NO JOB THAT NAMES ONE LANDS ON IT as it is read (bugs 77,
+    87, 88): the job is found among the business's ServiceM8 jobs, finished
+    ones too, and her line starts with which it is, so she says the job
+    before she asks anything. Several or none are left to `fileNote`, which
+    asks which, or says what she looked for. */
+async function landOnNamedJob(
+  orgId: string,
+  target: NoteTarget,
+  proposal: NoteProposal,
+): Promise<{ target: NoteTarget; proposal: NoteProposal }> {
+  if ((target.kind !== "none" && target.id) || !proposal.jobNamed || isEmptyProposal(proposal) || onlyMoves(proposal)) {
+    return { target, proposal };
+  }
+  const { pick } = await namedJob(orgId, proposal.jobNamed);
+  if (pick.kind !== "one") return { target, proposal };
+  return {
+    target: { kind: "job", id: pick.job.uuid },
+    proposal: { ...proposal, say: [foundJobLine(pick.job), proposal.say].filter((w) => w.trim()).join(" ") },
+  };
 }
 
 /** The proposal as it is stored, with the note's receipt beside its lanes
@@ -658,11 +698,13 @@ async function reread(
   });
   const read = await readNote(note.transcript, routing.note, follow);
   if (!read.ok) return { ok: false, error: read.error };
+  const landed = await landOnNamedJob(ctx.orgId, target, read.proposal);
+  const proposal = landed.proposal;
 
   const turns = withTurns(
     talk.turns,
     talk.reply,
-    turn("tiff", read.proposal.say),
+    turn("tiff", proposal.say),
     ...(sent && !sent.ok ? [turn("tiff", sent.error)] : []),
   );
   /* ONLY A NOTE STILL WAITING TAKES WHAT CAME BACK. A reply that crossed a
@@ -673,9 +715,10 @@ async function reread(
   const { data } = await supabaseAdmin
     .from("workboard_notes")
     .update({
-      proposal: withNoteReceipt(read.proposal, receipt),
-      status: read.proposal.clarify ? "clarifying" : "pending",
+      proposal: withNoteReceipt(proposal, receipt),
+      status: proposal.clarify ? "clarifying" : "pending",
       turns,
+      ...(landed.target !== target ? { target_kind: landed.target.kind, target_id: landed.target.id ?? null } : {}),
     })
     .eq("org_id", ctx.orgId)
     .eq("id", note.id)
@@ -683,8 +726,8 @@ async function reread(
     .select("id");
   if (!((data ?? []) as unknown[]).length) return { ok: false, error: SETTLED.applied };
 
-  refresh(target);
-  return { ok: true, noteId: note.id, proposal: read.proposal, staff: routing.staff, turns };
+  refresh(landed.target);
+  return { ok: true, noteId: note.id, proposal, staff: routing.staff, turns };
 }
 
 /** A reply to Tiff, in the modal. It answers her question, or changes who
@@ -1456,7 +1499,11 @@ export async function fileNote(
     return {
       ok: false,
       error: plan.clarify.question,
-      ask: { question: plan.clarify.question, options: plan.clarify.options.map((label) => ({ label })) },
+      ask: {
+        question: plan.clarify.question,
+        options: plan.clarify.options.map((label) => ({ label })),
+        ...(plan.clarify.who ? { who: plan.clarify.who } : {}),
+      },
     };
   }
 
@@ -1476,18 +1523,18 @@ export async function fileNote(
   if (nobody) {
     const staff = await assignableStaff(ctx.orgId);
     const question = `Who should do this: ${nobody.title.trim()}?`;
-    const labels = [...(ctx.staffId ? ["Me"] : []), ...namesMentioned(said, staff, ctx.staffId)];
-    return askFirst(ctx, note, turns, { question, options: labels.map((label) => ({ label })) });
+    return askFirst(ctx, note, turns, { question, options: whoOptions(staff, "do").map((label) => ({ label })), who: "do" });
   }
-  /* A visit with nobody going is asked about the same way; one with no
-     day has no free starts to offer, so its day is a reply too. */
-  const going = draft.visits.find((v) => v.on && !v.assigneeId);
+  /* A visit with nobody going is asked about the same way, "Anyone" an
+     answer; one with no day has no free starts to offer, so its day is a
+     reply too. */
+  const going = draft.visits.find((v) => v.on && !v.assigneeId && !isAnyone(v.assigneeHint));
   if (going) {
     const staff = await assignableStaff(ctx.orgId);
-    const labels = [...(ctx.staffId ? ["Me"] : []), ...namesMentioned(said, staff, ctx.staffId)];
     return askFirst(ctx, note, turns, {
       question: `Who's going: ${going.work.trim()}?`,
-      options: labels.map((label) => ({ label })),
+      options: whoOptions(staff, "go").map((label) => ({ label })),
+      who: "go",
     });
   }
   const dayless = draft.visits.find((v) => v.on && !v.day);
@@ -1523,21 +1570,50 @@ export async function fileNote(
   /* A NOTE THAT ONLY MOVES A BOOKING IS NO NOTE ON A JOB (note-move): it
      lands on no job's diary and nothing goes to ServiceM8 but the move. */
   const movesOnly = onlyMoves(plan);
-  const target: NoteTarget = movesOnly ? { kind: "none" } : picked.target;
+  let target: NoteTarget = movesOnly ? { kind: "none" } : picked.target;
   /* a cost is a cost ON a job: one said with no job asks which, as a flag does */
   const costsOn = draft.costs.some((c) => c.on);
   /* and a variation is a change to a job's quote: the same */
   const variationsOn = draft.variations.some((v) => v.on);
   /* and a skill done on a job, as the job's Used, time or list are */
   const skillsOnJob = draft.skills.some((k) => k.on && ON_A_JOB.has(k.kind));
-  if ((jobBound(draft) || costsOn || variationsOn || skillsOnJob) && (target.kind === "none" || !target.id)) {
+  const needsJob = jobBound(draft) || costsOn || variationsOn || skillsOnJob;
+
+  /* THE JOB THE WORDS NAME (note-job; bugs 77, 87, 88): said on no job,
+     a note that names one, by its client, its address or its number, lands
+     on it, a finished job too. Several places fit and she asks which; none
+     fits and she says what she looked for. Asked once: an answer, "No job"
+     too, files past it. */
+  let lead = "";
+  let landed = false;
+  if ((target.kind === "none" || !target.id) && plan.jobNamed && !jobAsked && !movesOnly) {
+    const named = await namedJob(ctx.orgId, plan.jobNamed);
+    if (named.pick.kind === "one") {
+      target = { kind: "job", id: named.pick.job.uuid };
+      landed = true;
+    } else if (named.pick.kind === "several") {
+      const others = needsJob ? matchedJobs(said, await jobCandidates(ctx.orgId), 3) : [];
+      return askFirst(ctx, note, turns, {
+        question: WHICH_JOB,
+        options: [
+          ...named.pick.jobs.map((j) => ({ label: namedJobLabel(j), target: { kind: "job" as const, id: j.uuid } })),
+          ...others.map((j) => ({ label: describeJob(j), target: { kind: j.kind, id: j.id } })),
+          ...(needsJob ? [] : [{ label: NO_JOB, target: { kind: "none" as const } }]),
+        ],
+      });
+    } else {
+      lead = notFoundLine(plan.jobNamed, named.found.noClient);
+    }
+  }
+
+  if (needsJob && (target.kind === "none" || !target.id)) {
     const jobs = matchedJobs(said, await jobCandidates(ctx.orgId), 3);
     const ask: FileAsk = {
       question: WHICH_JOB,
       options: jobs.map((j) => ({ label: describeJob(j), target: { kind: j.kind, id: j.id } })),
     };
     /* Asked once: pressed again, the question is already Tiff's last turn. */
-    return jobAsked ? { ok: false, error: WHICH_JOB, ask, turns } : askFirst(ctx, note, turns, ask);
+    return jobAsked ? { ok: false, error: WHICH_JOB, ask, turns } : askFirst(ctx, note, turns, ask, lead);
   }
 
   const { data: claimed } = await supabaseAdmin
@@ -1704,7 +1780,7 @@ export async function fileNote(
   const filed = withTurns(
     turns.length ? turns : [turn("you", note.transcript)],
     ...(jobWords ? [turn("you", jobWords)] : []),
-    ...(didSomething ? [turn("tiff", doneLine(plan.say))] : []),
+    ...(didSomething ? [turn("tiff", [doneLine(plan.say), lead].filter(Boolean).join(" "))] : []),
     ...visitLines.map((l) => turn("tiff", l)),
     ...costLines.map((l) => turn("tiff", l)),
     ...variationLines.map((l) => turn("tiff", l)),
@@ -1718,7 +1794,7 @@ export async function fileNote(
     .update({
       turns: filed,
       /* The job the answer carried: the note remembers where it ended up. */
-      ...(picked.moved || movesOnly ? { target_kind: target.kind, target_id: target.id ?? null } : {}),
+      ...(picked.moved || movesOnly || landed ? { target_kind: target.kind, target_id: target.id ?? null } : {}),
       /* The question a job answered is answered: nothing is waiting on it.
          A visit's "which time?" waits on the filed note, with the visits
          still to time in the order they were said. */
@@ -1897,8 +1973,11 @@ async function makeVisit(
   today: string,
   staff: readonly NoteStaff[],
 ): Promise<VisitStep> {
-  const route = await visitRoute(ctx.orgId, target, v.assigneeId);
-  const name = (staff.find((s) => s.id === v.assigneeId)?.fullName ?? v.assigneeHint).split(" ")[0] ?? "";
+  /* "Anyone" going (bug 88): nobody to book it to, so it is the speaker's
+     task to book, as a visit on no job is */
+  const anyone = !v.assigneeId && isAnyone(v.assigneeHint);
+  const route: VisitRoute = anyone ? { kind: "task", why: "anyone" } : await visitRoute(ctx.orgId, target, v.assigneeId);
+  const name = anyone ? "" : ((staff.find((s) => s.id === v.assigneeId)?.fullName ?? v.assigneeHint).split(" ")[0] ?? "");
   const base = {
     index,
     work: v.work,
@@ -2616,14 +2695,16 @@ async function askFirst(
   note: NoteRow,
   turns: Turn[],
   ask: FileAsk,
+  /** what she says ahead of the question: what she looked for and didn't find */
+  lead = "",
 ): Promise<FileResult> {
-  const asked = withTurns(turns.length ? turns : [turn("you", note.transcript)], turn("tiff", ask.question));
+  const asked = withTurns(turns.length ? turns : [turn("you", note.transcript)], ...(lead ? [turn("tiff", lead)] : []), turn("tiff", ask.question));
   await supabaseAdmin
     .from("workboard_notes")
     .update({
       proposal: {
         ...(note.proposal as Record<string, unknown>),
-        clarify: { question: ask.question, options: ask.options.map((o) => o.label) },
+        clarify: { question: ask.question, options: ask.options.map((o) => o.label), ...(ask.who ? { who: ask.who } : {}) },
       },
       status: "clarifying",
       turns: asked,

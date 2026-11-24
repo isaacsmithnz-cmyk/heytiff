@@ -6,6 +6,7 @@ import { costFields, costRowText, type ProposedCost } from "./note-cost";
 import { variationFields, variationRowText, type ProposedVariation } from "./note-variation";
 import { movesOfProposal } from "./note-move";
 import { skillRowLine, skillsOf, type ProposedSkill } from "./note-skills";
+import { jobNamedOf } from "./note-job";
 
 /* FROM A PROPOSAL TO WHAT GETS FILED — pure, and on both sides of the wire.
 
@@ -340,6 +341,10 @@ export function storedProposal(raw: unknown): NoteProposal | null {
     jobNote: str(r.jobNote),
     ...(skillsOf(r.skills).length ? { skills: skillsOf(r.skills) } : {}),
     say: str(r.say),
-    clarify: c && str(c.question).trim() ? { question: str(c.question), options: strs(c.options) } : null,
+    clarify:
+      c && str(c.question).trim()
+        ? { question: str(c.question), options: strs(c.options), ...(c.who === "go" || c.who === "do" ? { who: c.who } : {}) }
+        : null,
+    ...(jobNamedOf(r.jobNamed) ? { jobNamed: jobNamedOf(r.jobNamed)! } : {}),
   };
 }

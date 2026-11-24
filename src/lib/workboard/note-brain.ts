@@ -53,8 +53,9 @@ import { PAID_WITH } from "@/lib/expenses/claim";
 import { VARIATIONS_MAX, variationFields, variationRowLine, type ProposedVariation } from "./note-variation";
 import { MOVES_MAX, moveFields, type ProposedMove } from "./note-move";
 import { LINES_SCHEMA, SKILL_KINDS, SKILL_RULES, SKILL_TOOLS, skillWho, skillsOf, type ProposedSkill } from "./note-skills";
-import type { EarlierTurn, TiffRoom, Turn } from "./note-turns";
+import { ANYONE, type EarlierTurn, type TiffRoom, type Turn, type WhoAsk } from "./note-turns";
 import { looksLikeName } from "@/lib/staff/aliases";
+import { jobNamedOf, type JobNamed } from "./note-job";
 import { logUsage } from "@/lib/tiff/usage";
 
 /* Opus 5.5: the routing decision is the whole product. A cheaper model that
@@ -215,9 +216,22 @@ export type NoteProposal = {
       model said nothing, on every read without `speak` (the old review
       card's), and on every proposal stored before the field. */
   say: string;
-  /** Set when the note can't be routed without a human answering something. */
-  clarify: { question: string; options: string[] } | null;
+  /** Set when the note can't be routed without a human answering something.
+      `who` when the answer is a person (bug 88, Isaac, 24 November 2026: "It
+      should be a dropdown. With... The label, anyone, and then specific staff
+      underneath"): the options are then everyone who can be given work, by
+      their full name, the speaker among them rather than a "Me" beside
+      them, and, for a person to GO somewhere, "Anyone" first. The apps draw
+      them as one dropdown under `WHO_LABEL[who]`. */
+  clarify: { question: string; options: string[]; who?: WhoAsk } | null;
+  /** The job the words name, when the note was said on none (note-job):
+      found among the business's ServiceM8 jobs by `fileNote`, never by the
+      model. Absent when the words name none, and on every proposal stored
+      before it. */
+  jobNamed?: JobNamed;
 };
+
+export type { WhoAsk } from "./note-turns";
 
 /** `aliases`: the other names they go by — the preferred name on their card
     and the nicknames Tiff has learned (lib/staff/aliases.ts). */
@@ -547,6 +561,16 @@ export function noteTools(speak: boolean): Anthropic.Beta.BetaTool[] {
         additionalProperties: false,
       },
     },
+    {
+      name: "job_named",
+      description: "The job the note is about, as the words name it: its client or builder, its address or suburb, its job number.",
+      input_schema: {
+        type: "object",
+        properties: { client: str, place: str, number: str, latest: { type: "boolean" } },
+        required: ["client", "place", "number", "latest"],
+        additionalProperties: false,
+      },
+    },
     ...(speak ? [{ name: "say", description: "What you tell the person, in one or two short sentences.", input_schema: words }] : []),
   ];
 }
@@ -570,6 +594,8 @@ export function rawFromCalls(calls: readonly { name: string; input: unknown }[])
       raw[name] = [...((raw[name] as unknown[]) ?? []), ...got];
     } else if (name === "plain_note" || name === "job_note" || name === "say") {
       if (typeof i.text === "string" && i.text.trim()) raw[name] = i.text;
+    } else if (name === "job_named") {
+      raw.job_named = i;
     } else if (name === "clarify") {
       raw.clarify_needed = true;
       raw.clarify_question = i.question;
@@ -716,12 +742,13 @@ export function whoBlock(ctx: NoteContext): string {
     ctx.askWho
       ? [
           "Every task is filed the moment nothing is left to ask, so a task with",
-          "nobody on it cannot wait for a dropdown. When the note gives a task to",
-          "nobody and nothing in it says who, call clarify and ask who",
-          "should do it, offering `Me` and the people the note names. When it",
+          "nobody on it cannot wait for a dropdown. When the note gives a task or",
+          "a visit to nobody and nothing in it says who, call clarify and ask",
+          "who, once, with no options: the app offers everyone above. When it",
           "gives a task to a name that is none of the people above, call",
-          "clarify and ask who they meant, offering `Me` and the people",
-          "above whose names are closest.",
+          "clarify and ask who they meant. An answer of 'Anyone' to who goes",
+          "means nobody in particular: put `anyone` in that visit's",
+          "`assignee_hint`.",
         ].join("\n")
       : "",
   ]
@@ -900,6 +927,12 @@ const ROUTER_RULES = [
   "  'fixed the unit' is not, and most notes contain none. If they",
   "  explicitly say to remember something or add it to the knowledge base,",
   "  that is always a kb_entry.",
+  "- job_named: when the words name the job the note is about, a client",
+  "  or builder, an address or a suburb, or a job number ('the job at 12",
+  "  Sample Rd', 'Sampleco's job in Exampleton', '3239A'), say each part",
+  "  as said, '' for a part not said, and `latest` true when they said the",
+  "  last or latest one. HeyTiff finds the job, finished ones included; a",
+  "  builder named is the job's client, so never also a new contact.",
   "- plain_note: anything that is genuinely just a remark. A note is",
   "  allowed to be a note — do not manufacture tasks to seem useful.",
   "- A LOOKUP IS NOT A NOTE. Words that want an answer rather than say",
@@ -1180,6 +1213,46 @@ function mentionsIn(
   return found.sort((a, b) => a.at - b.at);
 }
 
+/* ── who-questions as a dropdown (bug 88) ────────────────────────────── */
+
+/** Words that answer "who goes?" with nobody in particular. Matched whole. */
+const ANYONE_WORDS = new Set(["anyone", "anybody", "any", "whoever", "whoever's free", "whoevers free", "whoever is free", "someone", "somebody", "no one in particular", "nobody in particular"]);
+
+/** Whether a person said is nobody in particular ("anyone", "whoever"). */
+export const isAnyone = (hint: string): boolean => ANYONE_WORDS.has(norm(hint).replace(/[.!?]+$/, "").replace(/’/g, "'"));
+
+/** The answers a who-question offers, as its dropdown lists them: "Anyone"
+    first when someone is to go somewhere, then everyone who can be given
+    work by their full name, in order, the speaker among them. No "Me": the
+    speaker is on the list by their own name, and a "Me" beside it said the
+    same person twice (Isaac, 24 November 2026). */
+export function whoOptions(staff: readonly NoteStaff[], who: WhoAsk): string[] {
+  const names = [...new Set(staff.map((s) => s.fullName.trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  return [...(who === "go" ? [ANYONE] : []), ...names];
+}
+
+/** Going somewhere, in a who-question: "Who should go to Exampleton?", "Who's going: commissioning?". */
+const GOING_RE = /\b(?:go|goes|going|head|heads|attend|attends|visit|out there|book(?:ed|s)? in)\b/i;
+/** A who-question about somebody who isn't on the team. */
+const NOT_STAFF_RE = /\b(?:client|customer|builder|contact|supplier|owner|tenant|company|rang|called)\b/i;
+
+/** Whether the model's question asks for a person on the team, and which
+    kind: a question starting "Who" whose answers are people (or none),
+    never one about a client or a contact. Null when it is any other. */
+export function whoAskOf(question: string, options: readonly string[], staff: readonly NoteStaff[]): WhoAsk | null {
+  if (!staff.length || !/^\s*who\b/i.test(question) || NOT_STAFF_RE.test(question)) return null;
+  const people = options.every((o) => SELF.includes(norm(o)) || isAnyone(o) || resolveAssignee(o, staff).kind !== "none");
+  if (!people) return null;
+  return GOING_RE.test(question) ? "go" : "do";
+}
+
+/** A who-question, with the team as its answers. */
+const whoClarify = (question: string, who: WhoAsk, staff: readonly NoteStaff[]): NonNullable<NoteProposal["clarify"]> => ({
+  question,
+  options: whoOptions(staff, who),
+  who,
+});
+
 /** Model output → a proposal the app will act on.
 
     Everything is re-derived from a whitelist rather than trusted: severities
@@ -1188,10 +1261,11 @@ function mentionsIn(
     model didn't ask one — because assigning work to the wrong person is the
     failure this feature must not have.
 
-    `said` is every word the person said on this note (the note, then their
-    replies), read only to offer the names it mentions when a task has
-    nobody on it. */
-export function shapeProposal(raw: unknown, ctx: NoteContext, said = ""): NoteProposal {
+    `_said` is every word the person said on this note (the note, then
+    their replies). It offered the names it mentioned when a task had nobody
+    on it, until a who-question offered the whole team (bug 88); kept so the
+    callers' words still reach the shaper. */
+export function shapeProposal(raw: unknown, ctx: NoteContext, _said = ""): NoteProposal {
   const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
 
   let clarify: NoteProposal["clarify"] =
@@ -1227,16 +1301,14 @@ export function shapeProposal(raw: unknown, ctx: NoteContext, said = ""): NotePr
        see `askWho`). "Me" leads because a task with no name on it is most
        often the speaker's own, and it resolves only when there IS a speaker. */
     if (match.kind === "none" && ctx.askWho && !clarify) {
-      clarify = {
-        /* A name nobody here has is asked about BY NAME: the answer to
-           "Who's Bobo?" is what Tiff keeps, so next time she knows
-           (continueNote, lib/staff/aliases.ts). */
-        question: assigneeHint && looksLikeName(assigneeHint) ? `Who's ${assigneeHint}?` : `Who should do this: ${title}?`,
-        options: [
-          ...(ctx.author ? ["Me"] : []),
-          ...namesMentioned(said, ctx.staff, ctx.author?.id),
-        ],
-      };
+      /* A name nobody here has is asked about BY NAME: the answer to
+         "Who's Bobo?" is what Tiff keeps, so next time she knows
+         (continueNote, lib/staff/aliases.ts). */
+      clarify = whoClarify(
+        assigneeHint && looksLikeName(assigneeHint) ? `Who's ${assigneeHint}?` : `Who should do this: ${title}?`,
+        "do",
+        ctx.staff,
+      );
       escalated = true;
     }
 
@@ -1302,11 +1374,11 @@ export function shapeProposal(raw: unknown, ctx: NoteContext, said = ""): NotePr
       clarify = { question: `Which ${assigneeHint} did you mean?`, options: shortWhoLabels(match.names) };
       escalated = true;
     }
-    if (match.kind === "none" && ctx.askWho && !clarify) {
-      clarify = {
-        question: assigneeHint && looksLikeName(assigneeHint) ? `Who's ${assigneeHint}?` : `Who's going: ${work}?`,
-        options: [...(ctx.author ? ["Me"] : []), ...namesMentioned(said, ctx.staff, ctx.author?.id)],
-      };
+    /* "Anyone" is an answer: the visit goes to nobody in particular */
+    if (match.kind === "none" && ctx.askWho && !clarify && !isAnyone(assigneeHint)) {
+      clarify = assigneeHint && looksLikeName(assigneeHint)
+        ? whoClarify(`Who's ${assigneeHint}?`, "do", ctx.staff)
+        : whoClarify(`Who's going: ${work}?`, "go", ctx.staff);
       escalated = true;
     }
     visits.push({
@@ -1364,10 +1436,7 @@ export function shapeProposal(raw: unknown, ctx: NoteContext, said = ""): NotePr
     /* a payer nobody here goes by is asked about only where it matters: a
        company card owes nobody */
     if (match?.kind === "none" && fields.paidWith === "own" && ctx.askWho && !clarify) {
-      clarify = {
-        question: `Who paid: ${fields.payerHint}?`,
-        options: [...(ctx.author ? ["Me"] : []), ...namesMentioned(said, ctx.staff, ctx.author?.id)],
-      };
+      clarify = whoClarify(`Who paid: ${fields.payerHint}?`, "do", ctx.staff);
       escalated = true;
     }
     costs.push({
@@ -1446,9 +1515,18 @@ export function shapeProposal(raw: unknown, ctx: NoteContext, said = ""): NotePr
      question is all she says. `whoBlock` asks the model to raise these itself,
      in their words, so this is the fallback. Only when she speaks: a read
      without `speak` never asks for a line, so its proposals carry none. */
+  /* THE MODEL'S OWN WHO-QUESTION, answered from the team (bug 88): it
+     offered "Me" and every name beside it, the speaker twice, as chips. */
+  if (clarify && !clarify.who) {
+    const who = whoAskOf(clarify.question, clarify.options, ctx.staff);
+    if (who) clarify = whoClarify(clarify.question, who, ctx.staff);
+  }
+
   let say = clean(r.say, SAY_MAX);
   if (ctx.speak && escalated && clarify) say = clarify.question;
   if (moveAsked && moves.length === 0 && ctx.speak) say = [say, MOVE_SAY].filter(Boolean).join(" ").slice(0, SAY_MAX + MOVE_SAY.length + 1);
+
+  const jobNamed = jobNamedOf(r.job_named);
 
   /* NO COERCION BY MODE. The Debrief's closed every job-bound lane and
      rewrote what landed in one into a "note line"; with the Debrief gone
@@ -1471,6 +1549,7 @@ export function shapeProposal(raw: unknown, ctx: NoteContext, said = ""): NotePr
     jobNote: clean(r.job_note, 4000),
     say,
     clarify,
+    ...(jobNamed ? { jobNamed } : {}),
   };
 }
 

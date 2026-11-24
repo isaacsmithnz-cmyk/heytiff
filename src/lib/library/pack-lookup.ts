@@ -70,9 +70,21 @@ export function modelWords(query: string): string[] {
 
 const mm = (n: number) => `${Math.round(n * 100) / 100}`;
 const kw = (n: number | undefined) => (n != null ? `${Math.round(n * 10) / 10} kW` : null);
+/* THE BOOK AND EVERY PAGE IT SAYS (bug 85, 24 November 2026: the RZA60's
+   source is "8, 135", the pair on page 8 and the extra charge on page 135;
+   written "p. 8, 135" it read as page 8 and a stray number, and Tiff cited
+   page 8 for the 350 g and 700 g). Several pages are "pp.", and the pages
+   are the pack's own words, all of them. */
+export function pagesOf(page: string | undefined): string | null {
+  const p = page?.trim();
+  if (!p) return null;
+  const several = /[,;]|\d\s*[-–]\s*\d|\band\b/.test(p);
+  return `${several ? "pp." : "p."} ${p}`;
+}
+
 function sourceOf(p: { kind?: string; source?: string; edition?: string; page?: string } | undefined): string | null {
   if (!p || !p.source || p.kind === "legacy-ductr") return null;
-  return [p.source, p.edition, p.page ? `p. ${p.page}` : null].filter(Boolean).join(", ");
+  return [p.source, p.edition, pagesOf(p.page)].filter(Boolean).join(", ");
 }
 
 export function lookUpModels(packs: readonly DataPack[], query: string): PackLookup {

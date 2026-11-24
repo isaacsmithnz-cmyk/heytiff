@@ -50,6 +50,9 @@ export type RetrievedChunk = {
   /** The document's title and shelf, carried so the answer call can label it. */
   title: string;
   category: KbCategory;
+  /** The document's file page less its printed page (./printed-pages), or
+      null where the book doesn't number its pages differently or isn't known. */
+  printedOffset: number | null;
 };
 
 export type Retrieval = {
@@ -167,18 +170,17 @@ export async function retrieveForQuestion(
       .select("id, document_id, content, page_from, page_to, heading")
       .eq("org_id", orgId)
       .in("id", chunkIds),
-    supabaseAdmin
-      .from("kb_documents")
-      .select("id, title, category")
-      .eq("org_id", orgId)
-      .in("id", docIds),
+    documentsOf(orgId, docIds),
   ]);
 
   const docsById: Record<string, TraceDoc> = {};
+  const offsetOf = new Map<string, number | null>();
   for (const row of (docRes?.data ?? []) as unknown as Record<string, unknown>[]) {
     const category = asKbCategory(row.category);
     if (!category) continue;
     docsById[String(row.id)] = { title: String(row.title ?? "Untitled"), category };
+    const off = row.page_offset;
+    offsetOf.set(String(row.id), typeof off === "number" && Number.isInteger(off) ? off : null);
   }
 
   const rowsById = new Map<string, Record<string, unknown>>();
@@ -204,6 +206,7 @@ export async function retrieveForQuestion(
       heading: (row.heading as string) ?? null,
       title: doc.title,
       category: doc.category,
+      printedOffset: offsetOf.get(m.documentId) ?? null,
     });
   }
 
@@ -224,6 +227,24 @@ export async function retrieveForQuestion(
       excerpt: c.content.slice(0, EXCERPT_CHARS),
     })),
   };
+}
+
+/* The documents behind the chunks, with the difference between their file
+   and printed pages (bug 85). A Library whose kb_documents has no page_offset
+   yet (docs/migrations/kb_page_offset.sql not run) reads as before, without
+   it, rather than finding nothing. */
+async function documentsOf(orgId: string, ids: readonly string[]): Promise<{ data: unknown }> {
+  const withOffset = await supabaseAdmin
+    .from("kb_documents")
+    .select("id, title, category, page_offset")
+    .eq("org_id", orgId)
+    .in("id", ids as string[]);
+  if (!withOffset?.error) return withOffset ?? { data: null };
+  return supabaseAdmin
+    .from("kb_documents")
+    .select("id, title, category")
+    .eq("org_id", orgId)
+    .in("id", ids as string[]);
 }
 
 /* The pages of the documents about the models asked of, best first: the

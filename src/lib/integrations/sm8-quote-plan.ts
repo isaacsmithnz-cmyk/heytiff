@@ -35,7 +35,7 @@ export type QuoteObject = "job" | "jobmaterial";
 /** The fields each record may have sent by HeyTiff, and nothing else. */
 export const QUOTE_FIELDS: Record<QuoteObject, readonly string[]> = {
   job: ["work_done_description", "job_description", "status"],
-  jobmaterial: ["name", "quantity", "price", "cost", "displayed_amount", "displayed_amount_is_tax_inclusive", "tax_rate_uuid", "sort_order"],
+  jobmaterial: ["material_uuid", "name", "quantity", "price", "cost", "displayed_amount", "displayed_amount_is_tax_inclusive", "tax_rate_uuid", "sort_order"],
 };
 
 /** The status an accepted send sets. */
@@ -93,7 +93,7 @@ export function quoteRows(
     /** a quote sent as a quote: the job's description (a summary), the
         whole proposal in workDone, its status as it is */
     jobDescription?: string;
-    lines: readonly { name: string; quantity: number; unitPriceCents: number; unitCostCents: number | null }[];
+    lines: readonly { name: string; quantity: number; unitPriceCents: number; unitCostCents: number | null; materialUuid?: string }[];
     remove: readonly { uuid: string; name: string }[];
     taxRateUuid: string;
   }
@@ -128,6 +128,8 @@ export function quoteRows(
       op: "create" as const,
       uuid: null,
       fields: {
+        /* the price-book item, so the line carries its code (bug 82) */
+        ...(l.materialUuid ? { material_uuid: l.materialUuid } : {}),
         name: l.name.slice(0, 200),
         quantity: quantityOf(l.quantity),
         price,

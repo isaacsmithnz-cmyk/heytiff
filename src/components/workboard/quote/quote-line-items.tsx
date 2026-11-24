@@ -10,7 +10,7 @@ import { OLD_PIPES, PIPE_SIZES } from "@/lib/quotes/kits";
 import { cents2 } from "@/lib/quotes/quote-sum";
 import { unitPartOf } from "@/lib/quotes/brands";
 import { namedUnit, unitRoleOf } from "@/lib/quotes/unit-name";
-import { visitSummary, withHours, withoutTask, withTask, type LineVisit } from "@/lib/quotes/line-visit";
+import { systemRowWords, visitSummary, withHours, withoutTask, withTask, type LineVisit } from "@/lib/quotes/line-visit";
 import type { Variation } from "@/lib/quotes/lines-job";
 import { Button } from "@/components/parts/button";
 import { Menu } from "@/components/parts/menu";
@@ -782,14 +782,14 @@ export function QuoteLineItems({
            total said once; pressed, it opens to its groups and their lines */
         const keys = groups.map((g) => groupKey({ system: sys, group: g }));
         const sysOpen = keys.some((k) => open.has(k));
-        const hours = Math.round(mine.filter((l) => l.kind === "labour").reduce((n, l) => n + l.qty, 0) * 100) / 100;
-        const under = groups.map((g) => (g === "Labour" && hours > 0 ? `Labour, ${hours} ${hours === 1 ? "hour" : "hours"}` : g)).join(", ");
+        /* the row with no system named for what it holds: "Labour, 122 hours, 34 tasks" (bug 80) */
+        const { name: sysName, under } = systemRowWords(sys, mine, systems.some(Boolean));
         return (
-          <section key={sys || "_"} className={pad ? (sysOpen ? "ql-sys qx-sys on" : "ql-sys qx-sys") : "ql-sys"} aria-label={sys || "Quote"}>
+          <section key={sys || "_"} className={pad ? (sysOpen ? "ql-sys qx-sys on" : "ql-sys qx-sys") : "ql-sys"} aria-label={sysName}>
             {pad ? (
               <button type="button" className="qx-sysbtn" aria-expanded={sysOpen} onClick={() => onGroups(keys, !sysOpen)}>
                 <span className="qx-sysw">
-                  <b>{sys || "Quote"}</b>
+                  <b>{sysName}</b>
                   <em>{under}</em>
                 </span>
                 <strong>{money ? cents2(sysTotal) : `${mine.length} ${mine.length === 1 ? "line" : "lines"}`}</strong>
@@ -799,7 +799,7 @@ export function QuoteLineItems({
               </button>
             ) : (
             <header className="ql-sys-h">
-              <h3>{sys || "Quote"}</h3>
+              <h3>{sysName}</h3>
               {money && <b>{cents2(sysTotal)}</b>}
             </header>
             )}

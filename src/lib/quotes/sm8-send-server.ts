@@ -4,7 +4,7 @@ import { stillToPrice } from "./lines-price";
 import { readJobQuote } from "./lines-job-server";
 import { readQuotePrice } from "./quote-price-server";
 import { readQuoteSettings } from "./settings-query";
-import { sendAsQuotePlan, sendPlan, usualTaxRate, type SendPlan } from "./sm8-send-plan";
+import { asPerQuoteItem, sendAsQuotePlan, sendPlan, usualTaxRate, type SendPlan } from "./sm8-send-plan";
 import { readByHand } from "./lines-job-server";
 import { approvalStands } from "./lines-proposal";
 import type { Variation } from "./lines-job";
@@ -25,14 +25,30 @@ export type SendView = { plan: SendPlan; editDate: string | null };
     approved quote as a quote, before it's accepted. */
 export type SendAs = "accepted" | "quote";
 
+/** The business's As Per Quote item in its ServiceM8 price book, the one
+    its job lines use most (bug 82); null with none. */
+async function readAsPerQuote(orgId: string): Promise<string | null> {
+  const items = await supabaseAdmin.from("sm8_materials").select("uuid, name, active").eq("org_id", orgId).ilike("name", "as per quote");
+  const found = (items.data ?? []) as { uuid: string; name: string | null; active: number | boolean | null }[];
+  if (found.length <= 1) return asPerQuoteItem(found, []);
+  const used = await supabaseAdmin
+    .from("sm8_job_materials")
+    .select("material_uuid")
+    .eq("org_id", orgId)
+    .in("material_uuid", found.map((m) => m.uuid))
+    .limit(5000);
+  return asPerQuoteItem(found, ((used.data ?? []) as { material_uuid: string | null }[]).map((r) => r.material_uuid));
+}
+
 export async function readSm8SendView(orgId: string, cardId: string, as: SendAs = "accepted"): Promise<SendView> {
-  const [quote, price, settings, job, lines, rates] = await Promise.all([
+  const [quote, price, settings, job, lines, rates, asPerQuote] = await Promise.all([
     readJobQuote(orgId, cardId),
     readQuotePrice(orgId, cardId),
     readQuoteSettings(orgId),
     supabaseAdmin.from("sm8_jobs").select("status, invoice_sent, edit_date").eq("org_id", orgId).eq("uuid", cardId).maybeSingle(),
     supabaseAdmin.from("sm8_job_materials").select("uuid, name, active").eq("org_id", orgId).eq("job_uuid", cardId),
     supabaseAdmin.from("sm8_job_materials").select("tax_rate_uuid").eq("org_id", orgId).eq("active", 1).limit(2000),
+    readAsPerQuote(orgId),
   ]);
   const row = job.data as { status: string | null; invoice_sent: number | boolean | null; edit_date: string | null } | null;
   const editDate = row?.edit_date ?? null;
@@ -63,6 +79,7 @@ export async function readSm8SendView(orgId: string, cardId: string, as: SendAs 
       existing: existing.filter((e) => !theirs.has(e.uuid.toLowerCase())),
       taxRateUuid,
       proposal: byHand.proposal,
+      asPerQuote,
     });
     return { plan, editDate };
   }
@@ -88,6 +105,7 @@ export async function readSm8SendView(orgId: string, cardId: string, as: SendAs 
     existing: existing.filter((e) => !theirs.has(e.uuid.toLowerCase())),
     taxRateUuid,
     proposal,
+    asPerQuote,
   });
   return { plan, editDate };
 }

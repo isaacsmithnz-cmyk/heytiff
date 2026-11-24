@@ -146,3 +146,33 @@ export function keepPeoplesTasks(next: LineVisit[], before: LineVisit[]): LineVi
   }
   return out;
 }
+
+/* THE ROW WITH NO SYSTEM IS NAMED FOR WHAT IT HOLDS (bug 80, Luke, 24
+   November 2026, on 3594: "there's no way of viewing the tasks that have
+   been created for the quote"). Labour has no system, so its lines, and the
+   tasks under them, sat shut in the last row, named "Quote", after System 1
+   and System 2. A row of labour only is "Labour", its hours and how many
+   tasks under it; a row with more is the whole job's where there are
+   systems, and the quote's where there are none. */
+
+const plural = (n: number, one: string) => `${n} ${n === 1 ? one : `${one}s`}`;
+
+/** A system row's name and what's said under it. */
+export function systemRowWords(
+  system: string,
+  lines: readonly { kind: string; group: string; qty: number; visit?: LineVisit | null }[],
+  /** whether the option has a system by name */
+  systems: boolean
+): { name: string; under: string } {
+  const labour = lines.filter((l) => l.kind === "labour");
+  const hours = Math.round(labour.reduce((n, l) => n + l.qty, 0) * 100) / 100;
+  const tasks = labour.reduce((n, l) => n + (l.visit?.tasks.length ?? 0), 0);
+  const labourWords = [hours > 0 ? plural(hours, "hour") : "", tasks > 0 ? plural(tasks, "task") : ""].filter(Boolean).join(", ");
+  const groups = [...new Set(lines.map((l) => l.group))];
+  if (!system && lines.length > 0 && labour.length === lines.length) {
+    const others = groups.filter((g) => g !== "Labour");
+    return { name: "Labour", under: [labourWords, ...others].filter(Boolean).join(", ") };
+  }
+  const under = groups.map((g) => (g === "Labour" && labourWords ? `Labour, ${labourWords}` : g)).join(", ");
+  return { name: system || (systems ? "Whole job" : "Quote"), under };
+}

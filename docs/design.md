@@ -499,7 +499,7 @@ the fourth on the customer's messages, below).
     13 with a dot. A project's page, the letter editor and the SWMS sign-on
     keep the block.
   The facts' labels are 13/500 with an icon: Site a house and Contact a
-  person in grey, Next visit a calendar in pink.
+  person in grey, Next visit a calendar, grey too since 25 November 2026.
   Since 14 November 2026 (mocks C and D on
   https://claude.ai/artifact/MkfHutEG1PanPDCW7fyV5a, and his calls 4, 5, 11,
   19 and 21) the Overview is two columns fitted to the screen, each card
@@ -512,6 +512,23 @@ the fourth on the customer's messages, below).
   "Not paid" in orange while money is owing. Money and the Job tracker are
   Billing's, and a tracked job's board is a line in Actions. A long client
   name wraps beside its number and never fades.
+  Since 25 November 2026 the Overview's two cards wear their colour as a
+  filled head again, 56 high, the title and its icon in white: the facts
+  card is At a glance on the quiet grey, the Activity feed on its green
+  word value with its tabs in white, the picked tab white with green words
+  and a tab with something to look at a white word with a dot in its
+  colour. Under each head the card's body is white and curls into the head
+  at both corners with the box's 26, as the page curls into the sidebar
+  (rule 1). In At a glance, Next visit is a part like Stage: and Contact:
+  the day and time at 20, then a person, how many are booked and their
+  names, then the card's one blue button, View booking, or Book a visit
+  when nothing is; the steps are headed Stage: and the step the job is at
+  (Isaac, 24 and 25 November 2026, on
+  https://claude.ai/artifact/8UsC9Cuf7RCMNi2tKqsP56: "give card header a
+  colour background behind next visit with a curve like side bar", "do the
+  same to activity", "actually both down", "dark grey with white writing",
+  "change card title to something that covers the whole card", "add blue
+  view booking, or book visit if theres nothing booked", then "Build it").
 - **Price lays every price on the job across its top** (`.jpr`,
   job-price-tab.tsx; the job page plan's build 10, on the Price Tab mock
   https://claude.ai/artifact/LUi5CikRpK5frq6b6M4D9J, and Isaac, 14 November

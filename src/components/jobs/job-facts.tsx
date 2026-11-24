@@ -32,7 +32,18 @@ import { SiteNotes } from "./site-notes";
                  every contact on the job
    The site, its map, Directions and Site notes are the head's now
    (job-page-head, JobSiteWords and JobHeadMap below). Money and the Job
-   tracker went to Billing (Isaac, 13 November 2026). */
+   tracker went to Billing (Isaac, 13 November 2026).
+
+   AT A GLANCE (Isaac, 24 and 25 November 2026, on the mocks at
+   https://claude.ai/artifact/8UsC9Cuf7RCMNi2tKqsP56: "give card header a
+   colour background ... with a curve like side bar", "dark grey with white
+   writing", "change card title to something that covers the whole card",
+   then "Build it"). The card is headed At a glance in white on the quiet
+   grey, and its white body curls into the grey at both corners, as the page
+   curls into the sidebar. Next visit is a part like the others: the day and
+   time at 20, then a person, how many are booked and their names; under
+   them the one blue button, View booking, or Book a visit when nothing is.
+   The steps are headed Stage: and the step the job is at. */
 
 /** A dialable href, or null when the field isn't one number.
 
@@ -61,7 +72,7 @@ const LOOK: Record<string, { icon: string; hue: "grey" | "pink" }> = {
   Site: { icon: "home", hue: "grey" },
   Contact: { icon: "user", hue: "grey" },
   Contacts: { icon: "user", hue: "grey" },
-  "Next visit": { icon: "calendar", hue: "pink" },
+  "Next visit": { icon: "calendar", hue: "grey" },
 };
 
 function Fact({
@@ -213,6 +224,7 @@ export function JobFacts({
   onBook,
   onEditContact,
   stages = null,
+  stage = null,
 }: {
   detail: MirrorJobDetail | null;
   next: NextVisit | null;
@@ -225,41 +237,62 @@ export function JobFacts({
   onEditContact?: () => void;
   /** Where the job is up to, under Next visit. */
   stages?: ReactNode;
+  /** The step the job is at, beside Stage:. */
+  stage?: string | null;
 }) {
   const contacts = detail?.contacts ?? [];
   /* one contact open at a time */
   const [opened, setOpened] = useState<number | null>(null);
   return (
     <div className="jfc" role="group" aria-label="The job's facts">
-      <Fact
-        label="Next visit"
-        onOpen={onVisits}
-        aside={
-          !onBook || next ? null : nextRead ? (
-            <Button kind="main" size={32} onClick={onBook}>
-              Book a visit
-            </Button>
-          ) : (
-            /* Book a visit's room, kept while it reads, so nothing jumps when it comes */
-            <span className="jov-press--held" aria-hidden="true" />
-          )
-        }
-      >
+      <div className="jfc-head">
+        <Icon name="listCheck" size={18} />
+        <h2 className="jfc-title">At a glance</h2>
+      </div>
+      <div className="jfc-body">
+      <Fact label="Next visit" onOpen={onVisits}>
         {next ? (
           <>
-            <b className="jov-strong">{next.when}</b>
-            {next.who && <p className="jov-cap">{next.who}</p>}
+            <b className="jfc-when">{next.when}</b>
+            {next.who && (
+              <p className="jfc-crew">
+                <Icon name="user" size={16} />
+                <b>{next.crew}</b>
+                <span>{next.who}</span>
+              </p>
+            )}
             {next.state && <StateWord tone={next.state.tone}>{next.state.word}</StateWord>}
+            <Button kind="main" size={36} className="jfc-go" onClick={onVisits}>
+              View booking
+            </Button>
           </>
         ) : nextRead ? (
-          <b className="jov-strong">Nothing booked</b>
+          <>
+            <b className="jfc-when">Nothing booked</b>
+            {onBook && (
+              <Button kind="main" size={36} className="jfc-go" onClick={onBook}>
+                Book a visit
+              </Button>
+            )}
+          </>
         ) : (
-          <p className="jov-cap">Reading the visits</p>
+          <>
+            <p className="jov-cap">Reading the visits</p>
+            {/* Book a visit's room, kept while it reads, so nothing jumps when it comes */}
+            {onBook && <span className="jfc-go jov-press--held" aria-hidden="true" />}
+          </>
         )}
       </Fact>
 
       {stages && (
         <section className="jfc-part jfc-part--stages" aria-label="Where the job is up to">
+          <div className="jov-lab">
+            <span className="jov-labname">
+              <Icon name="flag" size={16} />
+              Stage:
+              {stage && <b className="jfc-stage">{stage}</b>}
+            </span>
+          </div>
           {stages}
         </section>
       )}
@@ -287,6 +320,7 @@ export function JobFacts({
           </ul>
         )}
       </Fact>
+      </div>
     </div>
   );
 }

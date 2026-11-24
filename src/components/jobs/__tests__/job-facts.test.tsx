@@ -122,10 +122,31 @@ it("offers Book a visit, blue, only once it knows nothing is booked and the read
   expect(cell("Next visit").getByRole("button", { name: "Book a visit" })).toHaveClass("pt-btn--main");
   rerender(<JobFacts {...base} />);
   expect(screen.queryByRole("button", { name: "Book a visit" })).toBeNull();
-  rerender(<JobFacts {...base} onBook={onBook} next={{ when: "Tomorrow, 7:30 am", who: "Lyle Irving", state: null }} />);
+  rerender(<JobFacts {...base} onBook={onBook} next={{ when: "Tomorrow, 7:30 am", who: "Lyle Irving", crew: 1, state: null }} />);
   expect(cell("Next visit").getByText("Tomorrow, 7:30 am")).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Book a visit" })).toBeNull();
   unmount();
+});
+
+/* AT A GLANCE (Isaac, 25 November 2026: "just have person symbol and number
+   with names", "add blue view booking, or book visit if theres nothing
+   booked", "change card title to something that covers the whole card") */
+it("heads the card At a glance, and gives a booked visit its crew and a blue View booking", async () => {
+  const onVisits = jest.fn();
+  render(<JobFacts {...base} onVisits={onVisits} next={{ when: "Thu 27 Nov, 7:30 am", who: "Lyle Irving and Dane Hill", crew: 2, state: null }} />);
+  expect(screen.getByRole("heading", { name: "At a glance" })).toBeInTheDocument();
+  const crew = screen.getByRole("region", { name: "Next visit" }).querySelector(".jfc-crew");
+  expect(crew).toHaveTextContent("2Lyle Irving and Dane Hill");
+  const view = cell("Next visit").getByRole("button", { name: "View booking" });
+  expect(view).toHaveClass("pt-btn--main");
+  await userEvent.click(view);
+  expect(onVisits).toHaveBeenCalled();
+});
+
+it("heads the steps Stage: and the step the job is at", () => {
+  render(<JobFacts {...base} stages={<nav aria-label="Where the job is up to" />} stage="Deposit paid" />);
+  const head = screen.getByRole("region", { name: "Where the job is up to" }).querySelector(".jov-lab");
+  expect(head).toHaveTextContent("Stage:Deposit paid");
 });
 
 it("opens Visits from Next visit", async () => {

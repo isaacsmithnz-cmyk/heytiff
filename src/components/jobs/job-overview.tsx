@@ -100,6 +100,8 @@ export function JobOverview({
     onEditContact?: () => void;
     /** Where the job is up to, in the facts card under Next visit. */
     stages?: ReactNode;
+    /** The step the job is at, beside Stage: in the facts card. */
+    stage?: string | null;
     /** What's open on the job (the attention rows), at the head of To do,
         leaving out the tasks To do lists as its own rows. */
     open?: (taskIds: ReadonlySet<string>) => { rows: ReactNode; count: number };
@@ -241,6 +243,7 @@ export function JobOverview({
           onBook={doors.onBook}
           onEditContact={doors.onEditContact}
           stages={doors.stages}
+          stage={doors.stage ?? null}
         />
         {openTask ? <TaskForm taskId={openTask} onClose={() => setOpenTask(null)} onChanged={again} /> : null}
       </div>

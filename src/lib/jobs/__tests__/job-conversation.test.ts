@@ -178,14 +178,14 @@ describe("the rail", () => {
       { booked: [booked("2026-10-16 14:00:00", "Lyle Irving", { end: "2026-10-16 16:00:00" }), booked("2026-10-16 14:00:00", "Dane Hill", { end: "2026-10-16 16:00:00" })] },
       "2026-10-13",
     );
-    expect(next).toEqual({ when: "Fri 16 Oct, 2:00 pm", who: "Lyle Irving and Dane Hill", state: null });
+    expect(next).toEqual({ when: "Fri 16 Oct, 2:00 pm", who: "Lyle Irving and Dane Hill", crew: 2, state: null });
   });
 
   it("says in orange when the visit's time is still to confirm, or ServiceM8 doesn't have it yet", () => {
     expect(nextVisitOf({ booked: [booked("2026-10-16 00:00:00", "Lyle Irving")] }, "2026-10-13")?.state).toEqual({ word: "Time to confirm", tone: "look" });
     expect(
       nextVisitOf({ booked: [booked("2026-10-14 07:00:00", "Lyle Irving", { end: "2026-10-14 15:00:00", ourRow: "w1", bookedOn: null })] }, "2026-10-13"),
-    ).toEqual({ when: "Tomorrow, 7:00 am", who: "Lyle Irving", state: { word: "Not in ServiceM8 yet", tone: "look" } });
+    ).toEqual({ when: "Tomorrow, 7:00 am", who: "Lyle Irving", crew: 1, state: { word: "Not in ServiceM8 yet", tone: "look" } });
   });
 
   it("reads the detail's next booking where the deployment doesn't book, and nothing for a leftover", () => {

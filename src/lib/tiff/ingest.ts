@@ -33,6 +33,10 @@ import { embedTexts } from "./embeddings";
 import { tagChunks } from "./keywords";
 import { releasedOf } from "./released";
 import { imprintPatch, readImprint } from "./imprint";
+import { makerFromModels, makerFromPages } from "./maker";
+import { kbTagsForOrg } from "./tags-query";
+import { KB_TAG_SEEDS } from "./tags";
+import { libraryPacks } from "@/lib/library/packs-server";
 import { addKbUsage, kbQuotaFor } from "./quota";
 
 /* The reason, kept where it can be read.
@@ -353,6 +357,27 @@ export async function processBatch(documentId: string, orgId: string, cache?: Pd
 
     const keywords = tagged.ok ? tagged.keywords : chunks.map(() => []);
 
+    /* A MAKER THE COVER DOESN'T PRINT (./maker): only where nobody gave one
+       and the cover named none, the pages this batch holds, then the title's
+       model codes in the data books. Never throws: no maker is still a manual. */
+    const pagesMaker =
+      window.from === 1 && !known.source?.trim() && imprint && !imprint.maker
+        ? await (async () => {
+            try {
+              const tags = await kbTagsForOrg(orgId);
+              const names = [...tags.filter((t) => t.kind === "brand").map((t) => t.label), ...KB_TAG_SEEDS.filter((t) => t.kind === "brand").map((t) => t.label)];
+              return (
+                makerFromPages(
+                  pages.map((p) => p.text),
+                  names,
+                ) ?? makerFromModels(await libraryPacks(), [imprint.title, known.title, known.file_name].filter(Boolean).join(" "), names)
+              );
+            } catch {
+              return null;
+            }
+          })()
+        : null;
+
     /* WHEN IT CAME OUT (./released), read once in the first batch: the date
        printed on its title, file, edition or cover, else the PDF's own date
        when a scanner or converter didn't make the PDF */
@@ -407,7 +432,12 @@ export async function processBatch(documentId: string, orgId: string, cache?: Pd
 
     const { error: updateErr } = await supabaseAdmin
       .from("kb_documents")
-      .update({ ...patch, ...(imprint ? imprintPatch(known, imprint, cover) : {}), ...(released ? { released } : {}) })
+      .update({
+        ...patch,
+        ...(pagesMaker ? { source: pagesMaker } : {}),
+        ...(imprint ? imprintPatch({ ...known, source: known.source || pagesMaker }, imprint, cover) : {}),
+        ...(released ? { released } : {}),
+      })
       .eq("org_id", orgId)
       .eq("id", documentId);
     if (updateErr) return fail(documentId, orgId, doc, "That document couldn't be updated.");

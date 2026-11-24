@@ -709,6 +709,24 @@ looks fine"), which left the mock's own choices standing.
   before the change keeps the words it was issued with, because a version
   is frozen at issue.
 
+#### On First aid
+
+His calls on the phone's First aid (24 November 2026, "Build it" to
+https://claude.ai/artifact/WN4fW9vkQhVW4ZGFQ1knq3).
+
+- **First aid is red**, despite rule 16, red only means wrong: "a big red
+  plus at the top of more". It is the one thing found in a hurry, as the
+  emergency contact's title is. More's button is the plus with its word,
+  First aid, as rule 27 asks, solid in red's word value with white on it.
+  Inside, Call 000 is the same red, big on the first screen and a bar on
+  every step after it; nothing else there is red but the CPR disc.
+- **The CPR disc never moves.** It flashes between red and red's word
+  value on each push and turns blue for the breaths. A disc that grew and
+  shrank "could be interpreted as in and out with hands".
+- **A step is one screen, like troubleshooting**: what to do, then one or
+  two buttons 60 high, the first blue. "done can read as finished, use
+  next if theres another step".
+
 #### In the Studio
 
 His call on the Plans mock's boards 8 to 10 (9 November 2026, "Build it";

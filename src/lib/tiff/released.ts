@@ -38,13 +38,29 @@ export function pdfDate(raw: unknown, now = new Date()): string | null {
   return day(Number(m[1]), month >= 1 && month <= 12 ? month : 1);
 }
 
-/** When the manual came out: printed on its title, file or edition, in that order, else the PDF's own date. Pure. */
-export function releasedOf(doc: { title: string | null; fileName: string | null; edition: string | null }, pdfMade: unknown, now = new Date()): string | null {
-  for (const text of [doc.title, doc.fileName, doc.edition]) {
+/* A PDF A PHONE OR A PRINTER MADE says when it was scanned or converted, not
+   when the manual came out: a 2018 Daikin sheet photographed today, or a Word
+   document saved as a PDF, wore 2026 in the Library (24 November 2026). These
+   are the makers' names such files carry. */
+const CONVERTED = /scan|tinyscan|camscanner|genius|skia|quartz|print to pdf|microsoft: print|chrome|mac os x|macos|ios version|image ?to ?pdf|img2pdf|imagemagick/i;
+
+/** True when the PDF's producer is a scanner, a phone, a browser or a print-to-PDF. Pure. */
+export function madeByConverter(producer: string | null | undefined): boolean {
+  return CONVERTED.test(String(producer ?? ""));
+}
+
+/** When the manual came out: printed on its title, file or edition, then the date its cover prints, in that order,
+    else the PDF's own date (unless a scanner or converter made the PDF). Pure. */
+export function releasedOf(
+  doc: { title: string | null; fileName: string | null; edition: string | null; issued?: string | null; producer?: string | null },
+  pdfMade: unknown,
+  now = new Date()
+): string | null {
+  for (const text of [doc.title, doc.fileName, doc.edition, doc.issued]) {
     const printed = printedDate(text, now);
     if (printed) return printed;
   }
-  return pdfDate(pdfMade, now);
+  return madeByConverter(doc.producer) ? null : pdfDate(pdfMade, now);
 }
 
 /** A manual's edition where it says more than when it came out ("Si30 - 701_A", "REVISED EDITION-A"); null for

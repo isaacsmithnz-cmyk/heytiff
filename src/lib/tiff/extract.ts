@@ -39,6 +39,8 @@ export type PdfDoc = {
   pageLines(n: number): Promise<string[]>;
   /** The date the PDF says it was made ("D:20230713174433+10'00'"), raw, or null. */
   made?(): Promise<string | null>;
+  /** What made the PDF: its Producer and Creator ("Skia/PDF m120", "TinyScan"), or null. */
+  producer?(): Promise<string | null>;
   /** The page's size in points, unrotated as it shows: an A4 page is 595 × 842,
       an A1 sheet 2384 × 1684. */
   pageSize?(n: number): Promise<{ w: number; h: number }>;
@@ -144,6 +146,12 @@ export async function openPdf(bytes: Uint8Array): Promise<PdfDoc> {
       const meta = await doc.getMetadata().catch(() => null);
       const at = (meta?.info as { CreationDate?: unknown } | undefined)?.CreationDate;
       return typeof at === "string" ? at : null;
+    },
+    async producer() {
+      const meta = await doc.getMetadata().catch(() => null);
+      const info = (meta?.info ?? {}) as { Producer?: unknown; Creator?: unknown };
+      const said = [info.Producer, info.Creator].filter((v): v is string => typeof v === "string" && Boolean(v.trim()));
+      return said.length ? cleanPdfText(said.join(" · ")) : null;
     },
     async title() {
       const meta = await doc.getMetadata().catch(() => null);

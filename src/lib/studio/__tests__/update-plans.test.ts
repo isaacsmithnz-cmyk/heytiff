@@ -176,3 +176,46 @@ describe("the design's own set, read again", () => {
     expect(newerPlan(out, [again])).toBeNull();
   });
 });
+
+/* 3570, 24 November 2026: read again with its door and window schedule, its
+   windows had their heights, and its rooms kept the glazing of the read
+   before. A Lounge of 20 m² with 2.4 m of window: 2.9 m² of glass at 1.2 m
+   (low), 5.8 m² at its scheduled 2.4 m (moderate). */
+describe("a set read again with its glass sized", () => {
+  const glass = (room: string, widthMm: number, heightMm?: number): ReadOpening => ({ ...windowIn(room, "N"), widthMm, ...(heightMm ? { heightMm } : {}) });
+  const spaces = [room("Lounge", rect(0, 0, 500, 400)), room("Study", rect(600, 0, 300, 300))];
+  const first = plan("Set A", "2026-11-01T00:00:00Z", sheet(spaces, [glass("Lounge", 2400), glass("Study", 1200)]));
+  const again: JobPlan = { ...first, reading: { ...first.reading!, at: "2026-11-05T00:00:00Z", floors: { p1: [sheet(spaces, [glass("Lounge", 2400, 2400), glass("Study", 1200, 1500)])] } } };
+  const d = designFrom(first);
+  const lounge = named(d, "Lounge")!;
+  const study = named(d, "Study")!;
+  const up = newerPlan(d, [again])!;
+
+  it("is offered as a set read again", () => {
+    expect(lounge.props.glazing).toBe("low");
+    expect(study.props.glazing).toBe("moderate");
+    expect(up.again).toBe(true);
+  });
+
+  it("offers the room whose glazing moves with its load, and says nothing of one whose doesn't", () => {
+    const u = planUpdate(d, [again], up);
+    expect(u.pages).toEqual([{ n: 1, title: "First floor, page 1", lines: ["Lounge has more glass now"] }]);
+    expect(u.offers.map((o) => o.title)).toEqual(["Lounge takes the new plans"]);
+    expect(u.offers[0].line).toMatch(/^Its windows off First floor, page 1\. Its load goes from [\d.]+ kW to [\d.]+ kW$/);
+  });
+
+  it("gives the ticked room its glazing and leaves its outline as drawn", () => {
+    const moved = { ...lounge, geometry: { kind: "polygon" as const, points: rect(10, 10, 480, 380) } };
+    const drawn = { ...d, objects: d.objects.map((o) => (o.id === lounge.id ? moved : o)) };
+    const out = updatePlans(drawn, [again], up, new Set([lounge.id]));
+    const l = out.objects.find((o) => o.id === lounge.id)!;
+    expect(l.props.glazing).toBe("moderate");
+    expect(l.geometry).toEqual(moved.geometry);
+    expect(out.objects.find((o) => o.id === study.id)!.props.glazing).toBe("moderate");
+  });
+
+  it("leaves a room left unticked as it was", () => {
+    const out = updatePlans(d, [again], up, new Set());
+    expect(out.objects.find((o) => o.id === lounge.id)!.props.glazing).toBe("low");
+  });
+});

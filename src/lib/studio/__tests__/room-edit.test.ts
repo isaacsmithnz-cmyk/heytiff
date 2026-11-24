@@ -104,7 +104,8 @@ describe("Tiff's rooms, kept from the plan", () => {
     const s = suggestionsFor(design().floors[0], [sheet]);
     const bed = s.find((x) => x.name === "Bedroom")!;
     expect(bed.windows.map((w) => w.kind)).toEqual(["window", "door"]);
-    expect(glassM2(bed)).toBeCloseTo((1.2 + 2.4) * 1.2);
+    /* the window at a window's 1.2 m, the slider at a door's 2.1 m */
+    expect(glassM2(bed)).toBeCloseTo(1.2 * 1.2 + 2.4 * 2.1);
     expect(s.find((x) => x.name === "Garage")!.windows).toEqual([]);
   });
 

@@ -74,8 +74,13 @@ export function suggestionsFor(floor: Pick<Floor, "plans">, sheets: SheetReading
 }
 
 /* A window's glass is its width by this height when nothing gives its
-   height; the set's schedule does, by its mark (schedule.ts). */
+   height; the set's schedule does, by its mark (schedule.ts). A glazed
+   door's is a door's height: a slider or a stacker runs from the floor to
+   its head, and at a window's 1.2 m its glass came out at half or less
+   (Isaac's job 3570, 24 November 2026: with its nine glazed doors and its
+   windows at 1.2 m the house read 158 kW, at their scheduled heights 178). */
 const WINDOW_HEIGHT_M = 1.2;
+const GLAZED_DOOR_HEIGHT_M = 2.1;
 
 /** A room's glass as read, and its outside openings: its kind, for a garage's doors. */
 type Glass = Pick<Suggestion, "windows"> & Partial<Pick<Suggestion, "openings" | "kind">>;
@@ -88,10 +93,13 @@ const unread = (o: ReadOpening) => !(o.widthMm > 0);
 const glassUnread = (s: Glass) => [...s.windows.filter(unread), ...(s.kind === "garage" ? [] : (s.openings ?? []).filter((o) => o.kind === "door" && unread(o)))];
 
 /** The glass read for a room, in m²: each window's width by its scheduled
-    height, else 1.2 m. Null where a window's width, or an outside door's,
-    isn't read: how much glass it has isn't known. */
+    height, else 1.2 m, and a glazed door's by its own, else 2.1 m. Null
+    where a window's width, or an outside door's, isn't read: how much glass
+    it has isn't known. */
 export const glassM2 = (s: Glass): number | null =>
-  glassUnread(s).length ? null : s.windows.reduce((t, w) => t + (w.widthMm / 1000) * (w.heightMm && w.heightMm > 0 ? w.heightMm / 1000 : WINDOW_HEIGHT_M), 0);
+  glassUnread(s).length
+    ? null
+    : s.windows.reduce((t, w) => t + (w.widthMm / 1000) * (w.heightMm && w.heightMm > 0 ? w.heightMm / 1000 : w.kind === "door" ? GLAZED_DOOR_HEIGHT_M : WINDOW_HEIGHT_M), 0);
 
 /** The glazing level from glass over floor area, by the fixed cut-offs
     (Isaac left it to the most reliable answer, 20 October): under 15% low,

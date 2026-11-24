@@ -194,6 +194,8 @@ const record = (b: JobBookings | null = bookings()): JobRecordRead => ({
 const facts = (over: Partial<QuoteFacts> = {}): QuoteFacts => ({
   lines: 12,
   options: 1,
+  asked: 0,
+  toPrice: 0,
   toConfirm: 0,
   changedAt: "2026-10-10T01:00:00.000Z",
   talked: true,

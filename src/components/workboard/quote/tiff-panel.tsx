@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@/components/parts/button";
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { Dot } from "@/components/parts/state";
 import { Fade } from "@/components/parts/fade";
@@ -689,7 +690,7 @@ export function TiffPanel({
                         </span>
                         {String(q.body.question ?? "")}
                       </p>
-                      {put && <p className="qt-put">{`I've put ${put}`}</p>}
+                      {put && <p className="qt-put">{`On the quote now: ${put}`}</p>}
                       {answers.length > 0 && (
                         <ul className="qt-ans">
                           {answers.map((a, i) => (
@@ -802,14 +803,31 @@ export function TiffPanel({
                 return (
                   <div key={q.id} className={`qx-card qx-ask${landed(q.id)}`}>
                     <p className="qx-askq">{String(q.body.question ?? "")}</p>
-                    {put && !done && <p className="qx-askput">{`I've put ${put}`}</p>}
-                    {answers.map((a, i) => (
-                      <button key={i} type="button" className={i === among ? "qx-row picked" : "qx-row"} aria-pressed={done ? i === among : undefined} disabled={busy || !!done || deltas[i] === null} onClick={() => void answer(q.id, i)}>
-                        <b>{a.label}</b>
-                        {deltaWords(deltas[i]) && <span className="qx-r">{deltaWords(deltas[i])}</span>}
-                        {i === among && tick}
-                      </button>
-                    ))}
+                    {put && !done && <p className="qx-askput">{`On the quote now: ${put}`}</p>}
+                    {/* still open, its answers are buttons, the likely one
+                        blue with what it does to the price at its right, as
+                        the phone has them (Isaac, 24 November 2026: "fix
+                        wording and buttons so they match either device");
+                        answered, they are the rows they were, the one picked
+                        ticked */}
+                    {!done && answers.length > 0 && (
+                      <div className="qx-answers">
+                        {answers.map((a, i) => (
+                          <Button key={i} kind={i === 0 ? "main" : "second"} size={44} className="qx-answer" disabled={busy || deltas[i] === null} onClick={() => void answer(q.id, i)}>
+                            <span>{a.label}</span>
+                            {deltaWords(deltas[i]) && <span className="qx-r">{deltaWords(deltas[i])}</span>}
+                          </Button>
+                        ))}
+                      </div>
+                    )}
+                    {done &&
+                      answers.map((a, i) => (
+                        <button key={i} type="button" className={i === among ? "qx-row picked" : "qx-row"} aria-pressed={i === among} disabled>
+                          <b>{a.label}</b>
+                          {deltaWords(deltas[i]) && <span className="qx-r">{deltaWords(deltas[i])}</span>}
+                          {i === among && tick}
+                        </button>
+                      ))}
                     {done && among < 0 && (
                       <div className="qx-row picked">
                         <b>{done.label}</b>
@@ -846,7 +864,8 @@ export function TiffPanel({
             onChange={setTyped}
             onSubmit={() => void send()}
             label="Message Tiff"
-            placeholder={events.length === 0 ? "Tell Tiff about the job" : "Reply"}
+            /* the phone's words in the box (24 November 2026) */
+            placeholder={events.length === 0 ? "Tell Tiff what to quote" : asks.some((q) => !questions[q.id]?.answered) ? "Answer in your own words" : "Reply to Tiff"}
             sendWord="Tiff"
             sendLabel="Send to Tiff"
             /* you can answer while she works: it waits its turn (Isaac, 13 November 2026, "Build E") */

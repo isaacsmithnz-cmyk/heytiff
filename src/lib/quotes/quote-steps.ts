@@ -15,6 +15,7 @@
    Design step at all. */
 
 import { auDayOf, fmtAuDayMonth } from "@/lib/au-dates";
+import { answerWord, confirmWord } from "./quote-left";
 
 export type StepKey = "brief" | "questions" | "design" | "buildup" | "approved" | "sent" | "accepted";
 /** done: settled. due: needs something before the quote is whole. next:
@@ -84,7 +85,10 @@ export function acceptedWords(accepted: readonly number[]): string {
     the option a person marked. */
 export function linesSteps(input: {
   lines: number;
-  unknown: number;
+  /** her questions still open */
+  asked: number;
+  /** the lines nobody knows yet and her estimates, still to confirm */
+  unknown?: number;
   price: PriceState;
   accepted?: readonly number[];
   approved?: boolean;
@@ -98,7 +102,9 @@ export function linesSteps(input: {
   design?: DesignState | null;
 }): QuoteStep[] {
   const step = (key: StepKey, state: StepState, words: string): QuoteStep => ({ key, label: LABELS[key], state, words });
-  const { lines, unknown, price } = input;
+  const { lines, asked, price } = input;
+  const unknown = input.unknown ?? 0;
+  const open = (asked > 0 || unknown > 0) && !input.approved;
   const built =
     lines === 0
       ? step("buildup", "next", "No lines yet")
@@ -118,7 +124,10 @@ export function linesSteps(input: {
        Scope, with what's left to settle, in layout C */
     /* approved, a person has stood behind it: the line never sits back on
        Scope past a green Approved (3423, Isaac, 30 October 2026) */
-    step("questions", unknown > 0 && !input.approved ? "due" : lines > 0 ? "done" : "todo", unknown > 0 && !input.approved ? `${unknown} to settle` : lines > 0 ? "Settled" : ""),
+    /* her open questions first, in the phone's words; then what's still to
+       confirm, the web's own (24 November 2026). It said "N to settle", the
+       two counted together. */
+    step("questions", open ? "due" : lines > 0 ? "done" : "todo", open ? (asked > 0 ? answerWord(asked) : confirmWord(unknown)) : lines > 0 ? "Settled" : ""),
     ...(input.design ? [designStep(input.design)] : []),
     built,
     /* version 2 on, the version it's at (quote-versions.ts) */

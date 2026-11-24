@@ -11,7 +11,7 @@ it("words the options accepted", () => {
 
 describe("a quote built on its kept lines", () => {
   it("is waiting on its first line", () => {
-    expect(linesSteps({ lines: 0, unknown: 0, price: { kind: "empty" } }).map((s) => [s.key, s.state, s.words])).toEqual([
+    expect(linesSteps({ lines: 0, asked: 0, price: { kind: "empty" } }).map((s) => [s.key, s.state, s.words])).toEqual([
       ["brief", "next", "By hand"],
       ["questions", "todo", ""],
       ["buildup", "next", "No lines yet"],
@@ -21,21 +21,21 @@ describe("a quote built on its kept lines", () => {
     ]);
   });
   it("says what's unknown and what's left to price, then that every line is priced", () => {
-    const due = linesSteps({ lines: 40, unknown: 2, price: { kind: "priced", left: 2 } });
-    expect(due[1]).toMatchObject({ label: "Scope", state: "due", words: "2 to settle" });
+    const due = linesSteps({ lines: 40, asked: 2, price: { kind: "priced", left: 2 } });
+    expect(due[1]).toMatchObject({ label: "Scope", state: "due", words: "2 to answer" });
     expect(due[2]).toMatchObject({ label: "Priced", state: "due", words: "2 to price" });
-    const done = linesSteps({ lines: 40, unknown: 0, price: { kind: "priced", left: 0 } });
+    const done = linesSteps({ lines: 40, asked: 0, price: { kind: "priced", left: 0 } });
     expect(done[1]).toMatchObject({ state: "done", words: "Settled" });
     expect(done[2]).toMatchObject({ state: "done", words: "All priced" });
   });
   it("asks for Quoting when the business hasn't set what pricing needs", () => {
-    expect(linesSteps({ lines: 3, unknown: 0, price: { kind: "unset" } })[2]).toMatchObject({ state: "due", words: "Set Quoting to price it" });
+    expect(linesSteps({ lines: 3, asked: 0, price: { kind: "unset" } })[2]).toMatchObject({ state: "due", words: "Set Quoting to price it" });
   });
   it("shows the option a person marked accepted", () => {
-    expect(linesSteps({ lines: 3, unknown: 0, price: { kind: "priced", left: 0 }, accepted: [1] })[5]).toMatchObject({ key: "accepted", state: "done", words: "Option 2" });
+    expect(linesSteps({ lines: 3, asked: 0, price: { kind: "priced", left: 0 }, accepted: [1] })[5]).toMatchObject({ key: "accepted", state: "done", words: "Option 2" });
   });
   it("shows the quote sent to ServiceM8 as a quote, or only a trial run of it (7.3)", () => {
-    const at = (sent: { trial: boolean } | null) => linesSteps({ lines: 3, unknown: 0, price: { kind: "priced", left: 0 }, approved: true, sent })[4];
+    const at = (sent: { trial: boolean } | null) => linesSteps({ lines: 3, asked: 0, price: { kind: "priced", left: 0 }, approved: true, sent })[4];
     expect(at(null)).toMatchObject({ key: "sent", state: "todo" });
     expect(at({ trial: false })).toMatchObject({ state: "done", words: "To ServiceM8" });
     expect(at({ trial: true })).toMatchObject({ state: "done", words: "Trial run" });
@@ -44,7 +44,7 @@ describe("a quote built on its kept lines", () => {
   it("names its steps Brief, Scope, Priced, Approved, Sent, Accepted, and dates the approval and the send", () => {
     const steps = linesSteps({
       lines: 3,
-      unknown: 0,
+      asked: 0,
       price: { kind: "priced", left: 0 },
       approved: true,
       approvedAt: "2026-10-17T01:00:00Z",
@@ -55,7 +55,7 @@ describe("a quote built on its kept lines", () => {
     expect(steps[4]).toMatchObject({ state: "done", words: "18 Oct" });
   });
   it("says the version it's at from version 2 on (quote-versions.ts)", () => {
-    const at = (version: number, approved: boolean) => linesSteps({ lines: 3, unknown: 0, price: { kind: "priced", left: 0 }, approved, version })[3];
+    const at = (version: number, approved: boolean) => linesSteps({ lines: 3, asked: 0, price: { kind: "priced", left: 0 }, approved, version })[3];
     expect(at(1, true)).toMatchObject({ key: "approved", state: "done", words: "Marked ready" });
     expect(at(1, false)).toMatchObject({ state: "todo", words: "" });
     expect(at(2, false)).toMatchObject({ state: "todo", words: "Version 2" });
@@ -66,13 +66,13 @@ describe("a quote built on its kept lines", () => {
 /* Isaac, 28 October 2026: "Brief, Scope, Design (skippable), Priced, with the
    Studio opening from the Design step" */
 describe("the Design step", () => {
-  const at = (design: "drawn" | "skipped" | "open" | null) => linesSteps({ lines: 3, unknown: 0, price: { kind: "priced", left: 0 }, design });
+  const at = (design: "drawn" | "skipped" | "open" | null) => linesSteps({ lines: 3, asked: 0, price: { kind: "priced", left: 0 }, design });
   it("sits between Scope and Priced for someone with the Studio", () => {
     expect(at("open").map((s) => s.label)).toEqual(["Brief", "Scope", "Design", "Priced", "Ready to send", "Sent", "Customer accepted"]);
   });
   it("isn't on the line at all without the Studio", () => {
     expect(at(null).map((s) => s.key)).not.toContain("design");
-    expect(linesSteps({ lines: 3, unknown: 0, price: { kind: "priced", left: 0 } }).map((s) => s.key)).not.toContain("design");
+    expect(linesSteps({ lines: 3, asked: 0, price: { kind: "priced", left: 0 } }).map((s) => s.key)).not.toContain("design");
   });
   it("is done once the job has a design, still to do with none, and says No design once it's skipped", () => {
     expect(at("drawn")[2]).toMatchObject({ key: "design", label: "Design", state: "done" });
@@ -101,6 +101,6 @@ describe("where the job's design is", () => {
 
 /* 3423, Isaac, 30 October 2026: approved, and the line still sat on Scope in orange */
 it("never sits back on Scope once it's approved", () => {
-  const steps = linesSteps({ accepted: [], approved: true, sent: null, lines: 11, unknown: 2, price: { kind: "priced", left: 0 }, approvedAt: "2026-10-30T10:50:58.480Z" });
+  const steps = linesSteps({ accepted: [], approved: true, sent: null, lines: 11, asked: 2, price: { kind: "priced", left: 0 }, approvedAt: "2026-10-30T10:50:58.480Z" });
   expect(steps.find((s) => s.key === "questions")).toMatchObject({ state: "done", words: "Settled" });
 });

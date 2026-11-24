@@ -8,7 +8,7 @@ import { readVersions } from "@/lib/quotes/quote-versions-server";
 import { hasTalked, readOpenQuestions, readSession } from "@/lib/quotes/session/store-server";
 import { readStoredProposal } from "@/lib/quotes/old-draft-server";
 import { readLanding } from "@/lib/quotes/quote-landing-server";
-import { toConfirmOf, type QuoteFacts } from "@/lib/quotes/quote-card";
+import { estimatesOf, unpricedOf, type QuoteFacts } from "@/lib/quotes/quote-card";
 
 /* WHERE A JOB'S QUOTE STANDS, for the job card (quote-card.ts): counts and
    days, never a price, so it goes to anyone on the Workboard (Isaac,
@@ -40,7 +40,9 @@ export async function GET(req: Request) {
   const facts: QuoteFacts = {
     lines: lines.length,
     options: Math.max(0, ...lines.map((l) => l.optionIndex + 1)),
-    toConfirm: toConfirmOf(lines, asked),
+    asked,
+    toPrice: unpricedOf(lines),
+    toConfirm: estimatesOf(lines),
     changedAt,
     talked,
     drafted: drafted != null,

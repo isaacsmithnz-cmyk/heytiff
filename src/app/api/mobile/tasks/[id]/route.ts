@@ -4,6 +4,7 @@ import { sm8PressFromMobile } from "@/lib/integrations/sm8-press";
 import { sendTaskDoneAs, takeBackTaskDoneAs } from "@/app/actions/task-sm8";
 import { ok, requireMobile } from "@/lib/mobile/auth";
 import { phoneActor } from "@/lib/mobile/tasks";
+import { starredLastTask } from "@/lib/jobs/job-stars";
 
 /* ONE OF YOUR TASKS, from the phone's To do: tick it (`done`), Undo the tick
    (`reopen`), move its date (`due`), or DELETE it — the web's own rules
@@ -37,7 +38,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       }
     }
     revalidateHome();
-    return ok({ done: true });
+    /* the last of your open tasks on a job you starred: the phone asks
+       "Remove 3602 from Starred?" (Isaac, 24 November 2026, screen 4) */
+    const last = await starredLastTask({ orgId: ctx.orgId, userId: ctx.userId }, actor.staffId, id).catch(() => null);
+    return ok({ done: true, ...(last ? { unstar: last } : {}) });
   }
   if (body?.do === "reopen") {
     const r = await untickTask(actor, id);

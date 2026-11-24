@@ -3,6 +3,7 @@ import "server-only";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { staffProfileIdFor } from "@/lib/fleet/query";
 import { jobLabelOf } from "@/lib/dashboard/task-record";
+import { sm8CategoryColour } from "@/lib/workboard/all-jobs";
 import { loadStaffNames, myTasks } from "@/lib/dashboard/tasks-query";
 import { sortTasks } from "@/lib/dashboard/tasks";
 import type { TaskActor } from "@/lib/dashboard/task-actions";
@@ -29,8 +30,10 @@ export type PhoneTask = {
   from: string | null;
   /** you made it, so you may delete it */
   own: boolean;
-  /** the job it's about, which the task opens: "3516 Mockville", and the note it was read from, where Tiff made it from one */
-  job?: { uuid: string; label: string; note: string | null };
+  /** the job it's about, which the task opens: "3516 Mockville", and the note it was read from, where Tiff made it from one;
+      its number, client, ServiceM8 colour and status draw the number's box at the row's end (Isaac, 24 November 2026,
+      the Star a job mock's To do) */
+  job?: { uuid: string; label: string; note: string | null; number: string | null; client: string | null; colour: string | null; status: string | null };
 };
 
 /** The phone's person, as the task rules take them: their staff card, and
@@ -80,15 +83,33 @@ async function tasksJobs(orgId: string, ids: readonly string[]): Promise<Map<str
   if (of.size === 0) return out;
   const { data: rows } = await supabaseAdmin
     .from("sm8_jobs")
-    .select("uuid, generated_job_id, geo_city")
+    .select("uuid, generated_job_id, geo_city, status, company_uuid, category_uuid")
     .eq("org_id", orgId)
     .in("uuid", [...new Set([...of.values()].map((j) => j.uuid))]);
-  const label = new Map(
-    ((rows ?? []) as { uuid: string; generated_job_id: string | null; geo_city: string | null }[]).map((r) => [r.uuid, jobLabelOf(r.generated_job_id, r.geo_city)])
-  );
+  type Row = { uuid: string; generated_job_id: string | null; geo_city: string | null; status: string | null; company_uuid: string | null; category_uuid: string | null };
+  const read = (rows ?? []) as Row[];
+  const companies = [...new Set(read.map((r) => r.company_uuid).filter((c): c is string => !!c))];
+  const categories = [...new Set(read.map((r) => r.category_uuid).filter((c): c is string => !!c))];
+  const [{ data: cos }, { data: cats }] = await Promise.all([
+    companies.length ? supabaseAdmin.from("sm8_companies").select("uuid, name").eq("org_id", orgId).in("uuid", companies) : Promise.resolve({ data: [] }),
+    categories.length ? supabaseAdmin.from("sm8_categories").select("uuid, colour").eq("org_id", orgId).in("uuid", categories) : Promise.resolve({ data: [] }),
+  ]);
+  const client = new Map(((cos ?? []) as { uuid: string; name: string | null }[]).map((c) => [c.uuid, c.name?.trim() || null]));
+  const colour = new Map(((cats ?? []) as { uuid: string; colour: string | null }[]).map((c) => [c.uuid, sm8CategoryColour(c.colour)]));
+  const byUuid = new Map(read.map((r) => [r.uuid, r]));
   for (const [id, j] of of) {
-    const l = label.get(j.uuid);
-    if (l) out.set(id, { uuid: j.uuid, label: l, note: j.note });
+    const r = byUuid.get(j.uuid);
+    const label = r ? jobLabelOf(r.generated_job_id, r.geo_city) : null;
+    if (!r || !label) continue;
+    out.set(id, {
+      uuid: j.uuid,
+      label,
+      note: j.note,
+      number: r.generated_job_id,
+      client: r.company_uuid ? (client.get(r.company_uuid) ?? null) : null,
+      colour: r.category_uuid ? (colour.get(r.category_uuid) ?? null) : null,
+      status: r.status,
+    });
   }
   return out;
 }

@@ -30,6 +30,7 @@ import { readCustomerForEdit, saveCustomer } from "@/app/actions/job-customer";
 import { STATUS_WORDS, clock, linesWords, shortDay, type ProposedSkill, type SkillLine, type SkillMade } from "./note-skills";
 import type { NoteReceipt } from "./note-cost";
 import { jobHref } from "@/lib/shell/links";
+import { isStarred, setStar } from "@/lib/jobs/job-stars";
 
 /* TIFF'S SKILLS, DONE — server only (note-skills holds what each is).
 
@@ -251,6 +252,18 @@ export async function doSkill(
 
     case "swap_visit":
       return said("I can't give a booking to someone else yet: drag it to them on the Schedule.");
+
+    /* the job head's Star, as you (lib/jobs/job-stars); Undo puts it back as it was */
+    case "star_job": {
+      if (!job) return said(NO_JOB);
+      const owner = { orgId: ctx.orgId, userId: ctx.userId };
+      const was = await isStarred(owner, job).catch(() => false);
+      const r = await setStar(owner, job, s.on);
+      const name = o.jobLabel || "The job";
+      if (!r.ok) return said(r.error);
+      if (was === s.on) return said(s.on ? `${name} is already in your Starred.` : `${name} wasn't starred.`);
+      return made(s.on ? `${name} is in your Starred.` : `${name} is off your Starred.`, { do: "star", job, on: was });
+    }
   }
 }
 
@@ -380,6 +393,10 @@ export async function undoSkill(ctx: SkillCtx, m: SkillMade): Promise<string | n
     }
     case "siteNote": {
       const r = await removeSiteNote({ jobUuid: str("job"), id: str("id") });
+      return r.ok ? null : r.error;
+    }
+    case "star": {
+      const r = await setStar({ orgId: ctx.orgId, userId: ctx.userId }, str("job"), u.on === true);
       return r.ok ? null : r.error;
     }
     case "lines": {

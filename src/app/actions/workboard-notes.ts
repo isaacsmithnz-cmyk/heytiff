@@ -1859,7 +1859,7 @@ export async function fileNote(
 
 /** The skills done on a job: its Used, its time, its status, its list, its
     site, its contacts, its quote (note-skills). */
-const ON_A_JOB = new Set<ProposedSkill["kind"]>(["used", "stock_taken", "time_on_job", "job_status", "photo_request", "site_note", "job_contact", "quote_add"]);
+const ON_A_JOB = new Set<ProposedSkill["kind"]>(["used", "stock_taken", "time_on_job", "job_status", "photo_request", "site_note", "job_contact", "quote_add", "star_job"]);
 /** Where a variation's lines sit among the record's skills: past any skill. */
 const LINES_INDEX = 1000;
 /** A skill's own question's answers carry the visit marker past the moves'

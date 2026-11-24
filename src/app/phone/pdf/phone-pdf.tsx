@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
+import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist";
 import { openSigned } from "./load-pdf";
 
 /* THE PHONE'S MANUAL (Isaac, 30 October 2026, the manual screen's three
@@ -117,6 +117,64 @@ const say = (m: PdfSaid) => {
 /** The most pixels a whole page is drawn with: about 24 MB of picture. */
 const MOST_PIXELS = 6_000_000;
 
+/** Pages waiting to be drawn, taking turns, the one nearest the page in view first. */
+export type Turns = { seen: (n: number) => void; wait: (n: number, go: () => void) => () => void };
+
+/** Turns at drawing pages, `most` at a time (bug 86, Isaac, 24 November 2026:
+    "Pdf is glitching", a 298-page service manual blank at page 229). Every
+    page near the screen used to start at once, so the page in view waited on
+    the seven around it, and a fling through fifty pages started fifty. Now a
+    page waits for a turn, the nearest to the page in view goes first, and a
+    page scrolled past before its turn leaves without fetching or drawing
+    anything. `wait` gives back the call that ends the turn, or leaves the
+    queue: once is enough, twice does nothing. */
+export function turnsOf(most: number): Turns {
+  let busy = 0;
+  let soon = false;
+  /* the page in view */
+  let at = 1;
+  const waiting = new Set<{ n: number; go: () => void }>();
+  const next = () => {
+    soon = false;
+    while (busy < most && waiting.size > 0) {
+      let best: { n: number; go: () => void } | null = null;
+      for (const w of waiting) if (!best || Math.abs(w.n - at) < Math.abs(best.n - at)) best = w;
+      waiting.delete(best!);
+      busy++;
+      best!.go();
+    }
+  };
+  return {
+    seen(n) {
+      at = n;
+    },
+    wait(n, go) {
+      let state: "waiting" | "going" | "done" = "waiting";
+      const w = {
+        n,
+        go: () => {
+          state = "going";
+          go();
+        },
+      };
+      waiting.add(w);
+      /* the pages mounted together all queue before any goes, so the nearest goes first */
+      if (!soon) {
+        soon = true;
+        queueMicrotask(next);
+      }
+      return () => {
+        if (state === "waiting") waiting.delete(w);
+        else if (state === "going") {
+          busy--;
+          next();
+        }
+        state = "done";
+      };
+    },
+  };
+}
+
 export function PhonePdf() {
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
   const [failed, setFailed] = useState(false);
@@ -134,6 +192,13 @@ export function PhonePdf() {
   const url = useRef<string | null>(null);
   const asked = useRef(0);
   const sheets = useRef(new Map<number, HTMLDivElement>());
+  const [turns] = useState(() => turnsOf(2));
+
+  /* the ground under the pages to the window's edges: a part the phone hasn't painted yet mid-fling is grey, not a white void */
+  useEffect(() => {
+    document.documentElement.style.background = "#dcdce1";
+    document.body.style.background = "#dcdce1";
+  }, []);
 
   const lost = useCallback(() => {
     setFailed(true);
@@ -235,6 +300,7 @@ export function PhonePdf() {
         if (r.top <= tall * 0.4 && n > at) at = n;
         if (r.bottom > -1.5 * tall && r.top < 2.5 * tall) close.push(n);
       }
+      turns.seen(at);
       if (at !== shown) say({ pdf: "at", page: (shown = at), pages });
       const key = close.sort((a, b) => a - b).join(",");
       if (key === drawn) return;
@@ -248,7 +314,7 @@ export function PhonePdf() {
       window.removeEventListener("scroll", look);
       window.removeEventListener("resize", look);
     };
-  }, [pages]);
+  }, [pages, turns]);
 
   /* asked for a page: there */
   useEffect(() => {
@@ -277,6 +343,7 @@ export function PhonePdf() {
             <Sheet
               doc={doc}
               n={n}
+              turns={turns}
               zoom={zoom?.seen[n] ? { scale: zoom.scale, seen: zoom.seen[n]! } : null}
               marks={want && want.page === n ? want.marks : null}
               focus={want && want.page === n && want.n > shown ? want.n : 0}
@@ -294,6 +361,7 @@ export function PhonePdf() {
 function Sheet({
   doc,
   n,
+  turns,
   zoom,
   marks,
   focus,
@@ -302,6 +370,7 @@ function Sheet({
 }: {
   doc: PDFDocumentProxy;
   n: number;
+  turns: Turns;
   zoom: { scale: number; seen: Box } | null;
   marks: string[] | null;
   focus: number;
@@ -311,59 +380,109 @@ function Sheet({
   const canvas = useRef<HTMLCanvasElement>(null);
   const close = useRef<HTMLCanvasElement>(null);
   const [read, setRead] = useState<{ said: string; boxes: Box[] }>({ said: "", boxes: [] });
+  /* a page whose picture the phone took back to save memory is drawn again */
+  const [again, setAgain] = useState(0);
+  /* the part on screen zoomed, where it was last drawn sharp */
+  const [sharp, setSharp] = useState<Box | null>(null);
 
   useEffect(() => {
+    const el = canvas.current;
+    if (!el) return;
+    const back = () => setAgain((a) => a + 1);
+    el.addEventListener("contextrestored", back);
+    return () => el.removeEventListener("contextrestored", back);
+  }, []);
+
+  /* the page drawn in its turn. Once drawn, pdf.js lets go of what it read
+     to draw it, the page's pictures decoded; and a page scrolled away gives
+     back its canvas there and then. Kept, every page passed held both, and
+     a long manual ran the web view out of memory, its pages left blank. */
+  useEffect(() => {
+    const el = canvas.current;
+    if (!el) return;
     let live = true;
     let task: RenderTask | null = null;
-    void doc
-      .getPage(n)
-      .then((p) => {
-        const el = canvas.current;
-        if (!live || !el) return;
-        const base = p.getViewport({ scale: 1 });
-        onRatio(n, base.height / base.width);
-        const across = (el.parentElement?.clientWidth ?? window.innerWidth) * (window.devicePixelRatio || 1);
-        const scale = Math.min(across / base.width, Math.sqrt(MOST_PIXELS / (base.width * base.height)));
-        const viewport = p.getViewport({ scale });
-        el.width = Math.round(viewport.width);
-        el.height = Math.round(viewport.height);
-        task = p.render({ canvas: el, canvasContext: el.getContext("2d")!, viewport });
-        return task.promise;
-      })
-      .catch(() => undefined);
+    let page: PDFPageProxy | null = null;
+    const done = turns.wait(n, () => {
+      void doc
+        .getPage(n)
+        .then((p) => {
+          page = p;
+          if (!live) return;
+          const base = p.getViewport({ scale: 1 });
+          onRatio(n, base.height / base.width);
+          const across = (el.parentElement?.clientWidth ?? window.innerWidth) * (window.devicePixelRatio || 1);
+          const scale = Math.min(across / base.width, Math.sqrt(MOST_PIXELS / (base.width * base.height)));
+          const viewport = p.getViewport({ scale });
+          el.width = Math.round(viewport.width);
+          el.height = Math.round(viewport.height);
+          task = p.render({ canvas: el, canvasContext: el.getContext("2d")!, viewport });
+          return task.promise;
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          done();
+          page?.cleanup();
+        });
+    });
     return () => {
       live = false;
       task?.cancel();
+      done();
+      page?.cleanup();
+      el.width = 0;
+      el.height = 0;
     };
-  }, [doc, n, onRatio]);
+  }, [doc, n, onRatio, turns, again]);
 
-  /* the part on screen, zoomed: drawn at the zoom's sharpness, laid exactly over the page */
+  /* the part on screen, zoomed: drawn at the zoom's sharpness off the page,
+     then laid exactly over it, so the last sharp part stays until the next
+     is ready rather than going blank while it draws */
   const z = zoom ? `${zoom.scale}|${zoom.seen.left}|${zoom.seen.top}|${zoom.seen.width}|${zoom.seen.height}` : "";
   useEffect(() => {
     const el = close.current;
-    if (!z || !el) return;
+    if (!el) return;
+    if (!z) {
+      el.width = 0;
+      el.height = 0;
+      return;
+    }
     const [scale, left, top, width, height] = z.split("|").map(Number) as [number, number, number, number, number];
     let live = true;
     let task: RenderTask | null = null;
+    let page: PDFPageProxy | null = null;
+    const off = document.createElement("canvas");
     void doc
       .getPage(n)
       .then((p) => {
+        page = p;
         if (!live) return;
         const base = p.getViewport({ scale: 1 });
         /* the page as wide as it shows, in the phone's pixels at this zoom */
         const across = (el.parentElement?.clientWidth ?? window.innerWidth) * (window.devicePixelRatio || 1) * scale;
         const viewport = p.getViewport({ scale: across / base.width });
-        el.width = Math.max(1, Math.round(viewport.width * width));
-        el.height = Math.max(1, Math.round(viewport.height * height));
+        off.width = Math.max(1, Math.round(viewport.width * width));
+        off.height = Math.max(1, Math.round(viewport.height * height));
         task = p.render({
-          canvas: el,
-          canvasContext: el.getContext("2d")!,
+          canvas: off,
+          canvasContext: off.getContext("2d")!,
           viewport,
           transform: [1, 0, 0, 1, -viewport.width * left, -viewport.height * top],
         });
-        return task.promise;
+        return task.promise.then(() => {
+          if (!live) return;
+          el.width = off.width;
+          el.height = off.height;
+          el.getContext("2d")?.drawImage(off, 0, 0);
+          setSharp({ left, top, width, height });
+        });
       })
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => {
+        off.width = 0;
+        off.height = 0;
+        page?.cleanup();
+      });
     return () => {
       live = false;
       task?.cancel();
@@ -400,18 +519,14 @@ function Sheet({
   return (
     <>
       <canvas ref={canvas} style={{ display: "block", width: "100%", height: "100%" }} />
-      {zoom ? (
-        <canvas
-          ref={close}
-          style={{
-            position: "absolute",
-            left: `${zoom.seen.left * 100}%`,
-            top: `${zoom.seen.top * 100}%`,
-            width: `${zoom.seen.width * 100}%`,
-            height: `${zoom.seen.height * 100}%`,
-          }}
-        />
-      ) : null}
+      <canvas
+        ref={close}
+        style={
+          zoom && sharp
+            ? { position: "absolute", left: `${sharp.left * 100}%`, top: `${sharp.top * 100}%`, width: `${sharp.width * 100}%`, height: `${sharp.height * 100}%` }
+            : { display: "none" }
+        }
+      />
       {boxes.map((b, i) => (
         <span
           key={i}

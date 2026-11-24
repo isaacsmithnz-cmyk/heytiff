@@ -7,7 +7,7 @@ import { act, render } from "@testing-library/react";
 const openSigned = jest.fn();
 jest.mock("../load-pdf", () => ({ openSigned: (...a: unknown[]) => openSigned(...a) }));
 
-import { boxesOf, isOurs, PhonePdf, seenOf } from "../phone-pdf";
+import { boxesOf, isOurs, PhonePdf, seenOf, turnsOf } from "../phone-pdf";
 
 const STORE = "https://store.example.co";
 const ours = `${STORE}/storage/v1/object/sign/kb/org/o1/kb/d1.pdf?token=t`;
@@ -15,18 +15,26 @@ const said: unknown[] = [];
 
 /* a page as pdf.js gives it at scale 1: 100 wide, 140 tall, y counted up from the foot */
 const page = { width: 100, height: 140, transform: [1, 0, 0, -1, 0, 140] };
+const cleanup = jest.fn();
+const drawn: number[] = [];
 const fakeDoc = (numPages: number) => ({
   numPages,
-  getPage: async () => ({
+  getPage: async (n: number) => ({
     getViewport: () => page,
-    render: () => ({ promise: Promise.resolve(), cancel: () => undefined }),
+    render: () => {
+      drawn.push(n);
+      return { promise: Promise.resolve(), cancel: () => undefined };
+    },
     getTextContent: async () => ({ items: [] }),
+    cleanup,
   }),
 });
 
 beforeEach(() => {
   process.env.NEXT_PUBLIC_SUPABASE_URL = STORE;
   said.length = 0;
+  drawn.length = 0;
+  cleanup.mockReset();
   openSigned.mockReset();
   window.ReactNativeWebView = { postMessage: (m) => said.push(JSON.parse(m)) };
   Element.prototype.scrollIntoView = jest.fn();
@@ -120,6 +128,40 @@ describe("seenOf", () => {
   });
 });
 
+describe("turnsOf", () => {
+  const flush = () => new Promise<void>((r) => queueMicrotask(r));
+
+  it("draws so many pages at once, the nearest to the page in view first", async () => {
+    const turns = turnsOf(2);
+    turns.seen(274);
+    const went: number[] = [];
+    const done = new Map<number, () => void>();
+    for (const n of [270, 271, 272, 273, 274, 275, 276]) done.set(n, turns.wait(n, () => went.push(n)));
+    await flush();
+    expect(went).toEqual([274, 273]);
+    done.get(274)!();
+    expect(went).toEqual([274, 273, 275]);
+  });
+
+  it("lets a page scrolled past leave the queue without drawing, and ends a turn only once", async () => {
+    const turns = turnsOf(1);
+    const went: number[] = [];
+    const a = turns.wait(1, () => went.push(1));
+    const b = turns.wait(2, () => went.push(2));
+    const c = turns.wait(3, () => went.push(3));
+    await flush();
+    b();
+    a();
+    a();
+    expect(went).toEqual([1, 3]);
+    c();
+    const d = turns.wait(4, () => went.push(4));
+    await flush();
+    expect(went).toEqual([1, 3, 4]);
+    d();
+  });
+});
+
 describe("PhonePdf", () => {
   it("says ready, then opens the link it's handed and says its pages", async () => {
     openSigned.mockResolvedValue(fakeDoc(3));
@@ -153,5 +195,21 @@ describe("PhonePdf", () => {
     render(<PhonePdf />);
     await act(async () => window.dispatchEvent(new MessageEvent("message", { data: { heytiffPdf: { url: ours } } })));
     expect(openSigned).toHaveBeenCalledWith(ours, expect.any(Function));
+  });
+
+  it("draws a page in view and lets go of what it read, and a page scrolled away gives its canvas back", async () => {
+    openSigned.mockResolvedValue(fakeDoc(3));
+    const { container, unmount } = render(<PhonePdf />);
+    await act(async () => window.heytiffPdf!({ url: ours }));
+    await act(async () => {
+      for (let i = 0; i < 5; i++) await new Promise<void>((r) => setTimeout(r, 0));
+    });
+    /* jsdom puts every page at the top, so every page is near */
+    expect(drawn.sort()).toEqual([1, 2, 3]);
+    expect(cleanup).toHaveBeenCalledTimes(3);
+    const canvas = container.querySelector<HTMLCanvasElement>("[data-n='1'] canvas")!;
+    expect(canvas.width).toBeGreaterThan(0);
+    unmount();
+    expect(canvas.width).toBe(0);
   });
 });

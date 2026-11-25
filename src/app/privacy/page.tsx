@@ -98,8 +98,8 @@ export default function PrivacyPage() {
       <Part heading="How long we keep it">
         <p>
           While your business uses HeyTiff. If you leave a business, it keeps the work records you made for it, such
-          as job notes and time. To have your account deleted, ask us at <Mail />, and we’ll delete it within 30
-          days.
+          as job notes and time. You can delete your account in the app, under More › Delete account, or ask us
+          at <Mail /> and we’ll delete it within 30 days.
         </p>
       </Part>
 

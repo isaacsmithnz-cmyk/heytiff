@@ -255,6 +255,14 @@ describe("consumables with no allowance set: an estimate from the book", () => {
     expect(expandKit("split", facts, [...book, ...consumables], at, { ...allowances, consumables: 3182 }).find((l) => l.name === "Consumables")).toMatchObject({ costCents: 3182, why: "your allowance, a head" });
     expect(expandKit("split", facts, book, at, allowances).find((l) => l.name === "Consumables")).toMatchObject({ costCents: 0, source: "unknown", why: "Not set in Quoting" });
   });
+
+  /* bug 104, 3488: three heads on one outdoor took one of each, $17.11 */
+  it("gives a multi-split's consumables for each of its indoor units", () => {
+    const multi = normaliseKitFacts({ ...facts, indoors: 3 });
+    expect(expandKit("split", multi, [...book, ...consumables], at, allowances).find((l) => l.name === "Consumables")).toMatchObject({ qty: 3, costCents: 1542, why: "An estimate from your book: duct tape, cable ties, silicone, for each of 3 heads" });
+    expect(expandKit("split", multi, book, at, { ...allowances, consumables: 3182 }).find((l) => l.name === "Consumables")).toMatchObject({ qty: 3, costCents: 3182, why: "your allowance, a head, for each of 3" });
+    expect(normaliseKitFacts({ indoors: "two" }).indoors).toBeUndefined();
+  });
 });
 
 /* Isaac, 2026-10-11, kits round 2: "the Y branches should be all of the Y

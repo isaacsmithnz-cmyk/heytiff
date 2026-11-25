@@ -60,6 +60,10 @@ export type KitFacts = {
   trunkingM: number | null;
   /** the drain's run, metres */
   drainM: number | null;
+  /** split, a multi-split: how many indoor units its outdoor serves, each
+      taking its own consumables (bug 104, 3488: three heads on one outdoor
+      took one roll of tape, one tie and one tube of silicone, $17.11) */
+  indoors?: number | null;
   /** ducted: how many outlets, and their size, mm */
   outlets?: number | null;
   outletMm?: number | null;
@@ -1048,8 +1052,8 @@ export function expandKit(
   /* the business's own allowances, at what it set them at; one it hasn't
      set is on the quote as not known yet */
   if (allowances && !only) {
-    /* a VRF's consumables are a head's share, for each head */
-    const heads = kit === "vrf" ? (vrfHeadCount(f) ?? 1) : 1;
+    /* a VRF's consumables are a head's share, for each head, and so are a multi-split's */
+    const heads = kit === "vrf" ? (vrfHeadCount(f) ?? 1) : kit === "split" ? Math.max(1, f.indoors ?? 1) : 1;
     const allow = (name: string, cents: number | null, why: string, qty = 1) =>
       out.push({
         optionIndex: at.optionIndex,
@@ -1176,6 +1180,7 @@ export function normaliseKitFacts(raw: unknown): KitFacts {
     trunkingM: n(r.trunkingM, 200),
     drainM: n(r.drainM, 200),
     outlets: n(r.outlets, 40),
+    ...(n(r.indoors, 12) ? { indoors: Math.max(1, Math.round(n(r.indoors, 12)!)) } : {}),
     outletMm: n(r.outletMm, 600),
     replacing: r.replacing === true || r.replacing === "yes" || r.replacing === "keep",
     newCircuit: r.newCircuit === true,

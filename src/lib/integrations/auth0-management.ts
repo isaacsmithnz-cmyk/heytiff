@@ -354,3 +354,30 @@ export async function createPasswordTicket(userId: string): Promise<MgmtResult<s
   }
   return { ok: true, value: body.ticket };
 }
+
+/* DELETING A LOGIN, for the person deleting their own account (the App Store
+   asks that the app can, 5.1.1(v); Isaac, 26 November 2026). `delete:users`,
+   ticked on the same grant. As with every call here, nothing in this module
+   decides WHOSE: the one caller, api/mobile/me's DELETE, passes the verified
+   token's own `sub` and nothing off the request. A login already gone is not
+   a failure: the person asked for it to be gone, and it is. Linked identities
+   (a Google sign-in folded into a password one) go with the login they were
+   linked into. */
+export async function deleteUser(userId: string): Promise<MgmtResult<true>> {
+  const t = await token();
+  if (!t.ok) return t;
+
+  let res: Response;
+  try {
+    res = await fetch(`https://${DOMAIN}/api/v2/users/${encodeURIComponent(userId)}`, {
+      method: "DELETE",
+      headers: { authorization: `Bearer ${t.value}` },
+      cache: "no-store",
+    });
+  } catch {
+    return { ok: false, error: "UNAVAILABLE" };
+  }
+  if (res.status === 401 || res.status === 403) return { ok: false, error: "NO_GRANT" };
+  if (res.ok || res.status === 404) return { ok: true, value: true };
+  return { ok: false, error: "UNAVAILABLE" };
+}

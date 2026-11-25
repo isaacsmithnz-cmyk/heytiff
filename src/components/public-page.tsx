@@ -7,7 +7,7 @@ import { Chevron, Wordmark } from "@/components/logo";
    documents, drawn as the door is: ink on paper, one reading column, no
    frame. */
 
-export const SUPPORT_EMAIL = "isaac@diamondairsolutions.com";
+export const SUPPORT_EMAIL = "isaacsmithnz1@gmail.com";
 
 export function PublicPage({ heading, updated, children }: { heading: string; updated?: string; children: React.ReactNode }) {
   return (

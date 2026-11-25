@@ -5,7 +5,8 @@ import { Mail, Part, PublicPage } from "@/components/public-page";
 export const metadata: Metadata = { title: "Support" };
 
 /* The App Store's support link (25 November 2026): who to write to, and
-   the three things people ask. */
+   the three things people ask. Deleting your account is in the app since
+   26 November 2026 (More › Delete account); an owner still writes to us. */
 
 export default function SupportPage() {
   return (
@@ -32,8 +33,10 @@ export default function SupportPage() {
 
       <Part heading="Deleting your account">
         <p>
-          Write to <Mail /> from the email you sign in with, and we’ll delete your account within 30 days. The
-          work records you made for a business, such as job notes and time, stay with that business.
+          In the app, open More and press Delete account. Your sign-in, your profile and your conversations with
+          Tiff are deleted straight away. The work records you made for a business, such as job notes and time,
+          stay with that business. If you own the business, or can’t sign in, write to <Mail /> from the email you
+          sign in with, and we’ll delete your account within 30 days.
         </p>
       </Part>
 

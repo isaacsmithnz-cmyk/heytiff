@@ -2588,8 +2588,6 @@ export function JobSheet({
                     onOpen={openStep}
                   />
                 ),
-                /* the step the job is at, or the last once every step is done */
-                stage: detail ? (steps.find((s) => s.state === "now" || s.state === "warn" || s.state === "bad") ?? (steps.every((s) => s.state === "done") ? steps.at(-1) : undefined))?.label ?? null : null,
                 open: (taskIds) => {
                   const shown = attention ? attentionWithout(attention, taskIds) : null;
                   return { rows: attentionStripOf(true, shown), count: shown?.total ?? 0 };

@@ -143,10 +143,17 @@ it("heads the card At a glance, and gives a booked visit its crew and a blue Vie
   expect(onVisits).toHaveBeenCalled();
 });
 
-it("heads the steps Stage: and the step the job is at", () => {
-  render(<JobFacts {...base} stages={<nav aria-label="Where the job is up to" />} stage="Deposit paid" />);
+it("counts the people booked only when there's more than one (Isaac, 26 November 2026)", () => {
+  render(<JobFacts {...base} next={{ when: "Today, 7:30 am", who: "Lyle Irving", crew: 1, state: null }} />);
+  const crew = screen.getByRole("region", { name: "Next visit" }).querySelector(".jfc-crew");
+  expect(crew).toHaveTextContent(/^Lyle Irving$/);
+  expect(crew!.querySelector("b")).toBeNull();
+});
+
+it("heads the steps Stage alone, the step it's at said once, in the steps (Isaac, 26 November 2026)", () => {
+  render(<JobFacts {...base} stages={<nav aria-label="Where the job is up to" />} />);
   const head = screen.getByRole("region", { name: "Where the job is up to" }).querySelector(".jov-lab");
-  expect(head).toHaveTextContent("Stage:Deposit paid");
+  expect(head).toHaveTextContent(/^Stage$/);
 });
 
 it("opens Visits from Next visit", async () => {

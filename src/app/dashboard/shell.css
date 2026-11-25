@@ -7067,7 +7067,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jfc .jfc-crew b { margin-right:4px; font-weight:600; font-variant-numeric:tabular-nums; }
 .fg .jfc .jfc-go { align-self:stretch; justify-content:center; margin-top:8px; }
 .fg .jfc .jfc-go.jov-press--held { height:36px; }
-.fg .jfc .jfc-stage { margin-left:4px; font-weight:600; color:var(--ink); }
 /* THE JOB TRACKER (job-tracker.tsx; the Billing mock, 16 November 2026):
    three side by side on grey, each a ring of what's used against what was
    quoted, green used, orange overtime, red only past the quote, the share

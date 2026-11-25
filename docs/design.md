@@ -519,10 +519,12 @@ the fourth on the customer's messages, below).
   and a tab with something to look at a white word with a dot in its
   colour. Under each head the card's body is white and curls into the head
   at both corners with the box's 26, as the page curls into the sidebar
-  (rule 1). In At a glance, Next visit is a part like Stage: and Contact:
-  the day and time at 20, then a person, how many are booked and their
-  names, then the card's one blue button, View booking, or Book a visit
-  when nothing is; the steps are headed Stage: and the step the job is at
+  (rule 1). In At a glance, Next visit is a part like Stage and Contact:
+  the day and time at 20, then a person, how many are booked when it's
+  more than one, and their names, then the card's one blue button, View
+  booking, or Book a visit when nothing is; the steps are headed Stage
+  alone, the step the job is at being the bold one under it (Isaac, 26
+  November 2026: "fix 1 and 2", a count of one and the step said twice)
   (Isaac, 24 and 25 November 2026, on
   https://claude.ai/artifact/8UsC9Cuf7RCMNi2tKqsP56: "give card header a
   colour background behind next visit with a curve like side bar", "do the

@@ -41,9 +41,11 @@ import { SiteNotes } from "./site-notes";
    then "Build it"). The card is headed At a glance in white on the quiet
    grey, and its white body curls into the grey at both corners, as the page
    curls into the sidebar. Next visit is a part like the others: the day and
-   time at 20, then a person, how many are booked and their names; under
-   them the one blue button, View booking, or Book a visit when nothing is.
-   The steps are headed Stage: and the step the job is at. */
+   time at 20, then a person, how many are booked when it's more than one,
+   and their names; under them the one blue button, View booking, or Book a
+   visit when nothing is. The steps are headed Stage alone: the step the job
+   is at is the bold one under it, so the head doesn't say it twice (Isaac,
+   26 November 2026, fixes 1 and 2 of the walk of the live page). */
 
 /** A dialable href, or null when the field isn't one number.
 
@@ -224,7 +226,6 @@ export function JobFacts({
   onBook,
   onEditContact,
   stages = null,
-  stage = null,
 }: {
   detail: MirrorJobDetail | null;
   next: NextVisit | null;
@@ -237,8 +238,6 @@ export function JobFacts({
   onEditContact?: () => void;
   /** Where the job is up to, under Next visit. */
   stages?: ReactNode;
-  /** The step the job is at, beside Stage:. */
-  stage?: string | null;
 }) {
   const contacts = detail?.contacts ?? [];
   /* one contact open at a time */
@@ -257,7 +256,8 @@ export function JobFacts({
             {next.who && (
               <p className="jfc-crew">
                 <Icon name="user" size={16} />
-                <b>{next.crew}</b>
+                {/* the count only when it says something one name doesn't (Isaac, 26 November 2026, fix 1 of the walk) */}
+                {next.crew > 1 && <b>{next.crew}</b>}
                 <span>{next.who}</span>
               </p>
             )}
@@ -289,8 +289,7 @@ export function JobFacts({
           <div className="jov-lab">
             <span className="jov-labname">
               <Icon name="flag" size={16} />
-              Stage:
-              {stage && <b className="jfc-stage">{stage}</b>}
+              Stage
             </span>
           </div>
           {stages}

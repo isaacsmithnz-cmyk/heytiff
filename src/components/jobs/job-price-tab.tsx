@@ -454,7 +454,6 @@ function PriceQuote({
     <div className="stg hd-page wb2 wb2-qpage qp jpr-quote">
       <QuoteLinesFace
         job={job}
-        views
         photos={photos}
         meta={{ title: proposalTitle(address), client: detail?.clientName ?? null, site: address, jobNumber: detail?.jobNumber ?? null }}
         price={price}

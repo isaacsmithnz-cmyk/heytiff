@@ -39,7 +39,7 @@ import type { LinesView } from "./quote-lines-face";
    2026-10-15: "have everything collapsed first… collapsed with the total
    next to it").
 
-   ON THE QUOTE'S OWN TAB IT IS LAID OUT AS AN IPAD'S SCREEN (`pad`; Isaac,
+   IT IS LAID OUT AS AN IPAD'S SCREEN (Isaac,
    20 and 21 November 2026: "top of this section very messy", "tidy up more,
    less noise", "pretend that this section is on an ipad", then "Build all
    three" to https://claude.ai/artifact/EAB8Y8FsbnPbcuBXKDhT93): the options
@@ -47,9 +47,8 @@ import type { LinesView } from "./quote-lines-face";
    title, typed on; one Add beside the book's search; each system one row
    that opens to its groups; and This option's rows at the foot (where a
    line goes, who the job buys from, what's not in this option, the
-   versions and the changes), each opening what it holds. Nothing it does
-   left with the old layout: every add, the kit, the copy and each Undo are
-   a press away.
+   versions and the changes), each opening what it holds: every add, the
+   kit, the copy and each Undo are a press away.
 
    Each edit goes to the route with the version the line was read at, so two
    people never overwrite each other (lines-server.ts); the price is read
@@ -243,7 +242,7 @@ export function sellEachOf(o: OptionPrice | undefined, lines: QuoteLine[]): Map<
   return out;
 }
 
-/** One of This option's rows (pad): its name, what it stands at on the
+/** One of This option's rows: its name, what it stands at on the
     right, and a chevron; a menu's row waits while the quote is busy. */
 function OptRow({
   name,
@@ -289,7 +288,6 @@ export function QuoteLineItems({
   onOpenVersion,
   onRemove,
   swapAsk = null,
-  pad = false,
   optionRows = [],
 }: {
   job: string;
@@ -315,16 +313,11 @@ export function QuoteLineItems({
   onRemove: (lines: QuoteLine[]) => void;
   /** Swap pressed elsewhere (To confirm): this line's pick list opens */
   swapAsk?: { id: string; n: number } | null;
-  /** laid out as an iPad's screen, on the quote's own tab (Isaac, 20
-      November 2026: "pretend that this section is on an ipad"): the options
-      a slider, the open one's name the title, one Add, each system a row
-      that opens, and This option's rows at the foot */
-  pad?: boolean;
-  /** every option and its total, for the slider (pad) */
+  /** every option and its total, for the slider */
   optionRows?: { option: number; name: string; total: string | null; on: boolean }[];
 }) {
   const [search, setSearch] = useState("");
-  /* pad: the one menu open, and which of This option's rows are */
+  /* the one menu open, and which of This option's rows are */
   const [menu, setMenu] = useState<"add" | "option" | "system" | "supplier" | null>(null);
   const [shown, setShown] = useState<ReadonlySet<string>>(() => new Set());
   const flip = (key: string) =>
@@ -540,7 +533,7 @@ export function QuoteLineItems({
     </ul>
   );
   const changesList = (
-    <ul className="ql-chg" aria-label={pad ? "Changes" : undefined}>
+    <ul className="ql-chg" aria-label="Changes">
       {changes.slice(0, 30).map((c) => {
         const who = c.madeBy === view?.me ? "You" : c.madeBy === "tiff" ? "Tiff" : (view?.names[c.madeBy] ?? "Someone");
         const name = (c.after?.name ?? c.before?.name ?? "a line") as string;
@@ -569,145 +562,66 @@ export function QuoteLineItems({
   );
   return (
     <>
-      {pad ? (
-        <>
-          <div className="qx-opts">
-            {optionRows.length > 1 && (
-              /* every option and its total, one of a few (rule 30): the
-                 chosen one filled white on the tray */
-              <div className="qx-seg" role="tablist" aria-label="Options">
-                {optionRows.map((r) => (
-                  <button key={r.option} type="button" role="tab" aria-selected={r.on} className={r.on ? "on" : undefined} onClick={() => onOption(r.option)}>
-                    {r.name}
-                    {r.total && <span>{r.total}</span>}
-                  </button>
-                ))}
-              </div>
-            )}
-            <Button
-              ref={optRef}
-              kind="quiet"
-              icon="plus"
-              disabled={busy}
-              aria-haspopup={canCopy ? "menu" : undefined}
-              aria-expanded={canCopy ? menu === "option" : undefined}
-              onClick={() => (canCopy ? setMenu(menu === "option" ? null : "option") : onOption(options))}
-            >
-              Add an option
-            </Button>
-            <Menu
-              open={menu === "option"}
-              anchor={optRef}
-              align="end"
-              label="Add an option"
-              onClose={() => setMenu(null)}
-              onSelect={(k) => {
-                setMenu(null);
-                if (k === "copy") copyFirst();
-                else onOption(options);
-              }}
-              items={[
-                { key: "new", label: "A new option" },
-                { key: "copy", label: "Copy option 1 to a new option" },
-              ]}
-            />
+      <div className="qx-opts">
+        {optionRows.length > 1 && (
+          /* every option and its total, one of a few (rule 30): the
+             chosen one filled white on the tray */
+          <div className="qx-seg" role="tablist" aria-label="Options">
+            {optionRows.map((r) => (
+              <button key={r.option} type="button" role="tab" aria-selected={r.on} className={r.on ? "on" : undefined} onClick={() => onOption(r.option)}>
+                {r.name}
+                {r.total && <span>{r.total}</span>}
+              </button>
+            ))}
           </div>
-          {variation ? (
-            <h2 className="qx-title">{`Variation ${variation.n}${variation.what ? `: ${variation.what}` : ""}`}</h2>
-          ) : (
-            all.length > 0 && (
-              /* the option's name is its title, typed on where it sits, as
-                 the Proposal is typed on */
-              <Typed
-                key={at}
-                as="h2"
-                className="qx-title"
-                label={`Option ${at + 1}, as the proposal names it`}
-                empty="Name it for the proposal"
-                value={view?.optionNames?.[at] ?? ""}
-                onSave={(name) => void act({ op: "name", option: at, name })}
-              />
-            )
-          )}
-          <section className="ql-add qx-add" aria-label="Add a line">
-            <div className={money ? "qx-addrow" : "qx-addrow qx-addrow--one"}>
-              {/* the book carries prices: its search is for those who see money */}
-              {money && (
-                <input
-                  className="wb2-fi"
-                  value={search}
-                  placeholder="Add a line from your book"
-                  aria-label="Search your book for a line to add"
-                  onChange={(e) => void find(e.target.value)}
-                />
-              )}
-              <Button ref={addRef} size={36} disabled={busy} aria-haspopup="menu" aria-expanded={menu === "add"} onClick={() => setMenu(menu === "add" ? null : "add")}>
-                Add
-                <span className="jp-chev" aria-hidden="true">
-                  <Icon name="chevD" size={16} />
-                </span>
-              </Button>
-              <Menu
-                open={menu === "add"}
-                anchor={addRef}
-                align="end"
-                label="Add to this option"
-                onClose={() => setMenu(null)}
-                onSelect={(k) => {
-                  setMenu(null);
-                  if (k === "hand") addByHand("material");
-                  if (k === "labour") addByHand("labour");
-                  if (k === "provisional") addProvisional();
-                  if (k === "loading") addLoading();
-                  if (k === "kit") setKitOpen(true);
-                }}
-                items={[
-                  { key: "hand", label: "A line by hand" },
-                  { key: "labour", label: "Labour" },
-                  ...(money ? [{ key: "provisional", label: "A provisional sum" }] : []),
-                  /* 10%: the low end of Isaac's own "10 to 15%"; not applied until
-                     it says why, typed on its row: Labour opens to show it */
-                  ...(money && labourAt && !loading ? [{ key: "loading", label: "A loading on labour" }] : []),
-                  { key: "kit", label: "A kit" },
-                ]}
-              />
-            </div>
-            {hitsList}
-            {kitForm}
-          </section>
-        </>
-      ) : (
-      <>
-      <div className="ql-sumrow">
-        {all.length > 0 && !variation && (
-          <TextBox
-            key={`${at}|${view?.optionNames?.[at] ?? ""}`}
-            label={`Option ${at + 1}, as the proposal names it`}
-            shown={`Option ${at + 1}`}
-            placeholder="Name it for the proposal"
-            value={view?.optionNames?.[at] ?? ""}
-            disabled={busy}
-            className="ql-oname"
-            onCommit={(name) => void act({ op: "name", option: at, name })}
-          />
         )}
-        {(view?.suppliers ?? []).length > 0 && (
-          /* the whole job from one supplier where it sells the item
-             (Isaac, 2026-10-08) */
-          <label className="ql-sup">
-            <span>Buy from, for this job</span>
-            <select className="wb2-fi" value={view?.supplier ?? ""} disabled={busy} onChange={(e) => void act({ op: "supplier", key: e.target.value })}>
-              <option value="">Any supplier</option>
-              {(view?.suppliers ?? []).map((s) => (
-                <option key={s.key} value={s.key}>{`${s.name}, else the lowest`}</option>
-              ))}
-            </select>
-          </label>
-        )}
+        <Button
+          ref={optRef}
+          kind="quiet"
+          icon="plus"
+          disabled={busy}
+          aria-haspopup={canCopy ? "menu" : undefined}
+          aria-expanded={canCopy ? menu === "option" : undefined}
+          onClick={() => (canCopy ? setMenu(menu === "option" ? null : "option") : onOption(options))}
+        >
+          Add an option
+        </Button>
+        <Menu
+          open={menu === "option"}
+          anchor={optRef}
+          align="end"
+          label="Add an option"
+          onClose={() => setMenu(null)}
+          onSelect={(k) => {
+            setMenu(null);
+            if (k === "copy") copyFirst();
+            else onOption(options);
+          }}
+          items={[
+            { key: "new", label: "A new option" },
+            { key: "copy", label: "Copy option 1 to a new option" },
+          ]}
+        />
       </div>
-
-      <section className="ql-add" aria-label="Add a line">
-        <div className="ql-addrow">
+      {variation ? (
+        <h2 className="qx-title">{`Variation ${variation.n}${variation.what ? `: ${variation.what}` : ""}`}</h2>
+      ) : (
+        all.length > 0 && (
+          /* the option's name is its title, typed on where it sits, as
+             the Proposal is typed on */
+          <Typed
+            key={at}
+            as="h2"
+            className="qx-title"
+            label={`Option ${at + 1}, as the proposal names it`}
+            empty="Name it for the proposal"
+            value={view?.optionNames?.[at] ?? ""}
+            onSave={(name) => void act({ op: "name", option: at, name })}
+          />
+        )
+      )}
+      <section className="ql-add qx-add" aria-label="Add a line">
+        <div className={money ? "qx-addrow" : "qx-addrow qx-addrow--one"}>
           {/* the book carries prices: its search is for those who see money */}
           {money && (
             <input
@@ -718,297 +632,276 @@ export function QuoteLineItems({
               onChange={(e) => void find(e.target.value)}
             />
           )}
-          <select className="wb2-fi ql-sysin" value={system} onChange={(e) => setSystem(e.target.value)} aria-label="The system it goes in">
-            <option value="">No system</option>
-            {systems.filter(Boolean).map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
+          <Button ref={addRef} size={36} disabled={busy} aria-haspopup="menu" aria-expanded={menu === "add"} onClick={() => setMenu(menu === "add" ? null : "add")}>
+            Add
+            <span className="jp-chev" aria-hidden="true">
+              <Icon name="chevD" size={16} />
+            </span>
+          </Button>
+          <Menu
+            open={menu === "add"}
+            anchor={addRef}
+            align="end"
+            label="Add to this option"
+            onClose={() => setMenu(null)}
+            onSelect={(k) => {
+              setMenu(null);
+              if (k === "hand") addByHand("material");
+              if (k === "labour") addByHand("labour");
+              if (k === "provisional") addProvisional();
+              if (k === "loading") addLoading();
+              if (k === "kit") setKitOpen(true);
+            }}
+            items={[
+              { key: "hand", label: "A line by hand" },
+              { key: "labour", label: "Labour" },
+              ...(money ? [{ key: "provisional", label: "A provisional sum" }] : []),
+              /* 10%: the low end of Isaac's own "10 to 15%"; not applied until
+                 it says why, typed on its row: Labour opens to show it */
+              ...(money && labourAt && !loading ? [{ key: "loading", label: "A loading on labour" }] : []),
+              { key: "kit", label: "A kit" },
+            ]}
+          />
         </div>
         {hitsList}
-        <div className="ql-adds">
-          <Button size={32} icon="plus" disabled={busy} onClick={() => addByHand("material")}>
-            Add a line by hand
-          </Button>
-          <Button size={32} icon="plus" disabled={busy} onClick={() => addByHand("labour")}>
-            Add labour
-          </Button>
-          {money && (
-            <Button size={32} icon="plus" disabled={busy} onClick={addProvisional}>
-              Add a provisional sum
-            </Button>
-          )}
-          {money && labourAt && !loading && (
-            /* 10%: the low end of Isaac's own "10 to 15%"; not applied until
-               it says why, typed on its row: Labour opens to show it */
-            <Button size={32} icon="plus" disabled={busy} onClick={addLoading}>
-              Add a loading
-            </Button>
-          )}
-          <Button size={32} icon="plus" disabled={busy} onClick={() => setKitOpen((v) => !v)} aria-expanded={kitOpen}>
-            Add a kit
-          </Button>
-          <Button size={32} icon="plus" disabled={busy} onClick={() => onOption(options)}>
-            Add an option
-          </Button>
-          {canCopy && (
-            <Button disabled={busy} size={32} onClick={copyFirst}>
-              Copy option 1 to a new option
-            </Button>
-          )}
-        </div>
         {kitForm}
       </section>
-      </>
-      )}
 
       {/* a line's compare is its group's: shut, the group hides it too */}
       {compared && open.has(groupKey(compared)) && (
         <CompareCard key={compared.id} job={job} lineId={compared.id} onClose={() => setComparing(null)} onChanged={onCompared} />
       )}
 
-      {!pad && colHead}
-
-      {pad && systems.length > 0 && <h2 className="qx-head">Line items</h2>}
+      {systems.length > 0 && <h2 className="qx-head">Line items</h2>}
       {systems.length === 0 && <p className="qp-none">No lines yet.</p>}
-      <div className={pad && systems.length > 0 ? "qx-card qx-systems" : "qx-plain"}>
+      <div className={systems.length > 0 ? "qx-card qx-systems" : "qx-plain"}>
       {systems.map((sys, si) => {
         const mine = lines.filter((l) => l.system === sys);
         const groups = [...new Set(mine.map((l) => l.group))];
         const sysTotal = mine.reduce((n, l) => n + Math.round((sells.get(l.id) ?? 0) * l.qty), 0);
-        /* pad: a system is one row, its groups named under it and its
+        /* a system is one row, its groups named under it and its
            total said once; pressed, it opens to its groups and their lines */
         const keys = groups.map((g) => groupKey({ system: sys, group: g }));
         const sysOpen = keys.some((k) => open.has(k));
         /* the row with no system named for what it holds: "Labour, 122 hours, 34 tasks" (bug 80) */
         const { name: sysName, under } = systemRowWords(sys, mine, systems.some(Boolean));
         return (
-          <section key={sys || "_"} className={pad ? (sysOpen ? "ql-sys qx-sys on" : "ql-sys qx-sys") : "ql-sys"} aria-label={sysName}>
-            {pad ? (
-              <button type="button" className="qx-sysbtn" aria-expanded={sysOpen} onClick={() => onGroups(keys, !sysOpen)}>
-                <span className="qx-sysw">
-                  <b>{sysName}</b>
-                  <em>{under}</em>
-                </span>
-                <strong>{money ? cents2(sysTotal) : `${mine.length} ${mine.length === 1 ? "line" : "lines"}`}</strong>
-                <span className="qx-ch" aria-hidden="true">
-                  <Icon name={sysOpen ? "chevD" : "chevR"} size={16} />
-                </span>
-              </button>
-            ) : (
-            <header className="ql-sys-h">
-              <h3>{sysName}</h3>
-              {money && <b>{cents2(sysTotal)}</b>}
-            </header>
-            )}
-            {pad && sysOpen && colHead}
-            {(!pad || sysOpen) && (
-            <table className="ql-lt">
-              <Cols money={money} />
-              {groups.map((g, gi) => {
-                const rows = mine.filter((l) => l.group === g);
-                const sub = rows.reduce((n, l) => n + Math.round((sells.get(l.id) ?? 0) * l.qty), 0);
-                const key = groupKey({ system: sys, group: g });
-                const shown = open.has(key);
-                const body = `${uid}-${si}-${gi}`;
-                return [
-                  <tbody key={`g-${g}`}>
-                    {/* the whole band takes the press; its button is the
-                        keyboard's and a screen reader's way in, and its
-                        click is the band's. A tech, who sees no money, sees
-                        how many lines it holds where the total stands */}
-                    <tr className="ql-sg" onClick={() => onGroups([key], !shown)}>
-                      <td colSpan={money ? 4 : 1}>
-                        <button type="button" className="ql-sgbtn" aria-expanded={shown} aria-controls={body}>
-                          <Icon name={shown ? "chevD" : "chevR"} size={16} />
-                          {g}
-                        </button>
-                      </td>
-                      <td className="n">{money ? cents2(sub) : `${rows.length} ${rows.length === 1 ? "line" : "lines"}`}</td>
-                      <td />
-                    </tr>
-                  </tbody>,
-                  /* shut, its rows and what hangs off them (a labour line's
-                     tasks, a pick list, the loading) are not drawn */
-                  <tbody key={`r-${g}`} id={body}>
-                    {shown && [
-                      ...rows.map((l) => {
-                        const unknown = l.source === "unknown" && l.costCents <= 0 && l.sellCents == null;
-                        const each = sells.get(l.id);
-                        return [
-                          <tr key={l.id} className="ql-it">
-                            <td>
-                              <span className="ql-n">
-                                <Tooltip
-                                  label={
-                                    fitOf.get(l.id)
-                                      ? `${fitOf.get(l.id)!.state === "fitted" ? "Fitted" : fitOf.get(l.id)!.state === "misfit" ? "Doesn't fit" : "Not checked"}: ${fitOf.get(l.id)!.why}`
-                                      : `${SOURCE_WORDS[l.source]}${l.why ? `: ${l.why}` : ""}`
-                                  }
-                                >
-                                  <i className={`ql-d ${fitOf.get(l.id)?.state === "fitted" ? "fitted" : l.source}`} />
-                                </Tooltip>
-                                <span className="nm">
-                                  {l.name}
-                                  {view?.researched?.[l.id] && (
-                                    <Tooltip label={`From the web: ${view.researched[l.id]!.title}`}>
-                                      <a className="ql-web" href={view.researched[l.id]!.url} target="_blank" rel="noopener noreferrer" aria-label={`From the web: ${view.researched[l.id]!.title}`}>
-                                        <Globe />
-                                      </a>
-                                    </Tooltip>
-                                  )}
-                                  {l.estimate && <em className="ql-vs ql-est"> Estimate</em>}
-                                  {at !== base && againstFirst(l, all, base) !== "same" && (
-                                    <em className="ql-vs">{againstFirst(l, all, base) === "added" ? " Added" : " Changed"}</em>
-                                  )}
-                                </span>
-                                {l.code && (
-                                  <span className="cd">
-                                    {l.code}
-                                    {buyFrom && l.supplierKey && l.supplierKey !== buyFrom && (
-                                      <em className="ql-not">{`Not at ${supplierName(buyFrom)}: ${supplierName(l.supplierKey)}`}</em>
+          <section key={sys || "_"} className={sysOpen ? "ql-sys qx-sys on" : "ql-sys qx-sys"} aria-label={sysName}>
+            <button type="button" className="qx-sysbtn" aria-expanded={sysOpen} onClick={() => onGroups(keys, !sysOpen)}>
+              <span className="qx-sysw">
+                <b>{sysName}</b>
+                <em>{under}</em>
+              </span>
+              <strong>{money ? cents2(sysTotal) : `${mine.length} ${mine.length === 1 ? "line" : "lines"}`}</strong>
+              <span className="qx-ch" aria-hidden="true">
+                <Icon name={sysOpen ? "chevD" : "chevR"} size={16} />
+              </span>
+            </button>
+            {sysOpen && colHead}
+            {sysOpen && (
+              <table className="ql-lt">
+                <Cols money={money} />
+                {groups.map((g, gi) => {
+                  const rows = mine.filter((l) => l.group === g);
+                  const sub = rows.reduce((n, l) => n + Math.round((sells.get(l.id) ?? 0) * l.qty), 0);
+                  const key = groupKey({ system: sys, group: g });
+                  const shown = open.has(key);
+                  const body = `${uid}-${si}-${gi}`;
+                  return [
+                    <tbody key={`g-${g}`}>
+                      {/* the whole band takes the press; its button is the
+                          keyboard's and a screen reader's way in, and its
+                          click is the band's. A tech, who sees no money, sees
+                          how many lines it holds where the total stands */}
+                      <tr className="ql-sg" onClick={() => onGroups([key], !shown)}>
+                        <td colSpan={money ? 4 : 1}>
+                          <button type="button" className="ql-sgbtn" aria-expanded={shown} aria-controls={body}>
+                            <Icon name={shown ? "chevD" : "chevR"} size={16} />
+                            {g}
+                          </button>
+                        </td>
+                        <td className="n">{money ? cents2(sub) : `${rows.length} ${rows.length === 1 ? "line" : "lines"}`}</td>
+                        <td />
+                      </tr>
+                    </tbody>,
+                    /* shut, its rows and what hangs off them (a labour line's
+                       tasks, a pick list, the loading) are not drawn */
+                    <tbody key={`r-${g}`} id={body}>
+                      {shown && [
+                        ...rows.map((l) => {
+                          const unknown = l.source === "unknown" && l.costCents <= 0 && l.sellCents == null;
+                          const each = sells.get(l.id);
+                          return [
+                            <tr key={l.id} className="ql-it">
+                              <td>
+                                <span className="ql-n">
+                                  <Tooltip
+                                    label={
+                                      fitOf.get(l.id)
+                                        ? `${fitOf.get(l.id)!.state === "fitted" ? "Fitted" : fitOf.get(l.id)!.state === "misfit" ? "Doesn't fit" : "Not checked"}: ${fitOf.get(l.id)!.why}`
+                                        : `${SOURCE_WORDS[l.source]}${l.why ? `: ${l.why}` : ""}`
+                                    }
+                                  >
+                                    <i className={`ql-d ${fitOf.get(l.id)?.state === "fitted" ? "fitted" : l.source}`} />
+                                  </Tooltip>
+                                  <span className="nm">
+                                    {l.name}
+                                    {view?.researched?.[l.id] && (
+                                      <Tooltip label={`From the web: ${view.researched[l.id]!.title}`}>
+                                        <a className="ql-web" href={view.researched[l.id]!.url} target="_blank" rel="noopener noreferrer" aria-label={`From the web: ${view.researched[l.id]!.title}`}>
+                                          <Globe />
+                                        </a>
+                                      </Tooltip>
                                     )}
-                                    {money && l.kind === "unit" && unitPartOf(l.name, l.code) !== "outdoor" && (
-                                      <button type="button" className="ql-cmpbtn" aria-expanded={comparing === l.id} onClick={() => setComparing(comparing === l.id ? null : l.id)}>
-                                        Compare
-                                      </button>
+                                    {l.estimate && <em className="ql-vs ql-est"> Estimate</em>}
+                                    {at !== base && againstFirst(l, all, base) !== "same" && (
+                                      <em className="ql-vs">{againstFirst(l, all, base) === "added" ? " Added" : " Changed"}</em>
                                     )}
                                   </span>
-                                )}
-                                {fitOf.get(l.id)?.state === "misfit" && <span className="ql-misfit">{fitOf.get(l.id)!.why}</span>}
-                              </span>
-                            </td>
-                            <td className="n">
-                              {l.visit ? (
-                                /* its hours are its tasks', changed below */
-                                <span className="ql-fq">{qtyWords(l)}</span>
-                              ) : (
-                                <Field
-                                  value={qtyWords(l)}
-                                  label={`Quantity of ${l.name}`}
-                                  disabled={busy}
-                                  onCommit={(t) => {
-                                    const n = Number(t.replace(/[^\d.]/g, ""));
-                                    if (Number.isFinite(n) && n >= 0) change(l, { qty: n });
-                                  }}
-                                />
-                              )}
-                            </td>
-                            {money && (
-                              <td className="n">
-                                <Field
-                                  value={dollars(l.costCents)}
-                                  label={`What one ${l.name} costs you`}
-                                  disabled={busy}
-                                  onCommit={(t) => {
-                                    const c = centsOf(t);
-                                    if (c != null && Number.isFinite(c)) change(l, { costCents: c });
-                                  }}
-                                />
+                                  {l.code && (
+                                    <span className="cd">
+                                      {l.code}
+                                      {buyFrom && l.supplierKey && l.supplierKey !== buyFrom && (
+                                        <em className="ql-not">{`Not at ${supplierName(buyFrom)}: ${supplierName(l.supplierKey)}`}</em>
+                                      )}
+                                      {money && l.kind === "unit" && unitPartOf(l.name, l.code) !== "outdoor" && (
+                                        <button type="button" className="ql-cmpbtn" aria-expanded={comparing === l.id} onClick={() => setComparing(comparing === l.id ? null : l.id)}>
+                                          Compare
+                                        </button>
+                                      )}
+                                    </span>
+                                  )}
+                                  {fitOf.get(l.id)?.state === "misfit" && <span className="ql-misfit">{fitOf.get(l.id)!.why}</span>}
+                                </span>
                               </td>
-                            )}
-                            {money && (
                               <td className="n">
-                                <Field
-                                  value={
-                                    l.sellCents != null
-                                      ? dollars(l.sellCents)
-                                      : each == null
-                                        ? ""
-                                        : /* by the metre a tenth of a cent is real (20.741 × 10 m = 207.41); a counted item is to the cent */
-                                          l.unit === "m"
-                                          ? dollars(Math.round(each * 10) / 10)
-                                          : dollars(Math.round(each))
-                                  }
-                                  label={`What one ${l.name} sells for`}
-                                  disabled={busy}
-                                  onCommit={(t) => {
-                                    const c = centsOf(t);
-                                    /* a provisional sum sells at what it costs: no markup on top */
-                                    if (isProvisional(l)) {
-                                      if (c != null && Number.isFinite(c)) change(l, { sellCents: c, costCents: c });
-                                    } else if (c === null) change(l, { sellCents: null });
-                                    else if (Number.isFinite(c)) change(l, { sellCents: c });
-                                  }}
-                                />
-                              </td>
-                            )}
-                            {money && <td className="n">{unknown ? "—" : cents2(Math.round((each ?? 0) * l.qty))}</td>}
-                            <td className="x">
-                              <span className="ql-acts">
-                                {l.kind !== "labour" && money && (
-                                  <Button
-                                    kind="quiet"
-                                    size={32}
-                                    aria-expanded={swapping === l.id}
-                                    aria-label={`Swap ${l.name}`}
+                                {l.visit ? (
+                                  /* its hours are its tasks', changed below */
+                                  <span className="ql-fq">{qtyWords(l)}</span>
+                                ) : (
+                                  <Field
+                                    value={qtyWords(l)}
+                                    label={`Quantity of ${l.name}`}
                                     disabled={busy}
-                                    onClick={() => setSwapping(swapping === l.id ? null : l.id)}
-                                  >
-                                    Swap
-                                  </Button>
+                                    onCommit={(t) => {
+                                      const n = Number(t.replace(/[^\d.]/g, ""));
+                                      if (Number.isFinite(n) && n >= 0) change(l, { qty: n });
+                                    }}
+                                  />
                                 )}
-                                <RemoveLine line={l} twins={twins(l)} busy={busy} onRemove={onRemove} />
-                              </span>
-                            </td>
-                          </tr>,
-                          l.visit ? <LabourTasks key={`${l.id}-tasks`} line={l} visit={l.visit} busy={busy} onChange={(visit) => change(l, { visit })} /> : null,
-                          swapping === l.id ? (
-                            <tr key={`${l.id}-pick`} className="ql-pickrow">
-                              <td colSpan={6}>
-                                <PickList
-                                  line={l}
-                                  twins={twins(l)}
-                                  busy={busy}
-                                  onCancel={() => setSwapping(null)}
-                                  onPick={(h, prefer, offer, also) => {
-                                    setSwapping(null);
-                                    const patch = {
-                                      /* a unit for a unit stays named by what it is, in the room it was */
-                                      name: l.kind === "unit" && h.product.category === "units" ? namedUnit(unitRoleOf(null, { name: h.product.name, code: offer.code }, { name: l.name }), l.name, h.product.name) : h.product.name,
-                                      code: offer.code,
-                                      supplierKey: offer.supplierKey,
-                                      costCents: offer.netCents,
-                                      sellCents: null,
-                                      /* a known part now: off To confirm */
-                                      ...(l.source === "unknown" ? { source: "by_hand" as const } : {}),
-                                    };
-                                    void (async () => {
-                                      for (const t of [l, ...also]) await act({ op: "change", id: t.id, version: t.version, patch, why: "Select preferred item" });
-                                    })().then(() => {
-                                      if (prefer)
-                                        void fetch("/api/quoting/preferred", {
-                                          method: "POST",
-                                          headers: { "Content-Type": "application/json" },
-                                          body: JSON.stringify({ ref: `${offer.supplierKey}|${offer.code}`, on: true, was: l.name }),
-                                        }).catch(() => undefined);
-                                    });
-                                  }}
-                                />
                               </td>
-                            </tr>
-                          ) : null,
-                        ];
-                      }),
-                      money && g === "Labour" && labourAt && sys === labourAt.system ? loadingRow : null,
-                    ]}
-                  </tbody>,
-                ];
-              })}
-            </table>
+                              {money && (
+                                <td className="n">
+                                  <Field
+                                    value={dollars(l.costCents)}
+                                    label={`What one ${l.name} costs you`}
+                                    disabled={busy}
+                                    onCommit={(t) => {
+                                      const c = centsOf(t);
+                                      if (c != null && Number.isFinite(c)) change(l, { costCents: c });
+                                    }}
+                                  />
+                                </td>
+                              )}
+                              {money && (
+                                <td className="n">
+                                  <Field
+                                    value={
+                                      l.sellCents != null
+                                        ? dollars(l.sellCents)
+                                        : each == null
+                                          ? ""
+                                          : /* by the metre a tenth of a cent is real (20.741 × 10 m = 207.41); a counted item is to the cent */
+                                            l.unit === "m"
+                                            ? dollars(Math.round(each * 10) / 10)
+                                            : dollars(Math.round(each))
+                                    }
+                                    label={`What one ${l.name} sells for`}
+                                    disabled={busy}
+                                    onCommit={(t) => {
+                                      const c = centsOf(t);
+                                      /* a provisional sum sells at what it costs: no markup on top */
+                                      if (isProvisional(l)) {
+                                        if (c != null && Number.isFinite(c)) change(l, { sellCents: c, costCents: c });
+                                      } else if (c === null) change(l, { sellCents: null });
+                                      else if (Number.isFinite(c)) change(l, { sellCents: c });
+                                    }}
+                                  />
+                                </td>
+                              )}
+                              {money && <td className="n">{unknown ? "—" : cents2(Math.round((each ?? 0) * l.qty))}</td>}
+                              <td className="x">
+                                <span className="ql-acts">
+                                  {l.kind !== "labour" && money && (
+                                    <Button
+                                      kind="quiet"
+                                      size={32}
+                                      aria-expanded={swapping === l.id}
+                                      aria-label={`Swap ${l.name}`}
+                                      disabled={busy}
+                                      onClick={() => setSwapping(swapping === l.id ? null : l.id)}
+                                    >
+                                      Swap
+                                    </Button>
+                                  )}
+                                  <RemoveLine line={l} twins={twins(l)} busy={busy} onRemove={onRemove} />
+                                </span>
+                              </td>
+                            </tr>,
+                            l.visit ? <LabourTasks key={`${l.id}-tasks`} line={l} visit={l.visit} busy={busy} onChange={(visit) => change(l, { visit })} /> : null,
+                            swapping === l.id ? (
+                              <tr key={`${l.id}-pick`} className="ql-pickrow">
+                                <td colSpan={6}>
+                                  <PickList
+                                    line={l}
+                                    twins={twins(l)}
+                                    busy={busy}
+                                    onCancel={() => setSwapping(null)}
+                                    onPick={(h, prefer, offer, also) => {
+                                      setSwapping(null);
+                                      const patch = {
+                                        /* a unit for a unit stays named by what it is, in the room it was */
+                                        name: l.kind === "unit" && h.product.category === "units" ? namedUnit(unitRoleOf(null, { name: h.product.name, code: offer.code }, { name: l.name }), l.name, h.product.name) : h.product.name,
+                                        code: offer.code,
+                                        supplierKey: offer.supplierKey,
+                                        costCents: offer.netCents,
+                                        sellCents: null,
+                                        /* a known part now: off To confirm */
+                                        ...(l.source === "unknown" ? { source: "by_hand" as const } : {}),
+                                      };
+                                      void (async () => {
+                                        for (const t of [l, ...also]) await act({ op: "change", id: t.id, version: t.version, patch, why: "Select preferred item" });
+                                      })().then(() => {
+                                        if (prefer)
+                                          void fetch("/api/quoting/preferred", {
+                                            method: "POST",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({ ref: `${offer.supplierKey}|${offer.code}`, on: true, was: l.name }),
+                                          }).catch(() => undefined);
+                                      });
+                                    }}
+                                  />
+                                </td>
+                              </tr>
+                            ) : null,
+                          ];
+                        }),
+                        money && g === "Labour" && labourAt && sys === labourAt.system ? loadingRow : null,
+                      ]}
+                    </tbody>,
+                  ];
+                })}
+              </table>
             )}
           </section>
         );
       })}
       </div>
 
-      {pad ? (
-        /* THIS OPTION, as rows that open (Isaac, 20 November 2026: "top of
+      {/* THIS OPTION, as rows that open (Isaac, 20 November 2026: "top of
            this section very messy", "changes should be collapsed"): where a
            new line goes, who the job buys from, what option 1 has that this
-           one doesn't, the versions kept, and every change with its Undo */
+           one doesn't, the versions kept, and every change with its Undo */}
         <>
           <h2 className="qx-head">This option</h2>
           <div className="qx-card qx-rows">
@@ -1054,26 +947,6 @@ export function QuoteLineItems({
             items={[{ key: "_any", label: "Any supplier" }, ...(view?.suppliers ?? []).map((s) => ({ key: s.key, label: `${s.name}, else the lowest` }))]}
           />
         </>
-      ) : (
-        <>
-          {missing.length > 0 && <p className="qp-none">{`Not in this option: ${missing.map((l) => l.name).join(", ")}`}</p>}
-
-          {/* the quote's history, under its lines: it was the rail's, beside Tiff */}
-          <div className="ql-hist">
-            {versions.length > 0 && (
-              <section>
-                <h2 className="hd-ls-grp">Versions</h2>
-                {versionsList}
-              </section>
-            )}
-            <section>
-              <h2 className="hd-ls-grp">Changes</h2>
-              {changes.length === 0 && <p className="qp-none">Nothing changed yet.</p>}
-              {changesList}
-            </section>
-          </div>
-        </>
-      )}
     </>
   );
 }

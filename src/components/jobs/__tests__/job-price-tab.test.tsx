@@ -22,10 +22,9 @@ jest.mock("@/components/workboard/quote/lines-proposal-paper", () => ({ LinesPro
 let quoteView: unknown = { ok: true, lines: [{ id: "l-1", optionIndex: 0 }], variations: [], names: {}, me: null, proposal: null };
 jest.mock("@/components/workboard/quote/quote-lines-face", () => ({
   useQuoteLines: () => ({ view: quoteView }),
-  QuoteLinesFace: ({ price, sm8, start, views, openAt, update }: { price: unknown; sm8: { value: string | null }; start?: boolean; views?: boolean; openAt?: number | null; update?: boolean }) => (
+  QuoteLinesFace: ({ price, sm8, start, openAt, update }: { price: unknown; sm8: { value: string | null }; start?: boolean; openAt?: number | null; update?: boolean }) => (
     <div>
       <p>{`Lines, ${sm8.value ?? "no value"}`}</p>
-      {views && <p>Views over the left</p>}
       {start && <p>Starts at the reply box</p>}
       {openAt != null && <p>{`On option ${openAt}`}</p>}
       {update && <p>Update quote asked</p>}
@@ -150,12 +149,12 @@ it("lays the job's prices across the top, the quote's paper under them with Open
   /* the paper as the customer gets it, read only; the quote opens in a tab of its own (the Price overhaul, 18 November 2026) */
   expect(await screen.findByText("The proposal’s paper")).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "Open quote" })).toHaveAttribute("href", `/dashboard/jobs/${JOB}/quote`);
-  expect(screen.queryByText("Views over the left")).toBeNull();
+  expect(screen.queryByText(/^Lines, /)).toBeNull();
 });
 
 it("in the quote's own tab, is the quote alone, with no prices over it", async () => {
   draw({ doc: "quote" });
-  expect(await screen.findByText("Views over the left")).toBeInTheDocument();
+  expect(await screen.findByText(/^Lines, /)).toBeInTheDocument();
   expect(screen.queryByRole("group", { name: "The job's prices" })).toBeNull();
 });
 
@@ -320,7 +319,7 @@ it("stands ServiceM8's own quote in for one never built here, with Update quote 
 it("switches a quote still on the old builder to its lines as it opens", async () => {
   engine = "old";
   draw({ doc: "quote" });
-  expect(await screen.findByText("Views over the left")).toBeInTheDocument();
+  expect(await screen.findByText(/^Lines, /)).toBeInTheDocument();
   expect(fetchMock.mock.calls.filter((c) => (c[1] as { method?: string } | undefined)?.method === "POST")).toEqual([
     ["/api/workboard/quote-lines", expect.objectContaining({ body: JSON.stringify({ job: JOB, op: "switch", engine: "lines" }) })],
   ]);
@@ -333,7 +332,7 @@ it("says when the quote couldn't be opened, and Try again opens it", async () =>
   expect(await screen.findByText("The quote couldn’t be opened.")).toBeInTheDocument();
   switches = true;
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-  expect(await screen.findByText("Views over the left")).toBeInTheDocument();
+  expect(await screen.findByText(/^Lines, /)).toBeInTheDocument();
 });
 
 it("says when where the quote stands wasn't read, and reads it again", async () => {

@@ -3427,43 +3427,6 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .fg .qp-stage.settle { color:var(--orange-w); }
 .fg .qp-open { flex:none; }
 .fg .qp-wait { flex:1; display:flex; flex-direction:column; align-items:flex-start; gap:12px; padding:24px; }
-/* THE STAGE LINE, at the top of the rail, in colour (layout B, Isaac, 21
-   October 2026): a dot and a name, joined by a line; what's done, and the
-   join on to the next, in green, the step it's up to in orange with a ring,
-   the rest grey. Names only. The ring stands off the dot on white, so the
-   line keeps 4 either side for it */
-.fg .qp-steps { margin:0; padding:4px 4px 0; list-style:none; display:flex; }
-.fg .qp-steps > li { position:relative; flex:1 1 auto; min-width:0; padding-right:8px; display:flex; flex-direction:column; align-items:flex-start; gap:2px; padding-top:16px; }
-.fg .qp-steps > li:last-child { flex:0 0 auto; padding-right:0; }
-.fg .qp-steps > li > i { position:absolute; top:0; left:0; box-sizing:border-box; width:12px; height:12px;
-  border-radius:50%; border:2px solid var(--edge); background:var(--white); }
-.fg .qp-steps > li::after { content:""; position:absolute; top:5px; left:12px; right:0; height:2px; background:var(--line); }
-.fg .qp-steps > li:last-child::after { display:none; }
-.fg .qp-steps b { font-size:12px; font-weight:600; line-height:16px; color:var(--q); white-space:nowrap; }
-.fg .qp-steps > li.done > i { border-color:var(--green); background:var(--green); }
-.fg .qp-steps > li.done::after { background:var(--green); }
-.fg .qp-steps > li.done b { color:var(--green-w); }
-.fg .qp-steps > li.now > i { border-color:var(--orange); background:var(--orange); box-shadow:0 0 0 2px var(--white), 0 0 0 4px var(--orange); }
-.fg .qp-steps > li.now b { color:var(--orange-w); }
-/* passed on purpose (the Design step's No design, 28 October 2026): the join
-   on is green, as for a step done, but the dot stays open and the name grey */
-.fg .qp-steps > li.skip > i { border-color:var(--green); }
-.fg .qp-steps > li.skip::after { background:var(--green); }
-/* AS A LIST DOWN THE RAIL (the job's Price tab), read as the Overview's
-   stages are (the Price mock, 16 November 2026): a green tick for a step
-   done, an open ring for one to come, the step, its words on the right;
-   no join. Undo beside Accepted, the only place the yes is said there */
-.fg .qp-steps--list { flex-direction:column; padding:12px 0 0; border-top:1px solid var(--line); }
-.fg .qp-steps--list > li { flex:none; flex-direction:row; align-items:center; gap:8px; min-height:28px; padding:0; }
-.fg .qp-steps--list > li::after { display:none; }
-.fg .qp-steps--list > li > i { position:static; flex:none; width:12px; height:12px; margin:0 2px; }
-.fg .qp-steps--list > li > span:first-child { display:flex; flex:none; color:var(--green); }
-.fg .qp-steps--list > li.now > i { box-shadow:none; }
-.fg .qp-steps--list b { flex:1 1 auto; min-width:0; font-size:14px; line-height:20px; font-weight:500; color:var(--q); }
-.fg .qp-steps--list > li.done b, .fg .qp-steps--list > li.now b { color:var(--ink); }
-.fg .qp-steps--list .qp-words { flex:none; }
-.fg .qp-words { font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
-.fg .qp-steps--list > li.now .qp-words { color:var(--orange-w); }
 /* THE BODY: the conversation, or the line items, fills the left; the rail,
    400 wide, beside it with no rule between: its own scroll, and the quote's
    buttons pinned at its foot under a thin line (layout B, 21 October 2026) */
@@ -3475,14 +3438,6 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
    (3423: Line items was cut in half above the dock) */
 .fg .qc-scroll > * { flex:none; }
 .fg .qc-rs { display:flex; flex-direction:column; gap:12px; }
-/* every option and its total, the rail's top: the one open on the grey the
-   trays select with */
-.fg .qc-opts { display:flex; flex-direction:column; gap:4px; }
-.fg .qc-opt { display:grid; grid-template-columns:minmax(0, 1fr) auto; align-items:start; gap:8px; width:100%; padding:8px 12px; border-radius:var(--r-button); font:inherit; font-size:14px; line-height:20px; text-align:left; color:var(--ink); cursor:pointer; font-variant-numeric:tabular-nums; }
-.fg .qc-opt.on { background:var(--sel); }
-.fg .qc-opt b { font-weight:600; }
-.fg .qc-opt span { min-width:0; display:flex; flex-direction:column; }
-.fg .qc-opt em { font-style:normal; font-size:13px; font-weight:500; color:var(--q); }
 .fg .qc-added { display:flex; flex-direction:column; gap:8px; }
 .fg .qc-added h2 { margin:0; font-size:14px; line-height:20px; font-weight:600; color:var(--warn-t); }
 .fg .qc-added ul { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:8px; }
@@ -3496,9 +3451,6 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
    rail, then Update quote and Mark accepted. Every one 36 */
 .fg .qc-dock { flex:none; display:flex; flex-direction:column; align-items:stretch; gap:8px; padding:12px 0 24px; border-top:1px solid var(--line); background:var(--white); }
 .fg .qc-pair { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0, 1fr); gap:8px; }
-/* Update quote and Share side by side, Share's word under them both */
-.fg .qc-pair--two { grid-auto-flow:row; grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); }
-.fg .qc-pair--two > .qc-said { grid-column:1 / -1; }
 /* the Design step's group (quote-design.tsx): what the job has, in grey, and
    Design it beside it once the step is passed by */
 .fg .qc-dsl { margin:0; font-size:14px; line-height:20px; color:var(--q); }
@@ -3506,10 +3458,9 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .fg .qc-pair > .pt-btn, .fg .qc-dock > .pt-btn { min-width:0; }
 /* Share's word after Copy the link: quiet, under the button */
 .fg .qc-said { margin:0; font-size:12px; color:var(--q); text-align:center; }
-/* Approved, given, and a client's yes: a green state word in the button's
-   seat, as rule 17 has state (the walk of 15 November 2026, T3), the yes
-   with a quiet Undo beside it */
-.fg .qc-given, .fg .qc-taken { min-width:0; min-height:36px; display:flex; align-items:center; justify-content:center; gap:8px; }
+/* a variation's yes: a green state word in the button's seat, as rule 17
+   has state (the walk of 15 November 2026, T3), with a quiet Undo beside it */
+.fg .qc-taken { min-width:0; min-height:36px; display:flex; align-items:center; justify-content:center; gap:8px; }
 /* the conversation: a column no wider than reading wants, her words under
    her name, yours in a light bubble on the right (his "light" bubble,
    2026-10-13), the reply box at its foot; reading at 16 (rule 13) */
@@ -3572,19 +3523,6 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .fg .pbtn.ghost.qp-go { border-width:1.5px; }
 .fg .pbtn.ghost.qp-go:not(:disabled) { border-color:var(--go); background:var(--paper); color:var(--go); }
 .fg .pbtn.ghost.qp-go:hover:not(:disabled) { border-color:var(--go); background:var(--ok-tint); }
-/* THE QUOTE'S CARD in the rail (quote-rail.tsx): the total, the screen's one
-   big figure (32), its parts in the chart's colours and their split, the
-   profit as a figure and a state word with no box (Q4), then every group */
-.fg .qp-card { display:flex; flex-direction:column; gap:12px; }
-.fg .qp-tot { display:flex; flex-direction:column; gap:2px; }
-.fg .qp-tot > span { font-size:13px; font-weight:500; color:var(--q); }
-.fg .qp-tot b { font-size:32px; font-weight:700; line-height:40px; color:var(--ink); font-variant-numeric:tabular-nums; }
-.fg .qp-tot b.qc-wait { font-size:16px; font-weight:600; color:var(--q); }
-.fg .qp-tot em { font-style:normal; font-size:13px; color:var(--q); font-variant-numeric:tabular-nums; }
-.fg .qp-parts { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:4px; }
-.fg .qp-parts li { display:grid; grid-template-columns:8px minmax(0, 1fr) auto; gap:8px; align-items:center; font-size:14px; color:var(--hd-ink); }
-.fg .qp-parts i { width:8px; height:8px; border-radius:50%; }
-.fg .qp-parts b { font-weight:600; font-variant-numeric:tabular-nums; }
 /* THE MONEY ROLLS (Isaac, 30 October 2026: "roll up and down like a slot
    machine"): each digit a column of 0 to 9 drawn by the sheet, on its value;
    the figure itself is in the markup, for reading and for a screen reader.
@@ -3596,17 +3534,8 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .fg .rf-d::before { content:"0\A 1\A 2\A 3\A 4\A 5\A 6\A 7\A 8\A 9"; display:block; white-space:pre; text-align:center; transform:translateY(calc(var(--d) * -1lh)); transition:transform var(--t-roll) var(--ease); }
 @starting-style { .fg .rf[data-live] .rf-d::before { transform:translateY(0); } }
 .fg .rf-c::before { content:attr(data-c); white-space:pre; }
-.fg .ql-split > span { transition:flex-grow var(--t-roll) var(--ease); }
 .fg .qb-bar i { transition:width var(--t-roll) var(--ease); }
-@media (prefers-reduced-motion:reduce) { .fg .rf-d::before, .fg .ql-split > span, .fg .qb-bar i { transition:none; } }
-.fg .qp-profit { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:4px 8px; align-items:baseline; }
-.fg .qp-profit > span { display:flex; align-items:baseline; gap:8px; font-size:14px; font-weight:600; color:var(--ink); }
-.fg .qp-profit > span small { font-size:13px; font-weight:500; color:var(--q); }
-.fg .qp-profit > b { font-size:14px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
-/* the profit's figure in the colour of its state: green at or over the target, orange under it */
-.fg .qp-profit > b.good { color:var(--green-w); }
-.fg .qp-profit > b.look { color:var(--orange-w); }
-.fg .qp-profit > .qp-pword { grid-column:1 / -1; align-items:baseline; line-height:18px; }
+@media (prefers-reduced-motion:reduce) { .fg .rf-d::before, .fg .qb-bar i { transition:none; } }
 /* THE JOB IN SERVICEM8 (layout B): a card, since it has two things to
    press; its quote and ours as rows, a label and a figure, and its buttons
    side by side. No underlined link */
@@ -3621,16 +3550,13 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .fg .qc-lines { flex:1; min-height:0; overflow:auto; }
 .fg .qc-lines > .ql-face { padding:24px 0 32px; overflow:visible; }
 .fg .qc-main > .qc-fill { flex:1; min-height:0; }
-.fg .ql-hist { display:flex; flex-direction:column; padding-top:8px; }
 /* THE QUOTE BY HAND ON ITS KEPT LINES (quote-line-items.tsx; the mock-ups
    Isaac shaped on 2026-10-07): the column heads pinned while the lines
    scroll; a card per system, a band per group with its subtotal, a row per
    item; qty, cost and sell typed in place; every change at the foot with
-   who made it. The ledger that headed them (2026-10-10) is the rail's card
-   now (2026-10-13); its split stays, under the card's parts. */
+   who made it. The ledger that headed them (2026-10-10) is the panel's card
+   now (2026-10-13). */
 .fg .ql-face > * { flex:none; }
-.fg .ql-split { display:flex; height:4px; }
-.fg .ql-split > span { flex-basis:0; }
 .fg .ql-lt { width:100%; table-layout:fixed; border-collapse:collapse; }
 .fg .ql-lt col.cq { width:80px; }
 .fg .ql-lt col.cc, .fg .ql-lt col.ce { width:100px; }
@@ -3641,9 +3567,6 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .fg .ql-colh th:first-child { padding-left:16px; }
 .fg .ql-lt .n { text-align:right; }
 .fg .ql-sys { margin-top:16px; border:1px solid var(--hd-edge); border-radius:var(--r-button); background:var(--paper); overflow:hidden; }
-.fg .ql-sys-h { display:flex; align-items:baseline; justify-content:space-between; gap:16px; padding:12px 16px; }
-.fg .ql-sys-h h3 { margin:0; font-size:16px; font-weight:600; color:var(--hd-ink); }
-.fg .ql-sys-h b { font-size:16px; font-weight:600; color:var(--hd-ink); font-variant-numeric:tabular-nums; }
 .fg .ql-lt td { padding:4px 12px 4px 0; border-top:1px solid var(--hd-rule2); font-size:14px; line-height:1.4; color:var(--hd-ink); vertical-align:middle; }
 .fg .ql-lt td:first-child { padding-left:16px; }
 .fg .ql-lt td.n { font-variant-numeric:tabular-nums; white-space:nowrap; }
@@ -3673,7 +3596,6 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .fg .ql-x:hover { background:var(--tint); color:var(--hd-ink); }
 .fg .ql-x:focus-visible, .fg .ql-undo:focus-visible { outline:none; box-shadow:var(--ring); }
 .fg .ql-add { display:flex; flex-direction:column; gap:8px; padding:16px 0; }
-.fg .ql-adds { display:flex; flex-wrap:wrap; gap:8px; }
 .fg .ql-addrow { display:grid; grid-template-columns:minmax(0, 1fr) 200px; gap:8px; }
 .fg .ql-hits { list-style:none; margin:0; padding:4px; display:flex; flex-direction:column; border:1px solid var(--hd-edge); border-radius:var(--r-button); background:var(--paper); }
 .fg .ql-hits li button { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:16px; align-items:baseline; width:100%; padding:8px 12px;
@@ -3747,15 +3669,7 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .fg .qt-box:focus-within { border-color:var(--ink); }
 .fg .qt-in { flex:1; min-width:0; min-height:32px; max-height:160px; padding:4px 0; border:0; background:none; font:inherit; font-size:14px; line-height:1.5; color:var(--hd-ink); resize:none; }
 .fg .qt-in:focus { outline:none; }
-/* an option's name and the job's supplier, side by side over the table,
-   each with its label above it (rule 33) */
-.fg .ql-sumrow { display:flex; gap:24px; align-items:flex-end; }
-.fg .ql-oname { display:flex; flex-direction:column; align-items:stretch; gap:4px; flex:1 1 auto; min-width:0; font-size:13px; font-weight:500; color:var(--q); }
-/* the supplier the whole job buys from (8 Oct) */
-.fg .ql-sup { display:flex; flex-direction:column; align-items:stretch; gap:4px; flex:0 0 240px; font-size:13px; font-weight:500; color:var(--q); }
-.fg .ql-sup select { height:36px; font-size:14px; font-weight:500; color:var(--ink); }
 .fg .ql-not { margin-left:8px; font-style:normal; font-size:12px; font-weight:600; color:var(--warn-t); }
-.fg .ql-oname input { flex:1; min-width:0; height:36px; font-size:14px; font-weight:500; color:var(--ink); }
 /* a hard job's loading: the Labour group's last line, hidden from the customer */
 .fg tr.ql-load td { background:var(--tint); }
 .fg tr.ql-load .ql-n { align-items:baseline; }
@@ -3916,9 +3830,6 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .fg .ql-chg li:first-child { border-top:0; }
 .fg .ql-chg small { display:block; font-size:12px; color:var(--q); }
 .fg .ql-undo { font-size:13px; font-weight:600; color:var(--hd-ink); text-decoration:underline; text-underline-offset:3px; }
-.fg .qp-undo { padding:0; border:0; background:none; font:inherit; font-weight:600; color:var(--hd-ink);
-  text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
-.fg .qp-undo:focus-visible { outline:none; box-shadow:var(--ring); border-radius:var(--r-control); }
 /* THE COLUMN. A face scrolls on its own (Home's `hd-face`); nothing on the
    page scrolls sideways, so a trackpad's sideways swipe must not reach the
    browser's Back (Isaac, 2026-10-06: "it will just jump back to the
@@ -6413,7 +6324,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jpr-quote .qc-scroll { gap:24px; padding:16px 16px 24px; }
 .fg .jpr-quote .qc-dock { padding:12px 16px 24px; border-top:0; background:none; }
 .fg .jpr-quote .qc-dock .pt-btn { height:44px; font-size:16px; }
-.fg .jpr-quote .qc-given, .fg .jpr-quote .qc-taken { min-height:44px; }
+.fg .jpr-quote .qc-taken { min-height:44px; }
 .fg .jpr-quote .qc-sm8, .fg .jpr-quote .qc-added, .fg .jpr-quote .qx-panel .qc-rs, .fg .jpr-quote .qx-panel .wb2-jcsec { padding:12px 16px 16px; border:0; border-radius:var(--r-card); background:var(--paper); }
 .fg .jpr-quote .qx-panel .qb { margin:0 16px 12px; }
 .fg .qx-sec { display:flex; flex-direction:column; }

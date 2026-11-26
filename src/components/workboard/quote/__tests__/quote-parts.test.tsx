@@ -1,7 +1,7 @@
-import { render, renderHook, screen, waitFor } from "@testing-library/react";
+import { renderHook, waitFor } from "@testing-library/react";
 import { priceBuildUp } from "@/lib/quotes/buildup";
 import type { OptionPrice, QuotePrice } from "@/lib/quotes/quote-price-server";
-import { QuoteStepsLine, priceState, useQuotePrice } from "../quote-parts";
+import { priceState, useQuotePrice } from "../quote-parts";
 
 /* Isaac, 2026-10-04: "Switch it on now"; 2026-10-06: the quote page in
    Home's frame — each option's lines down the page, its price at the top of
@@ -28,56 +28,4 @@ it("tells the progress line what the price says", () => {
   expect(priceState({ ok: false, unset: ["rate"] })).toEqual({ kind: "unset" });
   expect(priceState(one(option({ build: priceBuildUp([], [], settings), rows: 0, labourFrom: "none" })))).toEqual({ kind: "empty" });
   expect(priceState(one(option({ build, unpriced: [{ name: "x", qty: "1", why: "y" }] })))).toEqual({ kind: "priced", left: 1 });
-});
-
-it("draws the steps in their states, and offers Undo on the last one marked by hand", () => {
-  const onUndo = jest.fn();
-  render(
-    <QuoteStepsLine
-      onUndo={onUndo}
-      steps={[
-        { key: "brief", label: "Brief", state: "done", words: "Drafted" },
-        { key: "approved", label: "Approved", state: "done", words: "Approved Tue 6 Oct" },
-        { key: "sent", label: "Sent", state: "next", words: "Not yet" },
-      ]}
-    />
-  );
-  screen.getByRole("button", { name: "Undo approved" }).click();
-  expect(onUndo).toHaveBeenCalledWith("approved");
-  expect(screen.getByText("Sent").closest("li")).toHaveAttribute("aria-current", "step");
-  /* layout B (Isaac, 21 October 2026): done in green, the step it's up to
-     in orange, names only */
-  expect(screen.getByText("Brief").closest("li")).toHaveClass("done");
-  expect(screen.getByText("Sent").closest("li")).toHaveClass("now");
-  expect(screen.queryByText("Drafted")).toBeNull();
-  expect(screen.queryByText("Not yet")).toBeNull();
-});
-
-it("marks no step as the one it's up to once the client said yes, and greys what was skipped", () => {
-  render(
-    <QuoteStepsLine
-      steps={[
-        { key: "brief", label: "Brief", state: "done", words: "By hand" },
-        { key: "approved", label: "Approved", state: "todo", words: "" },
-        { key: "accepted", label: "Accepted", state: "done", words: "Option 1" },
-      ]}
-    />
-  );
-  expect(document.querySelector('[aria-current="step"]')).toBeNull();
-  expect(screen.getByText("Approved").closest("li")!.className).toBe("");
-  expect(screen.getByText("Accepted").closest("li")).toHaveClass("done");
-});
-
-it("takes nothing back on the line once the client said yes: that's the option's own Accepted", () => {
-  render(
-    <QuoteStepsLine
-      onUndo={jest.fn()}
-      steps={[
-        { key: "approved", label: "Approved", state: "done", words: "Approved Tue 6 Oct" },
-        { key: "sent", label: "Sent", state: "todo", words: "Not marked" },
-        { key: "accepted", label: "Accepted", state: "done", words: "Option 1" },
-      ]}
-    />
-  );
-  expect(screen.queryByRole("button", { name: /^Undo/ })).toBeNull();
 });

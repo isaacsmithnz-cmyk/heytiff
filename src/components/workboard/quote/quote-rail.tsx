@@ -15,160 +15,15 @@ import type { JobMediaItem } from "@/lib/workboard/job-media";
 import { DocRow } from "../board/job-documents-face";
 import type { Sm8Quote } from "./sm8-quote-of";
 
-/* THE RAIL: what the quote comes to, beside the conversation (the
-   chat-first quote page, Isaac, 2026-10-13), in layout B (his pick, 21
-   October 2026: "Price on top, buttons pinned"). Read top to bottom like a
-   checkout, on its own scroll, 400 wide: where the quote is, in colour;
-   every option and its total, to pick from;
-   the Design step, to someone with the Studio (quote-design.tsx, 28
-   October 2026); what's To confirm when Tiff isn't on for the business (with her on, it's
-   the conversation's, till the paper stands in its place: then Before you
-   approve is here); the price, to someone who sees money; Line items under
-   it; what goes to ServiceM8 once it's accepted; and the job in ServiceM8.
-   The quote's buttons are pinned at its foot, under a thin line, so they
-   never scroll away (quote-actions.tsx). What Tiff has cost left the page
-   with layout B. */
-
-/* the parts' colours, the chart's: a figure in colour always carries its
-   name beside it (docs/design.md, charts are drawn in colour) */
-const PART_COLOUR: Record<string, string> = { units: "var(--chart-1)", materials: "var(--chart-3)", labour: "var(--chart-2)" };
+/* THE PANEL beside Build, Breakdown and the Proposal, on its own scroll:
+   the total, the Proposal's own rows while it's up, where it's up to with
+   what's to confirm inside it, what's landed since it was priced, the Design
+   step to someone with the Studio (quote-design.tsx), what goes to
+   ServiceM8, and the job in ServiceM8. The one next step is pinned at its
+   foot, under a thin line, so it never scrolls away (quote-actions.tsx). */
 
 /** a variation's figures: the difference it makes */
 export const signed = (c: number) => `${c > 0 ? "+" : c < 0 ? "−" : ""}${cents2(Math.abs(c))}`;
-
-/** THE QUOTE (it replaces the head's ledger, 2026-10-10): the total, the
-    screen's one big figure, its three parts and their split, and the profit
-    as a figure and a state word with no box (Q4), the figure in green at or
-    over the business's target and orange under it (layout B, 21 October
-    2026). The groups are the line items' to say, once. A variation's
-    figures are the difference it makes. */
-export function QuoteCard({
-  price,
-  option,
-  label,
-  left,
-  hours,
-  variation,
-  building,
-}: {
-  price: QuotePrice | null | undefined;
-  /** the option open on the page, priced */
-  option: OptionPrice | undefined;
-  /** "Total ex GST", with the option and ", so far" as they apply */
-  label: string;
-  /** something is still to price: every figure is so far, and the profit
-      claims no state against the target until nothing is */
-  left: boolean;
-  /** the option's labour hours, the contingency's included */
-  hours: number;
-  /** a variation open: the accepted option it changes, and that one's hours */
-  variation: { n: number; of: OptionPrice; hours: number } | null;
-  /** Tiff building the quote, part by part, under the total */
-  building: ReactNode;
-}) {
-  const unset = !!price && !price.ok;
-  const b = option?.build;
-
-  if (b && variation) {
-    const was = variation.of.build;
-    const parts = [
-      { key: "units", label: "Units", cents: unitsOf(b) - unitsOf(was) },
-      { key: "materials", label: "Materials", cents: b.exGstCents - unitsOf(b) - labourOf(b) - (was.exGstCents - unitsOf(was) - labourOf(was)) },
-      { key: "labour", label: `Labour, ${hours - variation.hours > 0 ? "+" : ""}${Math.round((hours - variation.hours) * 100) / 100} h`, cents: labourOf(b) - labourOf(was) },
-    ];
-    const ex = b.exGstCents - was.exGstCents;
-    const profit = option?.profit && variation.of.profit ? option.profit.profitCents - variation.of.profit.profitCents : null;
-    return (
-      <div className="qp-card">
-        <div className="qp-tot">
-          <span>{`Variation ${variation.n}, ex GST`}</span>
-          <b><RollingFigure value={signed(ex)} /></b>
-          <em>New total <RollingFigure value={cents2(b.exGstCents)} /></em>
-        </div>
-        {building}
-        <ul className="qp-parts" aria-label="Its parts">
-          {parts.map((p) => (
-            <li key={p.key}>
-              <i style={{ background: PART_COLOUR[p.key] }} aria-hidden="true" />
-              <span>{p.label}</span>
-              <b><RollingFigure value={signed(p.cents)} /></b>
-            </li>
-          ))}
-        </ul>
-        {profit != null && (
-          <div className="qp-profit">
-            <span>
-              Profit
-              {left ? <small>so far</small> : ex !== 0 && <small>{`${Math.round((profit / ex) * 1000) / 10}% of it`}</small>}
-            </span>
-            <b><RollingFigure value={signed(profit)} /></b>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  const parts = b ? quoteParts(b, hours) : [];
-  const whole = parts.reduce((n, p) => n + Math.max(0, p.cents), 0);
-  const profit = option?.profit ?? null;
-  /* the state in its colour, in words: over the target, or how far under
-     and what would meet it; with no target, the figures alone. While
-     anything is still to price the figures are so far, and so is the
-     profit: no state, and no price to meet the target worked out from part
-     of the quote (the head said what was left to confirm there, and its red
-     sentence waited until nothing was) */
-  const tone = !profit || profit.targetPct == null || left ? null : profit.short ? ("look" as const) : ("good" as const);
-  const words =
-    !profit || left || profit.targetPct == null
-      ? null
-      : profit.short
-        ? `Under your ${profit.targetPct}% target by ${cents2(profit.short.cents)}. ${cents2(profit.short.priceCents)} ex GST would meet it`
-        : `${profit.pct > profit.targetPct ? "Over" : "At"} your ${profit.targetPct}%`;
-  return (
-    <div className="qp-card">
-      <div className="qp-tot">
-        <span>{unset ? "Price" : label}</span>
-        {unset ? <b className="qc-wait">Not set</b> : <b>{b ? <RollingFigure value={cents2(b.exGstCents)} /> : "–"}</b>}
-        {price && !price.ok ? <em>{unsetWords(price.unset)}</em> : b ? <em><RollingFigure value={cents2(b.incGstCents)} /> inc GST</em> : null}
-      </div>
-      {building}
-      {b && (
-        <>
-          <ul className="qp-parts" aria-label="Its parts">
-            {parts.map((p) => (
-              <li key={p.key}>
-                <i style={{ background: PART_COLOUR[p.key] }} aria-hidden="true" />
-                <span>{p.label}</span>
-                <b><RollingFigure value={cents2(p.cents)} /></b>
-              </li>
-            ))}
-          </ul>
-          {whole > 0 && (
-            <div className="ql-split" aria-hidden="true">
-              {parts.map((p) => (
-                <span key={p.key} style={{ flexGrow: Math.max(0, p.cents), background: PART_COLOUR[p.key] }} />
-              ))}
-            </div>
-          )}
-          {profit && (
-            <div className="qp-profit">
-              <span>
-                Profit
-                {left && <small>so far</small>}
-              </span>
-              <b className={tone === "good" ? "good" : tone === "look" ? "look" : undefined}><RollingFigure value={`${profit.pct}%, ${cents2(profit.profitCents)}`} /></b>
-              {tone && words && (
-                <StateWord tone={tone} className="qp-pword">
-                  {words}
-                </StateWord>
-              )}
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
 
 /* ── THE PANEL, AS AN IPHONE'S SCREEN (Isaac, 20 November 2026, on the
    quote's own tab: "and the right panel is on an iphone", then "make total
@@ -424,27 +279,6 @@ export function InServiceM8({
   );
 }
 
-/** ONE ROW AN OPTION, EVERY OPTION'S TOTAL (Isaac's walk of 3423, 30 October
-    2026; they were tabs over the line items): the row picks which option the
-    price under it and the line items show. A variation says the difference
-    it makes. Nothing for a quote with one option. */
-export function OptionRows({ rows, onPick }: { rows: { option: number; name: string; line: string; total: string | null; on: boolean }[]; onPick: (option: number) => void }) {
-  if (rows.length < 2) return null;
-  return (
-    <section className="qc-opts" aria-label="Options">
-      {rows.map((r) => (
-        <button key={r.option} type="button" className={r.on ? "qc-opt on" : "qc-opt"} aria-pressed={r.on} onClick={() => onPick(r.option)}>
-          <span>
-            <b>{r.name}</b>
-            {r.line && <em>{r.line}</em>}
-          </span>
-          {r.total && <b>{r.total}</b>}
-        </button>
-      ))}
-    </section>
-  );
-}
-
 /** What's landed on the job since the quote was priced (the scope on the
     quote, Isaac's yes, 2 November 2026): nothing when nothing has. Leave out
     takes a thing off this list and leaves it in the job's brief. */
@@ -488,107 +322,49 @@ export function AddedRows({
 
 export function QuoteRail({
   progress,
-  options,
   added,
   design,
-  confirm,
-  confirmTitle,
   card,
   building,
-  lines,
   send,
   sm8,
   actions,
-  priceFirst = false,
-  panel = false,
   proposal,
 }: {
-  /** where the quote is, in colour, at the rail's top */
+  /** where it's up to, with what's to confirm inside it */
   progress: ReactNode;
-  /** the price at the rail's top, over where it's up to (the job's Price
-      tab, as its mock drew it; the walk of 15 November 2026, T3) */
-  priceFirst?: boolean;
-  /** every option and its total, to pick from */
-  options?: ReactNode;
-  /** what's landed on the job since it was priced, under the options */
+  /** what's landed on the job since it was priced */
   added?: ReactNode;
   /** the Design step: the job's designs, or Design it (quote-design.tsx);
       nothing without the Studio */
   design?: ReactNode;
-  /** what's To confirm, or Before you approve on the paper, when the
-      conversation isn't there to hold it */
-  confirm: ReactNode;
-  confirmTitle: string;
   /** the quote's price, to someone who sees money; null to anyone else */
   card: ReactNode;
   /** Tiff building it, where there's no card to hold it */
   building: ReactNode;
-  /** Line items, under the price, while there's a conversation to swap with */
-  lines: ReactNode;
   /** what goes to ServiceM8 once it's accepted, as it stands today */
   send: ReactNode;
   /** the job in ServiceM8 */
   sm8: ReactNode;
-  /** the quote's buttons, pinned at the rail's foot */
+  /** the one next step, pinned at the panel's foot */
   actions: ReactNode;
-  /** laid out as an iPhone's screen (the quote's own tab): the total, then
-      the Proposal's own rows where it's up, where it's up to with what's
-      to confirm inside it, and the rest as they were */
-  panel?: boolean;
-  /** the Proposal's choice, payment and notes, as rows (panel) */
+  /** the Proposal's choice, payment and notes, as rows, while it's up */
   proposal?: ReactNode;
 }) {
-  if (panel)
-    return (
-      <aside className="qc-rail qx-panel" aria-label="On this quote">
-        <div className="qc-scroll">
-          {card ? (
-            <section className="qx-sec" aria-label="The quote">
-              {card}
-            </section>
-          ) : (
-            building
-          )}
-          {proposal}
-          {progress}
-          {options}
-          {added}
-          {design}
-          {lines}
-          {send}
-          {sm8}
-        </div>
-        {actions}
-      </aside>
-    );
   return (
-    <aside className="qc-rail" aria-label="On this quote">
+    <aside className="qc-rail qx-panel" aria-label="On this quote">
       <div className="qc-scroll">
-        {priceFirst && card && (
-          <section className="qc-rs" aria-label="The quote">
+        {card ? (
+          <section className="qx-sec" aria-label="The quote">
             {card}
           </section>
-        )}
-        <div>{progress}</div>
-        {options}
-        {added}
-        {design}
-        {confirm && (
-          <section className="qc-rs" aria-label={confirmTitle}>
-            <h2 className="qc-h">{confirmTitle}</h2>
-            {confirm}
-          </section>
-        )}
-        {card ? (
-          priceFirst ? null : (
-            <section className="qc-rs" aria-label="The quote">
-              {card}
-            </section>
-          )
         ) : (
           building
         )}
-        {lines}
+        {proposal}
+        {progress}
+        {added}
+        {design}
         {send}
         {sm8}
       </div>

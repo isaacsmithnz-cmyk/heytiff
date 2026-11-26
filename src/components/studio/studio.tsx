@@ -154,6 +154,7 @@ import { useNoteScopeScreen } from "@/components/notes/note-context";
 import { TIFF_APPLY, type TiffApply } from "@/lib/brain/ask-client";
 import type { RoofReading } from "@/lib/studio/reading";
 import { DesignHome } from "./home";
+import type { JobPlanFixes } from "./new-design";
 import { RoomsFromPlan } from "./rooms-from-plan";
 import { ALL_FLOORS, View3D, type About3D, type Look3D, type Pick3D } from "./view-3d";
 import { sceneOf, type Scene3D } from "@/lib/studio/scene3d";
@@ -246,9 +247,12 @@ export function Studio({
   brand: servedBrand,
   library,
   planReader,
+  jobPlanFixes = JOB_PLAN_FIXES,
 }: {
   /** Tiff's plan reader; the server's in the app, a stand-in in tests */
   planReader?: PlanReader;
+  /** New design's Settle N first on the job's own plans; the job card's actions in the app, stand-ins in tests */
+  jobPlanFixes?: JobPlanFixes;
   store?: DesignStore;
   planImages?: PlanImages;
   packLoader?: PackLoader;
@@ -1052,6 +1056,7 @@ export function Studio({
             jobPlans={jobPlans ?? null}
             loadJobPlans={loadJobPlans}
             addJobPlan={addJobPlan}
+            jobPlanFixes={jobPlanFixes}
             onOpen={(id) =>
               throughSwap(
                 () => getStore().load(id),
@@ -1139,6 +1144,14 @@ const savePlanScaleOnJob = (planId: string, page: number, mmPerPx: number) =>
 /* The job's plans (lib/jobs/plans.ts), for New design. Out here, not in
    the component: the React Compiler takes no import() inside one. */
 const loadJobPlans = (jobUuid: string) => import("@/app/actions/job-plans").then((a) => a.readPlansOnJob(jobUuid));
+/** New design's Settle N first, on the job's own plans: an answer's floors
+    on the pages it names, a page's picture and its scale, and the pages big */
+const JOB_PLAN_FIXES: JobPlanFixes = {
+  answer: (job, plan, chosen) => import("@/app/actions/job-plans").then((a) => a.chooseFloorsOnPlan(job, plan, chosen, "these")),
+  page: (job, plan, n) => import("@/app/actions/job-plans").then((a) => a.pageForScale(job, plan, n)),
+  scale: (job, plan, n, from, to, mm) => import("@/app/actions/job-plans").then((a) => a.setScaleOnPlan(job, plan, n, from, to, mm)),
+  pages: (job, plan) => import("@/app/actions/job-plans").then((a) => a.pagesToView(job, plan)),
+};
 /** The floors chosen in the Plans dialog, kept on the job's plan. */
 /** a height box in metres, as mm; blank or nothing = not known */
 const metresToMm = (v: string): number | null => (v === "" || !(Number(v) > 0) ? null : Math.round(Number(v) * 1000));

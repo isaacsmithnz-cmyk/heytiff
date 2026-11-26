@@ -50,6 +50,10 @@ export type ByHand = {
   noDesign?: { at: string; by: string } | null;
   /** Tiff's check before it's marked ready to send (review.ts) */
   review?: QuoteReview | null;
+  /** lines a fit check flags that a person kept as they are, by id: the
+      line as it stood when kept (`fitPrint`), so a new code, name or
+      quantity asks again (Isaac, 27 November 2026: "Keep the line") */
+  keptFits?: Record<string, string>;
 };
 
 /** A VARIATION TO THE ACCEPTED QUOTE: an option of its own, started as a
@@ -194,7 +198,38 @@ export function byHandOf(draft: unknown): ByHand {
   const rawNoDesign = o.noDesign && typeof o.noDesign === "object" ? (o.noDesign as Record<string, unknown>) : null;
   const noDesign = rawNoDesign && typeof rawNoDesign.at === "string" && rawNoDesign.at ? { at: rawNoDesign.at, by: said(rawNoDesign.by, 120) } : null;
   const review = reviewOf(o.review);
-  return { accepted, names, loading, compare, supplier, proposal, researched, variations, ...(sent ? { sent } : {}), ...(noDesign ? { noDesign } : {}), ...(review ? { review } : {}) };
+  const keptFits: Record<string, string> = {};
+  const rawKept = o.keptFits && typeof o.keptFits === "object" ? (o.keptFits as Record<string, unknown>) : {};
+  for (const [id, v] of Object.entries(rawKept).slice(0, 200)) if (/^[\w-]{1,60}$/.test(id) && typeof v === "string" && v.length <= 400) keptFits[id] = v;
+  return {
+    accepted,
+    names,
+    loading,
+    compare,
+    supplier,
+    proposal,
+    researched,
+    variations,
+    ...(sent ? { sent } : {}),
+    ...(noDesign ? { noDesign } : {}),
+    ...(review ? { review } : {}),
+    ...(Object.keys(keptFits).length ? { keptFits } : {}),
+  };
+}
+
+/** A line as a fit check sees it: what it is and how many. Kept against
+    this, so changing any of it brings the check back. */
+export const fitPrint = (l: { code?: string | null; name: string; qty: number }): string => `${(l.code ?? "").trim()}|${l.name.trim()}|${l.qty}`;
+
+/** Whether a person kept this line, as it now is, past its fit check. */
+export const fitKept = (kept: Readonly<Record<string, string>> | null | undefined, l: { id: string; code?: string | null; name: string; qty: number }): boolean => kept?.[l.id] === fitPrint(l);
+
+/** A line kept past its fit check as it now is, or the keep taken back. */
+export function withKeptFit(b: ByHand, l: { id: string; code?: string | null; name: string; qty: number }, keep: boolean): ByHand {
+  const keptFits = { ...(b.keptFits ?? {}) };
+  if (keep) keptFits[l.id] = fitPrint(l);
+  else delete keptFits[l.id];
+  return { ...b, keptFits };
 }
 
 /** Tiff's check kept on the quote, or taken off. */

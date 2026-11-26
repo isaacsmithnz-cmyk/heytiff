@@ -18,6 +18,7 @@ import {
   withVariationMark,
   withVariationSent,
   withReview,
+  withKeptFit,
   withoutApproval,
   withoutVariation,
   withSent,
@@ -211,6 +212,9 @@ export const setNoDesign = (orgId: string, cardId: string, on: boolean, by: stri
 
 /** Sets option `i`'s loading, or takes it off. */
 export const setLoading = (orgId: string, cardId: string, i: number, loading: unknown, by: string) => changeByHand(orgId, cardId, by, (b) => withLoading(b, i, loading));
+
+/** A line kept past its fit check as it now is, or the keep taken back. */
+export const keepFit = (orgId: string, cardId: string, line: QuoteLine, keep: boolean, by: string) => changeByHand(orgId, cardId, by, (b) => withKeptFit(b, line, keep));
 
 /** Tiff's check, changed as `change` says (review-server.ts). */
 export const changeReview = (orgId: string, cardId: string, by: string, change: (r: QuoteReview | null) => QuoteReview | null) =>

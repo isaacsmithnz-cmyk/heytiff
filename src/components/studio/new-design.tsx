@@ -65,7 +65,10 @@ import { defaultFloorName, imageToPage, labelPagesSequentially, pdfPagesAt, pdfT
 import type { TrimRect } from "@/lib/studio/plan-trim";
 import { StateWord } from "@/components/parts/state";
 import { Tick } from "@/components/parts/tick";
-import { floorPagesOf, pageCaption, planReadLine, planStateWord, replacedBy, startablePlans, type JobPlanRead } from "@/lib/jobs/plans";
+import { floorPagesOf, pageCaption, planReadLine, planStateWord, replacedBy, scaleAsks, startablePlans, type JobPlanPage, type JobPlanRead } from "@/lib/jobs/plans";
+import { readQuestions, sheetTitleOf, type ReadAnswer, type ReadQuestion } from "@/lib/jobs/read-questions";
+import { ReadQuestionBody } from "@/components/workboard/board/check-read-dialog";
+import { SetScaleDialog, type ScalePage, type ScalePoint } from "@/components/workboard/board/set-scale-dialog";
 import { kickPlanReads, PLAN_POLL_MS } from "@/lib/jobs/plans-client";
 import type { JobSearch } from "./job-search";
 import { cardOfHit, cardOfPrefill, JobCardFace, JobPicker, type JobLists } from "./job-picker";
@@ -165,6 +168,39 @@ function capture(el: Element, id: number) {
 
 const failed = (e: unknown) => (e instanceof Error ? e.message : "Something went wrong");
 
+/** What New design needs to settle a job's read on the job's own plans (studio.tsx). */
+export type JobPlanFixes = {
+  answer: (jobUuid: string, planId: string, chosen: Record<number, string>) => Promise<string | null>;
+  page: (jobUuid: string, planId: string, n: number) => Promise<ScalePage | null>;
+  scale: (jobUuid: string, planId: string, n: number, a: ScalePoint, b: ScalePoint, mm: number) => Promise<string | null>;
+  /** the plan's floor pages, their full pictures, to look at big */
+  pages?: (jobUuid: string, planId: string) => Promise<readonly { n: number; url: string }[] | null>;
+};
+
+/** One thing to settle before a design starts on a job's plans: a question
+    of Tiff's read that changes which floors get built, or a floor page with
+    no scale to be had. */
+type Settle = { key: string; plan: JobPlanRead } & ({ kind: "q"; q: ReadQuestion } | { kind: "scale"; page: JobPlanPage });
+
+/** SETTLE N FIRST (Isaac, 27 November 2026: "Yes on all quick ones" to row 3
+    of https://claude.ai/artifact/Tx16qpWRbxfusq6xCEWKYn; job 3608's design
+    stacked a window and door sheet on the ground floor, its read having
+    said so). What a design on these plans would build wrong: two pages read
+    at one floor, a page that may not be a floor plan, a floor with no scale.
+    A note that changes no floor (a subfloor's height, no unit schedule)
+    never holds it up. */
+export function settlesOf(plans: readonly JobPlanRead[]): Settle[] {
+  return plans.flatMap((p): Settle[] => [
+    ...readQuestions(p).map((q): Settle => ({ kind: "q", key: `${p.id}:${q.key}`, plan: p, q })),
+    ...scaleAsks(p)
+      .filter((a) => a.ask === "set")
+      .flatMap((a): Settle[] => {
+        const page = floorPagesOf(p).find((pg) => pg.n === a.n);
+        return page ? [{ kind: "scale", key: `${p.id}:scale:${a.n}`, plan: p, page }] : [];
+      }),
+  ]);
+}
+
 export function NewDesign({
   sm8Jobs,
   jobSearch,
@@ -178,6 +214,7 @@ export function NewDesign({
   jobPlans: givenPlans,
   loadJobPlans,
   addJobPlan,
+  fixes,
 }: {
   sm8Jobs?: boolean;
   jobSearch: JobSearch;
@@ -195,6 +232,10 @@ export function NewDesign({
   loadJobPlans?: (jobUuid: string) => Promise<JobPlanRead[] | null>;
   /** a file onto the job and into its Plans; the ids of the plans made, to start their reads */
   addJobPlan?: (jobUuid: string, file: File) => Promise<{ ok: true; planIds: string[] } | { ok: false; error: string }>;
+  /** settling the job's read before a design starts on it (Settle N
+      first): an answer's floors saved on the job's plan, a page's picture
+      for Set scale, and its scale saved. Absent, Start design starts. */
+  fixes?: JobPlanFixes;
   onClose: () => void;
   /** the job it's started on, from the quote's Design step (Isaac, 28
       October 2026): fixed, its street the name, nothing to search for */
@@ -380,13 +421,13 @@ export function NewDesign({
      second design. Held in a ref, so it holds within the one click's frame
      too; let go only when a start fails, to try again. */
   const starting = useRef(false);
-  const startFromPlans = async () => {
-    if (!job || !onFromPlans || tickedPlans.length === 0 || starting.current) return;
+  const startFromPlans = async (list: JobPlanRead[] = tickedPlans) => {
+    if (!job || !onFromPlans || list.length === 0 || starting.current) return;
     starting.current = true;
     setError(null);
     setBusy({ word: "Opening the design", done: 0, total: 1 });
     try {
-      await onFromPlans(designName, job, tickedPlans);
+      await onFromPlans(designName, job, list);
     } catch (e) {
       starting.current = false;
       setBusy(null);
@@ -401,6 +442,71 @@ export function NewDesign({
       setError(`The design didn't save: ${failed(e)}. Try again.`);
     });
   };
+  /* ── settling the read first, one at a time, in this dialog ── */
+  const settles = fixes && showPlans ? settlesOf(tickedPlans) : [];
+  const [settling, setSettling] = useState<{ items: Settle[]; at: number } | null>(null);
+  const [looking, setLooking] = useState<number | null>(null);
+  const [askBusy, setAskBusy] = useState<string | null>(null);
+  const [askError, setAskError] = useState<string | null>(null);
+  const [scaleOn, setScaleOn] = useState(false);
+  const scaled = useRef(false);
+  /* the full pictures of the plan being settled, asked for once a plan */
+  const [fullOf, setFullOf] = useState<Record<string, Record<number, string>>>({});
+  const settlingPlan = settling?.items[settling.at]?.plan.id ?? "";
+  useEffect(() => {
+    if (!settlingPlan || !fixes?.pages || !jobId || fullOf[settlingPlan]) return;
+    let live = true;
+    void fixes
+      .pages(jobId, settlingPlan)
+      .catch(() => null)
+      .then((shown) => {
+        if (live && shown) setFullOf((cur) => ({ ...cur, [settlingPlan]: Object.fromEntries(shown.map((p) => [p.n, p.url])) }));
+      });
+    return () => {
+      live = false;
+    };
+  }, [settlingPlan, fixes, jobId, fullOf]);
+  const settleNext = async () => {
+    if (!settling) return;
+    setLooking(null);
+    setAskError(null);
+    if (settling.at + 1 < settling.items.length) {
+      setSettling({ ...settling, at: settling.at + 1 });
+      return;
+    }
+    /* all settled: the job's plans read again, and the design starts on them as they now are */
+    setAskBusy("start");
+    const fresh = loadJobPlans ? await loadJobPlans(jobId).catch(() => null) : null;
+    setAskBusy(null);
+    if (!fresh) {
+      setAskError("The job's plans couldn't be read again. Try again.");
+      return;
+    }
+    setPlansOf({ job: jobId, plans: fresh });
+    const ids = new Set(tickedPlans.map((p) => p.id));
+    const ticked = startablePlans(fresh).filter((p) => ids.has(p.id));
+    const more = settlesOf(ticked);
+    if (more.length > 0) {
+      setSettling({ items: more, at: 0 });
+      return;
+    }
+    setSettling(null);
+    await startFromPlans(ticked);
+  };
+  const answerSettle = async (a: ReadAnswer) => {
+    const item = settling?.items[settling.at];
+    if (!fixes || !item || askBusy) return;
+    setAskBusy(a.key);
+    setAskError(null);
+    const wrong = await fixes.answer(jobId, item.plan.id, a.chosen).catch(() => "The floors couldn't be saved. Try again.");
+    setAskBusy(null);
+    if (wrong) {
+      setAskError(wrong);
+      return;
+    }
+    await settleNext();
+  };
+
   const heading = "New design";
   const jobWord = job?.jobNumber ? `job ${job.jobNumber}` : null;
 
@@ -614,13 +720,105 @@ export function NewDesign({
         <Button onClick={onClose} disabled={!!busy}>
           Cancel
         </Button>
-        <Button kind="main" disabled={tickedPlans.length === 0 || !!busy || !!planBusy} onClick={() => void startFromPlans()}>
-          Start design
-        </Button>
+        {settles.length > 0 ? (
+          <Button kind="main" disabled={!!busy || !!planBusy} onClick={() => setSettling({ items: settles, at: 0 })}>
+            {`Settle ${settles.length} first`}
+          </Button>
+        ) : (
+          <Button kind="main" disabled={tickedPlans.length === 0 || !!busy || !!planBusy} onClick={() => void startFromPlans()}>
+            Start design
+          </Button>
+        )}
       </>
     ) : (
       <Button onClick={onClose}>Cancel</Button>
     );
+    const item = settling?.items[settling.at];
+    if (settling && item && fixes) {
+      const title = item.kind === "scale" ? sheetTitleOf(item.page) : null;
+      return (
+        <Dialog
+          heading={heading}
+          onClose={onClose}
+          width={720}
+          dismissable={!askBusy && !busy}
+          foot={
+            <>
+              <span className="ckr-count">{`${settling.at + 1} of ${settling.items.length}`}</span>
+              {looking !== null ? (
+                <Button onClick={() => setLooking(null)}>Back to the question</Button>
+              ) : (
+                <Button onClick={() => setSettling(null)} disabled={!!askBusy || !!busy}>
+                  Back to New design
+                </Button>
+              )}
+            </>
+          }
+        >
+          <div className="ds2-nd-form">
+            {job && (
+              <Field label="Job">
+                <div className={`ds2-nd-picked sc-card sc-card--${fixed ? cardOfPrefill(fixed, fixedRead).hue : picked ? cardOfHit(picked).hue : "grey"}`}>
+                  <JobCardFace job={fixed ? cardOfPrefill(fixed, fixedRead) : picked ? cardOfHit(picked) : cardOfPrefill(job, null)} plans={false} />
+                </div>
+              </Field>
+            )}
+            {item.kind === "q" ? (
+              <ReadQuestionBody plan={item.plan} q={item.q} full={fullOf[item.plan.id] ?? {}} looking={looking} onLook={setLooking} busy={askBusy} error={askError} onAnswer={(a) => void answerSettle(a)} />
+            ) : (
+              <div className="ckr">
+                <div className="ckr-said">
+                  <p className="ckr-q">{`Page ${item.page.n} has no scale on it. Set it from two points and a length.`}</p>
+                  {title && <p className="ckr-why">{`It's titled ${title}.`}</p>}
+                </div>
+                {item.plan.thumbs[item.page.n] && (
+                  <div className="ckr-pages ckr-pages--1">
+                    <figure className="ckr-page">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img className="ckr-still" src={item.plan.thumbs[item.page.n]} alt={pageCaption(item.page)} />
+                      <figcaption className="ckr-cap">{pageCaption(item.page)}</figcaption>
+                    </figure>
+                  </div>
+                )}
+                <div className="ckr-answers">
+                  <div className="ckr-answer">
+                    <Button kind="main" disabled={!!askBusy} onClick={() => setScaleOn(true)}>
+                      Set the scale
+                    </Button>
+                    <span className="ckr-does">The rooms take their sizes from it</span>
+                  </div>
+                </div>
+                {askError && (
+                  <p className="pt-field-error" role="alert">
+                    {askError}
+                  </p>
+                )}
+              </div>
+            )}
+            {errorLine}
+          </div>
+          {item.kind === "scale" && scaleOn && (
+            <SetScaleDialog
+              heading="Set scale"
+              caption={pageCaption(item.page)}
+              load={() => fixes.page(jobId, item.plan.id, item.page.n)}
+              onSave={async (a, b, mm) => {
+                const wrong = await fixes.scale(jobId, item.plan.id, item.page.n, a, b, mm).catch(() => "The scale couldn't be saved. Try again.");
+                if (!wrong) scaled.current = true;
+                return wrong;
+              }}
+              onClose={() => {
+                setScaleOn(false);
+                if (scaled.current) {
+                  scaled.current = false;
+                  void settleNext();
+                }
+              }}
+            />
+          )}
+        </Dialog>
+      );
+    }
     if (askJob)
       return (
         <Dialog heading={heading} onClose={onClose} width={720} foot={<Button onClick={onClose}>Cancel</Button>}>

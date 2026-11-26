@@ -911,3 +911,49 @@ it("draws the plans alone on Scope, with Add plans, and Files with their files a
   const items = within(await addMenu()).getAllByRole("menuitem").map((i) => i.textContent);
   expect(items).not.toContain("Add plans");
 });
+
+/* bug 116 (Isaac, 26 November 2026: "plans and designs needs layout change.
+   cropped text and poor ui"; "Yes on all quick ones", 27 November, to row 1
+   of https://claude.ai/artifact/Tx16qpWRbxfusq6xCEWKYn): on Scope a plan is
+   a card of its own, nothing squeezed beside its state word */
+describe("a plan on Scope", () => {
+  const unsure = readPlan({
+    state: "check",
+    said: "Pages 3 and 4 both read as Ground floor: choose which floor each is. The roof wasn't read",
+    pages: readPlan().pages.map((pg) => ({ ...pg, level: 0, name: "Ground floor" })),
+    usedBy: 1,
+  });
+
+  it("says its name whole beside its state, the file's facts and the read under it, each on its own line", async () => {
+    const onOpen = jest.fn();
+    face({ documents: [fictor], plans: [unsure], part: "plans", onOpen, onChooseFloors: async () => null });
+    const card = screen.getByRole("list", { name: "Plans" }).querySelector(".jpl-plan") as HTMLElement;
+    expect(within(card).getByRole("button", { name: "Check the read" })).toBeInTheDocument();
+    expect(within(card).getByText("Emailed in, Thu 22 Oct. Used by 1 design")).toHaveClass("pt-row-line");
+    /* what the pages say themselves isn't said again, and what they don't is */
+    const read = within(card).getByText(/^Read on Mon 9 Nov/);
+    expect(read).toHaveTextContent("The roof wasn't read");
+    expect(read).not.toHaveTextContent("both read as");
+    await userEvent.click(within(card).getByRole("button", { name: fictor.name }));
+    expect(onOpen).toHaveBeenCalledWith(fictor);
+    /* Check the read is the door: no Choose floors under the pages */
+    expect(within(card).queryByRole("button", { name: "Choose floors" })).toBeNull();
+  });
+
+  it("puts what Tiff isn't sure of under each page it's about", () => {
+    face({ documents: [fictor], plans: [unsure], part: "plans" });
+    const pages = [...document.querySelectorAll(".jpl-gpage")] as HTMLElement[];
+    expect(pages.map((p) => p.querySelector(".jpl-cap")!.textContent)).toEqual(["Ground floor, page 3", "Ground floor, page 4"]);
+    expect(within(pages[0]).getByText("Same floor as page 4")).toBeInTheDocument();
+    expect(within(pages[1]).getByText("Same floor as page 3")).toBeInTheDocument();
+  });
+
+  it("asks nothing of a plan read sure: Read, its floors, and Read again", () => {
+    face({ documents: [fictor], plans: [readPlan()], part: "plans", onReadPlanAgain: async () => null });
+    const card = document.querySelector(".jpl-plan") as HTMLElement;
+    expect(within(card).getByText("Read")).toBeInTheDocument();
+    expect(within(card).queryByText(/Same floor as/)).toBeNull();
+    expect(within(card).getAllByRole("img")).toHaveLength(2);
+    expect(within(card).getByRole("button", { name: "Read again" })).toBeInTheDocument();
+  });
+});

@@ -33,7 +33,7 @@ import { ComplianceChooser } from "./compliance-chooser";
 import { designRowLine } from "./job-design-face";
 import { StateLine } from "./state-line";
 import { AddPlansDialog, planCandidates, type UploadForPlans } from "./add-plans-dialog";
-import { choosablePages, floorPagesOf, floorValueOf, NOT_A_FLOOR_PLAN, pageCaption, planLine, planPointsAt, planProgressOf, planStateWord, replacedBy, scaleAsks, subfloorLine, type JobPlanPage, type JobPlanRead, type PlanPick } from "@/lib/jobs/plans";
+import { choosablePages, floorPagesOf, floorValueOf, NOT_A_FLOOR_PLAN, pageCaption, pagesWordOf, planLine, planReadLine, planPointsAt, planProgressOf, planStateWord, replacedBy, scaleAsks, subfloorLine, type JobPlanPage, type JobPlanRead, type PlanPick } from "@/lib/jobs/plans";
 import { answeredSaid, readQuestions } from "@/lib/jobs/read-questions";
 import { CheckReadDialog, type PageShown } from "./check-read-dialog";
 import { SetScaleDialog, type ScalePage, type ScalePoint } from "./set-scale-dialog";
@@ -589,21 +589,115 @@ export function JobDocumentsFace({
               }
             : open
         : undefined;
+    const end = check ? (
+      <Button size={32} onClick={check}>
+        {state.word}
+      </Button>
+    ) : (
+      <StateWord tone={state.tone}>{state.word}</StateWord>
+    );
+
+    /* ON SCOPE, A CARD OF ITS OWN (bug 116, Isaac, 26 November 2026: "plans
+       and designs needs layout change. cropped text and poor ui", then "Yes
+       on all quick ones", 27 November, to row 1 of
+       https://claude.ai/artifact/Tx16qpWRbxfusq6xCEWKYn). The row squeezed
+       everything beside its state word, so in the rail's 380 the name faded,
+       the line faded and the pages stood one to a row. Here the name wraps
+       beside the state, the facts and the read are said whole under it, the
+       floors stand two to a row the card's width, each with what Tiff isn't
+       sure of in orange under its caption, and the subfloor and Read again
+       come after. */
+    if (part === "plans") {
+      const questions = replaced ? [] : readQuestions(p);
+      const pageWord = new Map<number, string>();
+      for (const q of questions) {
+        for (const n of q.pages) {
+          if (pageWord.has(n)) continue;
+          const others = q.pages.filter((m) => m !== n);
+          if (others.length) pageWord.set(n, `Same floor as ${pagesWordOf(others).toLowerCase()}`);
+          else pageWord.set(n, q.ask.includes("one room") ? "One room on it" : "No rooms on it");
+        }
+      }
+      /* what the questions don't say stays in the line: a page that couldn't
+         be read, one she didn't look at, what the read left out */
+      const left = questions.length && p.said ? p.said.split(/\.\s+/).filter((s) => !/has no rooms on it|(both|all) read as/.test(s)).join(". ") || null : p.said;
+      const read = failedWhy ? null : planReadLine({ ...p, said: left }, replaced);
+      const added = [file ? docLine(file) : null, p.usedBy > 0 && !replaced ? (p.usedBy === 1 ? "Used by 1 design" : `Used by ${p.usedBy} designs`) : null].filter(Boolean).join(". ");
+      const lead = pickOf(sendKey, p.name);
+      return (
+        <li key={p.id} className="jpl-plan">
+          <div className="jpl-top">
+            {lead}
+            {open ? (
+              <button type="button" className="jpl-name" onClick={open}>
+                {p.name}
+              </button>
+            ) : (
+              <p className="jpl-name">{p.name}</p>
+            )}
+            <span className="jpl-end">{end}</span>
+          </div>
+          {(added || read) && (
+            <div className="jpl-facts">
+              {added && <p className="pt-row-line">{added}</p>}
+              {read && <p className="pt-row-line">{read}</p>}
+            </div>
+          )}
+          {progress && (
+            <span className="jpl-progress">
+              <span className="pt-row-line">{progress.words}</span>
+              <span className="qb-bar" role="progressbar" aria-label="Reading the plans" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress.percent} aria-valuetext={progress.words}>
+                <i style={{ width: `${progress.percent}%` }} />
+              </span>
+            </span>
+          )}
+          {failedWhy && <p className="pt-row-line">{failedWhy}</p>}
+          {pages.length > 0 && (
+            <div className="jpl-grid">
+              {pages.map((pg) => (
+                <figure key={pg.n} className="jpl-gpage">
+                  {onOpenPage ? (
+                    <button type="button" className="jpl-pageopen" aria-label={`Open ${pageCaption(pg)}`} onClick={() => onOpenPage(p, pg.n)}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={p.thumbs[pg.n]} alt="" />
+                    </button>
+                  ) : (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img src={p.thumbs[pg.n]} alt={pageCaption(pg)} />
+                  )}
+                  <figcaption className="jpl-cap">{pageCaption(pg)}</figcaption>
+                  {pageWord.has(pg.n) && <StateWord tone="look">{pageWord.get(pg.n)}</StateWord>}
+                  {asks
+                    .filter((a) => a.n === pg.n)
+                    .map((a) => (
+                      <Button key={a.ask} size={32} onClick={() => setScaling({ planId: p.id, page: pg, ask: a.ask })}>
+                        {a.ask === "set" ? "Set scale" : "Check scale"}
+                      </Button>
+                    ))}
+                </figure>
+              ))}
+            </div>
+          )}
+          {subfloor && <p className="pt-row-line">{subfloor}</p>}
+          {again && (
+            <div className="jpl-acts">
+              {againWhy[p.id] && <p className="pt-row-line">{againWhy[p.id]}</p>}
+              <Button size={32} disabled={againBusy === p.id} onClick={() => void readAgain(p.id)}>
+                Read again
+              </Button>
+            </div>
+          )}
+        </li>
+      );
+    }
+
     return (
       <Row
         key={p.id}
         lead={pickOf(sendKey, p.name)}
         name={p.name}
         line={facts || undefined}
-        end={
-          check ? (
-            <Button size={32} onClick={check}>
-              {state.word}
-            </Button>
-          ) : (
-            <StateWord tone={state.tone}>{state.word}</StateWord>
-          )
-        }
+        end={end}
         onClick={open}
         below={
           pages.length > 0 || choose || again || subfloor || failedWhy || progress ? (
@@ -800,7 +894,9 @@ export function JobDocumentsFace({
           )}
         </div>
         {planList.length > 0 ? (
-          <RowList label="Plans">{planList.map(planRowOf)}</RowList>
+          <ul className="jpl-cards" aria-label="Plans">
+            {planList.map(planRowOf)}
+          </ul>
         ) : reading || plans === null ? (
           <Loading what="Reading the plans" />
         ) : (

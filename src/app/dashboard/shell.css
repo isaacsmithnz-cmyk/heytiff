@@ -6709,6 +6709,32 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jst-rail .jpl-page { width:auto; min-width:0; }
 .fg .jst-rail .jpl-page img { width:100%; height:auto; aspect-ratio:160 / 113; }
 .fg .jst-rail .jpl-page .jpl-pageopen { width:100%; }
+/* ON SCOPE, A PLAN IS A CARD OF ITS OWN (bug 116, Isaac, 26 and 27
+   November 2026, row 1 of https://claude.ai/artifact/Tx16qpWRbxfusq6xCEWKYn):
+   the name wraps beside its state, the facts and the read are said whole,
+   the floors stand two to a row at the card's width with what Tiff isn't
+   sure of under each, then the subfloor and Read again */
+.fg .jpl-cards { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:24px; }
+.fg .jpl-plan { display:flex; flex-direction:column; gap:8px; min-width:0; }
+.fg .jpl-top { display:flex; align-items:flex-start; gap:12px; }
+.fg .jpl-top .jdoc-tick { margin-top:2px; }
+.fg .jpl-name { flex:1 1 auto; min-width:0; margin:0; padding:0; border:0; background:none; font:600 14px/20px var(--font); color:var(--ink); text-align:start; overflow-wrap:anywhere; }
+.fg button.jpl-name { cursor:pointer; border-radius:var(--r-control); }
+.fg button.jpl-name:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .jpl-end { flex:none; display:flex; align-items:center; min-height:20px; }
+.fg .jpl-facts { display:flex; flex-direction:column; gap:2px; }
+.fg .jpl-facts .pt-row-line, .fg .jpl-plan > .pt-row-line, .fg .jpl-acts .pt-row-line { margin:0; overflow-wrap:anywhere; }
+.fg .jpl-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px 8px; margin-top:4px; }
+.fg .jpl-gpage { display:flex; flex-direction:column; gap:4px; min-width:0; margin:0; }
+.fg .jpl-gpage img { display:block; box-sizing:border-box; width:100%; height:auto; aspect-ratio:160 / 113; object-fit:cover; border:1px solid var(--edge); border-radius:var(--r-control); background:var(--white); }
+.fg .jpl-gpage .jpl-pageopen { display:block; width:100%; margin:0; padding:0; border:0; background:none; border-radius:var(--r-control); cursor:zoom-in; }
+.fg .jpl-gpage .jpl-pageopen:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .jpl-cap { font-size:12px; line-height:16px; font-weight:500; color:var(--q); }
+.fg .jpl-gpage .pt-state { font-size:12px; line-height:16px; }
+.fg .jpl-gpage .pt-btn { align-self:flex-start; }
+.fg .jpl-acts { display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
+/* the Designs card with none: its one line under the head */
+.fg .jds-none { margin:0; font-size:14px; line-height:20px; color:var(--q); }
 .fg .jst .jsc { max-width:none; }
 /* To do: a task's tick, and its words as the door to its own form (Isaac, 24 October 2026) */
 .fg .jov-task { justify-content:flex-start; align-items:flex-start; gap:8px; padding:8px 0; }
@@ -9233,6 +9259,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .pt-dialog .ckr-open { display:block; width:100%; margin:0; padding:0; border:0; background:none; border-radius:var(--r-control); cursor:zoom-in; }
 .pt-dialog .ckr-open:focus-visible { outline:none; box-shadow:var(--ring); }
 .pt-dialog .ckr-open img, .pt-dialog .ckr-blank { display:block; box-sizing:border-box; width:100%; height:auto; aspect-ratio:2400 / 1697; object-fit:contain; border:1px solid var(--edge); border-radius:var(--r-control); background:var(--white); }
+.pt-dialog .ckr-still { display:block; box-sizing:border-box; width:100%; height:auto; aspect-ratio:2400 / 1697; object-fit:contain; border:1px solid var(--edge); border-radius:var(--r-control); background:var(--white); }
 .pt-dialog .ckr-cap { display:flex; gap:8px; font-size:13px; line-height:18px; font-weight:500; color:var(--ink); }
 .pt-dialog .ckr-cap span { font-weight:400; color:var(--q); }
 .pt-dialog .ckr-answers { display:flex; flex-direction:column; align-items:flex-start; gap:8px; }

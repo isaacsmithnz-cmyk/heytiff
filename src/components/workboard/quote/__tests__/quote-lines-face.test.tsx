@@ -453,6 +453,31 @@ it("says under a part why it doesn't fit its system's outdoor unit", async () =>
   expect(screen.getByText("20 A is under the PUZ-ZM125VKA2-A's 28 A")).toBeInTheDocument();
 });
 
+/* Keep the line (Isaac, 27 November 2026, on https://claude.ai/artifact/Tx16qpWRbxfusq6xCEWKYn) */
+it("keeps a line that doesn't fit on purpose: it leaves To confirm, with Undo, until it changes", async () => {
+  const pipe = line({ id: "pc", group: "Pipe, power and controls", name: "Pair coil 1/2 + 5/8", code: "PC1258", kind: "material", costCents: 9000, source: "said" });
+  const misfit = { fits: [{ key: "pc", state: "misfit", why: "The PUZ-ZM125VKA2-A connects 3/8 + 5/8" }] };
+  let kept: Record<string, string> = {};
+  (global as unknown as { fetch: jest.Mock }).fetch = jest.fn(async (_url: string, init?: { body?: string }) => {
+    const body = init?.body ? JSON.parse(init.body) : null;
+    if (body) posted.push(body);
+    if (body?.op === "keep-fit") kept = body.keep ? { pc: "PC1258|Pair coil 1/2 + 5/8|1" } : {};
+    return { json: async () => ({ ...view([indoor, pipe]), ...misfit, keptFits: kept }) };
+  });
+  const onToast = jest.fn();
+  render(<QuoteLinesFace job="job-3377" price={price} onPriced={jest.fn()} onToast={onToast} />);
+  const flag = await screen.findByText("Pair coil 1/2 + 5/8: The PUZ-ZM125VKA2-A connects 3/8 + 5/8");
+  fireEvent.click(within(flag.closest("li") as HTMLElement).getByRole("button", { name: "Keep the line" }));
+  await waitFor(() => expect(screen.queryByText("Pair coil 1/2 + 5/8: The PUZ-ZM125VKA2-A connects 3/8 + 5/8")).toBeNull());
+  expect(posted).toContainEqual(expect.objectContaining({ op: "keep-fit", id: "pc", keep: true }));
+  expect(onToast).toHaveBeenCalledWith("Pair coil 1/2 + 5/8 kept as it is", expect.any(Function));
+  await act(async () => {
+    (onToast.mock.calls[0][1] as () => void)();
+  });
+  expect(await screen.findByText("Pair coil 1/2 + 5/8: The PUZ-ZM125VKA2-A connects 3/8 + 5/8")).toBeInTheDocument();
+  expect(posted).toContainEqual(expect.objectContaining({ op: "keep-fit", id: "pc", keep: false }));
+});
+
 /* the review's own half, slice 11.1 */
 it("lists what to confirm: what isn't known yet; the profit is the head's to say", async () => {
   face();

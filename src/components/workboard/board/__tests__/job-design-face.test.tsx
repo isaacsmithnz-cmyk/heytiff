@@ -44,7 +44,8 @@ describe("the job's Design section", () => {
 
   it("says the job has no design, and offers New design alone", () => {
     render(<JobDesignFace job={JOB} designs={[]} loading={false} />);
-    expect(screen.getByText("No design on this job")).toBeInTheDocument();
+    /* one line under its head, not a box in the card's middle (bug 116) */
+    expect(screen.getByText("No design on this job")).toHaveClass("jds-none");
     expect(screen.queryByRole("list")).toBeNull();
     expect(screen.getAllByRole("link").map((a) => a.textContent)).toEqual(["New design"]);
   });

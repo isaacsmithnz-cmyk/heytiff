@@ -221,3 +221,7 @@ describe("askMessages with files", () => {
     expect(askMessages("hi", [], undefined, [])).toEqual(askMessages("hi"));
   });
 });
+
+test("she is told the weekday, not left to work it out", () => {
+  expect(askSystemPrompt({ todayISO: "2026-11-21" } as never)).toContain("Today is Saturday 21 November 2026 (2026-11-21).");
+});

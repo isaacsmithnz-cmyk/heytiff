@@ -21,6 +21,8 @@ import { askSubfloor, reviseDesignRoof } from "@/lib/studio/revise-server";
 import { quickPriceFor } from "@/lib/quotes/quick-price-server";
 import { libraryPacks } from "@/lib/library/packs-server";
 import { lookUpModels } from "@/lib/library/pack-lookup";
+import { findCustomers } from "@/lib/customers/find-server";
+import { customerLine } from "@/lib/customers/find";
 import { MAX_DIARY_DAYS, readDiary } from "./diary";
 import type { Outcome, TiffTool } from "./types";
 
@@ -274,6 +276,32 @@ export const READS: readonly TiffTool[] = [
           })
         )
       ),
+  },
+  /* Is this person already a customer? (Isaac, 26 November 2026: "see if
+     we have her as an existing customer", which she never looked up). The
+     book three ways, a client, a client's contact, a job's contact, and a
+     name however its spaces fall (lib/customers/find). */
+  {
+    name: "find_customer",
+    label: "Looking through your customers",
+    risk: "read",
+    gate: { capability: "workboard" },
+    description:
+      "Is a person or company already a customer? Looks the name up among ServiceM8 clients, " +
+      "their contacts, and every job's contacts, and gives each one found with the job and " +
+      "address it was found at. Call it whenever someone asks whether a client is existing or " +
+      "new, or before saying a client isn't known. Say what it found, or that it found nobody.",
+    inputSchema: {
+      type: "object",
+      properties: { name: str },
+      required: ["name"],
+      additionalProperties: false,
+    },
+    run: async (viewer, input) => {
+      const name = String(input.name ?? "");
+      const hits = await findCustomers(viewer.orgId, name);
+      return result({ found: hits.length, said: customerLine(name, hits), customers: hits.map(({ fit: _fit, ...h }) => h) });
+    },
   },
   {
     name: "open_task_load",

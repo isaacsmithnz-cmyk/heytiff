@@ -28,6 +28,11 @@ const LEEWAY_S = 60;
 
 export type TokenCheck = { ok: true; sub: string } | { ok: false; reason: string };
 
+/** Auth0's keys couldn't be read and none is kept for the token's kid: the token can't be checked, which is not the
+    same as a bad one (lib/mobile/auth answers 503, and the phone stays signed in). */
+export class KeysUnreachable extends Error {}
+export const KEYS_UNREACHABLE = "keys unreachable";
+
 /** A key the tenant publishes, by its `kid`; null for a kid it does not. */
 export type KeyLookup = (kid: string) => Promise<KeyObject | null>;
 
@@ -54,7 +59,13 @@ export async function checkMobileToken(
   if (header.alg !== "RS256") return { ok: false, reason: "algorithm" };
   if (typeof header.kid !== "string" || !header.kid) return { ok: false, reason: "no key id" };
 
-  const key = await opts.keyFor(header.kid);
+  let key: KeyObject | null;
+  try {
+    key = await opts.keyFor(header.kid);
+  } catch (err) {
+    if (err instanceof KeysUnreachable) return { ok: false, reason: KEYS_UNREACHABLE };
+    throw err;
+  }
   if (!key) return { ok: false, reason: "unknown key" };
   const signed = verify("RSA-SHA256", Buffer.from(`${h}.${p}`), key, Buffer.from(s, "base64url"));
   if (!signed) return { ok: false, reason: "signature" };
@@ -103,7 +114,11 @@ export function tenantKeys(domain: string): KeyLookup {
       held = { domain, at: now, keys: await fetchKeys(domain) };
     } catch (err) {
       console.error(`[mobile] couldn't read the tenant's keys: ${err instanceof Error ? err.message : String(err)}`);
-      return null;
+      /* a key kept from before the outage still checks its tokens; with none, the token can't be checked, and
+         that's ours to say, not the phone's sign-in that's wrong (until 26 November 2026 it signed phones out) */
+      const kept = held && held.domain === domain ? held.keys.get(kid) : undefined;
+      if (kept) return kept;
+      throw new KeysUnreachable(`Auth0's keys couldn't be read`);
     }
     return held.keys.get(kid) ?? null;
   };

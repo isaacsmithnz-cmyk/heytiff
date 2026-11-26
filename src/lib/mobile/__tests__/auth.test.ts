@@ -32,7 +32,7 @@ jest.mock("@/lib/supabase-server", () => ({
 }));
 
 import { requireMobile, type MobileCtx } from "../auth";
-import { MOBILE_AUDIENCE } from "../token";
+import { KeysUnreachable, MOBILE_AUDIENCE } from "../token";
 
 const DOMAIN = "tenant.example.auth0.com";
 const { publicKey, privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
@@ -140,4 +140,12 @@ test("a database that can't be read is a 503, not an empty answer", async () => 
   const spy = jest.spyOn(console, "error").mockImplementation(() => {});
   expect(await status(await call(as("auth0|lyle")))).toEqual([503, "HeyTiff couldn't be reached. Try again."]);
   spy.mockRestore();
+});
+
+test("Auth0's keys out of reach is a 503 that keeps the phone signed in, never a 401", async () => {
+  const down = async () => {
+    throw new KeysUnreachable("down");
+  };
+  const r = await requireMobile(new Request("https://go.hey-tiff.com/api/mobile/me", { headers: as("auth0|lyle") }), undefined, { keyFor: down, now: NOW });
+  expect(await status(r)).toEqual([503, "HeyTiff couldn't check your sign-in just now. Try again."]);
 });

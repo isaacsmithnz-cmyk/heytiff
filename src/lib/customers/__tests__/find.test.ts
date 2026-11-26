@@ -1,4 +1,4 @@
-import { bestCustomers, customerLine, nameFits, searchWords, type CustomerHit } from "../find";
+import { bestCustomers, customerLine, nameFits, ownClient, searchWords, type CustomerHit } from "../find";
 
 /* Isaac, 26 November 2026: the client he asked about was in the book as the
    contact on an old job, kept "De Vane" where he said "DeVane". Names here
@@ -54,5 +54,17 @@ describe("what she says she found", () => {
     expect(customerLine("Sam DeVane", hits)).toBe(
       "I found 2 customers like Sam DeVane: Sam De Vane, job 2951 at 2/28 Lorem St, Sampleton NSW 2088, Completed May 2024, through QX Construct; Sam Devane, at 9 Ipsum Rd, Otherton NSW 2000.",
     );
+  });
+});
+
+describe("the client a new job goes under", () => {
+  it("the one the book is sure of, however the name was heard", () => {
+    expect(ownClient([hit({ via: "client", client: null, clientUuid: "c-1" })])).toEqual({ uuid: "c-1", name: "Sam De Vane" });
+    expect(ownClient([hit({ via: "contact", client: "Sam & Jo De Vane", clientUuid: "c-2" })])).toEqual({ uuid: "c-2", name: "Sam & Jo De Vane" });
+  });
+  it("never a builder whose job they were a contact on, a far fit, or one of two", () => {
+    expect(ownClient([hit({ clientUuid: null })])).toBeNull();
+    expect(ownClient([hit({ via: "client", fit: 0.6, clientUuid: "c-1" })])).toBeNull();
+    expect(ownClient([hit({ via: "client", clientUuid: "c-1" }), hit({ via: "client", clientUuid: "c-3", address: "9 Ipsum Rd" })])).toBeNull();
   });
 });

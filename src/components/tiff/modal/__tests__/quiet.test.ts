@@ -12,6 +12,11 @@ describe("quietLimit", () => {
     expect(quietLimit('He said "done."', live)).toBe(QUIET_FINISHED_MS);
   });
 
+  it("a trailing ellipsis is a pause, not an end", () => {
+    expect(quietLimit("We need to get a quote set up for the...", live)).toBe(QUIET_MIDWAY_MS);
+    expect(quietLimit("Book Sam in…", live)).toBe(QUIET_MIDWAY_MS);
+  });
+
   it("a sentence left on a joiner, an article or a filler waits long", () => {
     for (const w of ["Tell Lyle to order the", "The middle unit tripped and", "Can you um", "Order filters for", "We need the grilles,"]) {
       expect(quietLimit(w, live)).toBe(QUIET_MIDWAY_MS);

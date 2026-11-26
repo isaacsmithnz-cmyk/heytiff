@@ -36,6 +36,10 @@ export function quietLimit(words: string, how: { live: boolean }): number | null
   const said = words.trim();
   if (!how.live) return QUIET_UNREAD_MS;
   if (!said) return null;
+  /* A trailing "..." is the transcriber marking a pause, not an end (Isaac's
+     first talk, 26 November 2026: "We need to get a quote set up for the..."
+     went as a whole question): it waits as long as a joiner does. */
+  if (/(?:\.\.\.|…)["'”’)\]]*$/u.test(said)) return QUIET_MIDWAY_MS;
   if (/[.?!…？。]["'”’)\]]*$/u.test(said)) return QUIET_FINISHED_MS;
   const last = said
     .toLowerCase()

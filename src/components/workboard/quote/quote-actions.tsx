@@ -190,11 +190,12 @@ export function QuoteActions({
         given(variation ? `Variation ${variation.n} approved` : "Ready to send")
       )
     ) : answering ? (
-      /* her questions come first, and the button goes to them: one next
-         step, as the phone's foot has it (Isaac, 24 November 2026). It was
-         Mark ready to send greyed out, with the reason under it. */
+      /* her questions come first, and the button opens Settle on them: one
+         next step, as the phone's foot has it (Isaac, 24 November 2026; Settle
+         26 November 2026). It was Mark ready to send greyed out, with the
+         reason under it. */
       <Button kind="main" disabled={busy} onClick={onAnswer}>
-        {`Answer ${asked} ${asked === 1 ? "question" : "questions"}`}
+        {`Settle ${asked} ${asked === 1 ? "question" : "questions"}`}
       </Button>
     ) : (
       <Button kind="main" disabled={busy || !ready} onClick={onApprove}>

@@ -260,6 +260,8 @@ export function QuoteLinesFace({
   /* what fills the left while Tiff is on for the business: the
      conversation, or the line items, switched from the rail */
   const [tab, setTab] = useState<"chat" | "lines">("chat");
+  /* the panel's Settle, bumped each press: Settle opens over Build (tiff-questions.tsx) */
+  const [settleAsk, setSettleAsk] = useState(0);
   /* whether she's on, once her thread is read (what she's cost left the
      rail with layout B, 21 October 2026) */
   const [tiff, setTiff] = useState<{ on: boolean; spentUsd: number | null } | null>(null);
@@ -882,13 +884,14 @@ export function QuoteLinesFace({
         ready={ready}
         why={why}
         asked={asked}
-        /* to her questions, at the end of the talk in Build */
+        /* to her questions: Settle, over Build */
         onAnswer={
           chat
             ? () => {
                 setPaper(false);
                 setViewing(null);
                 setTab("chat");
+                setSettleAsk((n) => n + 1);
               }
             : undefined
         }
@@ -947,6 +950,7 @@ export function QuoteLinesFace({
             onStatus={setTiff}
             onOpen={setAsked}
             onPlan={setPlan}
+            settle={settleAsk}
             say={say}
             onSaid={() => {
               takeOff(

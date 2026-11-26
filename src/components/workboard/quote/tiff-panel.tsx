@@ -1,12 +1,12 @@
 "use client";
 
-import { Button } from "@/components/parts/button";
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { Fade } from "@/components/parts/fade";
 import { Icon } from "@/components/shell/icon";
 import { appendSpoken, useDictation } from "@/components/notes/dictation";
 import { useNoteScope } from "@/components/notes/note-context";
 import { CvBox } from "@/components/conversations/box";
+import { SettleAsks, TalkAsks, type Ask } from "./tiff-questions";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
 import { useReplyDraft } from "@/components/notes/use-reply-draft";
 import { fmtAuTime } from "@/lib/au-dates";
@@ -16,7 +16,7 @@ import { replyBlocks, type ReplySpan } from "@/lib/quotes/session/reply-blocks";
 import { latestAsked } from "@/lib/quotes/session/answers";
 import { buildingFirst, liveWords, stepOf, stepOfTool, timeLeft, turnStartOf, type LiveNow, type Took } from "@/lib/quotes/session/time-left";
 import { waitingIds } from "@/lib/quotes/session/queued";
-import { fmtAddition, fmtAud } from "@/lib/workboard/project-money";
+import { fmtAud } from "@/lib/workboard/project-money";
 
 /* TIFF ON THE QUOTE: the page's main column (the chat-first quote page,
    Isaac, 2026-10-13; it was a grey card in the rail, slice 5.1). The
@@ -114,8 +114,6 @@ export function Globe({ size = 14 }: { size?: number }) {
   );
 }
 
-/** A price difference as an answer shows it: nothing for none. */
-const deltaWords = (c: number | null | undefined) => (c == null ? "" : fmtAddition(c));
 
 /** Words as she or you wrote them: a blank line starts a paragraph. */
 const paras = (text: string) =>
@@ -128,11 +126,15 @@ const paras = (text: string) =>
 const spans = (line: ReplySpan[]) => line.map((s, i) => (s.bold ? <b key={i}>{s.text}</b> : <span key={i}>{s.text}</span>));
 
 /** Her reply as it's meant to read: her sentences, her points as a list, her
-    questions numbered. The model writes "- **Labour:** 12 h", and it stood on
-    the page with its asterisks (3423, Isaac, 30 October 2026: "The formatting
-    of her messages needs to be much better"). */
-const herWords = (text: string) =>
-  replyBlocks(text).map((b, i) =>
+    numbered lines as numbers. The model writes "- **Labour:** 12 h", and it
+    stood on the page with its asterisks (3423, Isaac, 30 October 2026: "The
+    formatting of her messages needs to be much better"). Where her reply
+    asked questions, its numbered repeat of them is left out: each is asked
+    under it, one at a time, as the phone has it (26 November 2026). */
+const herWords = (text: string, asking = false) =>
+  replyBlocks(text)
+    .filter((b) => !(asking && b.kind === "numbers"))
+    .map((b, i) =>
     b.kind === "para" ? (
       <p key={i}>{spans(b.spans)}</p>
     ) : b.kind === "bullets" ? (
@@ -160,6 +162,7 @@ export function TiffPanel({
   start = false,
   say = null,
   onSaid,
+  settle = 0,
 }: {
   job: string;
   onChanged: () => void;
@@ -178,6 +181,8 @@ export function TiffPanel({
   say?: { id: number; text: string } | null;
   /** she has them */
   onSaid?: () => void;
+  /** bumped by the panel's Settle button: Settle opens over the talk */
+  settle?: number;
 }) {
   /* null until her thread is first read: the page lays out nothing of hers
      or the lines' until it knows which */
@@ -198,6 +203,22 @@ export function TiffPanel({
   const [answersIn, setAnswersIn] = useState(false);
   const [typed, setTyped] = useState("");
   const [busy, setBusy] = useState(false);
+  /* your answers given here, until her thread has them: the next question
+     comes up at once, while she works on this one (tiff-questions.tsx) */
+  const [mine, setMine] = useState<Record<number, { label: string; typed: boolean }>>({});
+  /* your own words to each, as you type them */
+  const [drafts, setDrafts] = useState<Record<number, string>>({});
+  /* skipped for now, in Settle: they come up again after the rest */
+  const [skipped, setSkipped] = useState<number[]>([]);
+  /* an answered one asked again, from its Change */
+  const [changing, setChanging] = useState<number | null>(null);
+  /* Settle is up over the talk */
+  const [settling, setSettling] = useState(false);
+  const [settleSeen, setSettleSeen] = useState(settle);
+  if (settleSeen !== settle) {
+    setSettleSeen(settle);
+    if (settle > 0) setSettling(true);
+  }
   const [note, setNote] = useState<string | null>(null);
   /* researched prices put on their lines this visit */
   const [used, setUsed] = useState<Set<number>>(new Set());
@@ -397,7 +418,7 @@ export function TiffPanel({
     box.current.focus();
   }, [on, start]);
 
-  const openCount = answersIn ? events.filter((e) => e.kind === "question" && !questions[e.id]?.answered).length : 0;
+  const openCount = answersIn ? events.filter((e) => e.kind === "question" && !questions[e.id]?.answered && !mine[e.id]).length : 0;
   const tell = useEffectEvent((n: number) => onOpen?.(n));
   useEffect(() => {
     tell(on ? openCount : 0);
@@ -434,6 +455,7 @@ export function TiffPanel({
     if (!a?.ok) setNote(a?.reason ?? "That didn't save. Try again.");
     onChanged();
     void read(true);
+    return !!a?.ok;
   };
 
   /* a researched price on its line: the route reads it back from the thread */
@@ -449,11 +471,48 @@ export function TiffPanel({
   };
 
   const who = (author: string) => (author === me ? "You" : (names[author] ?? "Someone"));
-  const open = answersIn ? events.filter((e) => e.kind === "question" && !questions[e.id]?.answered) : [];
+  /* her questions' words, so your own answer to one shows apart from it */
+  const asked = events.flatMap((e) => (e.kind === "question" && e.body.question ? [String(e.body.question)] : []));
+  const doneOf = (id: number) => mine[id] ?? (questions[id]?.answered ? { label: questions[id]!.answered!.label, typed: !!questions[id]!.answered!.typed } : null);
+  const open = answersIn ? events.filter((e) => e.kind === "question" && !doneOf(e.id)) : [];
   const asking = new Set(latestAsked(events));
-  /* in the talk itself: every question still open, and while one is, the
-     ones of the same asking already answered, ticked */
-  const asks = open.length > 0 ? events.filter((e) => e.kind === "question" && (!questions[e.id]?.answered || asking.has(e.id))) : [];
+  /* in the talk itself: while one is open, every question of hers still
+     open and the ones of the same asking already answered */
+  const asks: Ask[] = (open.length > 0 || changing != null ? events.filter((e) => e.kind === "question" && (!doneOf(e.id) || asking.has(e.id) || e.id === changing)) : []).map((e) => ({
+    id: e.id,
+    question: String(e.body.question ?? ""),
+    topic: typeof e.body.topic === "string" && e.body.topic ? e.body.topic : String(e.body.question ?? ""),
+    put: typeof e.body.put === "string" ? e.body.put : "",
+    answers: (Array.isArray(e.body.answers) ? e.body.answers : []) as Answer[],
+    deltas: questions[e.id]?.deltas ?? [],
+    done: doneOf(e.id),
+  }));
+  /* the one you're on: the first still open you haven't skipped, or the
+     first open once all left are skipped */
+  const openAsks = asks.filter((a) => !a.done);
+  const current = openAsks.find((a) => !skipped.includes(a.id)) ?? [...openAsks].sort((x, y) => skipped.indexOf(x.id) - skipped.indexOf(y.id))[0] ?? null;
+  const toTiff = async (a: Ask, label: string, typedHere: boolean) => {
+    /* the question goes with your words so she knows which they're to, as the phone sends them */
+    const sent = await send(false, `${a.question} ${label}`);
+    if (!sent) return;
+    setMine((m) => ({ ...m, [a.id]: { label, typed: typedHere } }));
+    setDrafts((d) => ({ ...d, [a.id]: "" }));
+    setChanging(null);
+  };
+  const pick = (a: Ask, index: number) => {
+    const label = a.answers[index]?.label ?? "";
+    /* a change goes to her: she changes the quote for it */
+    if (a.done) return void toTiff(a, label, false);
+    setMine((m) => ({ ...m, [a.id]: { label, typed: false } }));
+    void answer(a.id, index).then((ok) => {
+      if (!ok)
+        setMine((m) => Object.fromEntries(Object.entries(m).filter(([k]) => Number(k) !== a.id)));
+    });
+  };
+  const own = (a: Ask) => {
+    const words = (drafts[a.id] ?? "").trim();
+    if (words) void toTiff(a, words, true);
+  };
 
   /* her name over what she says, and when, once for a run of it, as a chat
      names a speaker; what she did stands as she did it, a run of steps together */
@@ -538,9 +597,14 @@ export function TiffPanel({
     if (e.kind === "message") {
       const mine = e.author === me;
       const answered = typeof e.body.answered === "number";
-      const text = answered ? `${String(e.body.question ?? "")} ${String(e.body.text ?? "")}` : String(e.body.text ?? "");
+      const said = String(e.body.text ?? "");
+      /* your own answer to one of her questions went with the question, so
+         she knows which it's to: the talk shows them apart */
+      const to = answered ? null : asked.find((q) => said.startsWith(`${q} `));
+      const text = answered ? `${String(e.body.question ?? "")} ${said}` : to ? said.slice(to.length + 1) : said;
       thread.push(
         <div key={e.id} className={`${mine ? "qt-msg me" : "qt-msg"}${landed(e.id)}`}>
+          {to && <p className="qt-to">{to}</p>}
           <div className={mine ? "qt-bub me" : "qt-bub them"}>{paras(text)}</div>
           <span className="qt-meta">{who(e.author)}</span>
           {/* sent while she worked: she takes it up when she's free */}
@@ -549,7 +613,8 @@ export function TiffPanel({
       );
       hers = false;
     } else if (e.kind === "reply") {
-      thread.push(her(e.id, herWords(String(e.body.text ?? "")), !hers, e.at));
+      const asksHere = events.some((q) => q.kind === "question" && q.turnId != null && q.turnId === e.turnId);
+      thread.push(her(e.id, herWords(String(e.body.text ?? ""), asksHere), !hers, e.at));
       hers = true;
     } else if (research) {
       thread.push(
@@ -601,9 +666,33 @@ export function TiffPanel({
   const typing = working ? liveWords(liveNow, events) : "";
   if (typing) thread.push(her(-1, <Typing text={typing} />, !hers));
 
+  const timeLeft = working ? (
+    <TimeLeft
+      since={turnStartOf(events)}
+      first={buildingFirst(events)}
+      step={stepOfTool(liveNow?.tool) ?? stepOf(events)}
+      took={buildingFirst(events) ? took?.first : took?.later}
+    />
+  ) : null;
   return (
     <div className="qt" hidden={hidden}>
-      <div ref={threadRef} className="qc-thread">
+      {settling && (
+        <SettleAsks
+          asks={asks}
+          current={current}
+          changing={changing}
+          busy={busy}
+          drafts={drafts}
+          onDraft={(id, w) => setDrafts((d) => ({ ...d, [id]: w }))}
+          onPick={(a, i) => pick(a, i)}
+          onOwn={(a) => own(a)}
+          onChange={setChanging}
+          working={timeLeft}
+          onBack={() => setSettling(false)}
+          onSkip={(id) => setSkipped((k) => [...k.filter((x) => x !== id), id])}
+        />
+      )}
+      <div ref={threadRef} className="qc-thread" hidden={settling}>
         <div ref={colRef} className="qc-col">
           {events.length === 0 && (
             <div className="qt-hello">
@@ -655,74 +744,24 @@ export function TiffPanel({
           )}
           {thread.length > 0 && <div className="qt-thread">{thread}</div>}
           {asks.length > 0 && (
-            /* HER QUESTIONS, ANSWERED WHERE THEY STAND (the quote's own tab,
-               Isaac, 21 November 2026, "Build all three" to
-               https://claude.ai/artifact/EAB8Y8FsbnPbcuBXKDhT93): each a
-               white group of answers to tap, the one picked ticked; typing
-               in the box answers them too */
-            <section className="qx-asks" aria-label="Tiff's questions">
-              {asks.map((q) => {
-                const answers = (Array.isArray(q.body.answers) ? q.body.answers : []) as Answer[];
-                const deltas = questions[q.id]?.deltas ?? [];
-                const put = typeof q.body.put === "string" ? q.body.put : "";
-                const done = questions[q.id]?.answered ?? null;
-                const among = done ? answers.findIndex((a) => a.label === done.label) : -1;
-                const tick = (
-                  <span className="qx-tick">
-                    <Icon name="check" size={16} />
-                  </span>
-                );
-                return (
-                  <div key={q.id} className={`qx-card qx-ask${landed(q.id)}`}>
-                    <p className="qx-askq">{String(q.body.question ?? "")}</p>
-                    {put && !done && <p className="qx-askput">{`On the quote now: ${put}`}</p>}
-                    {/* still open, its answers are buttons, the likely one
-                        blue with what it does to the price at its right, as
-                        the phone has them (Isaac, 24 November 2026: "fix
-                        wording and buttons so they match either device");
-                        answered, they are the rows they were, the one picked
-                        ticked */}
-                    {!done && answers.length > 0 && (
-                      <div className="qx-answers">
-                        {answers.map((a, i) => (
-                          <Button key={i} kind={i === 0 ? "main" : "second"} size={44} className="qx-answer" disabled={busy || deltas[i] === null} onClick={() => void answer(q.id, i)}>
-                            <span>{a.label}</span>
-                            {deltaWords(deltas[i]) && <span className="qx-r">{deltaWords(deltas[i])}</span>}
-                          </Button>
-                        ))}
-                      </div>
-                    )}
-                    {done &&
-                      answers.map((a, i) => (
-                        <button key={i} type="button" className={i === among ? "qx-row picked" : "qx-row"} aria-pressed={i === among} disabled>
-                          <b>{a.label}</b>
-                          {deltaWords(deltas[i]) && <span className="qx-r">{deltaWords(deltas[i])}</span>}
-                          {i === among && tick}
-                        </button>
-                      ))}
-                    {done && among < 0 && (
-                      <div className="qx-row picked">
-                        <b>{done.label}</b>
-                        <span className="qx-r">{done.typed ? "From your message" : "Tapped"}</span>
-                        {tick}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </section>
-          )}
-          {working && (
-            <TimeLeft
-              since={turnStartOf(events)}
-              first={buildingFirst(events)}
-              step={stepOfTool(liveNow?.tool) ?? stepOf(events)}
-              took={buildingFirst(events) ? took?.first : took?.later}
+            /* HER QUESTIONS, ONE AT A TIME (tiff-questions.tsx): the ones
+               answered, each a line with Change, then the one you're on */
+            <TalkAsks
+              asks={asks}
+              current={current}
+              changing={changing}
+              busy={busy}
+              drafts={drafts}
+              onDraft={(id, w) => setDrafts((d) => ({ ...d, [id]: w }))}
+              onPick={(a, i) => pick(a, i)}
+              onOwn={(a) => own(a)}
+              onChange={setChanging}
             />
           )}
+          {timeLeft}
         </div>
       </div>
-      <div className="qc-comp">
+      <div className="qc-comp" hidden={settling}>
         <div className="qc-col">
           {note && <p className="wb2-sherr">{note}</p>}
           {/* THE ONE BOX (Isaac, 6 November 2026: "every input box is the
@@ -737,7 +776,8 @@ export function TiffPanel({
             onSubmit={() => void send()}
             label="Message Tiff"
             /* the phone's words in the box (24 November 2026) */
-            placeholder={events.length === 0 ? "Tell Tiff what to quote" : asks.some((q) => !questions[q.id]?.answered) ? "Answer in your own words" : "Reply to Tiff"}
+            /* each question has its own answer: the box is for the rest (Isaac, 26 November 2026) */
+            placeholder={events.length === 0 ? "Tell Tiff what to quote" : "Reply to Tiff"}
             sendWord="Tiff"
             sendLabel="Send to Tiff"
             /* you can answer while she works: it waits its turn (Isaac, 13 November 2026, "Build E") */

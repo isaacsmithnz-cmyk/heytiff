@@ -879,7 +879,7 @@ describe("the proposal (7.1)", () => {
     }));
     render(<QuoteLinesFace job="job-3377" price={pricedWhole} onPriced={jest.fn()} />);
     /* answering them is the next step, as on the phone: one button, to her questions */
-    expect(await screen.findByRole("button", { name: "Answer 2 questions" })).toBeEnabled();
+    expect(await screen.findByRole("button", { name: "Settle 2 questions" })).toBeEnabled();
     expect(screen.queryByRole("button", { name: "Mark ready to send" })).not.toBeInTheDocument();
   });
 });

@@ -273,6 +273,9 @@ export type FileResult =
       /** What Tiff's skills did (note-skills). */
       skills?: SkillMade[];
       ask?: FileAsk;
+      /** Filed with `library` (the phone): each "For everyone" entry, by its
+          place in the plan, and whether it is in the Library now. */
+      library?: { index: number; added: boolean }[];
     }
   /** `turns` when it asked: the conversation with the question on the end. */
   | { ok: false; error: string; ask?: FileAsk; turns?: Turn[] };
@@ -290,6 +293,7 @@ export type PublishKbResult =
   | { ok: false; error: string };
 
 const NOT_SIGNED_IN = "Not signed in.";
+const IN_LIBRARY_ALREADY = "That's already in the Library.";
 const NO_ACCESS = "You don't have access to Jobs.";
 const GONE = "That note is no longer here.";
 const NOT_YOURS = "That note isn't yours.";
@@ -1482,7 +1486,7 @@ async function agreementOfVisit(orgId: string, visitId: string): Promise<string 
     goes back to where it was if the write is refused part-way. */
 export async function fileNote(
   noteId: string,
-  opts: { leaveOut?: string[]; retarget?: NoteTarget; answer?: string } = {},
+  opts: { leaveOut?: string[]; retarget?: NoteTarget; answer?: string; library?: boolean } = {},
 ): Promise<FileResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: NOT_SIGNED_IN };
@@ -1875,12 +1879,23 @@ export async function fileNote(
     after(() => sendOnToSm8(ctx, noteId, jobUuid));
   }
 
+  /* THE LIBRARY, FILED WITH THE NOTE ON THE PHONE (bug 97, Isaac, 25
+     November 2026: "where it says for everyone... Put in brackets saying,
+     'Added to library'"; 27 November: "Yes" to it going in with the note).
+     The web's row waits for its own press; the phone has no press, so
+     `library` puts each entry in as that press does (publishNoteKb: on the
+     note's record, so Undo takes it back with the rest), and says which
+     went in, so the phone only says added of the ones that did. A row
+     taken off stays out. */
+  const library = opts.library ? await libraryWithNote(noteId, plan.kbEntries.length, leaveOut) : [];
+
   refreshHome(target);
   return {
     ok: true,
     summary: done.summary,
     doors: doorsOf(appliedOf(done.applied)),
     turns: filed,
+    ...(library.length ? { library } : {}),
     ...(made.length ? { visits: visitCards(made, today) } : {}),
     ...(costsMade.length ? { costs: costCards(costsMade) } : {}),
     ...(variationsMade.length ? { variations: variationCards(variationsMade) } : {}),
@@ -3113,6 +3128,17 @@ export async function keepWords(text: string, room?: TiffRoom): Promise<KeepResu
   return { ok: true, noteId: (data as { id: string }).id };
 }
 
+/** Each of a filed note's library entries put in, as its press would (an entry already in counts as in). */
+async function libraryWithNote(noteId: string, count: number, leaveOut: readonly string[]): Promise<{ index: number; added: boolean }[]> {
+  const out: { index: number; added: boolean }[] = [];
+  for (let index = 0; index < Math.min(count, 10); index++) {
+    if (leaveOut.includes(`kbEntries:${index}`)) continue;
+    const r = await publishNoteKb(noteId, index).catch(() => ({ ok: false as const, error: "" }));
+    out.push({ index, added: r.ok || r.error === IN_LIBRARY_ALREADY });
+  }
+  return out;
+}
+
 /** "Add to the Library" — the one row of a plan that waits for a press,
     because its reach is the whole workspace rather than a job or a person.
 
@@ -3138,7 +3164,7 @@ export async function publishNoteKb(noteId: string, index: number): Promise<Publ
   if (!title || !body) return { ok: false, error: "There's no library entry there." };
 
   const before = appliedOf(note.applied);
-  if (before.kbTitles.includes(title)) return { ok: false, error: "That's already in the Library." };
+  if (before.kbTitles.includes(title)) return { ok: false, error: IN_LIBRARY_ALREADY };
 
   const target: NoteTarget = { kind: note.target_kind, id: note.target_id };
   const [author, tz, jobLabel] = await Promise.all([
@@ -3189,7 +3215,7 @@ export async function publishNoteKb(noteId: string, index: number): Promise<Publ
       return { ok: false, error: SETTLED[now.status] };
     }
     if (now && appliedOf(now.applied).kbTitles.includes(title)) {
-      return { ok: false, error: "That's already in the Library." };
+      return { ok: false, error: IN_LIBRARY_ALREADY };
     }
     return { ok: false, error: "Couldn't add that to the Library." };
   }

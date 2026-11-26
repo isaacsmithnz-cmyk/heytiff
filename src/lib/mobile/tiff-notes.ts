@@ -73,10 +73,20 @@ const NOT_REACHED = "That didn't reach HeyTiff. Try again.";
 export const datesInWords = (text: string): string =>
   text.replace(/\b(\d{4}-\d{2}-\d{2})\b/g, (iso) => fmtAuWeekdayDayMonth(iso) || iso);
 
-const rowsOf = (proposal: NoteProposal, staff: NoteStaff[], asking: boolean): PhoneRow[] =>
+/* "FOR EVERYONE (ADDED TO THE LIBRARY)" (bug 97, Isaac, 25 November 2026: "where it says for everyone... Put in
+   brackets saying, 'Added to library'"): a library entry filed from the phone goes in with the note (fileNote's
+   `library`), and its row says added only once it's in; one that couldn't go in says so. */
+export const IN_LIBRARY = "For everyone (added to the Library)";
+export const NOT_IN_LIBRARY = "For everyone (not added to the Library)";
+
+const rowsOf = (proposal: NoteProposal, staff: NoteStaff[], asking: boolean, library?: readonly { index: number; added: boolean }[]): PhoneRow[] =>
   planView(proposal, staff, asking)
     .filter((r) => !r.off)
-    .map((r) => ({ key: r.key, lead: r.lead, join: r.join, text: datesInWords(r.text), needs: r.needs }));
+    .map((r) => {
+      const went = r.lane === "kbEntries" ? library?.find((l) => l.index === r.index) : undefined;
+      const lead = went ? (went.added ? IN_LIBRARY : NOT_IN_LIBRARY) : r.lead;
+      return { key: r.key, lead, join: r.join, text: datesInWords(r.text), needs: r.needs };
+    });
 
 /** A who-question's dropdown label, for the phone to draw it as one (bug 88). */
 const whoOf = (who: WhoAsk | undefined): { who?: string } => (who ? { who: WHO_LABEL[who] } : {});
@@ -98,12 +108,12 @@ async function read(r: Extract<RouteResult, { ok: true }>): Promise<PhoneTurn[]>
 async function file(noteId: string, opts: { retarget?: NoteTarget }, routed?: Extract<RouteResult, { ok: true }>): Promise<PhoneTurn[]> {
   let res: FileResult;
   try {
-    res = await fileNote(noteId, opts);
+    res = await fileNote(noteId, { ...opts, library: true });
   } catch {
     return [{ kind: "said", say: NOT_REACHED, failed: true }];
   }
   if (res.ok) {
-    const rows = routed ? rowsOf(routed.proposal, routed.staff, false) : [];
+    const rows = routed ? rowsOf(routed.proposal, routed.staff, false, res.library) : [];
     const doors = res.doors.map((d) => d.label);
     const visits = (res.visits ?? []).map((v) => [v.line, v.aside].filter(Boolean).join(". "));
     /* ASKED ONCE (Isaac, 18 November 2026, bug 33, "Does this look right?": "Make the job in ServiceM8?" came twice,

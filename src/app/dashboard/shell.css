@@ -3518,8 +3518,6 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .fg .qc-thread { flex:1; min-height:0; overflow:auto; padding:24px 0 16px; }
 .fg .qc-thread[hidden] { display:none; }
 /* Conversation or Scope, a tray at the column's top (layout B, 21 October 2026) */
-.fg .qc-face { flex:none; padding-top:16px; }
-.fg .qc-face + .qc-thread { padding-top:16px; }
 /* Scope, written as a scope: the proposal's words at reading size, then what
    it's priced on and what's to check, as named rows under a thin line */
 .fg .qs { display:flex; flex-direction:column; gap:24px; font-size:16px; line-height:24px; color:var(--ink); }
@@ -3528,11 +3526,6 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .fg .qs p { margin:0; white-space:pre-line; }
 .fg .qs ul { margin:0; padding-left:24px; }
 .fg .qs section { display:flex; flex-direction:column; gap:8px; }
-.fg .qs-sec { padding-top:16px; border-top:1px solid var(--line); }
-.fg .qs-rows { display:grid; grid-template-columns:160px minmax(0, 1fr); gap:4px 16px; margin:0; font-size:14px; line-height:20px; }
-.fg .qs-rows dt { color:var(--q); }
-.fg .qs-rows dd { margin:0; }
-.fg .qs-rows dd.whole { grid-column:1 / -1; }
 .fg .qt-noscope { margin:0; font-size:16px; line-height:24px; color:var(--q); }
 .fg .qc-col { max-width:820px; display:flex; flex-direction:column; gap:24px; }
 .fg .qc-col .qt-bub { max-width:620px; }
@@ -3732,23 +3725,6 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .fg .qt-src input { margin:2px 0 0; }
 .fg .qt-src b { display:block; font-size:13px; font-weight:600; color:var(--hd-ink); }
 .fg .qt-src small { display:block; font-size:12px; line-height:1.45; color:var(--hd-body); }
-.fg .qt-qa { display:flex; flex-direction:column; gap:8px; padding:12px 0; }
-.fg .qt-qa + .qt-qa { border-top:1px solid var(--hd-rule2); }
-.fg .qt-q { margin:0; font-size:14px; font-weight:600; line-height:1.4; color:var(--hd-ink); }
-/* her questions numbered as her message numbers them, with what the quote has now */
-.fg .qt-qn { display:inline-flex; align-items:center; gap:8px; min-width:24px; margin-right:8px; font-weight:600; color:var(--orange-w); font-variant-numeric:tabular-nums; }
-.fg .qt-put { margin:0; padding-left:16px; font-size:13px; line-height:1.45; color:var(--hd-body); }
-.fg .qt-qa .qt-ans { padding-left:16px; }
-.fg .qt-done { margin:4px 0 8px; }
-.fg .qt-done b { font-weight:600; }
-.fg .qt-done small { display:block; font-size:12px; color:var(--q); }
-.fg .qt-ans { list-style:none; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:8px; }
-.fg .qt-ans button { display:inline-flex; align-items:center; gap:8px; min-height:32px; padding:4px 12px; border:1px solid var(--hd-edge); border-radius:var(--r-button); background:var(--paper); font:inherit; font-size:13px; color:var(--hd-ink); cursor:pointer; }
-.fg .qt-ans button:hover:not(:disabled) { border-color:var(--ink); }
-.fg .qt-ans button:disabled { color:var(--q); cursor:default; }
-.fg .qt-ans button:focus-visible { outline:none; box-shadow:var(--ring); }
-.fg .qt-ans b { font-weight:500; }
-.fg .qt-ans em { font-style:normal; font-weight:600; color:var(--q); font-variant-numeric:tabular-nums; white-space:nowrap; }
 .fg .qt-thread { display:flex; flex-direction:column; gap:24px; }
 .fg .qt-msg { display:flex; flex-direction:column; align-items:flex-start; gap:4px; }
 .fg .qt-msg.me { align-items:flex-end; }

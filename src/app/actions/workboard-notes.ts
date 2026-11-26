@@ -174,6 +174,10 @@ import { comingBookingsOf, sm8StaffOfCard } from "@/lib/workboard/note-move-read
 import { changeSchedule } from "@/lib/mobile/schedule-change";
 import { changeAllowed } from "@/lib/mobile/schedule-gate";
 import type { MobileCtx } from "@/lib/mobile/auth";
+import { findCustomers } from "@/lib/customers/find-server";
+import { checkPlace } from "@/lib/address/places-proxy";
+import type { PlaceCheck } from "@/lib/address/place-check";
+import { mapAsked, newJobStep, type NewJobStep } from "@/lib/workboard/new-job-check";
 import { FUEL_RECEIPT, NO_RECEIPT, confirmAsk, confirms, skillGap, skillsToTakeBack, type ProposedSkill, type SkillMade } from "@/lib/workboard/note-skills";
 import { addToQuote, doSkill, undoSkill } from "@/lib/workboard/note-skills-file";
 
@@ -1564,6 +1568,29 @@ export async function fileNote(
     const gap = skillGap(sk);
     if (gap && sk.kind !== "fuel") return askFirst(ctx, note, turns, { question: gap, options: [] });
   }
+  /* A NEW JOB IS OFFERED ONLY ONCE IT'S LOOKED INTO (workboard/new-job-check;
+     Isaac's first hands-free talk, 26 November 2026): the client looked up
+     and what was found said, the site's address asked for when none was
+     said, and the address said found on the map, the job offered at the
+     place the map gives. */
+  const newJobLeads = new Map<number, string>();
+  for (const [index, sk] of draft.skills.entries()) {
+    if (!sk.on || sk.kind !== "new_job") continue;
+    const step = await newJobCheck(ctx.orgId, sk, turns);
+    const lead = turns.some((t) => t.who === "tiff" && t.text === step.lead) ? "" : step.lead;
+    if (step.kind === "ask") return askFirst(ctx, note, turns, { question: step.question, options: [] }, lead);
+    newJobLeads.set(index, lead);
+    if (step.address !== sk.address) {
+      const was = plan.skills?.[index];
+      if (was?.kind === "new_job") plan.skills![index] = { ...was, address: step.address };
+      const raw = note.proposal as Record<string, unknown>;
+      if (Array.isArray(raw.skills)) {
+        raw.skills = raw.skills.map((r: Record<string, unknown>) =>
+          r && r.kind === "new_job" && r.address === sk.address && r.work === sk.work ? { ...r, address: step.address } : r,
+        );
+      }
+    }
+  }
 
   const picked = await pickTarget(ctx, note, opts.retarget);
   if (!picked) return { ok: false, error: MOVED };
@@ -1773,7 +1800,9 @@ export async function fileNote(
      ahead of a visit's time; the visit is asked once the moves are done.
      A skill asked first goes ahead of both. */
   const moving = await moveAskFrom(ctx, plan.moves ?? [], 0, today);
-  const skillAsk = skillAsks.length ? skillFileAsk(plan.skills![skillAsks[0]!]!, skillAsks[0]!, (await targetLabel(ctx.orgId, target)) ?? "") : null;
+  const skillAsk = skillAsks.length
+    ? skillFileAsk(plan.skills![skillAsks[0]!]!, skillAsks[0]!, (await targetLabel(ctx.orgId, target)) ?? "", newJobLeads.get(skillAsks[0]!) ?? "")
+    : null;
   const ask = skillAsk ?? moving.ask ?? (asks.length ? await visitAsk(ctx, target, plan.visits[asks[0]!]!, asks[0]!, today, visitStaff) : null);
   /* "Done." only over something done: a note whose one row is a visit
      still to be timed says the question alone, and so does a move */
@@ -1870,11 +1899,22 @@ const LINES_INDEX = 1000;
     to `answerSkill`. */
 const SKILL_MARK = 200;
 
-function skillFileAsk(k: ProposedSkill, index: number, job: string): FileAsk | null {
+function skillFileAsk(k: ProposedSkill, index: number, job: string, lead = ""): FileAsk | null {
   const c = confirmAsk(k, job);
   return c
-    ? { question: c.question, options: [c.yes, c.no].map((label) => ({ label, visit: { index: SKILL_MARK + index, start: null } })) }
+    ? { question: [lead, c.question].filter(Boolean).join(" "), options: [c.yes, c.no].map((label) => ({ label, visit: { index: SKILL_MARK + index, start: null } })) }
     : null;
+}
+
+/** What a new job wants before it's offered (workboard/new-job-check): the
+    client looked up and the address looked for on the map, at once. A
+    lookup that fails asks nothing: the job is offered as said. */
+async function newJobCheck(orgId: string, k: Extract<ProposedSkill, { kind: "new_job" }>, turns: Turn[]): Promise<NewJobStep> {
+  const [customers, place] = await Promise.all([
+    k.client ? findCustomers(orgId, k.client).catch(() => null) : null,
+    k.address ? checkPlace(k.address).catch((): PlaceCheck => ({ kind: "off" })) : null,
+  ]);
+  return newJobStep(k, { customers, place, askedOnMap: mapAsked(turns.filter((t) => t.who === "tiff").map((t) => t.text)) });
 }
 
 /** The filer's own context for a skill, with the session's press. */

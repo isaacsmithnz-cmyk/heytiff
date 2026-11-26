@@ -108,3 +108,31 @@ export function streetSearch(s: Street): { number: string; word: string } {
   const word = s.name.split(" ").reduce((a, w) => (w.length > a.length ? w : a), "");
   return { number: s.number.match(/^\d+/)![0], word };
 }
+
+/** The suburb a line gives, lower case: the words after the first comma up to
+    the state or postcode ("Sampleton" of "6/40 Lorem St, Sampleton NSW"), or,
+    on a line with no comma, the words after the street's type ("6/40 Lorem
+    Street Sampleton"). "" when it gives none. */
+export function suburbOf(address: string | null | undefined): string {
+  const line = (address ?? "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/\n+/g, ", ");
+  const parts = line.split(",").map((p) => p.trim()).filter(Boolean);
+  const upToState = (ws: string[]) => {
+    const out: string[] = [];
+    for (const w of ws) {
+      if (!w || STATES.has(w) || /^\d{4}$/.test(w) || w === "australia") break;
+      out.push(w);
+    }
+    return out.join(" ");
+  };
+  const tokens = (s: string) => s.replace(/[^a-z0-9]+/g, " ").trim().split(" ");
+  /* "Unit 2, 26 Lorem St, Sampleton": the unit's comma is no suburb's */
+  const streetAt = parts.findIndex((p) => /\d/.test(p) && /[a-z]{3}/.test(p.replace(/^(?:unit|u|apartment|apt|flat|suite|shop|villa|townhouse)\s*\d+[a-z]?/, "")));
+  if (streetAt >= 0 && parts.length > streetAt + 1) return upToState(tokens(parts[streetAt + 1]!));
+  const ws = tokens(parts[streetAt >= 0 ? streetAt : 0] ?? "");
+  const at = ws.findIndex((w, i) => i > 1 && TYPES[w] !== undefined);
+  return at > 0 ? upToState(ws.slice(at + 1)) : "";
+}

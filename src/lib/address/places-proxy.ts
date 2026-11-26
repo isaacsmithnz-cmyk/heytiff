@@ -1,3 +1,4 @@
+import { placeFits, placeLine, type PlaceCheck } from "@/lib/address/place-check";
 import {
   mapPlaceToParts,
   type AddressSuggestion,
@@ -148,6 +149,33 @@ async function resolve(key: string, placeId: string, sessionToken: string): Prom
     formatted: str(data.formattedAddress),
     parts: mapPlaceToParts(data.addressComponents),
   });
+}
+
+/** AN ADDRESS TIFF WAS TOLD, CHECKED (lib/address/place-check): the first
+    of Google's answers that is the place said, written as Google writes it.
+    Server to server, for a note's new job: no browser and no session token,
+    so each lookup is one autocomplete and one details call. */
+export async function checkPlace(said: string): Promise<PlaceCheck> {
+  const key = process.env.GOOGLE_MAPS_API_KEY;
+  const input = said.trim();
+  if (!key) return { kind: "off" };
+  if (input.length < MIN_INPUT) return { kind: "none" };
+  const data = await call<AutocompleteResponse>(AUTOCOMPLETE_URL, key, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ input, includedRegionCodes: ["AU"] }),
+  });
+  if (!data) return { kind: "off" };
+  const hit = (data.suggestions ?? [])
+    .map((s) => ({ placeId: str(s?.placePrediction?.placeId), text: str(s?.placePrediction?.text?.text) }))
+    .find((s) => s.placeId && placeFits(input, s.text));
+  if (!hit) return { kind: "none" };
+  const details = await call<DetailsResponse>(`${DETAILS_URL}/${encodeURIComponent(hit.placeId)}`, key, {
+    method: "GET",
+    headers: { "X-Goog-FieldMask": "formattedAddress" },
+  });
+  const formatted = str(details?.formattedAddress) || hit.text;
+  return { kind: "found", address: placeLine(formatted) };
 }
 
 /** One Google call: key in the header, hard timeout, and `null` for every

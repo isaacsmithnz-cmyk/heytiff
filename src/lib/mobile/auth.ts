@@ -100,7 +100,13 @@ export async function requireMobile(
     return json(503, "HeyTiff couldn't be reached. Try again.");
   }
   const rows = (data ?? []) as MembershipRow[];
-  if (rows.length === 0) return json(403, "This sign-in has no HeyTiff workspace. Ask to be invited on the web first.");
+  /* `code` lets a phone that knows the first door (GET /start) open it rather
+     than signing out; an older phone reads only the sentence. */
+  if (rows.length === 0)
+    return Response.json(
+      { error: "This sign-in has no HeyTiff workspace yet.", code: "no_workspace" },
+      { status: 403, headers: { "cache-control": "no-store" } }
+    );
 
   const asked = request.headers.get(ORG_HEADER)?.trim();
   const active = asked ? rows.find((r) => r.org_id === asked) : rows[0];

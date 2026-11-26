@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { sm8StaffLinkMap } from "@/lib/integrations/links";
 import { ok, requireMobile } from "@/lib/mobile/auth";
 import { deleteUser } from "@/lib/integrations/auth0-management";
+import { setupNeeds } from "@/lib/mobile/setup-needs";
 
 /* WHO THE PHONE IS SIGNED IN AS: the person, the workspace it's reading
    (and any others they belong to, to switch between), what they may do
@@ -32,7 +33,11 @@ export async function GET(request: Request) {
     sm8StaffUuid = [...links.entries()].find(([, staffId]) => staffId === staff.id)?.[0] ?? null;
   }
 
+  /* The first run the phone still owes them (lib/mobile/onboarding): read
+     here so the phone knows on its first call whether to open it. */
+  const setup = await setupNeeds(ctx).catch(() => ({ business: false, details: false }));
   return ok({
+    setup,
     userId: ctx.userId,
     name: staff?.full_name ?? null,
     staffId: staff?.id ?? null,

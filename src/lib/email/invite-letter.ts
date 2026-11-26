@@ -117,6 +117,9 @@ export function inviteLetter(input: InviteLetterInput): { subject: string; html:
          person hitting that refusal has no way to know it was a rule rather
          than a broken link. */
       `It only works for <b>${escapeHtml(input.email)}</b> — sign in with that address.`,
+      /* The phone app takes the same invitation: signed in with this address,
+         its first screen offers to join (bug 101, 26 November 2026). */
+      `Already have the HeyTiff app? Sign in on it with that address and it'll offer to join.`,
       `If you weren't expecting this, ignore it. Nothing happens until you accept.`,
     ],
   };

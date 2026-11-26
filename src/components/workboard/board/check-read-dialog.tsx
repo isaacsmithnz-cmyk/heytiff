@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/parts/button";
 import { Dialog } from "@/components/parts/dialog";
 import type { JobPlanRead } from "@/lib/jobs/plans";
-import { readQuestions, sheetTitleOf, type ReadAnswer } from "@/lib/jobs/read-questions";
+import { readQuestions, sheetTitleOf, type ReadAnswer, type ReadQuestion } from "@/lib/jobs/read-questions";
 
 /* CHECK THE READ, ONE QUESTION AT A TIME (Isaac, 26 November 2026: "make
    check the read workflow smooth", then "Yes, build it" to
@@ -102,14 +102,6 @@ export function CheckReadDialog({
   };
 
   if (!q) return null;
-  const pageOf = (n: number) => plan.pages.find((p) => p.n === n);
-  const srcOf = (n: number) => full[n] ?? plan.thumbs[n] ?? null;
-  const titleOf = (n: number) => {
-    const page = pageOf(n);
-    return page ? sheetTitleOf(page) : null;
-  };
-  const lookSrc = looking !== null ? srcOf(looking) : null;
-
   return (
     <Dialog
       heading="Check the read"
@@ -137,6 +129,45 @@ export function CheckReadDialog({
         </>
       }
     >
+      <ReadQuestionBody plan={plan} q={q} full={full} looking={looking} onLook={setLooking} busy={busy} error={error} onAnswer={(a) => void answer(a)} />
+    </Dialog>
+  );
+}
+
+/** One question's body: what's asked and why, its pages big under their
+    sheet titles (pressed, one at its full size), and its answers with what
+    each does. Check the read's own dialog draws it, and New design draws it
+    in its place to settle the read before a design starts. */
+export function ReadQuestionBody({
+  plan,
+  q,
+  full,
+  looking,
+  onLook,
+  busy,
+  error,
+  onAnswer,
+}: {
+  plan: JobPlanRead;
+  q: ReadQuestion;
+  /** the pages' full pictures, by page, as they've come */
+  full: Readonly<Record<number, string>>;
+  /** the page shown at its full size, or none */
+  looking: number | null;
+  onLook: (n: number | null) => void;
+  /** the answer whose save is out */
+  busy: string | null;
+  error: string | null;
+  onAnswer: (a: ReadAnswer) => void;
+}) {
+  const pageOf = (n: number) => plan.pages.find((p) => p.n === n);
+  const srcOf = (n: number) => full[n] ?? plan.thumbs[n] ?? null;
+  const titleOf = (n: number) => {
+    const page = pageOf(n);
+    return page ? sheetTitleOf(page) : null;
+  };
+  const lookSrc = looking !== null ? srcOf(looking) : null;
+  return (
       <div className="ckr">
         <div className="ckr-said">
           <p className="ckr-q">{q.ask}</p>
@@ -156,7 +187,7 @@ export function CheckReadDialog({
                 return (
                   <figure key={n} className="ckr-page">
                     {src ? (
-                      <button type="button" className="ckr-open" aria-label={`Look at page ${n}`} onClick={() => setLooking(n)}>
+                      <button type="button" className="ckr-open" aria-label={`Look at page ${n}`} onClick={() => onLook(n)}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={src} alt="" />
                       </button>
@@ -174,7 +205,7 @@ export function CheckReadDialog({
             <div className="ckr-answers">
               {q.answers.map((a) => (
                 <div key={a.key} className="ckr-answer">
-                  <Button kind={a.likely ? "main" : "second"} onClick={() => void answer(a)} disabled={!!busy} aria-busy={busy === a.key || undefined}>
+                  <Button kind={a.likely ? "main" : "second"} onClick={() => onAnswer(a)} disabled={!!busy} aria-busy={busy === a.key || undefined}>
                     {a.label}
                   </Button>
                   <span className="ckr-does">{a.does}</span>
@@ -189,6 +220,5 @@ export function CheckReadDialog({
           </p>
         )}
       </div>
-    </Dialog>
   );
 }

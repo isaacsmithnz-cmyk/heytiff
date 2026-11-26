@@ -293,3 +293,81 @@ describe("New design, opened on a job", () => {
     expect(window.localStorage.getItem(INDEX) ?? "[]").toBe("[]");
   });
 });
+
+/* SETTLE N FIRST (Isaac, 27 November 2026: "Yes on all quick ones" to row 3
+   of https://claude.ai/artifact/Tx16qpWRbxfusq6xCEWKYn): job 3608's design
+   stacked a window and door sheet on the ground floor though its read had
+   said so. A read with a question that changes the floors is settled, one
+   at a time, in New design, and the design starts on the plans as answered. */
+describe("New design on a job whose read has questions", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    readPlansOnJob.mockReset();
+  });
+  const job = { remoteId: "job-3406", name: "6 Nostrud Avenue", jobNumber: "3406", client: "Tangent", site: "6 Nostrud Avenue, Madeupton NSW 2031" };
+  const room = (name: string) => ({ name, named: true, kind: "room" as const, outline: [], written: "", existing: false, openTo: "", stair: "" });
+  const sheet = (n: number) => ({ sheetId: `p${n}`, spaces: [room("Living"), room("Bed 1")], openings: [], marks: [], furniture: [], checklist: [], flags: [], planUp: "" });
+  const pg = (n: number, title: string, o: Record<string, unknown> = {}) => ({
+    n, kind: "floor" as const, name: "Ground floor", level: 0, ref: `org/o/p${n}.png`, preview: `org/o/p${n}.jpeg`, width: 2400, height: 1697, mmPerPx: 10, scale: "1:100 @ A3",
+    words: [{ text: "Sheet Name :", at: { x: 1500, y: 1641 } }, { text: title, at: { x: 1690, y: 1640 } }], ...o,
+  });
+  const plan = (pages: ReturnType<typeof pg>[], state: "read" | "check" = "check") => ({
+    id: "jplan_1", jobUuid: "job-3406", documentId: "doc-1", attachmentId: null, name: "Drawing set.pdf", sourceRef: "org/o/src.pdf", sourceKind: "pdf" as const, pageCount: 20,
+    pages, reading: { at: "2026-11-26T09:07:00Z", model: "m", floors: Object.fromEntries(pages.map((p) => [`p${p.n}`, [sheet(p.n)]])), failed: [], roof: null, site: null },
+    state, said: "Pages 8 and 18 both read as Ground floor: choose which floor each is", addedBy: "Isaac Smith", addedAt: "2026-11-26T09:04:00Z", readAt: "2026-11-26T09:07:00Z",
+    thumbs: Object.fromEntries(pages.map((p) => [p.n, `https://example.invalid/t${p.n}.jpg`])), usedBy: 0,
+  });
+  const fixes = () => ({ answer: jest.fn(async () => null as string | null), page: jest.fn(async () => ({ url: "https://example.invalid/p.png", width: 2400, height: 1697, at: null })), scale: jest.fn(async () => null as string | null) });
+
+  it("says Settle 1 first instead of Start design, asks it in the dialog, and starts on the floors as answered", async () => {
+    const unsure = plan([pg(8, "Ground Floor Plan - Proposed"), pg(18, "Window & Door Plans")]);
+    const settled = { ...unsure, state: "read" as const, said: null, pages: [unsure.pages[0], { ...unsure.pages[1], kind: "other" as const, level: null, picked: { by: "Isaac Smith", at: "2026-11-27T00:00:00Z" } }] };
+    readPlansOnJob.mockResolvedValue([settled]);
+    const f = fixes();
+    const user = userEvent.setup();
+    render(<Studio store={new LocalDesignStore(window.localStorage)} planImages={new FakePlanImages()} sm8Jobs forJob={job} jobPlans={[unsure]} jobPlanFixes={f} />);
+    const dialog = await screen.findByRole("dialog", { name: "New design" });
+    expect(within(dialog).queryByRole("button", { name: "Start design" })).toBeNull();
+    /* a blank canvas never waits on the read */
+    expect(within(dialog).getByRole("button", { name: "Start with a blank canvas" })).toBeEnabled();
+    await user.click(within(dialog).getByRole("button", { name: "Settle 1 first" }));
+    expect(within(dialog).getByText("Pages 8 and 18 both read as Ground floor. Which is the Ground floor plan?")).toBeInTheDocument();
+    expect(within(dialog).getByText("1 of 1")).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Page 8 is the Ground floor" }));
+    expect(f.answer).toHaveBeenCalledWith("job-3406", "jplan_1", { 8: "0", 18: "none" });
+    await waitFor(() => expect(saved().floors).toHaveLength(1));
+    expect(saved().jobLink).toMatchObject({ remoteId: "job-3406" });
+  });
+
+  it("goes back to New design as it was", async () => {
+    const user = userEvent.setup();
+    render(<Studio store={new LocalDesignStore(window.localStorage)} planImages={new FakePlanImages()} sm8Jobs forJob={job} jobPlans={[plan([pg(8, "Ground Floor Plan - Proposed"), pg(18, "Window & Door Plans")])]} jobPlanFixes={fixes()} />);
+    const dialog = await screen.findByRole("dialog", { name: "New design" });
+    await user.click(within(dialog).getByRole("button", { name: "Settle 1 first" }));
+    await user.click(within(dialog).getByRole("button", { name: "Back to New design" }));
+    expect(within(dialog).getByRole("button", { name: "Settle 1 first" })).toBeInTheDocument();
+    expect(window.localStorage.getItem(INDEX) ?? "[]").toBe("[]");
+  });
+
+  it("asks for a floor's scale where the plan has none to be had, from the page itself", async () => {
+    const f = fixes();
+    const user = userEvent.setup();
+    const noScale = plan([pg(8, "Ground Floor Plan - Proposed", { mmPerPx: null, scale: null, measured: null })], "read");
+    render(<Studio store={new LocalDesignStore(window.localStorage)} planImages={new FakePlanImages()} sm8Jobs forJob={job} jobPlans={[noScale]} jobPlanFixes={f} />);
+    const dialog = await screen.findByRole("dialog", { name: "New design" });
+    await user.click(within(dialog).getByRole("button", { name: "Settle 1 first" }));
+    expect(within(dialog).getByText("Page 8 has no scale on it. Set it from two points and a length.")).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Set the scale" }));
+    expect(await screen.findByRole("dialog", { name: "Set scale" })).toBeInTheDocument();
+    expect(f.page).toHaveBeenCalledWith("job-3406", "jplan_1", 8);
+  });
+
+  it("starts straight away on a read with nothing to settle", async () => {
+    const user = userEvent.setup();
+    const sure = plan([pg(8, "Ground Floor Plan - Proposed")], "read");
+    render(<Studio store={new LocalDesignStore(window.localStorage)} planImages={new FakePlanImages()} sm8Jobs forJob={job} jobPlans={[{ ...sure, said: null }]} jobPlanFixes={fixes()} />);
+    const dialog = await screen.findByRole("dialog", { name: "New design" });
+    await user.click(within(dialog).getByRole("button", { name: "Start design" }));
+    await waitFor(() => expect(saved().floors).toHaveLength(1));
+  });
+});

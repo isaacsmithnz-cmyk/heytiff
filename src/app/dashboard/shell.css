@@ -9259,6 +9259,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .pt-dialog .ckr-open { display:block; width:100%; margin:0; padding:0; border:0; background:none; border-radius:var(--r-control); cursor:zoom-in; }
 .pt-dialog .ckr-open:focus-visible { outline:none; box-shadow:var(--ring); }
 .pt-dialog .ckr-open img, .pt-dialog .ckr-blank { display:block; box-sizing:border-box; width:100%; height:auto; aspect-ratio:2400 / 1697; object-fit:contain; border:1px solid var(--edge); border-radius:var(--r-control); background:var(--white); }
+.pt-dialog .ckr-still { display:block; box-sizing:border-box; width:100%; height:auto; aspect-ratio:2400 / 1697; object-fit:contain; border:1px solid var(--edge); border-radius:var(--r-control); background:var(--white); }
 .pt-dialog .ckr-cap { display:flex; gap:8px; font-size:13px; line-height:18px; font-weight:500; color:var(--ink); }
 .pt-dialog .ckr-cap span { font-weight:400; color:var(--q); }
 .pt-dialog .ckr-answers { display:flex; flex-direction:column; align-items:flex-start; gap:8px; }

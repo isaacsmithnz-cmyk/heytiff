@@ -26,7 +26,7 @@ import type { DesignSummary } from "@/lib/studio/store";
 import type { JobSearch } from "./job-search";
 import type { JobLists } from "./job-picker";
 import { LibraryDoor } from "./library-modal";
-import { NewDesign } from "./new-design";
+import { NewDesign, type JobPlanFixes } from "./new-design";
 import type { JobPlanRead } from "@/lib/jobs/plans";
 
 /* the list shows this many, then Show the rest in place */
@@ -108,6 +108,7 @@ export function DesignHome({
   jobPlans,
   loadJobPlans,
   addJobPlan,
+  jobPlanFixes,
   onOpen,
   onDelete,
   onImport,
@@ -132,6 +133,8 @@ export function DesignHome({
   jobPlans?: JobPlanRead[] | null;
   loadJobPlans?: (jobUuid: string) => Promise<JobPlanRead[] | null>;
   addJobPlan?: (jobUuid: string, file: File) => Promise<{ ok: true; planIds: string[] } | { ok: false; error: string }>;
+  /** New design's Settle N first, on the job's own plans */
+  jobPlanFixes?: JobPlanFixes;
   onOpen: (id: string) => void;
   onDelete: (id: string) => void;
   onImport: (doc: DesignDocument) => void;
@@ -300,6 +303,7 @@ export function DesignHome({
           jobPlans={jobPlans}
           loadJobPlans={loadJobPlans}
           addJobPlan={addJobPlan}
+          fixes={jobPlanFixes}
           onClose={() => {
             setCreating(false);
             onForJobDone?.();

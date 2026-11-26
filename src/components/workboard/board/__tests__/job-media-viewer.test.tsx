@@ -167,3 +167,42 @@ it("uses a line it is given where the date and origin don't say it", () => {
   expect(screen.getByText("QBE, to 30 Jun 2027, added by Isaac Smith")).toBeInTheDocument();
   expect(screen.queryByText("1 of 1")).toBeNull();
 });
+
+/* bug 119 (Isaac, 26 November 2026: "cant go fullscreen with plans"): the
+   viewer goes full screen itself, where the browser can, and back */
+describe("full screen", () => {
+  const proto = HTMLElement.prototype as unknown as { requestFullscreen?: () => Promise<void> };
+  const doc = document as unknown as { exitFullscreen?: () => Promise<void> };
+  let shown: Element | null = null;
+  beforeEach(() => {
+    shown = null;
+    Object.defineProperty(document, "fullscreenElement", { configurable: true, get: () => shown });
+  });
+  afterEach(() => {
+    delete proto.requestFullscreen;
+    delete doc.exitFullscreen;
+  });
+
+  it("offers nothing where the browser can't", () => {
+    view();
+    expect(screen.queryByRole("button", { name: "View full screen" })).toBeNull();
+  });
+
+  it("fills the screen with the viewer, says so, and comes back", async () => {
+    proto.requestFullscreen = jest.fn(async () => {
+      shown = screen.getByRole("dialog");
+      document.dispatchEvent(new Event("fullscreenchange"));
+    });
+    doc.exitFullscreen = jest.fn(async () => {
+      shown = null;
+      document.dispatchEvent(new Event("fullscreenchange"));
+    });
+    view({ items: [item({ remoteId: "p", name: "Ground floor, page 8", fileType: ".png" })] });
+    await userEvent.click(screen.getByRole("button", { name: "View full screen" }));
+    expect(proto.requestFullscreen).toHaveBeenCalledTimes(1);
+    expect(shown).toBe(screen.getByRole("dialog"));
+    await userEvent.click(await screen.findByRole("button", { name: "Exit full screen" }));
+    expect(doc.exitFullscreen).toHaveBeenCalledTimes(1);
+    expect(await screen.findByRole("button", { name: "View full screen" })).toBeInTheDocument();
+  });
+});

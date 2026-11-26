@@ -8,7 +8,7 @@
    way at a time. */
 
 import { generateKeyPairSync, sign, type KeyObject } from "node:crypto";
-import { checkMobileToken, KEYS_UNREACHABLE, KeysUnreachable, MOBILE_AUDIENCE, tenantKeys } from "../token";
+import { checkMobileToken, KEYS_UNREACHABLE, KeysUnreachable, MOBILE_AUDIENCE, mobileIssuers, tenantKeys, tokenIssuerHost } from "../token";
 
 const DOMAIN = "tenant.example.auth0.com";
 const { publicKey, privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
@@ -35,6 +35,31 @@ test("a token Auth0 signed for the phone API is believed, and says who", async (
 
 test("an audience list that includes the phone API is believed too", async () => {
   expect(await check(mint({ aud: [MOBILE_AUDIENCE, `https://${DOMAIN}/userinfo`] }))).toEqual({ ok: true, sub: "auth0|lyle" });
+});
+
+describe("one tenant, two names (sign-in at a custom domain)", () => {
+  const LOGIN = "login.example.com";
+  const both = { domain: LOGIN, issuers: [LOGIN, DOMAIN], keyFor, now: NOW };
+
+  test("a token from either name is believed when both are listed", async () => {
+    expect(await checkMobileToken(mint(), both)).toEqual({ ok: true, sub: "auth0|lyle" });
+    expect(await checkMobileToken(mint({ iss: `https://${LOGIN}/` }), both)).toEqual({ ok: true, sub: "auth0|lyle" });
+  });
+
+  test("a third name is still refused", async () => {
+    expect(await checkMobileToken(mint({ iss: "https://evil.example.com/" }), both)).toEqual({ ok: false, reason: "issuer" });
+  });
+
+  test("the list holds each name once, sign-in name first", () => {
+    expect(mobileIssuers({ AUTH0_DOMAIN: LOGIN, AUTH0_TENANT_DOMAIN: DOMAIN })).toEqual([LOGIN, DOMAIN]);
+    expect(mobileIssuers({ AUTH0_DOMAIN: DOMAIN, AUTH0_TENANT_DOMAIN: DOMAIN })).toEqual([DOMAIN]);
+    expect(mobileIssuers({ AUTH0_DOMAIN: DOMAIN })).toEqual([DOMAIN]);
+  });
+
+  test("the issuer's host is read for /userinfo", () => {
+    expect(tokenIssuerHost(mint({ iss: `https://${LOGIN}/` }))).toBe(LOGIN);
+    expect(tokenIssuerHost("not.a.token")).toBeNull();
+  });
 });
 
 describe("refused", () => {

@@ -30,7 +30,7 @@ jest.mock("@/lib/quotes/lines-server", () => ({
 }));
 jest.mock("@/lib/quotes/kits-server", () => ({ addKit: jest.fn() }));
 jest.mock("@/lib/quotes/lookups-server", () => ({ packMakers: async () => [{ key: "daikin", name: "Daikin" }, { key: "fujitsu", name: "Fujitsu" }] }));
-jest.mock("@/lib/quotes/fit-server", () => ({ linesFit: async () => [] }));
+jest.mock("@/lib/quotes/fit-server", () => ({ linesFit: async () => [], coolingOf: async () => ({}) }));
 jest.mock("@/lib/quotes/lines-job-server", () => ({
   readByHand: async () => ({ accepted: [], names: [], loading: {}, compare: {}, supplier: null, proposal: null, researched: {}, variations: [] }),
   approveProposal: (...a: unknown[]) => (approveProposal as jest.Mock)(...a),

@@ -4345,6 +4345,8 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring);; }
   box-sizing:border-box; overflow:hidden; background:var(--white); color:var(--ink); border-radius:var(--r-card);
   box-shadow:var(--shadow-overlay); font-family:var(--font); }
 .wb2-mv:focus { outline:none; }
+/* full screen (bug 119): the screen's own edges, nothing floating */
+.wb2-mv:fullscreen { border-radius:0; box-shadow:none; }
 .wb2-mvtop { display:flex; align-items:center; gap:8px; min-width:0; }
 .wb2-mvwho { flex:1; min-width:0; display:flex; flex-direction:column; }
 .wb2-mvname { margin:0; min-width:0; font-size:20px; line-height:28px; font-weight:600; color:var(--ink); }
@@ -6706,6 +6708,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jst-rail .jpl-pages { align-self:stretch; display:grid; grid-template-columns:repeat(auto-fill, minmax(120px, 1fr)); gap:12px 8px; }
 .fg .jst-rail .jpl-page { width:auto; min-width:0; }
 .fg .jst-rail .jpl-page img { width:100%; height:auto; aspect-ratio:160 / 113; }
+.fg .jst-rail .jpl-page .jpl-pageopen { width:100%; }
 .fg .jst .jsc { max-width:none; }
 /* To do: a task's tick, and its words as the door to its own form (Isaac, 24 October 2026) */
 .fg .jov-task { justify-content:flex-start; align-items:flex-start; gap:8px; padding:8px 0; }
@@ -6941,6 +6944,28 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jc-convo > .jov-head .pt-vtab--look .pt-vtab-word::after,
 .fg .jc-convo > .jov-head .pt-vtab--wrong .pt-vtab-word::after { content:""; display:inline-block; width:8px; height:8px; margin-left:4px; border-radius:50%; background:var(--orange); vertical-align:2px; }
 .fg .jc-convo > .jov-head .pt-vtab--wrong .pt-vtab-word::after { background:var(--red); }
+/* A PERSON'S ACTIVITY (person-activity.tsx): the job feed's card on purple,
+   its pressed filter's word purple to match. A header's colour says what the
+   card is: grey a thing's facts, green a job's story, purple a person's
+   (Isaac, 26 November 2026, "1" of purple, black and pink). */
+.fg .jov .jov-sec.jc-convo.pp-feed { background:var(--purple-w); }
+.fg .jc-convo.pp-feed > .jov-head .pt-vtab[aria-pressed="true"] { color:var(--purple-w); }
+.fg .jc-convo.pp-feed > .jov-head .jc-filter { margin-left:auto; }
+/* their week in four figures over the days, a hairline between them */
+.fg .pp-figs { flex:none; display:grid; margin:0 -16px; border-bottom:1px solid var(--line); }
+.fg .pp-figs > div { min-width:0; padding:12px 16px; }
+.fg .pp-figs > div + div { box-shadow:inset 1px 0 var(--line); }
+.fg .pp-figs dt { font-size:13px; line-height:18px; color:var(--q); }
+.fg .pp-figs dd { margin:0; font-size:20px; line-height:28px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .pp-figs dd.pp-figsub { font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
+.fg .pp-figs dd.pp-over { color:var(--orange-w); }
+.fg .jc-evwords .pp-over { font-size:13px; line-height:18px; font-weight:600; color:var(--orange-w); }
+/* the job a row was on, its number its door, at the row's right */
+.fg .pp-job { flex:none; margin-left:auto; padding:4px 8px; margin-right:-8px; border-radius:var(--r-button); font-size:13px; line-height:18px; font-weight:600; color:var(--ink); text-decoration:none; transition:background-color var(--t-fast) var(--ease); }
+.fg .pp-job:hover { background:var(--hov); }
+.fg .pp-job:focus-visible { outline:none; box-shadow:var(--ring); }
+/* a note's words under its row, filled */
+.fg .pp-words { margin:0 0 4px calc(32px + 12px); padding:8px 12px; border-radius:var(--r-button); background:var(--sel); font-size:14px; line-height:20px; color:var(--ink); white-space:pre-line; overflow-wrap:anywhere; }
 .fg .jc-convo > .jc-body { display:flex; flex-direction:column; flex:1 1 auto; min-height:0; padding:0 16px 16px; border-radius:26px 26px 0 0; background:var(--paper); }
 /* the feed fades at both ends rather than stopping at a line: 24 fade out
    under its head and over its box, and 24 over its oldest item and under
@@ -7260,6 +7285,9 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .cv-text .tk-tbl th { font-size:12px; line-height:16px; font-weight:500; color:var(--q); background:transparent; border-bottom:1px solid var(--line); }
 .fg .cv-text .tk-tbl td { font-weight:400; }
 .fg .cv-aside { margin:0; font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
+/* READ OUT under her answer, and "Reading out" by her name while she does (Tiff speaks, 26 November 2026) */
+.fg .tf-doors { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
+.tf-reading { font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
 /* what she read: a card each, its dot, its name, a grey line and Open */
 .fg .cv-results { display:flex; flex-direction:column; gap:8px; margin:4px 0 0; padding:0; list-style:none; }
 /* the job Tiff proposes from a forwarded email (components/tiff/email-job-card,
@@ -7333,6 +7361,8 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .cv-save:disabled { opacity:.5; cursor:default; }
 /* "↑ waits until she's done" (6-revisions.md, "While Tiff works") */
 .fg .cv-send.cv-send--wait { opacity:.4; }
+/* TALK in the empty box, where ↑ stands until you type: the main button's blue, its glyph and its word (Tiff speaks, 26 November 2026) */
+.fg .cv-talk { display:inline-flex; align-items:center; gap:8px; padding:0 16px 0 12px; }
 /* speaking: the words on their own, then the bar */
 .fg .cv-speak { display:flex; flex-direction:column; gap:8px; }
 .fg .cv-live { min-height:24px; margin:0 4px; font-size:16px; line-height:24px; }
@@ -8675,7 +8705,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .tm2-head { display:flex; align-items:center; justify-content:space-between; gap:24px; }
 .fg .tm2-title { display:flex; align-items:baseline; gap:12px; min-width:0; }
 .fg .tm2-title h1 { margin:0; font-size:24px; line-height:32px; font-weight:600; color:var(--ink); }
-.fg .tm2-count { font-size:14px; line-height:20px; font-weight:400; color:var(--q); font-variant-numeric:tabular-nums; }
 .fg .tm2-headacts { display:flex; align-items:center; justify-content:flex-end; gap:12px; flex:1 1 auto; min-width:0; }
 .fg .tm2-search { position:relative; display:flex; align-items:center; flex:0 1 320px; min-width:0; }
 .fg .tm2-search-icon { position:absolute; left:12px; display:inline-flex; color:var(--q); pointer-events:none; }
@@ -8736,16 +8765,32 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    head with its quiet text door, label and value rows at 14, the sub-groups
    at 14/600. Today's forms open in place, in their own fields. */
 .fg .tm2-p { gap:24px; }
-.fg .tm2-phead { display:flex; align-items:center; gap:16px; }
-.fg .tm2-pid { display:flex; flex-direction:column; gap:4px; flex:1 1 auto; min-width:0; }
-.fg .tm2-pname { display:flex; align-items:baseline; gap:12px; min-width:0; flex-wrap:wrap; }
-.fg .tm2-pname h1 { margin:0; min-width:0; font-size:24px; line-height:32px; font-weight:600; color:var(--ink); }
+/* THE HEAD, A JOB'S (Isaac, 26 November 2026: "Take job card styling and
+   apply it to staff profile mock", then "Build it"): one white card on the
+   job page's grey, their photo or initials at 40, the name at 24, and one
+   line beside it, where they stand in its colour first; the tabs under it,
+   Actions at their end (job-page-head's `.jp-words` and `.jp-tabrow`). */
+.fg .main:has(.tm2-ov) { --jp-ground:color-mix(in srgb, var(--ink) 5%, var(--paper)); }
+.fg .main:has(.tm2-ov),
+.fg .main:has(.tm2-ov) .outlet,
+.fg .main:has(.tm2-ov) .topbar.fr-head { background:var(--jp-ground); }
+.fg .tm2-p:has(.tm2-ov) { padding-bottom:16px; }
+/* the card keeps its height in the head's column (on a job it sits in a
+   row, where `flex:1 1 0` is its width), and the photo's own margin and
+   padding from the old staff card go, so the card is 64 high */
+.fg .tm2-phead .jp-words { flex:none; gap:12px; }
+.fg .tm2-phead .tm2-photo { margin:0; padding:0; }
+.fg .tm2-pline { flex:1 1 auto; min-width:0; margin:0; font-size:14px; line-height:20px; color:var(--q); }
+.fg .tm2-pline b { font-weight:600; color:var(--ink); }
+.fg .tm2-pline b.tm2-on { color:var(--green-w); }
 .fg .tm2-photo { flex:0 0 auto; }
-.fg .tm2-photo .pphoto { width:56px; height:56px; border-radius:50%; }
+.fg .tm2-photo .pphoto { width:40px; height:40px; border-radius:50%; }
 .fg .tm2-photo .pphoto .inn { border-radius:50%; }
-.fg .tm2-photo .pphoto.nophoto, .fg .tm2-photo .pphoto.nophoto .inn { background:var(--sel); color:var(--ink); font-size:16px; line-height:24px; font-weight:600; }
-/* the tabs' pages: Overview's groups beside its rail; two columns; one */
-.fg .tm2-ov { display:grid; grid-template-columns:minmax(0,1fr) 360px; gap:48px; align-items:start; }
+.fg .tm2-photo .pphoto.nophoto, .fg .tm2-photo .pphoto.nophoto .inn { background:var(--q); color:var(--white); font-size:14px; line-height:20px; font-weight:600; }
+/* the tabs' pages: Overview's two cards, a job's (`.jov--fit`) with Details
+   at 400, so a phone number, an email and a relationship each keep a line;
+   two columns; one */
+.fg .jov.jov--fit.tm2-ov { grid-template-columns:400px minmax(0,1fr); }
 .fg .tm2-two { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:48px; align-items:start; }
 .fg .tm2-one { max-width:720px; }
 /* Access names its switches in the sidebar's words, some of them long */
@@ -8770,15 +8815,23 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .tm2-ic--pink { color:var(--pink-w); }
 /* the emergency contact: a card (rule 35, you call them), its title in red
    on his ruling, the name large, what's missing in amber */
-.fg .tm2-emerg { padding:16px; border:1px solid var(--edge); border-radius:var(--r-card); }
-.fg .tm2-p .tm2-emerg .pdlcard.psec-group { border-top:0; padding-top:0; }
-.fg .tm2-p .tm2-emerg .psec-group > .pdlh > span:first-child { color:var(--red-w); }
-.fg .tm2-ename { margin:8px 0; font-size:20px; line-height:28px; font-weight:600; color:var(--ink); }
-.fg .tm2-p .tm2-emerg .pdrow { grid-template-columns:112px minmax(0,1fr); }
-/* the rail's rows: a mark, what it is, where it stands, one button at most */
-.fg .tm2-facts { margin:24px 0 0; padding:0; list-style:none; }
-.fg .tm2-fact { display:grid; grid-template-columns:20px 96px minmax(0,1fr) auto; align-items:center; gap:8px; padding:12px 0; border-bottom:1px solid var(--line); }
-.fg .tm2-fact:first-child { border-top:1px solid var(--line); }
+/* DETAILS, A JOB'S AT A GLANCE (`.jfc`): each group a part of the card, its
+   head the part's label at 13 with its mark and its Edit, rows at 14 with
+   the label in a 112 column. In an emergency is a part like Contact, its
+   label in red, the person beside who they are to them (Isaac, 26 November
+   2026: "The emergency part looks a bit weird" of the red block). */
+.fg .tm2-details .jfc-part > * { align-self:stretch; }
+.fg .tm2-p .tm2-details .pdlcard.psec-group { border-top:0; padding-top:0; }
+.fg .tm2-p .tm2-details .psec-group > .pdlh { min-height:32px; margin:-4px 0 0; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.fg .tm2-p .tm2-details .psec-group .pdlh .tm2-ic { width:16px; height:16px; }
+.fg .tm2-p .tm2-details .psec-group .pdlh .tm2-ic svg { width:16px; height:16px; }
+.fg .tm2-p .tm2-details .pdrow { grid-template-columns:112px minmax(0,1fr); }
+.fg .tm2-p .tm2-emerg .psec-group > .pdlh > span:first-child { color:var(--red-w); font-weight:600; }
+.fg .tm2-ename { margin:0; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+/* the rows of facts: a mark, what it is, where it stands, one button at most */
+.fg .tm2-facts { margin:0; padding:0; list-style:none; }
+.fg .tm2-fact { display:grid; grid-template-columns:20px 96px minmax(0,1fr) auto; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid var(--line); }
+.fg .tm2-fact:last-child { border-bottom:0; }
 .fg .tm2-fact-k { font-size:14px; line-height:20px; color:var(--q); }
 .fg .tm2-fact-v { display:flex; flex-direction:column; min-width:0; }
 .fg .tm2-fact-w { font-size:14px; line-height:20px; color:var(--ink); }
@@ -8829,7 +8882,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .tm2-dow:focus-visible { outline:none; box-shadow:var(--ring); }
 .fg .tm2-formacts { display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
 @media (max-width:900px) {
-  .fg .tm2-ov, .fg .tm2-two { grid-template-columns:minmax(0,1fr); gap:32px; }
+  .fg .jov.jov--fit.tm2-ov, .fg .tm2-two { grid-template-columns:minmax(0,1fr); gap:32px; }
 }
 @media print {
   .fg .tm2-p .jumpb, .fg .tm2-phead .pt-btn { display:none; }
@@ -8961,6 +9014,22 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .tc-dots i:nth-child(3) { animation-delay:.4s; }
 @keyframes tcDots { 0%, 80%, 100% { opacity:.25; } 40% { opacity:1; } }
 @media (prefers-reduced-motion:reduce) { .tc-dots i { animation:none; opacity:.6; } }
+/* TALKING TO TIFF (components/tiff/talk; Tiff speaks, 26 November 2026, board 3
+   of https://claude.ai/artifact/2vtUgVFZHbJf5gamXZZBPm). In a dialog, so on
+   <body> and unscoped: her mark at 96 over the word for what she's doing, the
+   talk so far under it, newest at the foot, then the blue wave in the box's
+   own bar, or "Your microphone is off". */
+.tlk { display:flex; flex-direction:column; gap:16px; }
+.tlk-face { display:flex; flex-direction:column; align-items:center; gap:12px; padding:8px 0 0; }
+.tlk-word { display:flex; align-items:center; gap:8px; margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+.tlk-turns { display:flex; flex-direction:column; gap:12px; min-height:120px; max-height:40vh; overflow-y:auto; }
+.tlk-you { align-self:flex-end; max-width:80%; margin:0; padding:8px 12px; border-radius:16px; background:var(--bubble-them); color:var(--ink); font-size:16px; line-height:24px; white-space:pre-line; overflow-wrap:anywhere; }
+.tlk-you--live { color:var(--q); font-style:italic; }
+.tlk-tiff { display:flex; flex-direction:column; gap:8px; }
+.tlk-tiff p { margin:0; font-size:16px; line-height:24px; color:var(--ink); white-space:pre-line; overflow-wrap:anywhere; }
+.tlk-steps { display:flex; flex-direction:column; gap:4px; margin:0; padding:0; list-style:none; font-size:13px; line-height:18px; color:var(--q); }
+.tlk-bar { min-height:52px; }
+.tlk-off { flex:1 1 auto; padding:0 12px; font-size:14px; line-height:20px; color:var(--q); }
 
 /* EDIT CUSTOMER (job-customer-dialog), the v2 dialog (Isaac, 25 October
    2026): fields with their labels above, each contact a card (rule 35) with
@@ -9116,6 +9185,9 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jpl-page img { display:block; width:160px; height:113px; object-fit:cover; border:1px solid var(--edge); border-radius:var(--r-control); background:var(--white); }
 .fg .jpl-page > span { font-size:12px; line-height:16px; font-weight:500; color:var(--q); }
 .fg .jpl-page .pt-btn { align-self:flex-start; margin-top:4px; }
+/* a page's picture opens it big (bug 119): the picture is the button */
+.fg .jpl-page .jpl-pageopen { display:block; margin:0; padding:0; border:0; background:none; border-radius:var(--r-control); cursor:zoom-in; }
+.fg .jpl-page .jpl-pageopen:focus-visible { outline:none; box-shadow:var(--ring); }
 /* under a set she isn't sure of: its pages, then Choose floors */
 .fg .jpl-below { display:flex; flex-direction:column; align-items:flex-start; gap:12px; position:relative; z-index:var(--z-raised); }
 /* the bar under a plan Tiff is reading: its words, then how far, the row's width */
@@ -9145,6 +9217,32 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 /* SET SCALE (14 November 2026): the page, the two ends pressed on it, and
    the length typed. The dots keep their size whatever the page's; the line
    and the dots are the press colour, as the button that saves them is. */
+/* CHECK THE READ, ONE QUESTION AT A TIME (check-read-dialog.tsx; Isaac, 26
+   November 2026: "make check the read workflow smooth"): the question, the
+   pages it's about big with their sheet titles, the answers as buttons with
+   what each does beside them, as the quote's questions are */
+.pt-dialog .ckr { display:flex; flex-direction:column; gap:16px; }
+.pt-dialog .ckr-said { display:flex; flex-direction:column; gap:4px; }
+.pt-dialog .ckr-q { margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+.pt-dialog .ckr-why { margin:0; font-size:14px; line-height:20px; color:var(--q); }
+.pt-dialog .ckr-pages { display:grid; gap:16px; }
+.pt-dialog .ckr-pages--1 { grid-template-columns:minmax(0, 620px); justify-content:center; }
+.pt-dialog .ckr-pages--2 { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+.pt-dialog .ckr-pages--3 { grid-template-columns:repeat(3, minmax(0, 1fr)); }
+.pt-dialog .ckr-page { display:flex; flex-direction:column; gap:4px; min-width:0; margin:0; }
+.pt-dialog .ckr-open { display:block; width:100%; margin:0; padding:0; border:0; background:none; border-radius:var(--r-control); cursor:zoom-in; }
+.pt-dialog .ckr-open:focus-visible { outline:none; box-shadow:var(--ring); }
+.pt-dialog .ckr-open img, .pt-dialog .ckr-blank { display:block; box-sizing:border-box; width:100%; height:auto; aspect-ratio:2400 / 1697; object-fit:contain; border:1px solid var(--edge); border-radius:var(--r-control); background:var(--white); }
+.pt-dialog .ckr-cap { display:flex; gap:8px; font-size:13px; line-height:18px; font-weight:500; color:var(--ink); }
+.pt-dialog .ckr-cap span { font-weight:400; color:var(--q); }
+.pt-dialog .ckr-answers { display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
+.pt-dialog .ckr-answer { display:flex; align-items:center; gap:12px; }
+.pt-dialog .ckr-answer .pt-btn { min-width:280px; justify-content:flex-start; }
+.pt-dialog .ckr-does { font-size:13px; line-height:18px; color:var(--q); }
+/* a page pressed, at its full size: read its title block or its rooms, and move about it */
+.pt-dialog .ckr-look { max-height:calc(100vh - 320px); overflow:auto; border:1px solid var(--edge); border-radius:var(--r-control); background:var(--white); }
+.pt-dialog .ckr-look img { display:block; max-width:none; }
+.pt-dialog .ckr-count { margin-right:auto; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
 .pt-dialog .jpl-scale { display:flex; flex-direction:column; gap:16px; }
 .pt-dialog .jpl-scale-page { display:flex; align-items:center; justify-content:center; align-self:center; min-height:120px; max-width:100%; border:1px solid var(--edge); border-radius:var(--r-control); background:var(--white); overflow:hidden; }
 .pt-dialog .jpl-scale-page svg { display:block; width:100%; height:100%; cursor:crosshair; touch-action:none; user-select:none; }
@@ -9288,7 +9386,8 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 /* REPORT BUG (Your name, for the owner; components/shell/report-bug). The
    dialog portals to <body>, so these are one class each. The picture that
    goes with the bug, whole, its edge the line and the button's 10 corner. */
+/* the picture gives way on a short window, so What's wrong? is never under the foot (bug 115) */
 .rb-body { display:flex; flex-direction:column; gap:16px; }
 .rb-shot { display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
-.rb-pic { display:block; max-width:100%; max-height:320px; width:auto; height:auto; box-sizing:border-box; border:1px solid var(--line); border-radius:10px; background:var(--white); }
+.rb-pic { display:block; max-width:100%; max-height:min(320px, 40vh); width:auto; height:auto; box-sizing:border-box; border:1px solid var(--line); border-radius:10px; background:var(--white); }
 .rb-none { margin:0; font-size:14px; line-height:20px; color:var(--q); }

@@ -2,6 +2,7 @@ import { revalidateHome } from "@/lib/shell/revalidate-home";
 import { addOwnTask } from "@/lib/dashboard/task-actions";
 import { ok, requireMobile } from "@/lib/mobile/auth";
 import { phoneActor, phoneTasks } from "@/lib/mobile/tasks";
+import { cardGaps } from "@/lib/mobile/card-gaps";
 
 /* YOUR TO DO, from the phone's Today: your open tasks (GET), and a task for
    yourself (POST), as Save on the web's Home makes one, with a due date
@@ -15,8 +16,10 @@ export async function GET(request: Request) {
   const ctx = await requireMobile(request);
   if (ctx instanceof Response) return ctx;
   const actor = await phoneActor(ctx);
-  if (!actor?.staffId) return ok({ tasks: [] });
-  return ok({ tasks: await phoneTasks(ctx.orgId, actor.staffId) });
+  if (!actor?.staffId) return ok({ tasks: [], card: [] });
+  /* beside the tasks, what your own card still wants (lib/mobile/card-gaps): a read that fails leaves it out */
+  const [tasks, card] = await Promise.all([phoneTasks(ctx.orgId, actor.staffId), cardGaps(ctx.orgId, actor.staffId).catch(() => [])]);
+  return ok({ tasks, card });
 }
 
 export async function POST(request: Request) {

@@ -92,6 +92,8 @@ export type LinesView = {
   me: string;
   /** each checked part against its system's outdoor unit (fit.ts) */
   fits?: Fit[];
+  /** each unit line's cooling kW off its maker's pack, else its book name (fit-server.ts coolingOf) */
+  coolKw?: Record<string, number>;
   /** the option the client took, marked by a person (lines-job.ts) */
   accepted?: number[];
   /** changes after it was accepted, each an option of its own (lines-job.ts) */
@@ -1022,6 +1024,7 @@ export function QuoteLinesFace({
                     proposal={view?.proposal ?? null}
                     /* the quote's own options: a variation is its own paper */
                     lines={all.filter((l) => !(view?.variations ?? []).some((v) => v.option === l.optionIndex))}
+                    coolKw={view?.coolKw ?? null}
                     price={price}
                     optionNames={view?.optionNames ?? []}
                     noteLibrary={view?.noteLibrary ?? []}

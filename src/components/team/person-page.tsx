@@ -1,6 +1,8 @@
 "use client";
 
-import { useContext, useEffect, useRef, useState, useTransition } from "react";
+import { useContext, useEffect, useRef, useState, useTransition, type CSSProperties } from "react";
+import { Icon } from "@/components/shell/icon";
+import { useFitHeight } from "@/components/jobs/use-fit-height";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/parts/button";
@@ -28,6 +30,8 @@ import { PermissionsCard } from "@/components/profile/permissions-card";
 import { NotesCard } from "@/components/profile/notes-card";
 import type { AssignedVehicle, PayFields, PermissionsCtx, ProfileActions, ProfileHeader } from "@/components/profile/types";
 import { PersonForm } from "@/components/team/person-form";
+import { PersonActivity } from "@/components/team/person-activity";
+import type { PersonActivity as Activity } from "@/lib/team/person-activity";
 import { RegularDaysOffForm } from "@/components/making/regular-days-off-form";
 import { saveStaffSection } from "@/app/actions/staff";
 import { deleteStaffCard } from "@/app/actions/members";
@@ -55,9 +59,16 @@ import type { StoredDocument } from "@/lib/documents/query";
    Then section tabs (rule 31), no counts: a tab with something to look at
    has its word in amber, red when something is wrong.
 
-     Overview       Name, Contact, Employment, Uniform, Notes about them;
-                    beside them the emergency contact, then one row each for
-                    licences, work rights, the vehicle, the week and leave
+     Overview       IN THE JOB PAGE'S DRESS (Isaac, 26 November 2026: "Take
+                    job card styling and apply it to staff profile mock", then
+                    "1" for the person's own feed and "1" for purple): the
+                    head is a white card on the job page's grey, and the tab
+                    is its two cards. Details on the grey head: Contact, In
+                    an emergency, Employment, one row each for licences, work
+                    rights, the vehicle, the week and leave, then Name,
+                    Uniform and Notes about them. Beside it Activity on a
+                    purple head (person-activity.tsx): their week in four
+                    figures, then what they did, day by day.
      Hours & leave  Normal week, Leave, Regular days off
      Papers         Licences and tickets, Work rights, Qualifications,
                     Signature (yours only)
@@ -129,6 +140,8 @@ export type PersonPageData = {
   /** `team`, setLeaveBalance's gate */
   canSetBalances: boolean;
   regularDaysOff: RegularDayOff[];
+  /** the Overview's feed: what they did, day by day, and their week */
+  activity: Activity;
   deletable: boolean;
   inviteRoles: string[];
   /** `?tab=`: the tab to open on */
@@ -562,6 +575,26 @@ function Fact({
   );
 }
 
+/** One of the Personal card's parts on the Overview, a group with its mark. */
+function PersonalPart({ part, data, actions }: { part: PersonalPart; data: PersonPageData; actions: ProfileActions }) {
+  const [, title, icon] = PARTS.find(([p]) => p === part)!;
+  return (
+    <PersonalCard
+      only={part}
+      group={{ title, lead: <GroupIcon name={icon[0]} hue={icon[1]} /> }}
+      profile={data.profile}
+      mode="admin"
+      email={data.header.email}
+      addressLookup={data.addressLookup}
+      today={data.today}
+      orgState={data.orgState}
+      aliases={data.aliases}
+      onSaveAliases={part === "name" ? actions.onSaveAliases : undefined}
+      onSave={actions.onSave}
+    />
+  );
+}
+
 /* ── the page ── */
 
 export function PersonPage({ data, actions }: { data: PersonPageData; actions: ProfileActions }) {
@@ -582,6 +615,8 @@ export function PersonPage({ data, actions }: { data: PersonPageData; actions: P
     const want = (TAB_KEYS as readonly string[]).includes(data.initialTab ?? "") ? (data.initialTab as TabKey) : (data.initialSec && SEC_TAB[data.initialSec]) || "overview";
     return want === "pay" && !hasPay ? "overview" : want;
   });
+  /* The Overview's two cards fit the screen and scroll inside, as a job's do */
+  const [fitRef, fitH] = useFitHeight<HTMLDivElement>(undefined, tab);
 
   /* A door that names a group (`?sec=licences`, `?sec=workrights`: Home's
      list) opens its tab and brings the group into view. */
@@ -636,7 +671,6 @@ export function PersonPage({ data, actions }: { data: PersonPageData; actions: P
   const role = header.role && header.role !== "—" ? header.role : null;
   const since = header.started !== "—" ? `with you since ${header.started}` : null;
   const line = [role, since].filter(Boolean).join(", ");
-  const sentence = line ? line.charAt(0).toUpperCase() + line.slice(1) : null;
   const first = firstOf(header.nickname || header.name);
 
   const lic = licencesFact(data.licences, data.today, data.warnDays);
@@ -663,130 +697,154 @@ export function PersonPage({ data, actions }: { data: PersonPageData; actions: P
 
   return (
     <div className="tm2 tm2-p">
-      <header className="tm2-phead">
-        <div className="pident tm2-photo">
-          <PhotoBadge photoUrl={header.photoUrl} initials={header.initials} name={header.name} onSet={actions.onSetPhoto} onClear={actions.onClearPhoto} />
-        </div>
-        <div className="tm2-pid">
-          <div className="tm2-pname">
-            <h1>
-              <Fade>{header.name}</Fade>
-            </h1>
-            {sentence && <span className="tm2-count">{sentence}</span>}
+      {/* THE HEAD, A JOB'S: one white card, their photo or initials, the
+          name, and one line beside it, where they stand first, then what
+          they do and since when. The tabs under it, Actions at their end. */}
+      <header className="jp-head tm2-phead">
+        <div className="jp-words">
+          <div className="pident tm2-photo">
+            <PhotoBadge photoUrl={header.photoUrl} initials={header.initials} name={header.name} onSet={actions.onSetPhoto} onClear={actions.onClearPhoto} />
           </div>
-          {!active ? (
-            <StateWord tone="info">Left the team</StateWord>
-          ) : unclaimed ? (
-            <StateWord tone="info">{header.importedFrom ? `From ${header.importedFrom}, hasn't joined yet` : "Hasn't joined yet"}</StateWord>
-          ) : null}
+          <h1 className="jp-name">
+            <Fade>{header.name}</Fade>
+          </h1>
+          <p className="tm2-pline">
+            <b className={active && !unclaimed ? "tm2-on" : undefined}>
+              {!active ? "Left the team" : unclaimed ? (header.importedFrom ? `From ${header.importedFrom}, hasn't joined yet` : "Hasn't joined yet") : "Active"}
+            </b>
+            {line && <>, {line}</>}
+          </p>
         </div>
-        <Button ref={actRef} kind="second" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>
-          Actions
-        </Button>
-        <Menu
-          anchor={actRef}
-          open={menu}
-          onClose={() => setMenu(false)}
-          onSelect={(key) => {
-            setMenu(false);
-            onAction(key);
-          }}
-          items={items}
-          label={`Actions on ${header.name}`}
-          align="end"
-        />
+
+        {error && (
+          <p className="tm2-err" role="alert">
+            <Dot hue="red" />
+            {error}
+          </p>
+        )}
+
+        <div className="jp-tabrow">
+          <SectionTabs ariaLabel={`${header.name}'s page`} items={tabs} current={tab} onGo={(k) => setTab(k as TabKey)} idPrefix="tm2-tab" panelPrefix="tm2-panel" />
+          <div className="jp-acts">
+            <Button ref={actRef} kind="second" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>
+              Actions
+              <span className="jp-chev" aria-hidden="true">
+                <Icon name="chevD" size={16} />
+              </span>
+            </Button>
+            <Menu
+              anchor={actRef}
+              open={menu}
+              onClose={() => setMenu(false)}
+              onSelect={(key) => {
+                setMenu(false);
+                onAction(key);
+              }}
+              items={items}
+              label={`Actions on ${header.name}`}
+              align="end"
+            />
+          </div>
+        </div>
       </header>
 
-      {error && (
-        <p className="tm2-err" role="alert">
-          <Dot hue="red" />
-          {error}
-        </p>
-      )}
-
-      <SectionTabs ariaLabel={`${header.name}'s page`} items={tabs} current={tab} onGo={(k) => setTab(k as TabKey)} idPrefix="tm2-tab" panelPrefix="tm2-panel" />
-
       {tab === "overview" && (
-        <div className="tm2-ov" role="tabpanel" id="tm2-panel-overview" aria-labelledby="tm2-tab-overview">
-          <div className="tm2-col" id="tm2-sec-personal">
-            {PARTS.map(([part, title, icon]) => (
-              <PersonalCard
-                key={part}
-                only={part}
-                group={{ title, lead: <GroupIcon name={icon[0]} hue={icon[1]} /> }}
-                profile={profile}
-                mode="admin"
-                email={header.email}
-                addressLookup={data.addressLookup}
-                today={data.today}
-                orgState={data.orgState}
-                aliases={data.aliases}
-                onSaveAliases={part === "name" ? actions.onSaveAliases : undefined}
-                onSave={actions.onSave}
-              />
-            ))}
-            {data.notes && (
-              <div id="tm2-sec-notes">
-                <NotesCard
-                  group={{ title: `Notes about ${first}`, editLabel: "Edit note", lead: <GroupIcon name="note" hue="grey" /> }}
-                  notes={data.notes}
-                  onSave={actions.onSave}
-                />
+        <div
+          className="jov jov--fit tm2-ov"
+          ref={fitRef}
+          style={fitH == null ? undefined : ({ "--fit-h": `${fitH}px` } as CSSProperties)}
+          role="tabpanel"
+          id="tm2-panel-overview"
+          aria-labelledby="tm2-tab-overview"
+        >
+          <div className="jov-left">
+            {/* DETAILS, A JOB'S AT A GLANCE: the grey head, the white body
+                curling into it, a part for each group, each its own Edit */}
+            <div className="jfc tm2-details" role="group" aria-label={`${first}'s details`}>
+              <div className="jfc-head">
+                <Icon name="user" size={18} />
+                <h2 className="jfc-title">Details</h2>
               </div>
-            )}
-          </div>
-          <aside className="tm2-rail" aria-label={`${first} at a glance`}>
-            <div className="tm2-emerg" id="tm2-sec-emergency">
-              <EmergencyCard
-                rail
-                group={{ title: "Emergency contact", lead: <GroupIcon name="aid" hue="red" /> }}
-                profile={profile}
-                mode="admin"
-                org={data.org}
-                onSave={actions.onSave}
-              />
+              <div className="jfc-body">
+                <div className="jfc-part" id="tm2-sec-personal">
+                  <PersonalPart part="contact" data={data} actions={actions} />
+                </div>
+                <div className="jfc-part tm2-emerg" id="tm2-sec-emergency">
+                  <EmergencyCard
+                    rail
+                    group={{ title: "In an emergency", lead: <GroupIcon name="aid" hue="red" /> }}
+                    profile={profile}
+                    mode="admin"
+                    org={data.org}
+                    onSave={actions.onSave}
+                  />
+                </div>
+                <div className="jfc-part">
+                  <PersonalPart part="employment" data={data} actions={actions} />
+                </div>
+                <div className="jfc-part">
+                  <ul className="tm2-facts">
+                    <Fact icon={["card", "orange"]} label="Licences" tone={lic.word} value={lic.value} sub={lic.sub} />
+                    <Fact icon={["passport", "green"]} label="Work rights" tone={rights.word} value={rights.value} sub={rights.sub} />
+                    <Fact
+                      icon={["truck", "grey"]}
+                      label="Drives"
+                      value={
+                        car ? (
+                          <Link className="tm2-link" href={vehiclePageHref(car.id)}>
+                            {[car.model || car.name || car.make, car.plate].filter(Boolean).join(" ")}
+                          </Link>
+                        ) : (
+                          "No vehicle"
+                        )
+                      }
+                      sub={car ? [car.motorised ? `${car.odometer.toLocaleString("en-AU")} km` : null, nextService].filter(Boolean).join(", ") || null : null}
+                    />
+                    <Fact
+                      icon={["clock", "purple"]}
+                      label="Normal week"
+                      value={`${data.week.weekHours != null ? `${hrs(data.week.weekHours)} h, ` : ""}${daysWord(data.week.days)}`}
+                      sub={`${clock(data.week.start)} to ${clock(data.week.end)}`}
+                    />
+                    {data.leave && (
+                      <Fact
+                        icon={["sun", "yellow"]}
+                        label="Leave"
+                        tone={leaveSet ? undefined : "look"}
+                        value={leaveSet ? `${hrs(data.leave.annual!.available)} h annual` : "Balances not set"}
+                        sub={leaveSet ? `${hrs(data.leave.personal!.available)} h personal` : data.leave.coming.length ? null : "Nothing booked"}
+                        action={
+                          !leaveSet && data.canSetBalances ? (
+                            <Button kind="second" size={32} onClick={() => setTab("hours")}>
+                              Set
+                            </Button>
+                          ) : undefined
+                        }
+                      />
+                    )}
+                  </ul>
+                </div>
+                <div className="jfc-part">
+                  <PersonalPart part="name" data={data} actions={actions} />
+                </div>
+                <div className="jfc-part">
+                  <PersonalPart part="uniform" data={data} actions={actions} />
+                </div>
+                {data.notes && (
+                  <div className="jfc-part" id="tm2-sec-notes">
+                    <NotesCard
+                      group={{ title: `Notes about ${first}`, editLabel: "Edit note", lead: <GroupIcon name="note" hue="grey" /> }}
+                      notes={data.notes}
+                      onSave={actions.onSave}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
-            <ul className="tm2-facts">
-              <Fact icon={["card", "orange"]} label="Licences" tone={lic.word} value={lic.value} sub={lic.sub} />
-              <Fact icon={["passport", "green"]} label="Work rights" tone={rights.word} value={rights.value} sub={rights.sub} />
-              <Fact
-                icon={["truck", "grey"]}
-                label="Drives"
-                value={
-                  car ? (
-                    <Link className="tm2-link" href={vehiclePageHref(car.id)}>
-                      {[car.model || car.name || car.make, car.plate].filter(Boolean).join(" ")}
-                    </Link>
-                  ) : (
-                    "No vehicle"
-                  )
-                }
-                sub={car ? [car.motorised ? `${car.odometer.toLocaleString("en-AU")} km` : null, nextService].filter(Boolean).join(", ") || null : null}
-              />
-              <Fact
-                icon={["clock", "purple"]}
-                label="Normal week"
-                value={`${data.week.weekHours != null ? `${hrs(data.week.weekHours)} h, ` : ""}${daysWord(data.week.days)}`}
-                sub={`${clock(data.week.start)} to ${clock(data.week.end)}`}
-              />
-              {data.leave && (
-                <Fact
-                  icon={["sun", "yellow"]}
-                  label="Leave"
-                  tone={leaveSet ? undefined : "look"}
-                  value={leaveSet ? `${hrs(data.leave.annual!.available)} h annual` : "Balances not set"}
-                  sub={leaveSet ? `${hrs(data.leave.personal!.available)} h personal` : data.leave.coming.length ? null : "Nothing booked"}
-                  action={
-                    !leaveSet && data.canSetBalances ? (
-                      <Button kind="second" size={32} onClick={() => setTab("hours")}>
-                        Set
-                      </Button>
-                    ) : undefined
-                  }
-                />
-              )}
-            </ul>
-          </aside>
+          </div>
+          <div className="jov-side">
+            <PersonActivity activity={data.activity} first={first} />
+          </div>
         </div>
       )}
 

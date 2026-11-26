@@ -50,6 +50,21 @@ describe("a unit's type and part", () => {
     expect(capacityOf("Indoor Unit - wireless R/C", "MSZ-AP25VGD2-A1")).toBe(2.5);
   });
 
+  /* job 3608, 26 November 2026: the proposal's unit table undersold every
+     City Multi head and the PUMY, read off the code's number */
+  it("takes what the maker's pack says first, and never reads a City Multi's or a PUMY's index as its kW", () => {
+    expect(capacityOf("Indoor unit, Master Bed 4", "PEFY-P25VMX-E1", 2.8)).toBe(2.8);
+    expect(capacityOf("Outdoor unit", "PUMY-SP140VKMD2-A", 15.5)).toBe(15.5);
+    expect(capacityOf("Indoor unit, Master Bed 4", "PEFY-P25VMX-E1")).toBeNull();
+    expect(capacityOf("Outdoor unit", "PUMY-SP140VKMD2-A")).toBeNull();
+    expect(capacityOf("Indoor unit", "PLFY-M25VEM6-A")).toBeNull();
+    /* a split's number is its kW, and the pack still comes first */
+    expect(capacityOf("Indoor unit, Study", "MSZ-AP25VGD2-A1")).toBe(2.5);
+    expect(capacityOf("Indoor unit, Study", "MSZ-AP25VGD2-A1", 2.5)).toBe(2.5);
+    expect(capacityOf("Ducted 7.1kW", "PEFY-P71VMA-E4")).toBe(7.1);
+    expect(capacityOf("Ducted 7.1kW", "PEFY-P71VMA-E4", 8)).toBe(8);
+  });
+
   it("names a unit's family by its type and part, in the types' order", () => {
     const wallIn = unitFamilyOf("FUJITSU LIFESTYLE R/C HWS IND 2.5KW");
     const ductOut = unitFamilyOf("FUJITSU DUCTED OUT 12.5KW 1PH R32");

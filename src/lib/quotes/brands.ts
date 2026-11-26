@@ -138,11 +138,28 @@ export function unitPartOf(name: string, code = ""): UnitPart | null {
   return null;
 }
 
-/** A unit's capacity in kW: from its name ("7.1KW"), else from its maker's
-    code ("PEA-M100…" is 10 kW, "MSZ-AP25…" 2.5 kW). Null when neither says. */
-export function capacityOf(name: string, code = ""): number | null {
+/** The kW a name says: "7.1KW", "2.8kW C/M Compact…". */
+export function kwInName(name: string): number | null {
   const kw = name.match(/(\d+(?:\.\d+)?)\s*kW\b/i);
-  if (kw) return Number(kw[1]);
+  return kw ? Number(kw[1]) : null;
+}
+
+/* A City Multi's or a PUMY's number is its capacity index, not its kW: the
+   PEFY-P25VMX cools 2.8 kW and the PUMY-SP140 15.5 (job 3608, 26 November
+   2026: every unit on its proposal undersold) */
+const INDEX_CODE = /^(PEFY|PLFY|PKFY|PCFY|PMFY|PFFY|PDFY|PUMY|PUHY|PURY|PQHY|PQRY|CMB|PWFY)-/i;
+
+/** A unit's cooling capacity in kW: what its maker's data pack says
+    (`known`, the server's read of the pack, else the price book's name for
+    it), else the kW in its name ("7.1KW"), else its maker's code where its
+    number is its kW ("PEA-M100…" is 10 kW, "MSZ-AP25…" 2.5 kW), never a
+    City Multi's or a PUMY's, whose number is an index. Null when nothing
+    says. */
+export function capacityOf(name: string, code = "", known?: number | null): number | null {
+  if (known != null && Number.isFinite(known) && known > 0) return known;
+  const kw = kwInName(name);
+  if (kw != null) return kw;
+  if (INDEX_CODE.test(code.trim())) return null;
   const m = code.match(/^[A-Z]+-[A-Z]*?(\d{2,3})(?!\d)/i);
   return m ? Number(m[1]) / 10 : null;
 }

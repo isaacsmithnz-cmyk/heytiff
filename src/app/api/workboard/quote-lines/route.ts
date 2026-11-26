@@ -4,7 +4,7 @@ import { resolveJobCard } from "@/lib/workboard/all-jobs-query";
 import { addLine, changeLine, copyOption, namesBySignIn, readChanges, readEngine, readLines, removeLine, setEngine, undoChange } from "@/lib/quotes/lines-server";
 import { addKit } from "@/lib/quotes/kits-server";
 import { packMakers } from "@/lib/quotes/lookups-server";
-import { linesFit } from "@/lib/quotes/fit-server";
+import { coolingOf, linesFit } from "@/lib/quotes/fit-server";
 import { normaliseKitFacts } from "@/lib/quotes/kits";
 import { approveProposal, unapproveProposal, markAccepted, markVariation, nameOption, readByHand, saveProposal, setLoading, setNoDesign, setSupplier, startVariation, startVersion } from "@/lib/quotes/lines-job-server";
 import { readJobDesigns } from "@/lib/studio/job-designs-server";
@@ -78,9 +78,10 @@ async function view(orgId: string, jobUuid: string, userId: string, money = true
   /* the business's own task hours, beside each option's (slice 8.1) */
   const options = Math.max(0, ...lines.map((l) => l.optionIndex + 1));
   const tasks = Array.from({ length: options }, (_, i) => taskCheck(lines.filter((l) => l.optionIndex === i), settings.taskHours, day.hours?.hours ?? null));
-  const [names, fits] = await Promise.all([
+  const [names, fits, coolKw] = await Promise.all([
     namesBySignIn(orgId, [...changes.map((c) => c.madeBy), ...lines.map((l) => l.updatedBy), userId, ...(byHand.proposal?.approvedBy ? [byHand.proposal.approvedBy] : [])]),
     linesFit(lines, orgId).catch(() => []),
+    coolingOf(lines, orgId).catch((): Record<string, number> => ({})),
   ]);
   return {
     ok: true as const,
@@ -92,6 +93,8 @@ async function view(orgId: string, jobUuid: string, userId: string, money = true
     names,
     me: userId,
     fits,
+    /* each unit's cooling kW off its maker's pack, for the proposal's unit table */
+    coolKw,
     accepted: byHand.accepted,
     optionNames: byHand.names,
     loading: byHand.loading,

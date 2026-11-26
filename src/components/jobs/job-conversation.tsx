@@ -6,6 +6,7 @@ import { Fade } from "@/components/parts/fade";
 import { StateWord, type Tone } from "@/components/parts/state";
 import { Icon } from "@/components/shell/icon";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
+import { ReadOut, ReadingWord, readKey, useIsReading } from "@/components/tiff/read-out";
 import { appendSpoken, useDictation } from "@/components/notes/dictation";
 import { CvBox } from "@/components/conversations/box";
 import {
@@ -947,18 +948,35 @@ const Spoken = () => (
 
 /** One of Tiff's turns: her mark and her name, her words with no bubble,
     then whatever she made and the time. */
-function TiffTurn({ when, working = false, doors = null, children }: { when: string; working?: boolean; doors?: ReactNode; children: ReactNode }) {
+function TiffTurn({
+  when,
+  working = false,
+  doors = null,
+  say = null,
+  children,
+}: {
+  when: string;
+  working?: boolean;
+  doors?: ReactNode;
+  /** Her words, for Read out beside the time (Tiff speaks, 26 November 2026). */
+  say?: { id: string; text: string } | null;
+  children: ReactNode;
+}) {
+  const reading = useIsReading(say?.id ?? "");
+  const readable = !!say && say.text.trim() !== "";
   return (
     <article className="jc-tiffturn">
       <p className="jc-tiffname">
-        <TiffGlyph size={18} working={working} />
+        <TiffGlyph size={18} working={working || reading} />
         <b>Tiff</b>
+        {reading && <ReadingWord />}
       </p>
       {children}
-      {(when || doors) && (
+      {(when || doors || readable) && (
         <p className="jc-bmtime jc-bmmeta">
           {when && <span>{when}</span>}
           {doors}
+          {readable && <ReadOut door id={say.id} text={say.text} />}
         </p>
       )}
     </article>
@@ -1067,6 +1085,7 @@ function Replies({ talk, who, mine }: { talk: JobNoteTalk; who: string; mine: bo
           <TiffTurn
             key={i}
             when={when}
+            say={{ id: `job-note:${talk.id}:${i}`, text: r.text }}
             doors={
               i === last && openChat ? (
                 <button type="button" className="jc-bmdoor" onClick={() => openChat(talk)}>
@@ -1161,7 +1180,7 @@ function LiveTiff({
     : [];
   const quick = asking ? (turn.quick ?? []) : [];
   return (
-    <TiffTurn when={when}>
+    <TiffTurn when={when} say={turn.streaming ? null : { id: readKey(turn.key), text: turn.text }}>
       {turn.text && (
         <div className="cv-text">
           <p>{turn.text}</p>

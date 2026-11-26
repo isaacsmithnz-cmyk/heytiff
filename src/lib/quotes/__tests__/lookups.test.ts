@@ -169,6 +169,15 @@ describe("a unit, from its maker's data pack", () => {
     expect(some.found && [some.specs.breakerA, some.specs.minCableMm2]).toEqual([20, null]);
   });
 
+  /* job 3608's units: the proposal's Cooling is the pack's, whatever suffix the order code wears */
+  it("reads a City Multi head's, a PUMY's and a split's cooling off the pack, through the code's suffix", () => {
+    const cool = (code: string) => {
+      const u = unitSpecs(packs, "mitsubishi-electric", code);
+      return u.found ? u.specs.coolKw : null;
+    };
+    expect(["PUMY-SP140VKMD2-A", "PEFY-P80VMA-E4", "PEFY-P71VMA-E4", "PEFY-P25VMX-E1", "PEFY-P20VMX-E1", "MSZ-AP25VGD2"].map(cool)).toEqual([15.5, 9, 8, 2.8, 2.2, 2.5]);
+  });
+
   it("reads an order code the pack doesn't name through the business's confirmed link, saying so", () => {
     expect(unitSpecs(packs, "mitsubishi-electric", "MSZ-AP35VGKD2-A2")).toEqual({ found: false, reason: "not in the pack" });
     expect(unitSpecs(packs, "mitsubishi-electric", "MSZ-AP35VGKD2-A2", links)).toMatchObject({ found: true, linkedFrom: "MSZ-AP35VGKD2-A2", specs: { role: "indoor", model: "MSZ-AP35VGD2" } });

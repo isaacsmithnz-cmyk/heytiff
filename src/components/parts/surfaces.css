@@ -61,9 +61,13 @@
 .pt-dialog .pt-dialog-headwords { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .pt-dialog .pt-dialog-under { margin: 0; font-size: 14px; line-height: 20px; font-weight: 400; color: var(--q); }
 .pt-dialog .pt-dialog-aside { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
-/* 16 under the title: at 8 a form's first label read as the title's caption */
+/* 16 under the title: at 8 a form's first label read as the title's caption.
+   8 under the last thing, room for the focus ring's 4: the body scrolls, so
+   it clips at its own edge, and a field last in it lost the foot of its ring
+   (bug 115, Isaac, 26 November 2026: "the bug screen text box is cropped").
+   The foot gives the 8 back, so the gap still reads 24. */
 .pt-dialog .pt-dialog-body {
-  padding: 16px 24px 0;
+  padding: 16px 24px 8px;
   overflow-y: auto;
   font-size: 14px;
   line-height: 20px;
@@ -75,7 +79,7 @@
   justify-content: flex-end;
   align-items: center;
   gap: 8px;
-  padding: 24px;
+  padding: 16px 24px 24px;
 }
 
 @keyframes pt-scrim-in { from { opacity: 0; } to { opacity: 1; } }

@@ -1,4 +1,4 @@
-import { checkMobileToken, KEYS_UNREACHABLE, tenantKeys, type KeyLookup } from "./token";
+import { checkMobileToken, KEYS_UNREACHABLE, mobileIssuers, tenantKeys, tokenIssuerHost, type KeyLookup } from "./token";
 import { UNSIGNED } from "./auth";
 
 /* WHO THE PHONE IS, BEFORE THEY BELONG ANYWHERE (bug 101, 26 November 2026:
@@ -36,12 +36,15 @@ export async function requireMobileIdentity(
   if (!domain) return UNSIGNED();
   const bearer = /^Bearer\s+(\S+)$/i.exec(request.headers.get("authorization") ?? "");
   if (!bearer) return UNSIGNED();
-  const check = await checkMobileToken(bearer[1]!, { domain, keyFor: opts.keyFor ?? tenantKeys(domain), now: opts.now });
+  const check = await checkMobileToken(bearer[1]!, { domain, issuers: mobileIssuers(process.env), keyFor: opts.keyFor ?? tenantKeys(domain), now: opts.now });
   if (!check.ok) return check.reason === KEYS_UNREACHABLE ? json(503, "HeyTiff couldn't check your sign-in just now. Try again.") : UNSIGNED();
 
+  /* Asked of the name that signed the token: a token from the tenant's own
+     name is for its /userinfo, one from login.hey-tiff.com for that one's. */
+  const userinfoHost = tokenIssuerHost(bearer[1]!) ?? domain;
   let info: Record<string, unknown> | null = null;
   try {
-    const r = await (opts.fetcher ?? fetch)(`https://${domain}/userinfo`, {
+    const r = await (opts.fetcher ?? fetch)(`https://${userinfoHost}/userinfo`, {
       headers: { authorization: `Bearer ${bearer[1]}` },
       signal: AbortSignal.timeout(5000),
     });

@@ -24,7 +24,7 @@ import { fullInNode, pixelsInNode, previewsInNode, textsInNode, vectorsInNode } 
 import { airPages, pagesWords, plainWords } from "./take-in";
 import { staffDisplayNames } from "@/lib/workboard/job-notes-query";
 import type { DrawnFull, DrawnPreview, PlanPagesAnswer } from "@/app/print/plan-pages/plan-pages";
-import { chooseFloors, guessPageByWords, pageKey, pageScale, stateOfRead, type JobPlan, type JobPlanKind, type SpecWords, type JobPlanPage, type JobPlanRead, type PageGuess, type PlanPageKind, type PlanPick, type PlanProgress , type PageWalled } from "./plans";
+import { chooseFloors, guessPageByWords, type ChooseHow, pageKey, pageScale, stateOfRead, type JobPlan, type JobPlanKind, type SpecWords, type JobPlanPage, type JobPlanRead, type PageGuess, type PlanPageKind, type PlanPick, type PlanProgress , type PageWalled } from "./plans";
 import { planRoomsOf, planRoomsSaid, type JobPlanRooms } from "./plan-rooms";
 
 /* PLANS ON THE JOB, THE SERVER SIDE (lib/jobs/plans.ts says what a plan is).
@@ -829,6 +829,26 @@ export async function planPageForScale(orgId: string, jobUuid: string, planId: s
   return { url: data.signedUrl, width: page.width, height: page.height, at };
 }
 
+/** A plan's floor page, its full picture signed, to look at over the job
+    (bug 119). */
+export type PageToView = { n: number; url: string; width: number; height: number };
+
+/** Every floor page of a job's plan, its full picture signed, in the order
+    the set prints them: what a page's picture on the Scope tab opens, to
+    walk with Previous and Next. Null when the plan isn't this job's. */
+export async function planPagesToView(orgId: string, jobUuid: string, planId: string): Promise<PageToView[] | null> {
+  const plan = await readJobPlan(orgId, planId);
+  if (!plan || plan.jobUuid !== jobUuid) return null;
+  const floors = plan.pages.filter((p) => p.kind === "floor" && p.ref).sort((a, b) => a.n - b.n);
+  if (floors.length === 0) return [];
+  const { data } = await supabaseAdmin.storage.from(PLANS_BUCKET).createSignedUrls(floors.map((p) => p.ref as string), SIGNED_SECONDS);
+  const signed = new Map((data ?? []).flatMap((u) => (u.path && u.signedUrl ? [[u.path, u.signedUrl] as const] : [])));
+  return floors.flatMap((p) => {
+    const url = signed.get(p.ref as string);
+    return url ? [{ n: p.n, url, width: p.width, height: p.height }] : [];
+  });
+}
+
 /** the shortest line a scale may be set from, in the page's pixels: a
     shorter one makes every room's error large */
 const SET_SPAN_PX = 20;
@@ -875,12 +895,12 @@ export async function setPlanScale(
 /** The floors somebody chose for a set's pages in the Plans dialog, kept on
     the plan, and the plan's state worked out again: a page they've looked at
     is no longer one to check. Null once saved, or the reason. */
-export async function choosePlanFloors(orgId: string, planId: string, chosen: Readonly<Record<number, string>>, staffId: string | null, jobUuid?: string): Promise<string | null> {
+export async function choosePlanFloors(orgId: string, planId: string, chosen: Readonly<Record<number, string>>, staffId: string | null, jobUuid?: string, how: ChooseHow = "all"): Promise<string | null> {
   const plan = await readJobPlan(orgId, planId);
   if (!plan || (jobUuid && plan.jobUuid !== jobUuid) || plan.kind === "spec") return "That isn't one of this job's plans.";
   if (plan.state !== "read" && plan.state !== "check") return "Its floors can be chosen once Tiff has read it.";
   const by = staffId ? ((await staffDisplayNames(orgId, [staffId])).get(staffId) ?? null) : null;
-  const pages = chooseFloors(plan.pages, chosen, by, new Date().toISOString());
+  const pages = chooseFloors(plan.pages, chosen, by, new Date().toISOString(), how);
   const { state, said } = stateOfRead(pages, plan.reading);
   try {
     await write(orgId, planId, { pages, state, said });

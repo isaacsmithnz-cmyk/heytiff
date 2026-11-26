@@ -45,10 +45,35 @@ const b64urlJson = (part: string): Record<string, unknown> | null => {
   }
 };
 
-/** Believe the token or don't. `now` is in seconds, and only tests hand it in. */
+/* ONE TENANT, TWO NAMES (Isaac, 26 November 2026: "can we tidy up the big
+   long auth0 link"). Once sign-in moves to login.hey-tiff.com, Auth0 signs a
+   token as whichever name the person signed in through: `iss` is the custom
+   domain for anyone who signs in after the move, and still the tenant's own
+   *.auth0.com name for a phone that signed in before it and only refreshes.
+   Both are the same tenant and the same keys, so both are believed; any third
+   name is still refused. `AUTH0_DOMAIN` is the sign-in name and
+   `AUTH0_TENANT_DOMAIN` the canonical one (lib/integrations/auth0-tenant-domain);
+   before the move they are the same value, and the list holds it once. */
+export function mobileIssuers(env: Record<string, string | undefined>): string[] {
+  const names = [env.AUTH0_DOMAIN, env.AUTH0_TENANT_DOMAIN].map((d) => d?.trim()).filter((d): d is string => !!d);
+  return [...new Set(names)];
+}
+
+/** The host a token says it came from, unchecked: only for addressing the
+    issuer's own /userinfo after checkMobileToken has believed it. */
+export function tokenIssuerHost(token: string): string | null {
+  const claims = b64urlJson(token.split(".")[1] ?? "");
+  const iss = claims && typeof claims.iss === "string" ? claims.iss : "";
+  const m = /^https:\/\/([^/]+)\/$/.exec(iss);
+  return m ? m[1]! : null;
+}
+
+/** Believe the token or don't. `now` is in seconds, and only tests hand it in.
+    `issuers` lists every name the tenant may sign as; left out, it is `domain`
+    alone. */
 export async function checkMobileToken(
   token: string,
-  opts: { domain: string; audience?: string; keyFor: KeyLookup; now?: number }
+  opts: { domain: string; issuers?: string[]; audience?: string; keyFor: KeyLookup; now?: number }
 ): Promise<TokenCheck> {
   const parts = token.split(".");
   if (parts.length !== 3 || parts.some((p) => !p)) return { ok: false, reason: "malformed" };
@@ -72,7 +97,8 @@ export async function checkMobileToken(
 
   const claims = b64urlJson(p);
   if (!claims) return { ok: false, reason: "malformed" };
-  if (claims.iss !== `https://${opts.domain}/`) return { ok: false, reason: "issuer" };
+  const issuers = opts.issuers?.length ? opts.issuers : [opts.domain];
+  if (!issuers.some((d) => claims.iss === `https://${d}/`)) return { ok: false, reason: "issuer" };
   const audience = opts.audience ?? MOBILE_AUDIENCE;
   const aud = claims.aud;
   if (!(aud === audience || (Array.isArray(aud) && aud.includes(audience)))) return { ok: false, reason: "audience" };

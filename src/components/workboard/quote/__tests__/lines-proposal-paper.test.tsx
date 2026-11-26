@@ -182,6 +182,15 @@ it("drawn to read (the Price tab's preview, the PDF), has no box to type in and 
   expect(screen.getByText("Duct to each room")).toBeInTheDocument();
 });
 
+/* job 3608, 26 November 2026: the unit table read "Indoor unit, Master Bed
+   4" and the code's number, and undersold every unit */
+it("says each unit's cooling as its maker's pack has it, read by the server", () => {
+  paper({ coolKw: { l1: 9 } });
+  const first = screen.getByRole("region", { name: "Option 1" });
+  expect(within(first).getByText("9.0 kW")).toBeInTheDocument();
+  expect(within(first).queryByText("12.5 kW")).toBeNull();
+});
+
 /* TIFF'S CHECK (review.ts, 26 November 2026): what's kept with a reason is
    said under Qualifications, and the block a finding is on is outlined */
 it("says what Tiff's check kept, and outlines the block a finding is on", () => {

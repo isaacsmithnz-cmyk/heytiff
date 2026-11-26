@@ -5,10 +5,14 @@
    maker's data pack; a Daikin system has no pack, so nothing in it is checked. */
 jest.mock("server-only", () => ({}));
 const lookupUnit = jest.fn();
-jest.mock("../lookups-server", () => ({ lookupUnit: (...a: unknown[]) => lookupUnit(...a) }));
+const lookupSystemPipes = jest.fn(async (..._a: unknown[]) => null as unknown);
+jest.mock("../lookups-server", () => ({ lookupUnit: (...a: unknown[]) => lookupUnit(...a), lookupSystemPipes: (...a: unknown[]) => lookupSystemPipes(...a) }));
+
+const currentItemsByCode = jest.fn(async (..._a: unknown[]) => [] as unknown[]);
+jest.mock("../price-book-server", () => ({ currentItemsByCode: (...a: unknown[]) => currentItemsByCode(...a) }));
 
 import type { QuoteLine } from "../lines";
-import { linesFit } from "../fit-server";
+import { coolingOf, linesFit } from "../fit-server";
 
 const line = (o: Partial<QuoteLine>): QuoteLine => ({
   id: "x", version: 1, updatedAt: "", updatedBy: "", optionIndex: 0, system: "Downstairs", group: "Pipe", position: 0, name: "x",
@@ -32,4 +36,55 @@ it("checks each system against its own outdoor, and leaves a brand with no pack 
     { key: "iso", state: "misfit", why: "20 A is under the PUZ-ZM125VKA2-A's 28 A" },
     { key: "d-iso", state: "not checked", why: "No data pack for this brand" },
   ]);
+});
+
+/* a VRF's branch pipe (26 November 2026: a PUMY quote's 1/4 + 1/2 was
+   flagged against the outdoor's 3/8 + 5/8): its heads and its pipe table
+   are read with it */
+it("fits a VRF's branch pipe to its heads and its pipe table, and asks the table of the outdoor's own pack", async () => {
+  const pipe = (liquid: number, gas: number) => ({ liquid, gas });
+  lookupUnit.mockImplementation(async (_pack: string, model: string) =>
+    model === "PUMY-SP140VKMD2-A"
+      ? { found: true, pack: "mitsubishi-electric", specs: { role: "outdoor", model, maxAmps: 30, mcaAmps: null, pipeMm: pipe(9.52, 15.88), sizeMm: null, weightKg: null } }
+      : { found: true, pack: "mitsubishi-electric", specs: { role: "indoor", model, pipeMm: model.includes("P80") ? pipe(9.52, 15.88) : pipe(6.35, 12.7) } }
+  );
+  lookupSystemPipes.mockResolvedValue({ type: "vrf", sizes: [pipe(6.35, 12.7), pipe(9.52, 15.88)] });
+  const fits = await linesFit([
+    line({ id: "out", system: "Upstairs", kind: "unit", code: "PUMY-SP140VKMD2-A", name: "Mitsubishi VRF outdoor" }),
+    line({ id: "big", system: "Upstairs", kind: "unit", code: "PEFY-P80VMA-E4", name: "Ducted head" }),
+    line({ id: "small", system: "Upstairs", kind: "unit", code: "PEFY-P20VMX-E", name: "Ducted head", qty: 2 }),
+    line({ id: "main", system: "Upstairs", name: "PAIRED COIL 3/8+5/8X20M", code: "PC3858" }),
+    line({ id: "branch", system: "Upstairs", name: "PAIRED COIL 1/4+1/2X20M (6.35-12.7)", code: "PC1412" }),
+  ]);
+  expect(lookupSystemPipes).toHaveBeenCalledWith("mitsubishi-electric", "PUMY-SP140VKMD2-A");
+  expect(fits).toEqual([
+    { key: "main", state: "fitted", why: "The PUMY-SP140VKMD2-A connects 3/8 + 5/8" },
+    { key: "branch", state: "fitted", why: "The PEFY-P20VMX-E connects 1/4 + 1/2" },
+  ]);
+});
+
+/* the proposal's unit table (job 3608, 26 November 2026: every unit
+   undersold, read off the code's number): the pack's cooling first, else
+   the price book's own name for the code */
+it("reads each unit's cooling off its maker's pack, else the price book's name, and says nothing it can't read", async () => {
+  lookupUnit.mockImplementation(async (_pack: string, model: string) =>
+    model === "PUMY-SP140VKMD2-A"
+      ? { found: true, pack: "mitsubishi-electric", specs: { role: "outdoor", model, coolKw: 15.5 } }
+      : model === "PEFY-P25VMX-E1"
+        ? { found: true, pack: "mitsubishi-electric", specs: { role: "indoor", model: "PEFY-P25VMX-E", coolKw: 2.8 } }
+        : { found: false, reason: "not in the pack" }
+  );
+  currentItemsByCode.mockResolvedValue([{ code: "PEFY-P20VMX-E1", supplierKey: "s1", name: "2.2kW C/M Compact Ducted" }]);
+  const kw = await coolingOf(
+    [
+      line({ id: "out", system: "Upstairs", kind: "unit", code: "PUMY-SP140VKMD2-A", name: "Outdoor unit" }),
+      line({ id: "bed4", system: "Upstairs", kind: "unit", code: "PEFY-P25VMX-E1", name: "Indoor unit, Master Bed 4" }),
+      line({ id: "study", system: "Upstairs", kind: "unit", code: "PEFY-P20VMX-E1", name: "Indoor unit, Study", supplierKey: "s1" }),
+      line({ id: "odd", system: "Upstairs", kind: "unit", code: "FTXM25WVMA", name: "Indoor unit" }),
+      line({ id: "pipe", system: "Upstairs", name: "Pair coil", code: "PC1412" }),
+    ],
+    "org-1"
+  );
+  expect(kw).toEqual({ out: 15.5, bed4: 2.8, study: 2.2 });
+  expect(currentItemsByCode).toHaveBeenCalledWith("org-1", ["PEFY-P20VMX-E1", "FTXM25WVMA"]);
 });

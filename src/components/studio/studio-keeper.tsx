@@ -86,10 +86,22 @@ function keep(element: ReactNode, design: string | null, job: string | null): vo
     While the studio writes the address it has already said it's there
     (noteKeptDesign), so nothing is replaced; once the address asks for
     somewhere else, the element this page holds is the one drawn for that
-    address, so a new studio starts from it. */
+    address, so a new studio starts from it.
+
+    THE JOB IS THE ADDRESS'S TOO, for the same reason. Started on a job, the
+    studio says it has answered (noteKeptJobAnswered) and takes `?job=` off
+    the address, but the page it was drawn in still holds the job in its
+    props. Read from those, the design opening a moment later (`?design=`
+    written) asked the keeper for that design ON the job, which the kept
+    studio, answered, no longer was: a new studio started from the page's
+    element, on the list with New design open on the job again, while the
+    design it had just saved went unseen (bug 120, Isaac, 26 November 2026:
+    "start design just reloaded the pop up"). Once the address has no job,
+    nothing asks for one. */
 export function StudioKeep({ job, children }: { job?: string; children: ReactNode }) {
-  const asked = useSearchParams().get("design");
-  const onJob = job ?? null;
+  const params = useSearchParams();
+  const asked = params.get("design");
+  const onJob = params.has("job") ? (job ?? null) : null;
   useEffect(() => {
     keep(children, asked, onJob);
   }, [asked, onJob, children]);

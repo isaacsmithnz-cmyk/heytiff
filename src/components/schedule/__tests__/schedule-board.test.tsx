@@ -40,7 +40,7 @@ const page = (over: Partial<SchedulePage> = {}): SchedulePage => ({
   canBlock: false,
   ...over,
 });
-const JOB: PanelJob = { uuid: "j-3450", number: "3450", client: "QRS Build", site: "Fakesford", kind: "Install", hue: "purple", state: "Waiting on a day", tone: "look", toBook: true, words: "3450 qrs build fakesford install" };
+const JOB: PanelJob = { uuid: "j-3450", number: "3450", client: "QRS Build", site: "Fakesford", kind: "Install", hue: "purple", state: "Waiting on a day", tone: "look", toBook: true, words: "3450 qrs build fakesford install", about: null };
 
 const requestFullscreen = jest.fn(() => Promise.resolve());
 beforeAll(() => {

@@ -5,6 +5,8 @@ import {
   stackDay,
   daysFit,
   daysFor,
+  dayOrder,
+  firstNames,
   fillWord,
   hoursWord,
   fitOf,
@@ -42,6 +44,8 @@ const blk = (startMin: number, endMin: number, over: Partial<DayBlock> = {}): Da
   endMin,
   with: [],
   kind: null,
+  street: null,
+  about: null,
   state: null,
   ...over,
 });
@@ -231,5 +235,56 @@ describe("everyone active has a row", () => {
       { uuid: "AB-1", name: "Alex Lorenz" },
       { uuid: "cd-2", name: "Isaac Smith" },
     ]);
+  });
+});
+
+describe("teams on the day (the Schedule mock, 27 November 2026)", () => {
+  const person = (staffUuid: string, name: string, blocks: DayBlock[]): PersonRow => ({ staffUuid, name, days: [{ day: "2026-11-27", blocks, away: [] }] });
+  const on = (key: string, job: string, startMin: number, endMin: number) => blk(startMin, endMin, { key, jobUuid: job, number: job });
+
+  it("puts the people on one job for the same hours together, the largest team first, then the booked, then the free", () => {
+    const people = [
+      person("a", "Ava Fake", [on("a1", "3517", 420, 930)]),
+      person("b", "Ben Fake", [on("b1", "2472", 420, 900)]),
+      person("c", "Cal Fake", []),
+      person("d", "Dan Fake", [on("d1", "3517", 420, 930)]),
+      person("e", "Eli Fake", [on("e1", "9001", 600, 660)]),
+      person("f", "Fin Fake", [on("f1", "2472", 420, 900)]),
+      person("g", "Gus Fake", [on("g1", "3517", 420, 930)]),
+    ];
+    const { rows, teams } = dayOrder(people);
+    expect(rows.map((r) => r.name[0])).toEqual(["A", "D", "G", "B", "F", "E", "C"]);
+    expect(teams.map((t) => [t.blk.number, t.staff])).toEqual([["3517", ["a", "d", "g"]], ["2472", ["b", "f"]]]);
+    expect(firstNames(teams[0].names)).toBe("Ava, Dan and Gus");
+  });
+
+  it("leaves someone on the same job at other hours out of the team, so no one is counted twice", () => {
+    const people = [
+      person("a", "Ava Fake", [on("a1", "3517", 420, 930)]),
+      person("b", "Ben Fake", [on("b1", "3517", 420, 930)]),
+      person("e", "Eli Fake", [on("e1", "3517", 420, 540), on("e2", "4000", 600, 900)]),
+    ];
+    const { teams, teamOf } = dayOrder(people);
+    expect(teams).toHaveLength(1);
+    expect(teams[0].staff).toEqual(["a", "b"]);
+    expect(teamOf.has("e")).toBe(false);
+  });
+
+  it("keeps someone with two things at once out of every team, and puts each person in one team only", () => {
+    const people = [
+      person("a", "Ava Fake", [on("a1", "3517", 420, 600), on("a2", "4000", 600, 900)]),
+      person("b", "Ben Fake", [on("b1", "3517", 420, 600)]),
+      person("c", "Cal Fake", [on("c1", "4000", 600, 900)]),
+      person("d", "Dan Fake", [on("d1", "4000", 600, 900)]),
+      person("x", "Xia Fake", [on("x1", "3517", 420, 600), on("x2", "5000", 480, 540)]),
+    ];
+    const { teams } = dayOrder(people);
+    /* 4000 has three, so it takes Ava; 3517 is left with Ben alone, and Xia's day has two at once */
+    expect(teams.map((t) => [t.blk.number, t.staff])).toEqual([["4000", ["a", "c", "d"]]]);
+  });
+
+  it("says a team's people by first name", () => {
+    expect(firstNames(["Ava Fake"])).toBe("Ava");
+    expect(firstNames(["Ava Fake", "Ben Fake"])).toBe("Ava and Ben");
   });
 });

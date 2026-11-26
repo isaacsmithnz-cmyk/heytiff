@@ -754,6 +754,20 @@ describe("fileNote", () => {
       expect(noteRow()).toMatchObject({ target_kind: "job", target_id: "job-new" });
     });
 
+    /* Isaac, 26 November 2026: "We need to get a quote built out for the split system that is outstanding" */
+    it("lands a note on the open job its work names, and says which before she asks anything", async () => {
+      namedJobs = [{ ...jobAt("job-split", "3601", "2026-11-20"), status: "Quote" }];
+      readNote.mockResolvedValue({
+        ok: true,
+        proposal: { ...EMPTY, tasks: [task()], say: "A task to build the quote. Who should do it?", jobNamed: { client: "", place: "", number: "", latest: false, work: "split system", open: true } },
+      });
+      const res = await routeNote({ transcript: "We need to get a quote built out for the split system that is outstanding", target: { kind: "none" } });
+      expect(res.ok).toBe(true);
+      const row = rowsOf("workboard_notes")[0]!;
+      expect(row).toMatchObject({ target_kind: "job", target_id: "job-split" });
+      expect(res.ok && res.proposal.say).toBe("On job #3601, Sampleco Building, 12 Sample Road, Exampleton NSW 2000. A task to build the quote. Who should do it?");
+    });
+
     it("asks which when several places fit, with No job for a task that needs none", async () => {
       namedJobs = [jobAt("job-a", "1", "2026-03-01"), jobAt("job-b", "2", "2026-02-01", "2 Two St\nExampleton NSW 2000")];
       note({ proposal: { ...EMPTY, tasks: [task()], jobNamed: { client: "Sampleco Building", place: "", number: "", latest: false } } });

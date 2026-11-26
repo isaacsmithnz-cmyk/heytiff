@@ -9,7 +9,8 @@ import { isInvoiceMedia } from "@/lib/quotes/invoice-read-server";
 import { DOCUMENTS_BUCKET } from "@/lib/documents/query";
 import { openPdf } from "@/lib/tiff/extract";
 import { streetLine } from "@/lib/studio/job-link";
-import { judgeLine, parseDocketRead, type BookEffect, type DocketRead, type Purchase, type PurchaseLine, type WentTo } from "./purchase";
+import { byHandOf } from "@/lib/quotes/lines-job";
+import { judgeLine, materialsAllowanceOf, parseDocketRead, type BookEffect, type DocketRead, type Purchase, type PurchaseLine, type WentTo } from "./purchase";
 
 /* PURCHASES, server side (purchase.ts says what a purchase is). Service
    role; the actions gate on who may add one, and Team's read on
@@ -274,20 +275,24 @@ export async function boughtForJob(orgId: string, jobUuid: string): Promise<Boug
     .sort((a, b) => (a.on === b.on ? 0 : a.on < b.on ? 1 : -1));
 }
 
-/** What the job's quote allows for materials: the cost of its material
-    lines in the first option (an option prices only its difference), in
-    cents; null when the job has no quote in HeyTiff. Cost against cost:
-    what was bought is set against what the quote expected to pay. */
+/** What the job's quote allows for materials (purchase.ts
+    materialsAllowanceOf): the option the client took, in cents; null when
+    the job has no quote in HeyTiff or none of its options is taken yet.
+    Cost against cost: what was bought is set against what the quote
+    expected to pay. */
 export async function materialsAllowance(orgId: string, jobUuid: string): Promise<number | null> {
-  const { data, error } = await supabaseAdmin
-    .from("quote_lines")
-    .select("qty, cost_cents")
-    .eq("org_id", orgId)
-    .eq("sm8_job_uuid", jobUuid)
-    .eq("option_index", 0)
-    .eq("kind", "material");
+  const [{ data, error }, draft] = await Promise.all([
+    supabaseAdmin.from("quote_lines").select("option_index, kind, qty, cost_cents").eq("org_id", orgId).eq("sm8_job_uuid", jobUuid),
+    supabaseAdmin.from("quote_drafts").select("draft").eq("org_id", orgId).eq("sm8_job_uuid", jobUuid).maybeSingle(),
+  ]);
   if (error || !data?.length) return null;
-  return Math.round((data as { qty: number | string; cost_cents: number | string }[]).reduce((s, r) => s + Number(r.qty) * Number(r.cost_cents), 0));
+  const lines = (data as { option_index: number | string; kind: string; qty: number | string; cost_cents: number | string }[]).map((r) => ({
+    optionIndex: Number(r.option_index),
+    kind: r.kind,
+    qty: Number(r.qty),
+    costCents: Number(r.cost_cents),
+  }));
+  return materialsAllowanceOf(lines, byHandOf((draft.data as { draft: unknown } | null)?.draft ?? null).accepted);
 }
 
 /** A job as a purchase names it, and keeps: "1352, 9/6 Dolor Avenue", the

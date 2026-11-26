@@ -5,8 +5,7 @@ import { migrateDesign } from "@/lib/studio/migrations";
 import type { DesignDocument } from "@/lib/studio/document";
 import type { DataPack } from "@/lib/studio/packs/schema";
 import { resolvePacks } from "@/lib/studio/packs/loader";
-import { latestInstalledPack, loadInstalledPack } from "@/lib/studio/packs/server";
-import { loadPackWithOverrides } from "@/lib/studio/packs/overrides-server";
+import { correctedPack } from "@/lib/studio/packs/overrides-server";
 import { dayOf } from "./session/job-sources";
 import { designRead, NO_DESIGN, type DesignOnJob, type JobDesign } from "./design-read";
 import { readingSummary } from "@/lib/studio/reading";
@@ -40,15 +39,7 @@ export async function designsOnJob(orgId: string, jobUuid: string): Promise<(Des
 /** One brand's pack as the Studio reads it: the newest installed, HQ's
     corrections on; without them if they can't be read; null when none. */
 async function studioPack(brand: string): Promise<DataPack | null> {
-  const ref = await latestInstalledPack(brand).catch(() => null);
-  if (!ref) return null;
-  try {
-    return (await loadPackWithOverrides(ref.brand, ref.version)).pack;
-  } catch {
-    return loadInstalledPack(ref.brand, ref.version)
-      .then((p) => p.pack)
-      .catch(() => null);
-  }
+  return correctedPack(brand).catch(() => null);
 }
 
 /** Every brand the design is built in, its packs merged; null when none is installed. */

@@ -138,6 +138,16 @@ export function loadingOf(raw: unknown): OptionLoading | null {
   return { pct: Math.min(MAX_LOADING_PCT, Math.round(pct * 10) / 10), reason: said(o.reason, 200) };
 }
 
+/** The option a job's money is about: the one accepted, or the only one
+    there is; null when there are several and none is taken yet. The job's
+    money, its tracker and its purchases all measure against this one. Pure. */
+export function pickOption(accepted: readonly number[], present: readonly number[]): number | null {
+  const there = [...new Set(present)].sort((a, b) => a - b);
+  const took = accepted.find((i) => there.includes(i));
+  if (took !== undefined) return took;
+  return there.length === 1 ? there[0]! : null;
+}
+
 /** The by-hand record a stored draft holds; empty when it holds none. */
 export function byHandOf(draft: unknown): ByHand {
   const r = draft && typeof draft === "object" ? (draft as Record<string, unknown>).byHand : null;

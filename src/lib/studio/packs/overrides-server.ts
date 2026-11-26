@@ -12,8 +12,9 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { applyOverrides, type FieldOverride } from "./overrides";
 import { validatePack } from "./validate";
 import { completenessByRange } from "./ready";
-import { loadInstalledPack, type LoadedPack } from "./server";
+import { latestInstalledPack, loadInstalledPack, type LoadedPack } from "./server";
 import type { FieldValue } from "./fields";
+import type { DataPack } from "./schema";
 
 type OverrideRow = {
   section: string;
@@ -131,3 +132,18 @@ export async function loadPackWithOverrides(
   };
 }
 
+
+/** A brand's newest installed pack as the Studio and the quote both read
+    it: HQ's corrections on, or as installed when the corrections can't be
+    read; null when the brand has none. One reader, so a correction HQ makes
+    reaches the design and the quote alike. A pack that won't load at all
+    still throws: the caller says what that means. */
+export async function correctedPack(brand: string): Promise<DataPack | null> {
+  const ref = await latestInstalledPack(brand);
+  if (!ref) return null;
+  try {
+    return (await loadPackWithOverrides(ref.brand, ref.version)).pack;
+  } catch {
+    return (await loadInstalledPack(ref.brand, ref.version)).pack;
+  }
+}

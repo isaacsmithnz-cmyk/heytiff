@@ -17,6 +17,7 @@
    Pure: tested without a key or a database. */
 
 import { NOT_A_PRODUCT, eachOf, isoDate, tidyName } from "@/lib/quotes/invoice-read";
+import { pickOption } from "@/lib/quotes/lines-job";
 
 /** Where a line went: a job, stock, or nowhere yet. */
 export const WENT_TO = ["open", "job", "stock"] as const;
@@ -204,6 +205,18 @@ export function bookSummary(lines: Pick<PurchaseLine, "book">[]): { text: string
   if (said) return { text: said[0].toUpperCase() + said.slice(1), tone: up ? "or" : down ? "gr" : "q" };
   if (lines.some((l) => l.book === "same" || l.book === "from_book")) return { text: "Same as the book", tone: "q" };
   return { text: "Not for the book", tone: "q" };
+}
+
+/** What the quote allows for materials, in cents: the material lines at
+    cost of the option the client took, or of the only option there is
+    (pickOption, as the job's money reads it). Null when the job has no
+    lines, or several options and none taken yet: measured against option 1
+    before 27 Nov 2026, so a job that took a dearer option read "Over the
+    quote" on the cheaper one's materials. Pure. */
+export function materialsAllowanceOf(lines: readonly { optionIndex: number; kind: string; qty: number; costCents: number }[], accepted: readonly number[]): number | null {
+  const option = pickOption(accepted, lines.map((l) => l.optionIndex));
+  if (option === null) return null;
+  return Math.round(lines.filter((l) => l.optionIndex === option && l.kind === "material").reduce((s, l) => s + l.qty * l.costCents, 0));
 }
 
 /** A job's materials spend against the quote's allowance: "Inside the quote"

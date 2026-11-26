@@ -1,4 +1,4 @@
-import { againstQuote, bookSummary, bookWords, isClear, judgeLine, parseDocketRead, totalCents, whereItWent, type PurchaseLine } from "../purchase";
+import { againstQuote, bookSummary, materialsAllowanceOf, bookWords, isClear, judgeLine, parseDocketRead, totalCents, whereItWent, type PurchaseLine } from "../purchase";
 
 const TODAY = "2026-10-29";
 
@@ -127,5 +127,35 @@ describe("againstQuote", () => {
     expect(againstQuote(63810, 200240)).toEqual({ text: "Inside the quote", tone: "gr" });
     expect(againstQuote(210000, 200240)?.text).toBe("Over the quote");
     expect(againstQuote(100, null)).toBeNull();
+  });
+});
+
+describe("materialsAllowanceOf: the option the client took", () => {
+  const lines = [
+    { optionIndex: 0, kind: "material", qty: 2, costCents: 1000 },
+    { optionIndex: 0, kind: "unit", qty: 1, costCents: 150000 },
+    { optionIndex: 1, kind: "material", qty: 3, costCents: 1000 },
+    { optionIndex: 1, kind: "material", qty: 1, costCents: 500 },
+    { optionIndex: 1, kind: "labour", qty: 8, costCents: 6000 },
+  ];
+
+  test("the accepted option's materials, not option 1's", () => {
+    expect(materialsAllowanceOf(lines, [1])).toBe(3500);
+  });
+
+  test("option 1 when it's the one taken", () => {
+    expect(materialsAllowanceOf(lines, [0])).toBe(2000);
+  });
+
+  test("several options and none taken yet: no allowance", () => {
+    expect(materialsAllowanceOf(lines, [])).toBeNull();
+  });
+
+  test("a quote with one option needs no acceptance", () => {
+    expect(materialsAllowanceOf(lines.filter((l) => l.optionIndex === 0), [])).toBe(2000);
+  });
+
+  test("an accepted option the quote no longer has falls to the only one left", () => {
+    expect(materialsAllowanceOf(lines.filter((l) => l.optionIndex === 0), [3])).toBe(2000);
   });
 });

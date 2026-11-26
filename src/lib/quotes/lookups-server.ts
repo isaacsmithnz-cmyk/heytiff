@@ -1,6 +1,7 @@
 import "server-only";
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { installedPacks, latestInstalledPack, loadInstalledPack } from "@/lib/studio/packs/server";
+import { installedPacks } from "@/lib/studio/packs/server";
+import { correctedPack } from "@/lib/studio/packs/overrides-server";
 import type { DataPack, ZoningController } from "@/lib/studio/packs/schema";
 import { brandNames } from "@/lib/hq/packs";
 import { bookProducts } from "./book-view-server";
@@ -17,10 +18,12 @@ export async function lookupBook(orgId: string, q: BookQuery): Promise<BookHit[]
   return findInBook(await bookProducts(orgId), q);
 }
 
-/** A brand's installed pack, or null when the brand has none. */
+/** A brand's installed pack with HQ's corrections, as the Studio reads it,
+    or null when the brand has none. Before 27 Nov 2026 the quote read the
+    pack as installed, so a corrected spec could pass the design's checks
+    and fail the quote's. */
 async function packFor(brand: string): Promise<DataPack | null> {
-  const ref = await latestInstalledPack(brand.toLowerCase());
-  return ref ? (await loadInstalledPack(ref.brand, ref.version)).pack : null;
+  return correctedPack(brand.toLowerCase());
 }
 
 /** A brand's zone system from its pack: the one made for it, else none. */

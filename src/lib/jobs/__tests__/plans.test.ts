@@ -365,6 +365,16 @@ describe("choosing a page's floor", () => {
     expect(chooseFloors(none, { 3: "2" }, null, "x")[2]).toMatchObject({ kind: "floor", level: 2, name: "Level 2" });
   });
 
+  /* Check the read, one question at a time (26 November 2026) */
+  it("changes and marks only the pages an answer names, and its undo puts them back unmarked", () => {
+    const out = chooseFloors(plan().pages, { 4: "none" }, "Isaac Smith", "x", "these");
+    expect(out[3]).toMatchObject({ kind: "other", level: null, picked: { by: "Isaac Smith" } });
+    expect(out[2]).toEqual(plan().pages[2]);
+    const back = chooseFloors(out, { 4: "1" }, "Isaac Smith", "y", "undo");
+    expect(back[3]).toMatchObject({ kind: "floor", level: 1, picked: null });
+    expect(back[2]).toEqual(plan().pages[2]);
+  });
+
   it("stops asking about a page somebody chose, and about one they said isn't a floor plan", () => {
     const thin = reading({ floors: { p3: [sheet("p3", ["Living", "Kitchen"])], p4: [sheet("p4", ["Hall"])] }, failed: [] });
     expect(stateOfRead(plan().pages, thin).state).toBe("check");

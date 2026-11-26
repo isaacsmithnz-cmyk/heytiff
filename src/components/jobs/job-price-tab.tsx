@@ -534,6 +534,7 @@ function QuotePreview({
                 {...{ title: proposalTitle(address) }}
                 proposal={view.proposal ?? null}
                 lines={lines}
+                coolKw={view.coolKw ?? null}
                 price={price}
                 optionNames={view.optionNames ?? []}
                 noteLibrary={view.noteLibrary ?? []}

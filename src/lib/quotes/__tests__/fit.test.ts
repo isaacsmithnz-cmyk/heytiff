@@ -50,3 +50,51 @@ it("a brand with no data pack is not checked, never fitted on a guess", () => {
 it("leaves parts no rule knows as they are", () => {
   expect(fitChecks([part("f", "Flex 250, 6 m bag"), part("h", "Spring hangers, 15 to 30 kg")], new Map([["Downstairs", zm125]]))).toEqual([]);
 });
+
+/* A VRF's or a multi's pipe is more than its outdoor's stubs (26 November
+   2026: a PUMY quote's 1/4 + 1/2 coil, run between joints and to its P20
+   heads as the book sizes it, was flagged against the outdoor's 3/8 + 5/8) */
+describe("a VRF or a multi-head system's pipe", () => {
+  const pumy = specs({ model: "PUMY-SP140VKMD2-A", pipeMm: { liquid: 9.52, gas: 15.88 } });
+  const mxz = specs({ model: "MXZ-3F54VGD", pipeMm: { liquid: 6.35, gas: 9.52 } });
+  const vrf = {
+    multi: true,
+    heads: [
+      { model: "PEFY-P80VMA-E4", pipeMm: { liquid: 9.52, gas: 15.88 } },
+      { model: "PEFY-P20VMX-E", pipeMm: { liquid: 6.35, gas: 12.7 } },
+    ],
+    sections: [{ liquid: 6.35, gas: 12.7 }, { liquid: 9.52, gas: 15.88 }],
+  };
+
+  it("fits the outdoor's own stubs, a head's connection, or a size its pipe table gives a run", () => {
+    const fits = fitChecks(
+      [part("main", "PAIRED COIL 3/8+5/8X20M", "Upstairs", "PC3858"), part("branch", "PAIRED COIL 1/4+1/2X20M (6.35-12.7)", "Upstairs", "PC1412")],
+      new Map([["Upstairs", pumy]]),
+      new Map([["Upstairs", vrf]])
+    );
+    expect(fits).toEqual([
+      { key: "main", state: "fitted", why: "The PUMY-SP140VKMD2-A connects 3/8 + 5/8" },
+      { key: "branch", state: "fitted", why: "The PEFY-P20VMX-E connects 1/4 + 1/2" },
+    ]);
+    const tableOnly = fitChecks([part("branch", "Pair coil 1/4 + 1/2", "Upstairs", "PC1412")], new Map([["Upstairs", pumy]]), new Map([["Upstairs", { ...vrf, heads: [] }]]));
+    expect(tableOnly[0]).toEqual({ key: "branch", state: "fitted", why: "A size the PUMY-SP140VKMD2-A's pipe table gives its runs between joints and to its heads" });
+  });
+
+  it("is still a misfit when it's none of those", () => {
+    const fits = fitChecks([part("big", "Pair coil 5/8 + 7/8", "Upstairs", "PC5878")], new Map([["Upstairs", pumy]]), new Map([["Upstairs", vrf]]));
+    expect(fits[0]).toEqual({ key: "big", state: "misfit", why: "Not the PUMY-SP140VKMD2-A's 3/8 + 5/8, a head's connection or a size its pipe table gives" });
+  });
+
+  it("fits a multi-head's branch to a head bigger than the outdoor's ports", () => {
+    const multi = { multi: true, heads: [{ model: "MSZ-AP25VGD", pipeMm: { liquid: 6.35, gas: 9.52 } }, { model: "MSZ-AP50VGD", pipeMm: { liquid: 6.35, gas: 12.7 } }], sections: [{ liquid: 6.35, gas: 9.52 }] };
+    const fits = fitChecks([part("port", "Pair coil 1/4 + 3/8", "Bedrooms", "PC1438"), part("head", "Pair coil 1/4 + 1/2", "Bedrooms", "PC1412")], new Map([["Bedrooms", mxz]]), new Map([["Bedrooms", multi]]));
+    expect(fits.map((f) => f.state)).toEqual(["fitted", "fitted"]);
+    expect(fits[1].why).toBe("The MSZ-AP50VGD connects 1/4 + 1/2");
+  });
+
+  it("keeps a single split to its outdoor's own connections", () => {
+    const split = { multi: false, heads: [{ model: "MSZ-AP80VG", pipeMm: { liquid: 9.52, gas: 15.88 } }], sections: [] };
+    const fits = fitChecks([part("ap", "Pair coil 3/8 + 5/8", "Split", "PC3858")], new Map([["Split", ap80]]), new Map([["Split", split]]));
+    expect(fits[0]).toEqual({ key: "ap", state: "misfit", why: "The MUZ-AP80VG2 connects 1/4 + 1/2" });
+  });
+});

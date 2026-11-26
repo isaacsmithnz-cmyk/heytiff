@@ -30,6 +30,9 @@ import { Typed, TypedList } from "./typed";
 type Props = {
   proposal: LinesProposal | null;
   lines: QuoteLine[];
+  /** each unit line's cooling kW as the server read it off the maker's
+      pack or the price book (fit-server.ts coolingOf), by line id */
+  coolKw?: Readonly<Record<string, number>> | null;
   price: QuotePrice | null | undefined;
   optionNames: string[];
   noteLibrary: QuoteNote[];
@@ -214,7 +217,7 @@ export function LinesProposalPaper(props: Props) {
                 <tbody>
                   {units.map((u) => {
                     const vs = againstFirst(u, lines);
-                    const kw = capacityOf(u.name, u.code ?? "");
+                    const kw = capacityOf(u.name, u.code ?? "", props.coolKw?.[u.id]);
                     return (
                       <tr key={u.id}>
                         <td>{u.system || "–"}</td>
@@ -223,7 +226,7 @@ export function LinesProposalPaper(props: Props) {
                           {i > 0 && vs !== "same" && <em className="lp-tag">{vs === "added" ? "Added" : "Changed"}</em>}
                         </td>
                         <td>{u.code ?? "–"}</td>
-                        <td className="r">{kw != null ? `${kw} kW` : ""}</td>
+                        <td className="r">{kw != null ? `${kw.toFixed(1)} kW` : ""}</td>
                       </tr>
                     );
                   })}

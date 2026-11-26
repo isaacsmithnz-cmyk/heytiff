@@ -748,15 +748,20 @@ export function Studio({
   /* ── the job it was opened on, once answered ──
      A design started on it, or the New design dialog closed: the keeper
      hears it (Design it again on the job asks again), and `?job=` leaves the
-     address, so a reload or a redraw of the page never asks it twice. */
+     address, `&new` with it, so a reload or a redraw of the page never asks
+     it twice. The keeper reads the job off the address (bug 120). */
   const askingJob = jobAsk !== null && openId === null;
   useEffect(() => {
     if (askingJob) return;
     noteKeptJobAnswered();
     try {
       const here = new URL(window.location.href);
-      if (!here.searchParams.has("job")) return;
+      /* compared, not asked with `&&`: React Compiler won't lower a value
+         block inside a try (see `openId` above) */
+      const before = here.search;
       here.searchParams.delete("job");
+      here.searchParams.delete("new");
+      if (here.search === before) return;
       window.history.replaceState(null, "", `${here.pathname}${here.search}`);
     } catch {
       /* no history or URL in this environment */

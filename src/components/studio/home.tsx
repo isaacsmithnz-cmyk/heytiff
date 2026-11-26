@@ -125,7 +125,7 @@ export function DesignHome({
   openFailed?: boolean;
   library?: LibraryManifest;
   planImages: PlanImages;
-  onBlank: (name: string, job?: JobPrefill) => void;
+  onBlank: (name: string, job?: JobPrefill) => void | Promise<void>;
   onPlans: (name: string, job: JobPrefill | undefined, floors: Floor[], planImport: PlanImport) => Promise<void>;
   /** New design from the job's Plans (lib/jobs/plans.ts), and the plans themselves */
   onFromPlans?: (name: string, job: JobPrefill, plans: JobPlanRead[]) => Promise<void>;

@@ -144,4 +144,26 @@ describe("a studio opened on a job", () => {
     view.rerender(<App job="j1" label="asked again" page="studio" />);
     expect(screen.getByRole("button", { name: "asked again 0" })).toBeVisible();
   });
+  /* bug 120 (Isaac, 26 November 2026: "start design just reloaded the pop
+     up"): Start design answered the job and took `?job=` off the address,
+     then opened the design and wrote `?design=`. The page wasn't drawn
+     again, so it still held the job in its props, and the keeper took that
+     as the job asked again: a new studio, on New design, over the design
+     just saved. */
+  it("keeps the studio that answered when the design it started opens", () => {
+    const same = <FakeStudio label="on the job" />;
+    go("/dashboard/studio", "job=j1&new=1");
+    const view = render(<App job="j1" label="on the job" page="studio" studio={same} />);
+    fireEvent.click(screen.getByRole("button", { name: "on the job 0" }));
+
+    // Start design: the job answered, then the design open
+    act(() => noteKeptJobAnswered());
+    go("/dashboard/studio");
+    view.rerender(<App job="j1" label="on the job" page="studio" studio={same} />);
+    act(() => noteKeptDesign("d1"));
+    go("/dashboard/studio", "design=d1");
+    view.rerender(<App job="j1" label="on the job" page="studio" studio={same} />);
+
+    expect(screen.getByRole("button", { name: "on the job 1" })).toBeVisible();
+  });
 });

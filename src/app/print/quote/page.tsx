@@ -8,6 +8,7 @@ import { readByHand } from "@/lib/quotes/lines-job-server";
 import { namesBySignIn, readLines } from "@/lib/quotes/lines-server";
 import { proposalTitle } from "@/lib/quotes/proposal";
 import { readQuotePrice } from "@/lib/quotes/quote-price-server";
+import { coolingOf } from "@/lib/quotes/fit-server";
 import { orgTemplates } from "@/lib/templates/query";
 import { familyMediaSources, readMirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import { photosIn } from "@/lib/quotes/proposal-marks";
@@ -47,11 +48,14 @@ export default async function PrintQuotePage({ searchParams }: { searchParams: P
   const media = wanted ? await readJobMediaGroups(orgId, jobUuid, await familyMediaSources(orgId, jobUuid)).catch(() => null) : null;
   /* ServiceM8's ", Australia" off, as the screen's paper has it */
   const address = withoutCountry(detail.address ?? detail.geoLine ?? "") || null;
+  /* each unit's cooling off its maker's pack, as the screen's paper has it */
+  const coolKw = await coolingOf(lines, orgId).catch((): Record<string, number> => ({}));
   /* the quote's own options: a variation is its own paper */
   const variations = new Set(byHand.variations.map((v) => v.option));
   const paper = {
     proposal: byHand.proposal,
     lines: lines.filter((l) => !variations.has(l.optionIndex)),
+    coolKw,
     price,
     optionNames: byHand.names,
     noteLibrary: templates?.quoteNotes ?? [],

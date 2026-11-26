@@ -423,6 +423,19 @@ describe("surfaces.css", () => {
     "orange-w", "red-w",
   ]);
 
+  /* bug 115 (Isaac, 26 November 2026: "the bug screen text box is
+     cropped"): the body scrolls, so it clips at its own edge, and a field
+     last in it lost the foot of its focus ring */
+  it("leaves a dialog's body room under its last field for the focus ring, and the foot gives it back", () => {
+    const ring = Math.max(...[...tokens.match(/--ring:([^;]+);/)![1]!.matchAll(/0 0 0 (\d+)px/g)].map((m) => Number(m[1])));
+    const body = rules.find(([sel]) => sel === ".pt-dialog .pt-dialog-body")![1];
+    const [, , bottom] = body.match(/padding:\s*([^;]+)/)![1]!.trim().split(/\s+/);
+    expect(parseInt(bottom!, 10)).toBeGreaterThanOrEqual(ring);
+    const foot = rules.find(([sel]) => sel === ".pt-dialog .pt-dialog-foot")![1];
+    const [top] = foot.match(/padding:\s*([^;]+)/)![1]!.trim().split(/\s+/);
+    expect(parseInt(bottom!, 10) + parseInt(top!, 10)).toBe(24);
+  });
+
   it("writes no colour of its own: no hex, no rgb, no named colour", () => {
     expect(css).not.toMatch(/#[0-9a-f]{3,8}\b/i);
     expect(css).not.toMatch(/\b(rgb|rgba|hsl|hsla|oklch)\(/);

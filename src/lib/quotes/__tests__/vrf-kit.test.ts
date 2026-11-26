@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { PACK_SECTIONS, type DataPack, type PackMeta } from "@/lib/studio/packs/schema";
 import { assemblePack, type PackSource } from "@/lib/studio/packs/loader";
 import { vrfPlanOf, type VrfAsk } from "../vrf-kit";
+import { systemPipesOf } from "../lookups";
 
 const DIR = join(__dirname, "../../../../data/packs/mitsubishi-electric@2026.1");
 function loadPack(): DataPack {
@@ -66,4 +67,17 @@ it("leaves a size's metres not known when a length isn't given, and says what it
 it("reads an order code the pack doesn't name through the business's confirmed link", () => {
   const p = vrfPlanOf(pack, ask("PUMY-SP140VKMD2-A.TH", ["PEFY-P20VMX-A1"]), [{ code: "PEFY-P20VMX-A1", model: "PEFY-P20VMX-E" }]);
   expect(p.ok).toBe(true);
+});
+
+/* the quote's pipe check reads the sizes a VRF's or a multi's runs may be
+   off the same pack (fit.ts): the PUMY's tables give 1/4 + 1/2 to its runs
+   between joints and its small heads, and an MXZ's ports theirs */
+it("says what a VRF's and a multi's runs may be, off the pack's own tables", () => {
+  const pumy = systemPipesOf(pack, "PUMY-SP140VKMD2-A");
+  expect(pumy?.type).toBe("vrf");
+  expect(pumy?.sizes).toEqual(expect.arrayContaining([{ liquid: 6.35, gas: 12.7 }, { liquid: 9.52, gas: 15.88 }]));
+  const mxz = systemPipesOf(pack, "MXZ-3F54VGD");
+  expect(mxz?.type).toBe("multi");
+  expect(mxz?.sizes).toEqual([{ liquid: 6.35, gas: 9.52 }]);
+  expect(systemPipesOf(pack, "NOT-A-UNIT")).toBeNull();
 });

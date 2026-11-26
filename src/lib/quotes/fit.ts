@@ -16,6 +16,15 @@ import { bracketOf, isolatorOf } from "./ranges";
    the review before Approve lists them. */
 
 export type FitPart = { key: string; system: string; name: string; code?: string | null; group?: string };
+/** A VRF or multi-head system's pipe, besides its outdoor's stubs: each
+    head's connection, and the sizes the pack's pipe tables give its runs
+    (lookups.ts systemPipesOf). */
+export type SystemPipe = {
+  /** a VRF or a multi, or more than one head on the system */
+  multi: boolean;
+  heads: { model: string; pipeMm: { liquid: number; gas: number } }[];
+  sections: { liquid: number; gas: number }[];
+};
 export type Fit = { key: string; state: "fitted" | "misfit" | "not checked"; why: string };
 
 /** Pipe sizes in inches as written ("3/8 + 5/8"), in mm as the packs keep them. */
@@ -37,8 +46,12 @@ function ruleOf(p: FitPart): "isolator" | "breaker" | "pipe" | "bracket" | null 
   return null;
 }
 
-/** Every part a rule knows, checked against its system's outdoor unit. */
-export function fitChecks(parts: FitPart[], outdoorBySystem: Map<string, UnitLookup>): Fit[] {
+const samePipe = (a: { liquid: number; gas: number }, b: { liquid: number; gas: number }) => Math.abs(a.liquid - b.liquid) < 0.2 && Math.abs(a.gas - b.gas) < 0.2;
+
+/** Every part a rule knows, checked against its system's outdoor unit. A
+    VRF's or a multi's pipe may also be a head's connection or a size its
+    pipe tables give a run (`pipes`); a single split's is its outdoor's. */
+export function fitChecks(parts: FitPart[], outdoorBySystem: Map<string, UnitLookup>, pipes: Map<string, SystemPipe> = new Map()): Fit[] {
   const out: Fit[] = [];
   for (const p of parts) {
     const rule = ruleOf(p);
@@ -63,10 +76,19 @@ export function fitChecks(parts: FitPart[], outdoorBySystem: Map<string, UnitLoo
     }
     if (rule === "pipe") {
       const pipe = pipeOf(`${p.name} ${p.code ?? ""}`)!;
+      const sys = pipes.get(p.system);
+      const head = sys?.multi ? sys.heads.find((h) => samePipe(pipe, h.pipeMm)) : undefined;
+      const section = sys?.multi ? sys.sections.some((s) => samePipe(pipe, s)) : false;
       if (!u.pipeMm) {
         out.push({ key: p.key, state: "not checked", why: "The pack doesn't give the unit's pipe" });
-      } else if (Math.abs(pipe.liquid - u.pipeMm.liquid) < 0.2 && Math.abs(pipe.gas - u.pipeMm.gas) < 0.2) {
+      } else if (samePipe(pipe, u.pipeMm)) {
         out.push({ key: p.key, state: "fitted", why: `The ${u.model} connects ${inches(u.pipeMm.liquid)} + ${inches(u.pipeMm.gas)}` });
+      } else if (head) {
+        out.push({ key: p.key, state: "fitted", why: `The ${head.model} connects ${inches(head.pipeMm.liquid)} + ${inches(head.pipeMm.gas)}` });
+      } else if (section) {
+        out.push({ key: p.key, state: "fitted", why: `A size the ${u.model}'s pipe table gives its runs between joints and to its heads` });
+      } else if (sys?.multi) {
+        out.push({ key: p.key, state: "misfit", why: `Not the ${u.model}'s ${inches(u.pipeMm.liquid)} + ${inches(u.pipeMm.gas)}, a head's connection or a size its pipe table gives` });
       } else {
         out.push({ key: p.key, state: "misfit", why: `The ${u.model} connects ${inches(u.pipeMm.liquid)} + ${inches(u.pipeMm.gas)}` });
       }

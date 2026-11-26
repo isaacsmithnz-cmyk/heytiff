@@ -184,7 +184,7 @@ export function NewDesign({
   /** Recent and All jobs for the job picker; without it the picker is the search alone */
   jobLists?: JobLists;
   planImages: PlanImages;
-  onBlank: (name: string, job?: JobPrefill) => void;
+  onBlank: (name: string, job?: JobPrefill) => void | Promise<void>;
   /** opens the design on the canvas; resolves once it's saved */
   onPlans: (name: string, job: JobPrefill | undefined, floors: Floor[], planImport: PlanImport) => Promise<void>;
   /** opens the design on the job's plans: their floors and Tiff's reading come with them */
@@ -375,16 +375,31 @@ export function NewDesign({
     if (fresh) setPlansOf({ job: jobId, plans: fresh });
   };
   const showPlans = !!job && !!onFromPlans && !!plans && plans.length > 0;
+  /* ONE DESIGN A PRESS (bug 120): a second press, before the first's busy
+     has drawn the button off, or on a blank canvas beside it, would save a
+     second design. Held in a ref, so it holds within the one click's frame
+     too; let go only when a start fails, to try again. */
+  const starting = useRef(false);
   const startFromPlans = async () => {
-    if (!job || !onFromPlans || tickedPlans.length === 0) return;
+    if (!job || !onFromPlans || tickedPlans.length === 0 || starting.current) return;
+    starting.current = true;
     setError(null);
     setBusy({ word: "Opening the design", done: 0, total: 1 });
     try {
       await onFromPlans(designName, job, tickedPlans);
     } catch (e) {
+      starting.current = false;
       setBusy(null);
       setError(`The design didn't save: ${failed(e)}. Try again.`);
     }
+  };
+  const startBlank = () => {
+    if (starting.current) return;
+    starting.current = true;
+    void Promise.resolve(onBlank(designName, job)).catch((e: unknown) => {
+      starting.current = false;
+      setError(`The design didn't save: ${failed(e)}. Try again.`);
+    });
   };
   const heading = "New design";
   const jobWord = job?.jobNumber ? `job ${job.jobNumber}` : null;
@@ -745,7 +760,7 @@ export function NewDesign({
             </div>
           )}
           {errorLine}
-          <button type="button" className="pt-link ds2-nd-blank" onClick={() => onBlank(designName, job)}>
+          <button type="button" className="pt-link ds2-nd-blank" onClick={startBlank}>
             Start with a blank canvas
           </button>
         </div>

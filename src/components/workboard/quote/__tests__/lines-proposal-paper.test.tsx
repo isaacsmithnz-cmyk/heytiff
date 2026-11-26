@@ -181,3 +181,12 @@ it("drawn to read (the Price tab's preview, the PDF), has no box to type in and 
   expect(screen.getByText("Thanks for having us out.")).toBeInTheDocument();
   expect(screen.getByText("Duct to each room")).toBeInTheDocument();
 });
+
+/* job 3608, 26 November 2026: the unit table read "Indoor unit, Master Bed
+   4" and the code's number, and undersold every unit */
+it("says each unit's cooling as its maker's pack has it, read by the server", () => {
+  paper({ coolKw: { l1: 9 } });
+  const first = screen.getByRole("region", { name: "Option 1" });
+  expect(within(first).getByText("9.0 kW")).toBeInTheDocument();
+  expect(within(first).queryByText("12.5 kW")).toBeNull();
+});

@@ -495,11 +495,15 @@ export const floorValueOf = (p: JobPlanPage): string => (p.kind === "floor" && p
     a floor plan at it, named as the set names that level; Not a floor plan
     takes it out of the floors, its picture kept so it can be put back.
     Every page that can be chosen is marked picked, since whoever saved
-    them looked at each. */
-export function chooseFloors(pages: readonly JobPlanPage[], chosen: Readonly<Record<number, string>>, by: string | null, at: string): JobPlanPage[] {
-  const picked = { by, at };
+    them looked at each. Check the read's answers ("these") change and mark
+    only the pages they name, so a question skipped is still asked; their
+    Undo ("undo") puts those pages back as Tiff read them, unmarked. */
+export type ChooseHow = "all" | "these" | "undo";
+export function chooseFloors(pages: readonly JobPlanPage[], chosen: Readonly<Record<number, string>>, by: string | null, at: string, how: ChooseHow = "all"): JobPlanPage[] {
+  const picked = how === "undo" ? null : { by, at };
   const next = pages.map((p): JobPlanPage => {
     if (!p.ref) return p;
+    if (how !== "all" && chosen[p.n] === undefined) return p;
     const value = chosen[p.n] ?? floorValueOf(p);
     if (value === NOT_A_FLOOR_PLAN) return { ...p, kind: "other", level: null, picked };
     const level = Number(value);

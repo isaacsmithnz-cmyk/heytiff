@@ -33,7 +33,9 @@ import { ComplianceChooser } from "./compliance-chooser";
 import { designRowLine } from "./job-design-face";
 import { StateLine } from "./state-line";
 import { AddPlansDialog, planCandidates, type UploadForPlans } from "./add-plans-dialog";
-import { choosablePages, floorPagesOf, pageCaption, planLine, planPointsAt, planProgressOf, planStateWord, replacedBy, scaleAsks, subfloorLine, type JobPlanPage, type JobPlanRead, type PlanPick } from "@/lib/jobs/plans";
+import { choosablePages, floorPagesOf, floorValueOf, NOT_A_FLOOR_PLAN, pageCaption, planLine, planPointsAt, planProgressOf, planStateWord, replacedBy, scaleAsks, subfloorLine, type JobPlanPage, type JobPlanRead, type PlanPick } from "@/lib/jobs/plans";
+import { answeredSaid, readQuestions } from "@/lib/jobs/read-questions";
+import { CheckReadDialog, type PageShown } from "./check-read-dialog";
 import { SetScaleDialog, type ScalePage, type ScalePoint } from "./set-scale-dialog";
 import { PlansDialog, type ChosenFloors } from "./plans-dialog";
 import { FaceTitle } from "./face-title";
@@ -251,6 +253,10 @@ export function JobDocumentsFace({
   onPageForScale,
   onSetScale,
   onChooseFloors,
+  onOpenPage,
+  onAnswerFloors,
+  onPagesToView,
+  onToast,
   part,
 }: {
   documents: readonly JobMediaItem[] | null;
@@ -324,6 +330,18 @@ export function JobDocumentsFace({
       plan: what went wrong, or null. Offered under a set she isn't sure of
       as Choose floors. */
   onChooseFloors?: (chosen: ChosenFloors) => Promise<string | null>;
+  /** One of a plan's floor pages, opened big over the page, to zoom and
+      pan and see full screen (bug 119). Absent, a page's picture is only
+      a picture. */
+  onOpenPage?: (plan: JobPlanRead, n: number) => void;
+  /** Check the read's answers (check-read-dialog.tsx): floors saved on the
+      pages an answer names ("these"), or put back as they were ("undo");
+      what went wrong, or null. Absent, Check the read opens Choose floors. */
+  onAnswerFloors?: (planId: string, chosen: Record<number, string>, how: "these" | "undo") => Promise<string | null>;
+  /** a plan's floor pages, their full pictures, for Check the read */
+  onPagesToView?: (planId: string) => Promise<readonly PageShown[] | null>;
+  /** what Check the read did, with Undo (rule 37) */
+  onToast?: (message: string, undo?: () => void | Promise<void>) => void;
   /** Which part this card draws: the job's plans alone, on the Scope tab,
       or the papers without them, on Files (Isaac, 15 November 2026: "Plans
       move too"); both when not given. */
@@ -352,6 +370,25 @@ export function JobDocumentsFace({
     });
   };
   const [scaling, setScaling] = useState<{ planId: string; page: JobPlanPage; ask: "set" | "check" } | null>(null);
+  /* Check the read, open on a plan as it was when pressed: its Undo puts
+     back what it was then */
+  const [checking, setChecking] = useState<JobPlanRead | null>(null);
+  const checkedRead = (was: JobPlanRead, answered: Record<number, string>, skipped: number) => {
+    setChecking(null);
+    if (!onAnswerFloors) return;
+    const before = Object.fromEntries(
+      Object.keys(answered).map((n) => {
+        const page = was.pages.find((pg) => pg.n === Number(n));
+        return [n, page ? floorValueOf(page) : NOT_A_FLOOR_PLAN];
+      })
+    );
+    const said = answeredSaid(answered);
+    const left = skipped === 1 ? "1 question left" : skipped > 1 ? `${skipped} questions left` : null;
+    const message = [skipped > 0 ? "Floors saved" : "Plans checked", said, left].filter(Boolean).join(". ");
+    onToast?.(message, async () => {
+      await onAnswerFloors(was.id, before, "undo");
+    });
+  };
   const [adding, setAdding] = useState(false);
   const addRef = useRef<HTMLButtonElement>(null);
   const picker = useRef<HTMLInputElement | null>(null);
@@ -418,6 +455,11 @@ export function JobDocumentsFace({
   /* a file in Plans is listed there, not in its old group too */
   const fileOfPlan = (p: JobPlanRead) => allDocs.find((d) => planPointsAt(p, d)) ?? null;
   const docs = allDocs.filter((d) => !planList.some((p) => planPointsAt(p, d)));
+  /* the plans' own files: on Files, where the plans themselves aren't
+     drawn, they stand in Plans as plain files, so a set filed on the job
+     is still among its files (bug 118, Isaac, 26 November 2026: "no plans
+     in files") */
+  const planFiles = part === "papers" ? allDocs.filter((d) => planList.some((p) => planPointsAt(p, d))) : [];
   /* What is genuinely unshowable here stays in ServiceM8; video went to
      Photos, with the rest of what was shot on site. */
   const unshowable = (elsewhere ?? []).length;
@@ -435,7 +477,7 @@ export function JobDocumentsFace({
   const shares = links ?? [];
   const files = byGroup.get("files") ?? [];
   const compliance = statements.length + certs.length + ours.length + attachedPapers.length;
-  const total = part === "plans" ? planList.length : (part === "papers" ? 0 : planList.length) + designs.length + shares.length + client.length + files.length + compliance;
+  const total = part === "plans" ? planList.length : (part === "papers" ? planFiles.length : planList.length) + designs.length + shares.length + client.length + files.length + compliance;
 
   const offerSwms = !!onCreateSwms && !swmsClosed && swms !== null && statements.length === 0;
   /* one per job: a later one is a reissue of the first */
@@ -528,13 +570,40 @@ export function JobDocumentsFace({
     const subfloor = p.state === "reading" || replaced ? null : subfloorLine(p);
     const url = file?.url;
     const open = file && url ? (opensInCard(file.fileType) ? () => onOpen(file) : () => void window.open(url, "_blank", "noopener,noreferrer")) : undefined;
+    /* CHECK THE READ IS A DOOR (bug 117, Isaac, 26 November 2026: "it says
+       check the read but nothing to action?"). The word sat over the row's
+       own door and did nothing, and what it asked for waited under every
+       page. Pressed, it opens what's to check: the floors to choose, a
+       page's scale, or the set itself to look at. */
+    const firstAsk = asks[0];
+    const check =
+      p.state === "check" && !replaced
+        ? onAnswerFloors && readQuestions(p).length > 0
+          ? () => setChecking(p)
+          : choose
+          ? () => setChoosingFloors(p.id)
+          : firstAsk
+            ? () => {
+                const page = floorPagesOf(p).find((pg) => pg.n === firstAsk.n);
+                if (page) setScaling({ planId: p.id, page, ask: firstAsk.ask });
+              }
+            : open
+        : undefined;
     return (
       <Row
         key={p.id}
         lead={pickOf(sendKey, p.name)}
         name={p.name}
         line={facts || undefined}
-        end={<StateWord tone={state.tone}>{state.word}</StateWord>}
+        end={
+          check ? (
+            <Button size={32} onClick={check}>
+              {state.word}
+            </Button>
+          ) : (
+            <StateWord tone={state.tone}>{state.word}</StateWord>
+          )
+        }
         onClick={open}
         below={
           pages.length > 0 || choose || again || subfloor || failedWhy || progress ? (
@@ -553,8 +622,15 @@ export function JobDocumentsFace({
                 <span className="jpl-pages">
                   {pages.map((pg) => (
                     <span key={pg.n} className="jpl-page">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={p.thumbs[pg.n]} alt={pageCaption(pg)} />
+                      {onOpenPage ? (
+                        <button type="button" className="jpl-pageopen" aria-label={`Open ${pageCaption(pg)}`} onClick={() => onOpenPage(p, pg.n)}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={p.thumbs[pg.n]} alt="" />
+                        </button>
+                      ) : (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img src={p.thumbs[pg.n]} alt={pageCaption(pg)} />
+                      )}
                       <span>{pageCaption(pg)}</span>
                       {asks
                         .filter((a) => a.n === pg.n)
@@ -686,6 +762,15 @@ export function JobDocumentsFace({
       {choosingFloors && onChooseFloors && plans?.some((p) => p.id === choosingFloors) && (
         <PlansDialog plans={plans.filter((p) => p.id === choosingFloors)} onSave={(chosen) => onChooseFloors(chosen)} onClose={() => setChoosingFloors(null)} />
       )}
+      {checking && onAnswerFloors && (
+        <CheckReadDialog
+          plan={checking}
+          onAnswer={(chosen) => onAnswerFloors(checking.id, chosen, "these")}
+          onDone={(answered, skipped) => checkedRead(checking, answered, skipped)}
+          onClose={() => setChecking(null)}
+          loadPages={onPagesToView ? () => onPagesToView(checking.id) : undefined}
+        />
+      )}
       {scaling && onSetScale && onPageForScale && (
         <SetScaleDialog
           heading={scaling.ask === "set" ? "Set scale" : "Check scale"}
@@ -795,6 +880,7 @@ export function JobDocumentsFace({
       )}
 
       {part !== "papers" && planList.length > 0 && <Group heading="Plans">{planList.map(planRowOf)}</Group>}
+      {planFiles.length > 0 && <Group heading="Plans">{planFiles.map(docRowOf)}</Group>}
 
       {designs.length > 0 && (
         <Group heading="Drawings">

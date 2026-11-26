@@ -49,9 +49,9 @@ export function InviteProblem({
 
   const footer =
     signedIn && reason !== "wrong_account" ? (
-      <p className="text-sm text-zinc-500">
+      <p className="text-sm text-[var(--q)]">
         {`Signed in as ${signedInEmail}. `}
-        <a className="font-semibold text-zinc-700 underline underline-offset-2" href="/auth/logout">
+        <a className="font-semibold text-[var(--ink)] underline underline-offset-2" href="/auth/logout">
           Sign out
         </a>
       </p>
@@ -63,16 +63,16 @@ export function InviteProblem({
         <>
           <h1 className={TITLE}>This invitation is for another address</h1>
           <p className={LEAD}>
-            It was sent to <b className="text-zinc-700">{invitedEmail ?? "a different address"}</b>
+            It was sent to <b className="text-[var(--ink)]">{invitedEmail ?? "a different address"}</b>
             {signedInEmail ? (
               <>
                 {" "}
-                and you’re signed in as <b className="text-zinc-700">{signedInEmail}</b>
+                and you’re signed in as <b className="text-[var(--ink)]">{signedInEmail}</b>
               </>
             ) : null}
             . Sign out, then open the invitation from the email again.
           </p>
-          <a className={PRIMARY} href="/auth/logout">
+          <a className={`${PRIMARY} mt-5 w-full`} href="/auth/logout">
             Sign out
           </a>
         </>
@@ -98,11 +98,11 @@ export function InviteProblem({
               : `It can only be accepted once. If it was you, sign in to open ${company ?? "your workspace"}.`}
           </p>
           {signedIn ? (
-            <a className={PRIMARY} href="/dashboard">
+            <a className={`${PRIMARY} mt-5 w-full`} href="/dashboard">
               Open HeyTiff
             </a>
           ) : (
-            <a className={PRIMARY} href="/auth/login">
+            <a className={`${PRIMARY} mt-5 w-full`} href="/auth/login">
               Sign in
             </a>
           )}
@@ -117,8 +117,8 @@ export function InviteProblem({
             again.
           </p>
           {signedIn ? (
-            <p className={`${AFTER} text-sm text-zinc-500`}>
-              <a className="font-semibold text-zinc-700 underline underline-offset-2" href="/dashboard">
+            <p className={`${AFTER} text-sm text-[var(--q)]`}>
+              <a className="font-semibold text-[var(--ink)] underline underline-offset-2" href="/dashboard">
                 Open HeyTiff
               </a>
             </p>

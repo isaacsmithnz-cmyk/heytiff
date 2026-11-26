@@ -202,6 +202,38 @@ describe("a design from a plan", () => {
     expect(made.planImport).toMatchObject({ sources: [{ ref: "org/o1/plan_src.pdf", kind: "pdf" }], chosen: [2, 3], jobPlanId: "jplan_1" });
     expect(made.planImport.placed).toEqual({ 2: "org/o1/plan_3.png", 3: "org/o1/plan_4.png" });
   });
+  /* A DESIGN'S FLOORS STACK AS THE HOUSE DOES (Isaac, 26 November 2026,
+     job 3608): a floor drawn elsewhere on its own sheet is moved under the
+     one it's under; one drawn in line stays at its page's corner */
+  it("lines a floor up under the ground floor by the footprint she read off each", () => {
+    const rect = (name: string, kind: "room" | "garage", x0: number, y0: number, x1: number, y1: number): SheetReading["spaces"][number] => ({
+      ...room(name),
+      kind,
+      outline: [
+        { x: x0, y: y0 },
+        { x: x1, y: y0 },
+        { x: x1, y: y1 },
+        { x: x0, y: y1 },
+      ],
+    });
+    const lined = designFromPlan(
+      plan({
+        pages: [page(2, { name: "Lower ground", level: -1, ref: "org/o1/plan_2.png" }), page(3), page(4)],
+        reading: reading({
+          floors: {
+            p2: [{ ...sheet("p2", []), spaces: [rect("Garage", "garage", 1120, 745, 1664, 958), rect("Sub floor", "room", 1430, 292, 1940, 739)] }],
+            p3: [{ ...sheet("p3", []), spaces: [rect("Beds", "room", 713, 744, 1259, 976), rect("Living", "room", 1023, 293, 1533, 736)] }],
+            p4: [{ ...sheet("p4", []), spaces: [rect("Bed 2", "room", 1049, 351, 1400, 600)] }],
+          },
+        }),
+      }),
+    );
+    const at = Object.fromEntries(lined.floors.map((f) => [f.level, { x: f.plans[0].x, y: f.plans[0].y }]));
+    expect(Math.abs(at[-1].x - -407)).toBeLessThanOrEqual(16);
+    expect(Math.abs(at[-1].y)).toBeLessThanOrEqual(16);
+    expect(at[0]).toEqual({ x: 0, y: 0 });
+    expect(at[1]).toEqual({ x: 0, y: 0 });
+  });
   it("moves her reading onto the design's floors and sheets, points untouched", () => {
     const made = designFromPlan(plan());
     const [ground, level1] = made.floors;

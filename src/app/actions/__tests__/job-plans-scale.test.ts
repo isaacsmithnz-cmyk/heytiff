@@ -98,7 +98,17 @@ describe("a scale measured in a design", () => {
 describe("Choose floors", () => {
   it("saves a level or Not a floor plan by page on the caller's org's plan, as them, and drops anything else", async () => {
     expect(await chooseFloorsOnPlan("job-1", "jplan_1", { 3: "0", 4: "none", 5: "Level 9", 0: "1", 6: "-1" } as Record<number, string>)).toBeNull();
-    expect(choosePlanFloors).toHaveBeenCalledWith("org-1", "jplan_1", { 3: "0", 4: "none", 6: "-1" }, "staff-1", "job-1");
+    expect(choosePlanFloors).toHaveBeenCalledWith("org-1", "jplan_1", { 3: "0", 4: "none", 6: "-1" }, "staff-1", "job-1", "all");
+  });
+
+  /* Check the read's answers mark only their pages, and their Undo puts them back */
+  it("passes on an answer's pages alone, or their undo, and nothing else", async () => {
+    await chooseFloorsOnPlan("job-1", "jplan_1", { 18: "none" }, "these");
+    expect(choosePlanFloors).toHaveBeenLastCalledWith("org-1", "jplan_1", { 18: "none" }, "staff-1", "job-1", "these");
+    await chooseFloorsOnPlan("job-1", "jplan_1", { 18: "0" }, "undo");
+    expect(choosePlanFloors).toHaveBeenLastCalledWith("org-1", "jplan_1", { 18: "0" }, "staff-1", "job-1", "undo");
+    await chooseFloorsOnPlan("job-1", "jplan_1", { 18: "0" }, "everything" as "all");
+    expect(choosePlanFloors).toHaveBeenLastCalledWith("org-1", "jplan_1", { 18: "0" }, "staff-1", "job-1", "all");
   });
 
   it("refuses without `workboard`, before touching the plan", async () => {

@@ -4,7 +4,7 @@ import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
 import { staffProfileIdFor } from "@/lib/fleet/query";
 import { addJobPlans, choosePlanFloors, readPlanAgain, keepSubfloorHeight, planPageForScale, planPagesToView, readJobPlans, setPlanScale, type AddPlansResult, type PageForScale, type PageToView } from "@/lib/jobs/plans-server";
-import type { JobPlanRead, PlanPick } from "@/lib/jobs/plans";
+import type { ChooseHow, JobPlanRead, PlanPick } from "@/lib/jobs/plans";
 import type { LinkPlansResult } from "@/lib/jobs/plans-link-server";
 
 /* PLANS ON THE JOB: the job card's actions (lib/jobs/plans-server.ts).
@@ -128,7 +128,7 @@ export async function keepSubfloorOnPlan(jobUuid: string, planId: string, height
   return keepSubfloorHeight(ctx.orgId, plan, mm, ctx.staffId, String(design ?? "").trim(), job);
 }
 
-export async function chooseFloorsOnPlan(jobUuid: string, planId: string, chosen: Record<number, string>): Promise<string | null> {
+export async function chooseFloorsOnPlan(jobUuid: string, planId: string, chosen: Record<number, string>, how: ChooseHow = "all"): Promise<string | null> {
   const ctx = await context();
   const job = trim(jobUuid);
   const plan = trim(planId);
@@ -139,7 +139,8 @@ export async function chooseFloorsOnPlan(jobUuid: string, planId: string, chosen
     const value = String(v);
     if (Number.isInteger(n) && n > 0 && (value === "none" || /^-?\d{1,2}$/.test(value))) clean[n] = value;
   }
-  return choosePlanFloors(ctx.orgId, plan, clean, ctx.staffId, job);
+  const asked: ChooseHow = how === "these" || how === "undo" ? how : "all";
+  return choosePlanFloors(ctx.orgId, plan, clean, ctx.staffId, job, asked);
 }
 
 /** Link job on a design with no job: its plans onto the job's Plans, read as

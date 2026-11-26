@@ -33,7 +33,9 @@ import { ComplianceChooser } from "./compliance-chooser";
 import { designRowLine } from "./job-design-face";
 import { StateLine } from "./state-line";
 import { AddPlansDialog, planCandidates, type UploadForPlans } from "./add-plans-dialog";
-import { choosablePages, floorPagesOf, pageCaption, planLine, planPointsAt, planProgressOf, planStateWord, replacedBy, scaleAsks, subfloorLine, type JobPlanPage, type JobPlanRead, type PlanPick } from "@/lib/jobs/plans";
+import { choosablePages, floorPagesOf, floorValueOf, NOT_A_FLOOR_PLAN, pageCaption, planLine, planPointsAt, planProgressOf, planStateWord, replacedBy, scaleAsks, subfloorLine, type JobPlanPage, type JobPlanRead, type PlanPick } from "@/lib/jobs/plans";
+import { answeredSaid, readQuestions } from "@/lib/jobs/read-questions";
+import { CheckReadDialog, type PageShown } from "./check-read-dialog";
 import { SetScaleDialog, type ScalePage, type ScalePoint } from "./set-scale-dialog";
 import { PlansDialog, type ChosenFloors } from "./plans-dialog";
 import { FaceTitle } from "./face-title";
@@ -252,6 +254,9 @@ export function JobDocumentsFace({
   onSetScale,
   onChooseFloors,
   onOpenPage,
+  onAnswerFloors,
+  onPagesToView,
+  onToast,
   part,
 }: {
   documents: readonly JobMediaItem[] | null;
@@ -329,6 +334,14 @@ export function JobDocumentsFace({
       pan and see full screen (bug 119). Absent, a page's picture is only
       a picture. */
   onOpenPage?: (plan: JobPlanRead, n: number) => void;
+  /** Check the read's answers (check-read-dialog.tsx): floors saved on the
+      pages an answer names ("these"), or put back as they were ("undo");
+      what went wrong, or null. Absent, Check the read opens Choose floors. */
+  onAnswerFloors?: (planId: string, chosen: Record<number, string>, how: "these" | "undo") => Promise<string | null>;
+  /** a plan's floor pages, their full pictures, for Check the read */
+  onPagesToView?: (planId: string) => Promise<readonly PageShown[] | null>;
+  /** what Check the read did, with Undo (rule 37) */
+  onToast?: (message: string, undo?: () => void | Promise<void>) => void;
   /** Which part this card draws: the job's plans alone, on the Scope tab,
       or the papers without them, on Files (Isaac, 15 November 2026: "Plans
       move too"); both when not given. */
@@ -357,6 +370,25 @@ export function JobDocumentsFace({
     });
   };
   const [scaling, setScaling] = useState<{ planId: string; page: JobPlanPage; ask: "set" | "check" } | null>(null);
+  /* Check the read, open on a plan as it was when pressed: its Undo puts
+     back what it was then */
+  const [checking, setChecking] = useState<JobPlanRead | null>(null);
+  const checkedRead = (was: JobPlanRead, answered: Record<number, string>, skipped: number) => {
+    setChecking(null);
+    if (!onAnswerFloors) return;
+    const before = Object.fromEntries(
+      Object.keys(answered).map((n) => {
+        const page = was.pages.find((pg) => pg.n === Number(n));
+        return [n, page ? floorValueOf(page) : NOT_A_FLOOR_PLAN];
+      })
+    );
+    const said = answeredSaid(answered);
+    const left = skipped === 1 ? "1 question left" : skipped > 1 ? `${skipped} questions left` : null;
+    const message = [skipped > 0 ? "Floors saved" : "Plans checked", said, left].filter(Boolean).join(". ");
+    onToast?.(message, async () => {
+      await onAnswerFloors(was.id, before, "undo");
+    });
+  };
   const [adding, setAdding] = useState(false);
   const addRef = useRef<HTMLButtonElement>(null);
   const picker = useRef<HTMLInputElement | null>(null);
@@ -546,7 +578,9 @@ export function JobDocumentsFace({
     const firstAsk = asks[0];
     const check =
       p.state === "check" && !replaced
-        ? choose
+        ? onAnswerFloors && readQuestions(p).length > 0
+          ? () => setChecking(p)
+          : choose
           ? () => setChoosingFloors(p.id)
           : firstAsk
             ? () => {
@@ -727,6 +761,15 @@ export function JobDocumentsFace({
       {addingPlans && onAddPlans && <AddPlansDialog files={docs} onAdd={onAddPlans} onUpload={onUploadForPlans} onClose={() => setAddingPlans(false)} />}
       {choosingFloors && onChooseFloors && plans?.some((p) => p.id === choosingFloors) && (
         <PlansDialog plans={plans.filter((p) => p.id === choosingFloors)} onSave={(chosen) => onChooseFloors(chosen)} onClose={() => setChoosingFloors(null)} />
+      )}
+      {checking && onAnswerFloors && (
+        <CheckReadDialog
+          plan={checking}
+          onAnswer={(chosen) => onAnswerFloors(checking.id, chosen, "these")}
+          onDone={(answered, skipped) => checkedRead(checking, answered, skipped)}
+          onClose={() => setChecking(null)}
+          loadPages={onPagesToView ? () => onPagesToView(checking.id) : undefined}
+        />
       )}
       {scaling && onSetScale && onPageForScale && (
         <SetScaleDialog

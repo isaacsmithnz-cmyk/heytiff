@@ -603,6 +603,17 @@ export function JobSheet({
     return null;
   };
 
+  /* Check the read's answers: floors saved on the pages an answer names, or
+     put back by its Undo, and the plans read again so the row says so. */
+  const answerFloors = async (planId: string, chosen: Record<number, string>, how: "these" | "undo"): Promise<string | null> => {
+    if (!cardId) return "The job isn't known yet.";
+    const why = await chooseFloorsOnPlan(cardId, planId, chosen, how).catch(() => "The floors couldn't be saved. Try again.");
+    if (why) return why;
+    const fresh = await readPlansOnJob(cardId).catch(() => null);
+    if (fresh) setPlans(fresh);
+    return null;
+  };
+
   /* A PLAN'S PAGE, BIG (bug 119, Isaac, 26 November 2026: "cant go
      fullscreen with plans, no horizontal scroll"): a page's picture on the
      Scope tab opens the set's floor pages in the viewer, on the one
@@ -2068,6 +2079,9 @@ export function JobSheet({
           onSetScale={cardId ? setPlanScale : undefined}
           onChooseFloors={cardId ? choosePlanFloors : undefined}
           onOpenPage={cardId ? (plan, n) => void openPlanPage(plan, n) : undefined}
+          onAnswerFloors={cardId ? answerFloors : undefined}
+          onPagesToView={cardId ? (planId) => pagesToView(cardId, planId).catch(() => null) : undefined}
+          onToast={onToast}
         />
       )}
     </section>

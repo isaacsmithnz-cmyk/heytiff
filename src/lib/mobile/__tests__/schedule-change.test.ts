@@ -392,17 +392,20 @@ describe("who isn't booked", () => {
   const PENDING = "9e9e9e9e-0000-4000-8000-00000000a009";
   it("is the capacity crew with nothing that day: free, off with when it ends, or free after a part of it — never the office or a placeholder", async () => {
     const DAVID = "da0da0da-0000-4000-8000-00000000a004";
+    const MIA = "3a13a13a-0000-4000-8000-00000000a005";
     fake.db.sm8_staff = [
       ...(fake.db.sm8_staff as Row[]),
       { org_id: ORG, uuid: LEO, first: "Leo", last: "Watanangura", active: 1 },
       { org_id: ORG, uuid: PENDING, first: "Pending", last: "Jobs", active: 1 },
       { org_id: ORG, uuid: DAVID, first: "David", last: "Hann", active: 1 },
+      { org_id: ORG, uuid: MIA, first: "Mia", last: "Example", active: 1 },
     ];
     fake.db.schedule_capacity_staff = [
       { org_id: ORG, sm8_staff_uuid: SAM_SM8, included: true, daily_minutes: 480 },
       { org_id: ORG, sm8_staff_uuid: ALEX_SM8, included: true, daily_minutes: 480 },
       { org_id: ORG, sm8_staff_uuid: LEO, included: true, daily_minutes: 480 },
       { org_id: ORG, sm8_staff_uuid: DAVID, included: true, daily_minutes: 480 },
+      { org_id: ORG, sm8_staff_uuid: MIA, included: true, daily_minutes: 480 },
       { org_id: ORG, sm8_staff_uuid: PENDING, included: false, daily_minutes: 480 },
     ];
     fake.db.staff_profiles = [{ org_id: ORG, id: "staff-sam", job_title: "Apprentice" }];
@@ -417,6 +420,9 @@ describe("who isn't booked", () => {
           /* two service calls, overlapping a little: room after the last */
           { uuid: "ac7ac7ac-0000-4000-8000-0000000c0001", jobUuid: JOB, staffUuid: DAVID, start: at(d, "07:30"), end: at(d, "09:00"), wasScheduled: 1 },
           { uuid: "ac7ac7ac-0000-4000-8000-0000000c0002", jobUuid: OTHER_JOB, staffUuid: DAVID, start: at(d, "08:45"), end: at(d, "11:30"), wasScheduled: 1 },
+          /* two short visits, the last to home time (the business's 3 pm): hours left, but not free after it (bug 107) */
+          { uuid: "ac7ac7ac-0000-4000-8000-0000000c0003", jobUuid: JOB, staffUuid: MIA, start: at(d, "07:30"), end: at(d, "08:30"), wasScheduled: 1 },
+          { uuid: "ac7ac7ac-0000-4000-8000-0000000c0004", jobUuid: OTHER_JOB, staffUuid: MIA, start: at(d, "13:30"), end: at(d, "15:00"), wasScheduled: 1 },
         ],
         staff: [],
         jobs: [],

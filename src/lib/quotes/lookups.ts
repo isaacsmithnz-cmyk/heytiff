@@ -279,6 +279,34 @@ export type UnitLookup =
   | { found: true; specs: UnitSpecs; pack: string; /** the code asked for, read as the pack model a person linked it to */ linkedFrom?: string }
   | { found: false; reason: "no data pack" | "not in the pack" };
 
+/** A pipe pair, mm. */
+export type PipePair = { liquid: number; gas: number };
+
+/** What a VRF or multi outdoor's runs may be, off its maker's pack: its
+    system type, and every size its VRF pipe tables give a main, a run
+    between joints, a branch or a branch box's head, and its multi rule's
+    ports. Null where the pack hasn't the outdoor. The quote's pipe check
+    (fit.ts) reads it, as a VRF's pipe is more than the outdoor's stubs
+    (3608, 26 November 2026: the PUMY's 1/4 + 1/2 between joints and to its
+    P20 heads was flagged against its 3/8 + 5/8). */
+export function systemPipesOf(pack: DataPack, outdoorModel: string): { type: "split" | "multi" | "vrf"; sizes: PipePair[] } | null {
+  const odu = pack.outdoor_units.find((u) => sameUnit(outdoorModel, u.model));
+  if (!odu) return null;
+  const sizes: PipePair[] = [];
+  const add = (liquid: unknown, gas: unknown) => {
+    const l = n(liquid);
+    const g = n(gas);
+    if (l != null && g != null && !sizes.some((s) => s.liquid === l && s.gas === g)) sizes.push({ liquid: l, gas: g });
+  };
+  const refs = [odu.pipe_table_ref, odu.branch_box_table_ref, odu.mixed_table_ref].filter((r): r is string => !!r);
+  for (const t of pack.vrf_pipe_tables.filter((t) => refs.includes(t.series))) {
+    for (const rule of [t.pipe_sizing, t.branch_sizing]) for (const s of rule?.steps ?? []) add(s.liquid_mm, s.gas_mm);
+    for (const b of t.box_head_sizing ?? []) add(b.liquid_mm, b.gas_mm);
+  }
+  for (const m of pack.multi_rules.filter((m) => sameUnit(m.odu_model_ref, odu.model))) for (const port of m.port_pipe_sizes ?? []) add(port.liquid_mm, port.gas_mm);
+  return { type: odu.system_type, sizes };
+}
+
 /** A business's pack link (code-links.ts), confirmed on the Quoting page:
     an order code and the pack model it is. */
 export type ConfirmedLink = { model: string; code: string };

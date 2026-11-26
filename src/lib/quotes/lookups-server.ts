@@ -4,7 +4,7 @@ import { installedPacks, latestInstalledPack, loadInstalledPack } from "@/lib/st
 import type { DataPack, ZoningController } from "@/lib/studio/packs/schema";
 import { brandNames } from "@/lib/hq/packs";
 import { bookProducts } from "./book-view-server";
-import { findInBook, unitSpecs, type BookHit, type BookQuery, type ConfirmedLink, type UnitLookup } from "./lookups";
+import { findInBook, systemPipesOf, unitSpecs, type BookHit, type BookQuery, type ConfirmedLink, type PipePair, type UnitLookup } from "./lookups";
 import { pairingOf, type Pairing } from "./pairing";
 import { chargeOf, type Charge, type ChargeAsk } from "./charge";
 import { vrfPlanOf, type VrfAsk, type VrfPlan } from "./vrf-kit";
@@ -55,6 +55,12 @@ export async function lookupUnit(brand: string, model: string, orgId?: string | 
   const key = brand.toLowerCase();
   const [pack, links] = await Promise.all([packFor(key), confirmedLinks(orgId)]);
   return unitSpecs({ [key]: pack }, key, model, links);
+}
+
+/** What a VRF or multi outdoor's runs may be, by its maker's pack (lookups.ts systemPipesOf). */
+export async function lookupSystemPipes(brand: string, outdoorModel: string): Promise<{ type: "split" | "multi" | "vrf"; sizes: PipePair[] } | null> {
+  const pack = await packFor(brand.toLowerCase()).catch(() => null);
+  return pack ? systemPipesOf(pack, outdoorModel) : null;
 }
 
 /** Whether an outdoor takes the indoors given, by its maker's book (pairing.ts). */

@@ -128,7 +128,7 @@ Nineteen values: each of the eight hues has a bright value (dots, blocks, charts
 
 **Text on a solid block** (a bar, a column's head on Home): ink on every hue but blue, which takes white. A schedule card's number box is the exception: the hue's word value, or its card value for orange, yellow and pink, with white words, ink on yellow (rule 19).
 
-**What each colour means:** red only wrong (rule 16); orange needs a look; green good; blue only press (the main button, ticks and switches when on, a selection), and a person named in the box (rule 17); grey for your information. A job's own colour (rule 18), a Studio system's (rule 18a) and the chart colours (rule 20) are the only other uses.
+**What each colour means:** red only wrong (rule 16); orange needs a look; green good; blue only press (the main button, ticks and switches when on, a selection), and a person named in the box (rule 17); grey for your information. A job's own colour (rule 18), a Studio system's (rule 18a), the chart colours (rule 20) and a card's head (On a person's page: grey a thing's facts, green a job's story, purple a person's) are the only other uses.
 
 **A business's own colour is its own.** Its document colour, logo and letterhead go on what it sends (letters, certificates, SWMS, the handover sheet, the live link's bar). They are never snapped to the eight and never appear on the app's own chrome.
 
@@ -412,6 +412,29 @@ https://claude.ai/artifact/BH6voDn1axdk96JZCCUSTf).
 - **The emergency contact's title is red** (`.tm2-emerg`), despite rule 16,
   red only means wrong: it is the one group someone has to find in a hurry.
   Its icon is a plaster on the diagonal, never a cross.
+- **The page wears the job page's dress** (Isaac, 26 November 2026: "Take
+  job card styling and apply it to staff profile mock", then "Build it").
+  The head is one white card on the job page's grey: the photo or initials
+  at 40, the name at 24, and one line beside it, where they stand first in
+  its colour ("Active" in green), then what they do and since when. The
+  Overview is a job's two cards (`.jov--fit`), Details at 400 rather than
+  320 so a number, an email and a relationship each keep a line.
+- **Details is At a glance** (`.jfc.tm2-details`): the grey head, the body
+  curling into it, and each group a part with its own Edit: Contact, In an
+  emergency, Employment, the rows for licences, work rights, the vehicle,
+  the week and leave, then Name, Uniform and Notes. In an emergency is a
+  part like Contact, its label red, the person beside who they are to them,
+  then the number ("The emergency part looks a bit weird" of the red block).
+- **Activity is the person's own feed on a purple head**
+  (person-activity.tsx; "1" for the feed, then "1" of purple, black and
+  pink). A card's head says what the card is: grey a thing's facts, green a
+  job's story, purple a person's, the one hue that meant nothing else. The
+  filters sit in the head as the job feed's do; under them the week in four
+  figures (this week, overtime in orange, the average day, leave left),
+  then the last fortnight day by day in the job feed's own rows, a job's
+  number at the right of its row and its door, in ink (blue only presses).
+  Hours and leave are read only for the person themself or with
+  `timepay_all`, never read and hidden.
 
 #### On a job's page
 

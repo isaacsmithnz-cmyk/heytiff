@@ -75,17 +75,20 @@ export function EmergencyCard({
      typing. Blank, there is no card to show and the rows are the whole
      section — which is also how "+ Add" gets somewhere to live. */
   const notSet = <StateWord tone="look">Not set</StateWord>;
+  /* On the person page's Details (Isaac, 26 November 2026, "The emergency
+     part looks a bit weird" of a red block): rows like Contact's, the
+     person in the label column with who they are to them beside it, then
+     the number to ring. */
   const railRead = (
     <>
-      <p className="tm2-ename">{values.emergency_name || notSet}</p>
       <dl className="pdl">
+        <div className="pdrow">
+          <dt className="tm2-ename">{values.emergency_name || "Name"}</dt>
+          <dd>{(values.emergency_name ? values.emergency_relationship : null) || notSet}</dd>
+        </div>
         <div className="pdrow">
           <dt>Phone</dt>
           <dd>{values.emergency_phone ? tel(values.emergency_phone) : notSet}</dd>
-        </div>
-        <div className="pdrow">
-          <dt>Relationship</dt>
-          <dd>{values.emergency_relationship || notSet}</dd>
         </div>
         {values.emergency_alt_phone && (
           <div className="pdrow">

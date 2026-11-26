@@ -71,6 +71,15 @@ jest.mock("@/lib/workboard/capacity-query", () => ({ capacityRowFor: () => capac
 jest.mock("@/lib/team/regular-days-off-query", () => ({ readRegularDaysOff: async () => [] }));
 jest.mock("@/lib/org/query", () => ({ orgExpiryWindow: async () => ({ warnDays: 30 }) }));
 jest.mock("@/lib/staff/aliases-query", () => ({ aliasesOf: async () => [] }));
+const readPersonActivity = jest.fn(async (_org: string, o: { hours: boolean }) => ({
+  days: [],
+  stats: { week: null, overtimeMinutes: null, averageDay: null, leave: null },
+  hours: o.hours,
+  leave: false,
+}));
+jest.mock("@/lib/team/person-activity-query", () => ({
+  readPersonActivity: (org: string, o: { hours: boolean }) => readPersonActivity(org, o),
+}));
 jest.mock("@/components/team/person-page", () => ({ PersonPage: () => null }));
 
 async function dataOf(id = "s1"): Promise<PersonPageData> {
@@ -122,6 +131,13 @@ describe("a person's page", () => {
     const d = await dataOf();
     expect(d.leave?.annual).toEqual({ available: 112, balanceHours: 120, asAt: "2026-07-01", source: "manual" });
     expect(JSON.stringify(d.leave)).not.toMatch(/cert/);
+  });
+
+  it("reads their hours for the feed only with `timepay_all`, or on your own page", async () => {
+    expect((await dataOf()).activity.hours).toBe(false);
+    expect(readPersonActivity).toHaveBeenLastCalledWith("org-1", expect.objectContaining({ hours: false, leave: null }));
+    caps.add("timepay_all");
+    expect((await dataOf()).activity.hours).toBe(true);
   });
 
   it("reads the crew row only with `workboard`, through the person's ServiceM8 link", async () => {

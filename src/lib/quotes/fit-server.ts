@@ -1,5 +1,7 @@
 import "server-only";
 import { brandOfCode } from "./brand";
+import { kwInName } from "./brands";
+import { currentItemsByCode } from "./price-book-server";
 import { fitChecks, type Fit, type SystemPipe } from "./fit";
 import type { QuoteLine } from "./lines";
 import type { UnitLookup, UnitSpecs } from "./lookups";
@@ -76,6 +78,33 @@ export async function specsOfCodes(units: readonly { code: string; name: string 
     const pack = brand ? PACK_OF[brand] : undefined;
     const r = pack ? await lookupUnit(pack, u.code, orgId).catch((): UnitLookup => ({ found: false, reason: "not in the pack" })) : null;
     out.set(u.code, r?.found ? r.specs : null);
+  }
+  return out;
+}
+
+/** Each unit line's cooling kW, by line id: its maker's pack first (the
+    pack has PEFY-P25VMX-E at 2.8 kW where its code's number says 25), else
+    the price book's own name for its code ("2.8kW C/M Compact…"). Only the
+    lines something says (job 3608, 26 November 2026: the proposal's unit
+    table undersold every unit, read off "Indoor unit, Master Bed 4" and the
+    code's number). */
+export async function coolingOf(lines: readonly QuoteLine[], orgId?: string | null): Promise<Record<string, number>> {
+  const units = lines.filter((l) => l.kind === "unit" && l.code);
+  const specs = await unitSpecsOf(units, orgId);
+  const out: Record<string, number> = {};
+  const unread: QuoteLine[] = [];
+  for (const u of units) {
+    const kw = specs.get(u.id)?.coolKw;
+    if (kw != null && kw > 0) out[u.id] = kw;
+    else unread.push(u);
+  }
+  if (orgId && unread.length > 0) {
+    const items = await currentItemsByCode(orgId, unread.map((u) => u.code!)).catch(() => []);
+    for (const u of unread) {
+      const item = items.find((i) => i.code === u.code && i.supplierKey === u.supplierKey) ?? items.find((i) => i.code === u.code);
+      const kw = item ? kwInName(item.name) : null;
+      if (kw != null) out[u.id] = kw;
+    }
   }
   return out;
 }

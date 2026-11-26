@@ -14,6 +14,7 @@ import { PrintReady } from "../certificate/print-ready";
 export function PrintQuote(props: {
   proposal: LinesProposal | null;
   lines: QuoteLine[];
+  coolKw: Record<string, number>;
   price: QuotePrice;
   optionNames: string[];
   noteLibrary: QuoteNote[];

@@ -13,12 +13,14 @@
    answer to a question asked out loud, and every turn of a talk), because
    `feed` takes it a delta at a time.
 
-   HER VOICE OR THE DEVICE'S. The route (api/tiff/speak) answers 503
-   `{ fallback, say }` until ElevenLabs can speak for this deployment; from
-   then on, for this page, the pieces are said by the browser's own voice
-   (Australian English where it has one) without asking the route again for
-   a few minutes. A quiet Tiff is a bug; a Tiff in the device's voice is a
-   lesser voice.
+   HER VOICE OR NONE (Isaac, 27 November 2026: "I don't think I want the
+   phone to fall back to its standard voice because that's not TIFF and it
+   just makes it sound quite shit. So I think just have it say that voice is
+   unavailable at the moment if it can't be reached."). When the route can't
+   give her voice (503 not set up or refused, 502 or no connection), nothing
+   is played: the reading stops, and the answer it was reading says "Voice is
+   unavailable at the moment." (`useVoiceUnavailable`). After a 503 the route
+   isn't asked again for a minute.
 
    SOUND NEEDS A PRESS FIRST on an iPad: audio started outside a tap is
    refused, which would make "asked out loud, answered out loud" silent on
@@ -30,9 +32,11 @@ import { useSyncExternalStore } from "react";
 import { capSaid, lineCleaner, REST_WORDS, sentencesOf, SPEAK_MAX_CHARS } from "./speak-words";
 
 const ROUTE = "/api/tiff/speak";
-/** Once the route says it can't speak in her voice, how long the device's
-    voice is used before asking again. */
-const DEVICE_FOR_MS = 5 * 60_000;
+/** Once the route says her voice isn't there, how long before asking again. */
+const QUIET_FOR_MS = 60_000;
+
+/** What an answer says when her voice can't be had. */
+export const VOICE_UNAVAILABLE = "Voice is unavailable at the moment.";
 /** The first piece goes as soon as it has this much; the rest are grouped
     up to the second. Small first, so the first sound is quick. */
 const FIRST_PIECE = 40;
@@ -50,6 +54,15 @@ const nobody = () => null;
 /** The id being read out now, or null. */
 export function useReadingOut(): string | null {
   return useSyncExternalStore(subscribe, readingNow, nobody);
+}
+
+/* the answer whose reading found no voice, until another is read */
+let unvoiced: string | null = null;
+const unvoicedNow = () => unvoiced;
+
+/** True when reading `id` out found her voice unavailable. */
+export function useVoiceUnavailable(id: string): boolean {
+  return useSyncExternalStore(subscribe, unvoicedNow, nobody) === id;
 }
 
 /* ── the one audio element, unlocked in a tap ── */
@@ -78,58 +91,16 @@ export function unlockSpeech(): void {
       /* no media here: she'll need a press to speak */
     }
   }
-  try {
-    const s = window.speechSynthesis;
-    if (s && !s.speaking) s.speak(new SpeechSynthesisUtterance(""));
-  } catch {
-    /* no device voice */
-  }
 }
 
-/* ── the device's voice ── */
-
-let deviceUntil = 0;
-
-function deviceVoice(): SpeechSynthesisVoice | null {
-  try {
-    const vs = window.speechSynthesis.getVoices();
-    return (
-      vs.find((v) => /en-AU/i.test(v.lang) && /karen|catherine|female/i.test(v.name)) ??
-      vs.find((v) => /en-AU/i.test(v.lang)) ??
-      vs.find((v) => /^en/i.test(v.lang)) ??
-      null
-    );
-  } catch {
-    return null;
-  }
-}
-
-function sayOnDevice(words: string, stopped: () => boolean): Promise<void> {
-  return new Promise((done) => {
-    let s: SpeechSynthesis;
-    try {
-      s = window.speechSynthesis;
-    } catch {
-      return done();
-    }
-    if (!s || stopped()) return done();
-    const u = new SpeechSynthesisUtterance(words);
-    const v = deviceVoice();
-    if (v) u.voice = v;
-    u.lang = v?.lang ?? "en-AU";
-    u.rate = 1.05;
-    u.onend = () => done();
-    u.onerror = () => done();
-    s.speak(u);
-  });
-}
+let quietUntil = 0;
 
 /* ── one piece in her voice ── */
 
-type Sound = { kind: "audio"; url: string } | { kind: "device"; words: string } | { kind: "none" };
+type Sound = { kind: "audio"; url: string } | { kind: "unavailable" } | { kind: "none" };
 
 async function fetchSound(words: string, signal: AbortSignal): Promise<Sound> {
-  if (Date.now() < deviceUntil) return { kind: "device", words };
+  if (Date.now() < quietUntil) return { kind: "unavailable" };
   try {
     const res = await fetch(ROUTE, {
       method: "POST",
@@ -139,19 +110,17 @@ async function fetchSound(words: string, signal: AbortSignal): Promise<Sound> {
     });
     if (res.ok) return { kind: "audio", url: URL.createObjectURL(await res.blob()) };
     if (res.status === 503 || res.status === 502) {
-      if (res.status === 503) deviceUntil = Date.now() + DEVICE_FOR_MS;
-      const body = (await res.json().catch(() => null)) as { say?: unknown } | null;
-      return { kind: "device", words: typeof body?.say === "string" && body.say ? body.say : words };
+      if (res.status === 503) quietUntil = Date.now() + QUIET_FOR_MS;
+      return { kind: "unavailable" };
     }
     return { kind: "none" };
   } catch {
-    return signal.aborted ? { kind: "none" } : { kind: "device", words };
+    return signal.aborted ? { kind: "none" } : { kind: "unavailable" };
   }
 }
 
 function play(sound: Sound, stopped: () => boolean): Promise<void> {
-  if (sound.kind === "device") return sayOnDevice(sound.words, stopped);
-  if (sound.kind === "none") return Promise.resolve();
+  if (sound.kind !== "audio") return Promise.resolve();
   const el = theAudio();
   if (!el || stopped()) {
     URL.revokeObjectURL(sound.url);
@@ -299,9 +268,6 @@ export function startReading(id: string): Reader {
     if (stopped) return;
     stopped = true;
     ctl.abort();
-    try {
-      window.speechSynthesis?.cancel();
-    } catch {}
     const el = theAudio();
     if (el && !el.paused) el.pause();
     nudge();
@@ -309,6 +275,7 @@ export function startReading(id: string): Reader {
   };
   stopCurrent = stop;
   reading = id;
+  unvoiced = null;
   tell();
 
   void (async () => {
@@ -316,6 +283,11 @@ export function startReading(id: string): Reader {
     let sound: Promise<Sound> | null = first ? fetchSound(first, ctl.signal) : null;
     while (sound && !stopped) {
       const now = await sound;
+      if (now.kind === "unavailable") {
+        unvoiced = id;
+        stop();
+        break;
+      }
       /* the next piece is waited for and made while this one plays */
       const after = nextPiece(false).then((p) => (p ? fetchSound(p, ctl.signal) : null));
       await play(now, isStopped);

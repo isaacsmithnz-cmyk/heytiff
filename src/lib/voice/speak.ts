@@ -24,9 +24,9 @@
    voice. The voice is a setting and not a constant because it is his to
    pick from samples (the canvas's "Her voice" note), and because the key
    he has can't list voices yet. Either one missing, or the vendor refusing
-   the key, is `fallback`: the screen speaks with the device's own voice and
-   nobody is told anything went wrong. A quiet Tiff is a bug; a Tiff in the
-   iPad's voice is a lesser voice. */
+   the key, is `fallback`: the screen plays nothing and says "Voice is
+   unavailable at the moment." Never the device's own voice (Isaac, 27
+   November 2026: "that's not TIFF and it just makes it sound quite shit"). */
 
 import { capSaid, speakable, SPEAK_MAX_CHARS } from "./speak-words";
 
@@ -41,7 +41,7 @@ const HTTP_TIMEOUT_MS = 20_000;
 
 export type SpeakResult =
   | { ok: true; audio: ReadableStream<Uint8Array>; contentType: string }
-  /** `fallback`: speak it with the device's voice. Not configured, or the
+  /** `fallback`: her voice can't be had here. Not configured, or the
       vendor refused the key or ran dry. */
   | { ok: false; fallback: true }
   /** A failure worth trying again (a timeout, a 429, a 5xx). */

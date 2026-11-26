@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/parts/button";
-import { readOut, stopSpeaking, unlockSpeech, useReadingOut } from "@/lib/voice/speaker";
+import { readOut, stopSpeaking, unlockSpeech, useReadingOut, useVoiceUnavailable, VOICE_UNAVAILABLE } from "@/lib/voice/speaker";
 
 /* READ OUT, under every answer of hers (Isaac, 26 November 2026, "Flow's
    right" to https://claude.ai/artifact/2vtUgVFZHbJf5gamXZZBPm, board 1). A
@@ -20,7 +20,10 @@ export function useIsReading(id: string): boolean {
 
 export function ReadOut({ id, text, door = false }: { id: string; text: string; /** The feed's small grey door, beside the time. */ door?: boolean }) {
   const on = useIsReading(id);
+  const unvoiced = useVoiceUnavailable(id);
   if (!text.trim()) return null;
+  /* her voice couldn't be had: said, and nothing played (Isaac, 27 November 2026) */
+  const said = unvoiced && <span className="tf-reading" role="status">{VOICE_UNAVAILABLE}</span>;
   const press = () => {
     if (on) return stopSpeaking();
     unlockSpeech();
@@ -28,18 +31,20 @@ export function ReadOut({ id, text, door = false }: { id: string; text: string; 
   };
   if (door)
     return (
-      <button type="button" className="jc-bmdoor" onClick={press}>
-        {on ? "Stop reading" : "Read out"}
-      </button>
+      <>
+        <button type="button" className="jc-bmdoor" onClick={press}>
+          {on ? "Stop reading" : "Read out"}
+        </button>
+        {said}
+      </>
     );
   return (
-    <Button
-      kind="quiet"
-      size={32}
-      onClick={press}
-    >
-      {on ? "Stop reading" : "Read out"}
-    </Button>
+    <>
+      <Button kind="quiet" size={32} onClick={press}>
+        {on ? "Stop reading" : "Read out"}
+      </Button>
+      {said}
+    </>
   );
 }
 

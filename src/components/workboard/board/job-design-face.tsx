@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/parts/button";
 import { Row, RowList } from "@/components/parts/row";
-import { Empty, Loading } from "@/components/parts/states";
+import { Loading } from "@/components/parts/states";
 import { openInTab } from "@/components/shell/open-tabs";
 import { auDayOf, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { designHref, studioJobHref } from "@/lib/shell/links";
@@ -75,7 +75,10 @@ export function JobDesignFace({
       ) : loading ? (
         <Loading what="Reading the job's designs" />
       ) : (
-        <Empty what="No design on this job" action={null} />
+        /* one line under its head, not a box in the card's middle: the card
+           takes only what it holds, and the plans above it the rest (bug
+           116, 27 November 2026) */
+        <p className="jds-none">No design on this job</p>
       )}
     </div>
   );

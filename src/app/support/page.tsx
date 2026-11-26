@@ -40,11 +40,15 @@ export default function SupportPage() {
         </p>
       </Part>
 
-      <Part heading="Privacy">
+      <Part heading="Privacy and terms">
         <p>
           What HeyTiff keeps and who else handles it is on the{" "}
           <Link href="/privacy" className="font-semibold underline decoration-1 underline-offset-4">
             privacy page
+          </Link>
+          , and the terms of using it are on the{" "}
+          <Link href="/terms" className="font-semibold underline decoration-1 underline-offset-4">
+            terms page
           </Link>
           .
         </p>

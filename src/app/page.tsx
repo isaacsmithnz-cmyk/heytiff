@@ -1,61 +1,24 @@
-import { Chevron, Wordmark } from "@/components/logo";
+import type { Metadata } from "next";
+import { Landing } from "@/components/landing/landing";
 
-/* The door. Everything here is one press away from Auth0's own screen, so
-   the two have to look like one product — this page, the Universal Login
-   widget (src/lib/brand/auth0/theme.ts) and the mail that follows all draw
-   from the same tokens now.
+/* THE FRONT PAGE, for anyone signed out; a signed-in visit to `/` never
+   reaches it, the proxy sends it Home (src/proxy.ts).
 
-   THE DARK VARIANTS ARE GONE, and were never right. Every element on this
-   page carried a `dark:` twin, which Tailwind resolves off the OS setting —
-   so on a dark-mode Mac the front door rendered black and the app behind it
-   rendered light. globals.css says it out loud: "HeyTiff is a LIGHT design
-   ... There is no dark theme". The starter's dark half was deleted from
-   globals.css for exactly this reason; this page was the last place still
-   carrying it.
+   It replaced the door (the logo, Create account and Sign in on white) on
+   26 November 2026: on the ink, Tiff's mark in 3D, and the app's own screens
+   as you scroll. Create account left with it, as new businesses join by
+   invitation for now; the page is components/landing, and why it may break
+   the app's rules is in docs/design.md under Named exemptions.
 
-   THE LIGHT IS GONE, HERE AND ON THE DASHBOARD. This page carried two
-   blurred discs, teal and blue, tuned to match the shell's corner glow so
-   that a person who signed in here and landed on the dashboard could not
-   say where the light changed. On 2026-09-10 the frame went still
-   (docs/design.md, frame-still.test.ts), and by that same argument the door
-   goes still with it: ink on paper, and the only light is the page. The
-   Auth0 Universal Login template still carries the pair; it is pushed
-   separately and should follow. */
+   The front door's old blurred light stays gone (frame-still.test): the one
+   light here is the horizon's edge behind the quote, which is the page's,
+   not the frame's. */
+
+export const metadata: Metadata = {
+  title: { absolute: "HeyTiff" },
+  description: "The office for a trade business, with Tiff to run it.",
+};
 
 export default function Home() {
-  return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center gap-9 overflow-hidden bg-surface px-6">
-      <div className="relative flex items-center gap-3">
-        <Chevron size={44} className="ht-draw" decorative />
-        <Wordmark className="text-4xl" />
-      </div>
-
-      <div className="relative flex flex-col items-center gap-5">
-        {/* the main button (v2, rule 22): blue with white words, a 10 corner,
-            and a hover that keeps its colour */}
-        <a
-          href="/auth/login?screen_hint=signup"
-          className="flex h-11 items-center rounded-[10px] bg-brand-blue px-6 text-sm font-semibold text-white"
-        >
-          Create account
-        </a>
-        <a
-          href="/auth/login"
-          className="text-sm font-semibold text-ink-2 underline decoration-1 underline-offset-4"
-        >
-          Sign in
-        </a>
-      </div>
-
-      {/* Quiet staff door — HQ 404s for anyone not on the allowlist, so this
-          stays low-key rather than secret. returnTo lands staff in /hq
-          straight after auth instead of the default /dashboard. */}
-      <a
-        href="/auth/login?returnTo=/hq"
-        className="absolute bottom-6 text-xs font-semibold text-quiet transition-colors hover:text-ink"
-      >
-        Staff HQ →
-      </a>
-    </div>
-  );
+  return <Landing />;
 }

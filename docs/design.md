@@ -1031,3 +1031,23 @@ What the guard cannot count is noted here on the same word:
   worked out in `lib/dashboard/day-bar` (`dayCardPaint`), where every pair
   is measured, and reach the sheet as inline properties; no rule names a
   hue. They are the drawing, which law 31 lets carry colour.
+- **The front page, outside the frame.** `/` for anyone signed out is
+  `components/landing`, and it breaks the app's rules on purpose: on the
+  ink, Tiff's mark in black chrome in 3D in front of a giant HeyTiff, four
+  parts as you scroll, each a giant word behind the mark and one of the
+  app's screens in front, the quote rising from behind a lit horizon, and
+  Sign in alone, as new businesses join by invitation for now (Isaac,
+  2026-11-26: "lock create account for now", "how hectic can you make that
+  landing page", "your first loud one was still best", "With app's flight",
+  then "the horizon one you made was cool too. maybe incorporate"). So its
+  type is display type off the scale (law 11 has no hero inside the app;
+  this page is not inside it), its letter-spacing is a display title's, its
+  horizon's edge is a light (frame-still keeps the frame's light gone, not
+  this), and its mark moves: a lap as the page opens, a lap now and then on
+  the first screen, lap after lap while the parts scroll by, and home at the
+  end, never under reduced motion. The boomerang flies the app's own flight:
+  `lib/brand/tiff-flight-path` reads `scripts/tiff-flight.mjs`'s loop live,
+  thrown 1.25 times as far, and its test holds the two to the same numbers.
+  It is styled with utilities on the component, with no stylesheet, so no
+  ratchet counts it; the colours it does use are the palette's tokens, and
+  the screens on it are the app's own parts with made-up work.

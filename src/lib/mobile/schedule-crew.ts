@@ -3,6 +3,9 @@ import "server-only";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { listSm8StaffLinks } from "@/lib/integrations/links";
 import { plusDays } from "@/lib/workboard/dates";
+import { getPaySettings, shiftDefaultsFor } from "@/lib/timepay/query";
+import { normalHours, type NormalHours } from "@/components/timepay/logic";
+import { freeAfter } from "./free-after";
 import type { SchedulePayload } from "@/lib/workboard/schedule-query";
 
 /* WHO ISN'T BOOKED, for the phone's Schedule (Isaac, 27 October 2026: "I
@@ -13,9 +16,12 @@ import type { SchedulePayload } from "@/lib/workboard/schedule-query";
    ServiceM8. Someone on it with no booking that day and no time off is
    free; someone with time off and no booking is off, with what the
    business called it and when it ends. Someone booked for part of it, with
-   an hour or more of their day left (Schedule capacity's hours for them),
-   is free after their last booking ends (Isaac, 27 October 2026: "free
-   after a certain time"). Nobody else is listed: the office, and a
+   an hour or more between their last booking and their normal finish (Time
+   & Pay's: their own, or the business's), is free after that booking ends
+   (Isaac, 27 October 2026: "free after a certain time"). Someone booked to
+   their finish, or within an hour of it, isn't free that day (bug 107, Isaac, 26 November 2026: "Free
+   after 3pm is home time. This should be set by standard working hours in
+   org"; lib/mobile/free-after). Nobody else is listed: the office, and a
    placeholder like "Pending Jobs", never count. */
 
 export type CrewFree = { uuid: string; name: string; title: string | null };
@@ -49,7 +55,6 @@ export async function crewNotBooked(
   const none = { free: [], off: [], later: [] };
   const crew = await crewOf(orgId);
   if (!crew || crew.length === 0) return none;
-  const dayOf = new Map(crew.map((p) => [low(p.uuid), p.dailyMinutes]));
   const people = crew.map((p) => ({ uuid: p.uuid, name: p.name }));
 
   const away = new Map<string, NonNullable<SchedulePayload["away"]>[number]>();
@@ -62,15 +67,19 @@ export async function crewNotBooked(
     (theirs.get(low(a.staffUuid)) ?? theirs.set(low(a.staffUuid), []).get(low(a.staffUuid))!).push({ start: a.start, end: a.end });
   }
   const unbooked = people.filter((p) => !theirs.has(low(p.uuid)));
-  const roomy = people.flatMap((p) => {
-    const spans = theirs.get(low(p.uuid));
-    if (!spans || away.has(low(p.uuid))) return [];
-    const after = spans.map((x) => x.end).sort().at(-1)!;
-    return (dayOf.get(low(p.uuid)) ?? 0) - bookedMinutes(spans) >= ROOM_MIN ? [{ ...p, after }] : [];
+  const part = people.filter((p) => theirs.has(low(p.uuid)) && !away.has(low(p.uuid)));
+  if (unbooked.length === 0 && part.length === 0) return none;
+
+  const tenantId = await tenant().catch(() => null);
+  const hoursOf = part.length > 0 ? await normalHoursOf(orgId, tenantId, part.map((p) => p.uuid)) : () => null;
+  const roomy = part.flatMap((p) => {
+    const hours = hoursOf(p.uuid);
+    const after = hours ? freeAfter(day.dayISO, theirs.get(low(p.uuid))!, hours, ROOM_MIN) : null;
+    return after ? [{ ...p, after }] : [];
   });
   if (unbooked.length === 0 && roomy.length === 0) return none;
 
-  const titles = await titlesOf(orgId, await tenant().catch(() => null), [...unbooked, ...roomy].map((p) => p.uuid));
+  const titles = await titlesOf(orgId, tenantId, [...unbooked, ...roomy].map((p) => p.uuid));
   const later: CrewLater[] = roomy
     .sort((a, b) => a.after.localeCompare(b.after) || a.name.localeCompare(b.name))
     .map((p) => ({ uuid: p.uuid, name: p.name, title: titles.get(low(p.uuid)) ?? null, after: p.after }));
@@ -118,18 +127,20 @@ export async function crewOf(orgId: string): Promise<{ uuid: string; name: strin
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/** Minutes booked, overlaps counted once. */
-function bookedMinutes(spans: { start: string; end: string }[]): number {
-  const min = (stamp: string) => Number(stamp.slice(11, 13)) * 60 + Number(stamp.slice(14, 16));
-  let total = 0;
-  let reach = -1;
-  for (const s of [...spans].sort((a, b) => a.start.localeCompare(b.start))) {
-    const a = Math.max(min(s.start), reach);
-    const b = min(s.end);
-    if (b > a) total += b - a;
-    reach = Math.max(reach, b);
-  }
-  return total;
+/** Each person's normal day by ServiceM8 uuid: their own start and finish on
+    their HeyTiff card, where they are linked and have set one, or the
+    business's (Time & Pay). Null where the business's couldn't be read. */
+async function normalHoursOf(orgId: string, tenantId: string | null, uuids: readonly string[]): Promise<(uuid: string) => NormalHours | null> {
+  const pay = await getPaySettings(orgId).catch(() => null);
+  if (!pay) return () => null;
+  const wanted = new Set(uuids.map(low));
+  const links = tenantId ? (await listSm8StaffLinks(orgId, tenantId).catch(() => [])).filter((l) => wanted.has(low(l.remoteId))) : [];
+  const cardOf = new Map(links.map((l) => [low(l.remoteId), l.staffProfileId]));
+  const own = links.length > 0 ? await shiftDefaultsFor(orgId, [...new Set(cardOf.values())]).catch(() => null) : null;
+  return (uuid) => {
+    const card = cardOf.get(low(uuid));
+    return normalHours(pay.settings, card ? own?.hours.get(card) ?? null : null);
+  };
 }
 
 /** Each person's job title on their HeyTiff card, by lower-case ServiceM8

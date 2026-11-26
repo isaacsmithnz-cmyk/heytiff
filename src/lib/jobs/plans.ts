@@ -17,6 +17,7 @@ import type { Floor, PlanImport, PlanImportSource } from "@/lib/studio/document"
 import { newId } from "@/lib/studio/document";
 import { defaultFloorName, placeSheets, type UploadedSheet } from "@/lib/studio/plans";
 import type { TrimRect } from "@/lib/studio/plan-trim";
+import { lineUpShift } from "@/lib/studio/line-up";
 import type { MeasuredScale, PlanReading, PlanWord, ReadLook, ReadPoint, ReadSpace, SheetReading, SpaceJoin, WallGap } from "@/lib/studio/reading";
 import { area, SCALE_AGREES, scaleFromWritten, suggestedRooms } from "@/lib/studio/reading";
 export { scaleFromWritten };
@@ -736,6 +737,26 @@ export function designFromPlan(plan: JobPlan): DesignFromPlan {
     if (here == null || above == null) continue;
     const h = Math.round((above - here) * 1000) / 1000;
     if (h >= 2.2 && h <= 8) f.heightM = h;
+  }
+
+  /* each floor onto the one it stands on or under, by the footprint she
+     read off each, from the ground floor out (line-up.ts): an architect
+     draws each floor wherever it fits on its sheet. A floor of more than
+     one page keeps where it is. */
+  const ground = levels.includes(0) ? 0 : levels[0];
+  const shifted = new Map<number, { dx: number; dy: number }>();
+  if (ground !== undefined) shifted.set(ground, { dx: 0, dy: 0 });
+  for (const level of levels.filter((l) => l !== ground).sort((a, b) => Math.abs(a - ground!) - Math.abs(b - ground!))) {
+    const toward = [...shifted.keys()].sort((a, b) => Math.abs(a - level) - Math.abs(b - level))[0]!;
+    const base = shifted.get(toward)!;
+    const mine = byLevel.get(level)!;
+    const theirs = byLevel.get(toward)!;
+    const s = mine.length === 1 ? lineUpShift(spacesOn(plan.reading, theirs[0]!.n), spacesOn(plan.reading, mine[0]!.n)) : null;
+    shifted.set(level, mine.length === 1 ? { dx: base.dx + (s?.dx ?? 0), dy: base.dy + (s?.dy ?? 0) } : { dx: 0, dy: 0 });
+  }
+  for (const f of made) {
+    const by = shifted.get(f.level);
+    if (by && (by.dx || by.dy)) f.plans = f.plans.map((sh) => ({ ...sh, x: sh.x + by.dx, y: sh.y + by.dy }));
   }
 
   const sources: PlanImportSource[] = plan.sourceRef ? [{ ref: plan.sourceRef, kind: plan.sourceKind }] : [];

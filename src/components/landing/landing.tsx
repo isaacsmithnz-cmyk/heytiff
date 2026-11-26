@@ -121,7 +121,7 @@ export function Landing() {
             <p
               aria-hidden="true"
               className="absolute inset-x-0 top-1/2 m-0 whitespace-nowrap text-center font-bold"
-              style={{ ...DISPLAY, fontSize: "clamp(80px, 19vw, 340px)", transform: "translateY(calc(-50% + 4vh)) scale(calc(1 + var(--p, 0) * .25))" }}
+              style={{ ...DISPLAY, fontSize: "clamp(76px, 17vw, 300px)", transform: "translateY(calc(-50% + 3vh)) scale(calc(1 + var(--p, 0) * .25))" }}
             >
               HeyTiff
             </p>

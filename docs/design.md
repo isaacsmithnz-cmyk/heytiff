@@ -1045,11 +1045,12 @@ What the guard cannot count is noted here on the same word:
   type is display type off the scale (law 11 has no hero inside the app;
   this page is not inside it), its letter-spacing is a display title's, its
   horizon's edge is a light (frame-still keeps the frame's light gone, not
-  this), and its mark moves: a lap as the page opens, a lap now and then on
-  the first screen, lap after lap while the parts scroll by, and home at the
-  end, never under reduced motion. The boomerang flies the app's own flight:
+  this), and its mark moves: thrown as the page opens, then round its loop
+  for as long as the page is open, never coming home (Isaac, 2026-11-27:
+  "instead of just continuing to circle around"), and never under reduced
+  motion. The boomerang flies the app's own throw and thinking lap:
   `lib/brand/tiff-flight-path` reads `scripts/tiff-flight.mjs`'s loop live,
-  thrown 1.25 times as far, and its test holds the two to the same numbers.
+  thrown 1.1 times as far, and its test holds the two to the same numbers.
   It is styled with utilities on the component, with no stylesheet, so no
   ratchet counts it; the colours it does use are the palette's tokens, and
   the screens on it are the app's own parts with made-up work.

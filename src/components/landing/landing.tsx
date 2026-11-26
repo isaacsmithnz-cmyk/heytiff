@@ -31,8 +31,6 @@ import { startStage, type Pose } from "./stage";
    pins one screen while its stretch of the page scrolls past, and sets --p:
    -1 coming in, 0 in the middle, 1 leaving. */
 
-const SCENES = 6;
-
 const POSES: { wide: Pose[]; narrow: Pose[] } = {
   wide: [
     { x: 0, y: 0.24, ry: -0.22, rx: 0.08, s: 0.85 },
@@ -86,7 +84,7 @@ export function Landing() {
 
     let stop: (() => void) | null = null, gone = false;
     if (canvas.current && typeof WebGLRenderingContext !== "undefined") {
-      startStage(canvas.current, { scene: () => at.current, poses: POSES, working: [0.55, SCENES - 1.4], reduced })
+      startStage(canvas.current, { scene: () => at.current, poses: POSES, reduced })
         .then((s) => {
           if (gone) s?.();
           else if (s) stop = s;

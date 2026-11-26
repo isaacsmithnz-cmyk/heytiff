@@ -33,6 +33,10 @@ export const FLIGHT = {
   OPEN_MS: 1600,
   /** thinking, this much slower */
   SLOWER: 1.8,
+  /** laps from its place where the thinking lap starts and ends */
+  JOIN: 0.7,
+  /** thinking's spins, turns a millisecond */
+  THINK_RATE: 2.5 / 1000,
 } as const;
 
 /** Where the boomerang is, off its place: x right and y down in the logo's
@@ -79,6 +83,52 @@ function lapAt(f: number): number {
 function spinAt(f: number): number {
   const u = Math.min(1, f / 0.92);
   return 2 * Math.PI * FLIGHT.OPEN_TURNS * (u < 0.85 ? (u / 0.85) * 0.94 : 0.94 + 0.06 * smooth((u - 0.85) / 0.15));
+}
+
+/* where it is at lap position p, k of the way out from its place onto the loop */
+function onLoop(p: number, k: number, reach: number, spin: number): FlightPoint {
+  const th = TH0 - 2 * Math.PI * p, sn = Math.sin(th), cs = Math.cos(th);
+  return {
+    x: (FLIGHT.C[0] - FLIGHT.HOME[0] + FLIGHT.R * cs) * reach * k,
+    y: (FLIGHT.C[1] - FLIGHT.HOME[1] + FLIGHT.LIFT * sn) * reach * k,
+    z: (sn > 0 ? FLIGHT.NEAR * sn : FLIGHT.FAR * sn) * 100 * reach * k,
+    rx: ((k * (sn < 0 ? 40 * -sn : -18 * sn)) * Math.PI) / 180,
+    ry: (-20 * cs * k * Math.PI) / 180,
+    spin,
+  };
+}
+
+/* THE THROW AND THE THINKING LAP, as the app flies them while Tiff works:
+   thrown from her hand out onto the loop (lap 0 to JOIN, quick away), then
+   one whole lap from JOIN round to JOIN again, seamless, so it circles for as
+   long as it is asked without ever coming home. Each is timed as the script
+   times it: the throw by `fast`, the lap by `steady`. */
+function paced(v: (p: number) => number, a: number, b: number) {
+  const c = [0];
+  for (let i = 0; i < N; i++) c.push(c[i] + (b - a) / N / v(a + ((b - a) * (i + 0.5)) / N));
+  return (f: number) => {
+    const target = Math.max(0, Math.min(1, f)) * c[N];
+    let lo = 0, hi = N;
+    while (hi - lo > 1) {
+      const mid = (lo + hi) >> 1;
+      if (c[mid] < target) lo = mid;
+      else hi = mid;
+    }
+    return a + ((b - a) * (lo + (target - c[lo]) / (c[hi] - c[lo] || 1))) / N;
+  };
+}
+const throwLap = paced(fast, 0, FLIGHT.JOIN);
+const thinkLap = paced(steady, FLIGHT.JOIN, FLIGHT.JOIN + 1);
+
+/** The throw: `f` is the share of the throw's time, 0 to 1; it ends on the loop where the lap begins. */
+export function throwAt(f: number, reach = 1, spin = 0): FlightPoint {
+  const p = throwLap(f);
+  return onLoop(p, smooth(p / 0.16), reach, spin);
+}
+
+/** The thinking lap: `f` is the share of one lap's time; it begins and ends where the throw left it, so laps follow one another without a seam. */
+export function orbitAt(f: number, reach = 1, spin = 0): FlightPoint {
+  return onLoop(thinkLap(((f % 1) + 1) % 1), 1, reach, spin);
 }
 
 /** One lap from her hand and home: `f` is the share of the lap's time, 0 to 1. */

@@ -1,6 +1,6 @@
 import type * as THREE_NS from "three";
 import { CHEVRON_STROKES } from "@/components/logo";
-import { FLIGHT, flightAt } from "@/lib/brand/tiff-flight-path";
+import { FLIGHT, orbitAt, throwAt } from "@/lib/brand/tiff-flight-path";
 
 /* THE FRONT PAGE'S STAGE: Tiff's mark in 3D, a pearl chevron and a metal boomerang, behind the
    giant words and the app's own screens (Isaac, 26 November 2026, after five
@@ -10,9 +10,9 @@ import { FLIGHT, flightAt } from "@/lib/brand/tiff-flight-path";
    The chevron is the logo's own outline (CHEVRON_STROKES), extruded and
    bevelled; the boomerang is its stroke as a tube. It lives on a fixed canvas
    and moves between scenes as the page scrolls, and its boomerang flies the
-   app's flight (lib/brand/tiff-flight-path): one lap as the page opens, a lap
-   now and then while you read the first screen, lap after lap while you
-   scroll through the parts, as she does while she works, and home at the end.
+   app's flight (lib/brand/tiff-flight-path): thrown as the page opens, then
+   round its loop for as long as the page is open, as hers flies while she
+   works.
 
    three.js is the one the Studio's 3D already uses, loaded only here. */
 
@@ -27,18 +27,14 @@ export type StageInput = {
   scene: () => number;
   /** the mark's place in each scene, wide and narrow */
   poses: { wide: Pose[]; narrow: Pose[] };
-  /** scenes in this range are the parts: she's working, so the boomerang keeps flying */
-  working: [number, number];
   reduced: boolean;
 };
 
-/* The loop is thrown further than the app's, so it goes out and comes home */
-const REACH = 1.25;
-/* one lap's time at the opening's pace, longer for the further reach */
-const OPEN_LAP = FLIGHT.OPEN_MS * 1.35;
-const WORK_LAP = OPEN_LAP * FLIGHT.SLOWER;
-const IDLE_EVERY = 10_000;
-const CATCH_MS = 380;
+/* The loop is thrown further than the app's, so it goes out wide and round */
+const REACH = 1.1;
+/* the throw out onto the loop, then each lap of it, at the app's thinking pace */
+const LAP_MS = FLIGHT.OPEN_MS * 1.35 * FLIGHT.SLOWER;
+const THROW_MS = LAP_MS * 0.62;
 /* logo units (the 100 box) to the stage's */
 const K = 0.028;
 
@@ -176,13 +172,12 @@ export async function startStage(canvas: HTMLCanvasElement, input: StageInput): 
 
   const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
-  /* THE FLIGHT'S CLOCK: rest, a lap (the opening, a lap now and then, or lap
-     after lap while she works), and the catch as it comes home */
-  type Lap = { start: number; ms: number };
-  let lap: Lap | null = null;
-  let lastHome = performance.now();
-  let caughtAt = -1e9;
-  if (!input.reduced) lap = { start: performance.now() + 350, ms: OPEN_LAP };
+  /* THE FLIGHT'S CLOCK: thrown once as the page opens, then round the loop for
+     as long as the page is open, never coming home (Isaac, 27 November 2026:
+     "The boomerang keeps returning to the chevron and stopping instead of
+     just continuing to circle around"). The spin runs at the app's thinking
+     rate the whole way, so it never jolts between the throw and the laps. */
+  const thrownAt = performance.now() + 350;
 
   let cur: Pose | null = null;
   let raf = 0;
@@ -204,36 +199,16 @@ export async function startStage(canvas: HTMLCanvasElement, input: StageInput): 
     mark.scale.setScalar(cur.s);
     mark.rotation.set(cur.rx + my * 0.35, cur.ry + mx * 0.55, 0);
 
-    const working = s > input.working[0] && s < input.working[1];
-    if (!input.reduced) {
-      if (!lap && working) lap = { start: now, ms: WORK_LAP };
-      if (!lap && !working && s < 0.5 && now - lastHome > IDLE_EVERY) lap = { start: now, ms: WORK_LAP };
-    }
-    if (lap && now >= lap.start) {
-      let u = (now - lap.start) / lap.ms;
-      if (u >= 1) {
-        if (working) {
-          lap = { start: lap.start + lap.ms, ms: WORK_LAP };
-          u = (now - lap.start) / lap.ms;
-        } else {
-          lap = null;
-          lastHome = now;
-          caughtAt = now;
-        }
-      }
-      if (lap) {
-        const p = flightAt(u, REACH);
-        boom.position.set(p.x * K, -p.y * K, p.z * K);
-        boom.rotation.set(p.rx, p.ry, -p.spin);
-      }
-    }
-    if (!lap) {
+    const since = now - thrownAt;
+    if (input.reduced || since < 0) {
       boom.position.set(0, 0, 0);
       boom.rotation.set(0, 0, 0);
+    } else {
+      const spin = 2 * Math.PI * FLIGHT.THINK_RATE * since;
+      const p = since < THROW_MS ? throwAt(since / THROW_MS, REACH, spin) : orbitAt((since - THROW_MS) / LAP_MS, REACH, spin);
+      boom.position.set(p.x * K, -p.y * K, p.z * K);
+      boom.rotation.set(p.rx, p.ry, -p.spin);
     }
-    /* the catch: the chevron gives a little as it lands, as the app's does */
-    const g = (now - caughtAt) / CATCH_MS;
-    chev.position.x = g >= 0 && g < 1 ? -0.07 * Math.sin(Math.PI * g) : 0;
 
     dust.rotation.y = now / 60000;
     dust.position.y = -s * 0.6;

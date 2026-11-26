@@ -20,6 +20,8 @@ import { applyTaskEdit } from "@/lib/workboard/visit-tasks-server";
 import { workdayHours } from "@/lib/dashboard/reminders-query";
 import { getOwnVehicle, listVehiclePicker } from "@/lib/fleet/query";
 import { clientMatchOf, siteMatchOf } from "@/lib/email/proposal-server";
+import { findCustomers } from "@/lib/customers/find-server";
+import { ownClient } from "@/lib/customers/find";
 import { addLine, removeLine, readLines } from "@/lib/quotes/lines-server";
 import { linePricer } from "@/lib/quotes/session/tools-server";
 import { readByHand } from "@/lib/quotes/lines-job-server";
@@ -158,7 +160,11 @@ export async function doSkill(
     }
 
     case "new_job": {
-      const client = s.client ? await clientMatchOf(ctx.orgId, s.client).catch(() => null) : null;
+      /* the client by its name exactly, else the one the book is sure of
+         however the name was heard (lib/customers/find's ownClient) */
+      const client = s.client
+        ? ((await clientMatchOf(ctx.orgId, s.client).catch(() => null)) ?? ownClient(await findCustomers(ctx.orgId, s.client).catch(() => [])))
+        : null;
       const site = s.address ? await siteMatchOf(ctx.orgId, s.address).catch(() => null) : null;
       const [first, ...rest] = s.client.split(" ");
       const r = await createNewJob({
@@ -172,7 +178,9 @@ export async function doSkill(
         via: "tiff",
         next: null,
       });
-      return r.ok ? made(`The job is made${s.address ? ` at ${s.address}` : ""}, as a Quote in ServiceM8.`, null, jobHref(r.jobUuid)) : said(`The job wasn't made: ${r.error}`);
+      return r.ok
+        ? made(`The job is made${s.address ? ` at ${s.address}` : ""}${client ? `, for ${client.name}` : ""}, as a Quote in ServiceM8.`, null, jobHref(r.jobUuid))
+        : said(`The job wasn't made: ${r.error}`);
     }
 
     case "block_out": {

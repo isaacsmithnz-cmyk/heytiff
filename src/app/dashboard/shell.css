@@ -8757,7 +8757,11 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .main:has(.tm2-ov) .outlet,
 .fg .main:has(.tm2-ov) .topbar.fr-head { background:var(--jp-ground); }
 .fg .tm2-p:has(.tm2-ov) { padding-bottom:16px; }
-.fg .tm2-phead .jp-words { gap:12px; }
+/* the card keeps its height in the head's column (on a job it sits in a
+   row, where `flex:1 1 0` is its width), and the photo's own margin and
+   padding from the old staff card go, so the card is 64 high */
+.fg .tm2-phead .jp-words { flex:none; gap:12px; }
+.fg .tm2-phead .tm2-photo { margin:0; padding:0; }
 .fg .tm2-pline { flex:1 1 auto; min-width:0; margin:0; font-size:14px; line-height:20px; color:var(--q); }
 .fg .tm2-pline b { font-weight:600; color:var(--ink); }
 .fg .tm2-pline b.tm2-on { color:var(--green-w); }

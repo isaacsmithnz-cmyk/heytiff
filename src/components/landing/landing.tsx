@@ -279,8 +279,8 @@ function QuoteScreen() {
       <div className="flex items-center gap-3 border-b border-[var(--line)] px-4 py-3">
         <span className="inline-flex h-7 min-w-11 items-center justify-center rounded-md bg-[var(--orange-card)] px-1.5 text-[13px] font-bold text-[var(--white)]">2860</span>
         <span className="flex min-w-0 flex-col">
-          <b className="text-sm font-semibold">Priya Shah</b>
-          <span className="text-xs text-[var(--q)]">Ducted, 4 bed, Box Hill</span>
+          <b className="text-sm font-semibold">Ashgrove Constructions</b>
+          <span className="text-xs text-[var(--q)]">Ducted, 4 bed new build, Box Hill</span>
         </span>
         <span className="ml-auto flex items-center text-[13px] font-semibold text-[var(--orange-w)]">
           <Dot c="var(--orange)" />2 to answer
@@ -345,7 +345,7 @@ const BOOKINGS: Array<{ n: string; who: string; at: string; when: string; c: str
   { n: "2841", who: "Lena Ortiz", at: "Kellyville", when: "7:30", c: "var(--green-w)", i: 0 },
   { n: "2841", who: "Lena Ortiz", at: "Kellyville", when: "7:30", c: "var(--green-w)", i: 1 },
   { n: "2856", who: "Northgate", at: "Castle Hill", when: "8:00", c: "var(--purple-w)", i: 2 },
-  { n: "2860", who: "Priya Shah", at: "Box Hill", when: "Quote 9:00", c: "var(--orange-card)", i: 1 },
+  { n: "2860", who: "Ashgrove", at: "Box Hill", when: "Quote 9:00", c: "var(--orange-card)", i: 1 },
   { n: "2849", who: "Ridge St", at: "Rouse Hill", when: "7:00", c: "var(--pink-card)", i: 2 },
   { n: "2849", who: "Ridge St", at: "Rouse Hill", when: "7:00", c: "var(--pink-card)", i: 3 },
 ];

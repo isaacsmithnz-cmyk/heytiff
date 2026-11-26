@@ -651,6 +651,40 @@ describe("fileNote", () => {
     expect(noteRow().applied).not.toHaveProperty("kbIds");
   });
 
+  /* bug 97 (Isaac, 25 November 2026: "Put in brackets saying, 'Added to library'"): the phone has no Library press */
+  it("filed from the phone (`library`), its library entries go in with it, on the record Undo reads", async () => {
+    note({ proposal: { ...EMPTY, tasks: [task()], kbEntries: [{ title: "Clearing an E6", body: "Power the outdoor board separately." }] } });
+    publishFieldNote.mockImplementation(async () => {
+      (db.kb_documents ??= []).push({ id: "kb-9", org_id: "org-1", category: "field" });
+      return { ok: true, documentId: "kb-9" };
+    });
+    const res = await fileNote("n-1", { library: true });
+    expect(res).toMatchObject({ ok: true, library: [{ index: 0, added: true }] });
+    expect(publishFieldNote).toHaveBeenCalledWith(expect.objectContaining({ title: "Clearing an E6", noteId: "n-1" }));
+    expect(noteRow().applied).toMatchObject({ kbIds: ["kb-9"], kbTitles: ["Clearing an E6"] });
+    const undone = await undoNote("n-1");
+    expect(undone.ok && undone.summary).toBe("1 task and 1 library entry taken back.");
+    expect(rowsOf("kb_documents")).toEqual([]);
+  });
+
+  it("an entry taken off stays out, and one that couldn't go in isn't said to be in", async () => {
+    note({
+      proposal: {
+        ...EMPTY,
+        tasks: [task()],
+        kbEntries: [
+          { title: "Clearing an E6", body: "Power the outdoor board separately." },
+          { title: "Filter sizes", body: "The return filter is 400 x 400." },
+        ],
+      },
+    });
+    publishFieldNote.mockResolvedValue({ ok: false, error: "The Library is busy." });
+    const res = await fileNote("n-1", { library: true, leaveOut: ["kbEntries:0"] });
+    expect(res).toMatchObject({ ok: true, library: [{ index: 1, added: false }] });
+    expect(publishFieldNote).toHaveBeenCalledTimes(1);
+    expect(publishFieldNote).toHaveBeenCalledWith(expect.objectContaining({ title: "Filter sizes" }));
+  });
+
   it("asks instead of filing while Tiff's own question is open", async () => {
     note({
       status: "clarifying",

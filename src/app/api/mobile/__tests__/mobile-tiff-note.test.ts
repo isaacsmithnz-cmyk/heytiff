@@ -44,6 +44,11 @@ jest.mock("@auth0/nextjs-auth0/server", () => ({
 }));
 
 const asked: string[] = [];
+/* whether each file asked for the note's library entries to go in with it (bug 97) */
+const library: boolean[] = [];
+type PlanRow = { key: string; lane: string; index: number; lead: string; join: string; text: string; needs: boolean };
+const LUKE: PlanRow = { key: "tasks:0", lane: "tasks", index: 0, lead: "Luke", join: ", ", text: "order the grilles for 2935 · Fri", needs: false };
+let planRows: PlanRow[] = [LUKE];
 const as = async () => {
   const { auth0 } = jest.requireActual("@/lib/auth0") as typeof import("@/lib/auth0");
   const s = await auth0.getSession();
@@ -60,7 +65,9 @@ jest.mock("@/app/actions/workboard-notes", () => ({
     if (input.transcript.includes("Book Leo")) return { ok: true, noteId: "n-2", proposal: proposal({ say: "Leo on 3304.", clarify: { question: "Which day?", options: ["Tomorrow", "Friday"] } }), staff: [], turns: [] };
     return { ok: true, noteId: "n-1", proposal: proposal(), staff: [], turns: [] };
   },
-  fileNote: async (id: string, opts: { retarget?: { id: string } }) => (asked.push(`file as ${await as()}: ${id}${opts.retarget ? ` on ${opts.retarget.id}` : ""}`), fileAnswer),
+  fileNote: async (id: string, opts: { retarget?: { id: string }; library?: boolean }) => (
+    asked.push(`file as ${await as()}: ${id}${opts.retarget ? ` on ${opts.retarget.id}` : ""}`), (library.push(!!opts.library), fileAnswer)
+  ),
   continueNote: async (id: string, words: string) => (asked.push(`reply as ${await as()}: ${id} ${words}`), { ok: true, noteId: id, proposal: proposal(), staff: [], turns: [] }),
   answerVisit: async (id: string, answer: string) => (asked.push(`visit ${id} ${answer}`), { ok: true, visit: { index: 0, how: "booking", title: "Install", line: "Leo, Thursday 29 October, 7:00 am to 3:00 pm", aside: "", undo: true }, turns: [{ who: "tiff", text: "Leo's on 3304 tomorrow." }] }),
   undoNote: async (id: string) => (asked.push(`undo as ${await as()}: ${id}`), { ok: true, summary: "", turns: [{ who: "tiff", text: "Taken back." }] }),
@@ -70,7 +77,7 @@ jest.mock("@/app/actions/workboard-notes", () => ({
 jest.mock("@/lib/workboard/note-draft", () => ({ filesNothing: (p: { nothing?: boolean }) => !!p.nothing }));
 jest.mock("@/components/tiff/modal/plan-view", () => ({
   ...jest.requireActual("@/components/tiff/modal/plan-view"),
-  planView: () => [{ key: "tasks:0", lane: "tasks", index: 0, lead: "Luke", join: ", ", text: "order the grilles for 2935 · Fri", needs: false }],
+  planView: () => planRows,
 }));
 
 import { POST } from "../tiff/note/route";
@@ -101,6 +108,8 @@ const env = process.env;
 beforeEach(() => {
   process.env = { ...env, AUTH0_DOMAIN: DOMAIN };
   asked.length = 0;
+  library.length = 0;
+  planRows = [LUKE];
   fileAnswer = { ok: true, summary: "1 task", doors: [{ kind: "tasks", count: 1, label: "1 task filed", ids: ["t-1"] }], turns: [{ who: "tiff", text: "Luke has it." }] };
   members = [
     { user_id: "auth0|isaac", org_id: "org-1", role: "owner", permissions: {} },
@@ -189,4 +198,24 @@ test("nothing to file is set aside and answered instead; Undo takes a note back 
   expect((await say("auth0|isaac", { do: "undo", noteId: "n-1" })).body.turns).toEqual([{ kind: "said", say: "Taken back.", failed: false }]);
   expect(asked.slice(-1)).toEqual(["undo as auth0|isaac@org-1: n-1"]);
   expect((await say("auth0|isaac", { do: "rename" })).status).toBe(400);
+});
+
+/* bug 97 (Isaac, 25 November 2026: "where it says for everyone... Put in brackets saying, 'Added to library'") */
+test("a library entry goes in with the note from the phone, and says added only once it's in", async () => {
+  const kb = (index: number, text: string): PlanRow => ({ key: `kbEntries:${index}`, lane: "kbEntries", index, lead: "For everyone", join: ", ", text, needs: false });
+  planRows = [LUKE, kb(0, "Clearing an E6"), kb(1, "Filter sizes")];
+  fileAnswer = { ...fileAnswer, library: [{ index: 0, added: true }, { index: 1, added: false }] };
+  const r = await say("auth0|isaac", words("Make Luke a task, and everyone should know how to clear an E6"));
+  expect(library).toEqual([true]);
+  expect((r.body.turns?.[0]?.rows as { lead: string; text: string }[]).map((x) => [x.lead, x.text])).toEqual([
+    ["Luke", "order the grilles for 2935 · Fri"],
+    ["For everyone (added to the Library)", "Clearing an E6"],
+    ["For everyone (not added to the Library)", "Filter sizes"],
+  ]);
+});
+
+test("an entry the web didn't say went in keeps its plain lead", async () => {
+  planRows = [{ key: "kbEntries:0", lane: "kbEntries", index: 0, lead: "For everyone", join: ", ", text: "Clearing an E6", needs: false }];
+  const r = await say("auth0|isaac", words("Everyone should know how to clear an E6"));
+  expect((r.body.turns?.[0]?.rows as { lead: string }[]).map((x) => x.lead)).toEqual(["For everyone"]);
 });

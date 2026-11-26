@@ -4,13 +4,18 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { staffProfileIdFor } from "@/lib/fleet/query";
 import { bookingZone } from "@/lib/integrations/sm8-booking-zone";
 import { localNow } from "@/lib/integrations/sm8-booking-plan";
+import { readLines } from "@/lib/quotes/lines-server";
+import { byHandOf } from "@/lib/quotes/lines-job";
+import { engineOf } from "@/lib/quotes/lines";
 import type { MobileCtx } from "./auth";
+import { quotedItems, takenOptions, type QuotedItem, type Sm8OptionLine } from "./used-quoted";
 import {
   amount,
   askOf,
   changeFrom,
   dayAllowed,
   keyOf,
+  keyOfRow,
   peopleOf,
   planAdd,
   settle,
@@ -38,7 +43,8 @@ import {
 
 const COLUMNS = "id, sm8_job_uuid, day, supplier_key, code, name, qty, unit, choices, added_by, added_by_staff, words, open_repeat, history, removed_at, created_at, updated_at";
 
-export type UsedList = { day: string; lines: UsedLine[] };
+/** `quoted`: the quote's parts not on the list yet (used-quoted.ts) */
+export type UsedList = { day: string; lines: UsedLine[]; quoted: QuotedItem[] };
 export type Wrong = { error: string; status: number };
 
 /** Today on the account's own clock. */
@@ -86,8 +92,37 @@ async function view(ctx: MobileCtx, rows: readonly UsedRow[], more: readonly Use
 
 /** The job's list for the day. */
 export async function readUsed(ctx: MobileCtx, job: string, day: string): Promise<UsedList> {
-  const rows = await liveRows(ctx.orgId, job, day);
-  return { day, lines: (await view(ctx, rows)).lines };
+  const [rows, quote] = await Promise.all([liveRows(ctx.orgId, job, day), readQuoteParts(ctx.orgId, job)]);
+  const onList = new Set(rows.map(keyOfRow));
+  return { day, lines: (await view(ctx, rows)).lines, quoted: quote ? quotedItems(quote.lines, quote.taken, onList) : [] };
+}
+
+/* THE JOB'S QUOTE, AS THE DAY'S LIST OFFERS IT (bug 109, Isaac, 26 November
+   2026: "Isn't show suggested items from quote"): its lines, and the options
+   the client took, from HeyTiff's mark or ServiceM8's job. A quote kept as
+   words only (the old engine) has no parts to offer. A read that fails
+   offers nothing, never stops the list. */
+async function readQuoteParts(orgId: string, job: string) {
+  try {
+    const [draft, lines, sm8, card] = await Promise.all([
+      supabaseAdmin.from("quote_drafts").select("engine, draft").eq("org_id", orgId).eq("sm8_job_uuid", job).maybeSingle(),
+      readLines(orgId, job),
+      supabaseAdmin.from("sm8_job_materials").select("name, active").eq("org_id", orgId).eq("job_uuid", job),
+      supabaseAdmin.from("sm8_jobs").select("work_done_description").eq("org_id", orgId).eq("uuid", job).maybeSingle(),
+    ]);
+    const row = draft.data as { engine: unknown; draft: unknown } | null;
+    if (!row || engineOf(row.engine) !== "lines" || lines.length === 0) return null;
+    const taken = takenOptions({
+      accepted: byHandOf(row.draft).accepted,
+      options: [...new Set(lines.map((l) => l.optionIndex))],
+      sm8: (sm8.data ?? []) as Sm8OptionLine[],
+      workDone: (card.data as { work_done_description: string | null } | null)?.work_done_description ?? null,
+    });
+    return { lines, taken };
+  } catch (err) {
+    console.error(`[mobile] couldn't read the quote for the list: ${err instanceof Error ? err.message : String(err)}`);
+    return null;
+  }
 }
 
 export type UsedTrips = { today: string; from: string; trips: UsedTrip[]; total: UsedTotal[] };

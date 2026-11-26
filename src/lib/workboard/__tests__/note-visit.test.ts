@@ -169,7 +169,7 @@ describe("the shaper", () => {
     const thing = shapeProposal(raw([visit({ work: "Move the outdoor unit" })]), ctx, "move the outdoor unit");
     expect(thing.visits).toEqual([]);
     expect(thing.moves).toEqual([]);
-    expect(thing.say).toContain("I can't move a booking yet: open it on Schedule and change its time there.");
+    expect(thing.say).toContain("I couldn't tell which booking to move or where to: say its day or time and where it goes, or change it on Schedule.");
     expect(isMoveWork("Reschedule the Sampleton job")).toBe(true);
     expect(isMoveWork("Moving the outdoor unit")).toBe(true);
     expect(isMoveWork("Commission the system")).toBe(false);

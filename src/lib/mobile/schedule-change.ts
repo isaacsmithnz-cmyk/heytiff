@@ -59,6 +59,9 @@ import type { MobileCtx } from "./auth";
 export type ScheduleChange =
   | { do: "move"; activity: string; to: string; start?: string; end?: string }
   | { do: "swap"; activity: string; with: string }
+  /** the booking handed to someone else, on the same job at the same times
+      (Tiff's "give my 2pm to Alex", bug 112) */
+  | { do: "give"; activity: string; to: string }
   | { do: "time"; activity: string; start: string; end: string }
   | { do: "off"; activity: string }
   | { do: "book"; staff: string; job: string; start: string; end: string };
@@ -292,6 +295,30 @@ async function plan(orgId: string, press: Sm8Press, change: ScheduleChange, pres
         tell: [
           { staffUuid: a.staffUuid, title: `${presser} moved you to ${jb!.number}`, body: words(jb!.where, span(b.start, b.end)), path: `/job?id=${jb!.uuid}` },
           { staffUuid: b.staffUuid, title: `${presser} moved you to ${ja!.number}`, body: words(ja!.where, span(a.start, a.end)), path: `/job?id=${ja!.uuid}` },
+        ],
+      };
+    }
+    case "give": {
+      const b = await readOne(text(change.activity));
+      if ("error" in b) return b;
+      const to = text(change.to);
+      if (!UUID.test(to)) return bad(BOOKING_WORDS.press.unqueued);
+      if (same(to, b.staffUuid)) return bad("It's theirs already.");
+      const [jobs, names, active] = await Promise.all([readJobs(orgId, [b.jobUuid]), people([to]), staffActive(orgId, to)]);
+      if (!jobs || active === "failed") return bad(BOOKING_WORDS.press.unqueued, 503);
+      const job = jobs.get(low(b.jobUuid));
+      const refused = bookableWords(job);
+      if (refused) return bad(refused, 409);
+      const name = first(names.get(low(to)));
+      if (!active) return bad(fillWords(BOOKING_WORDS.press.techInactive, { name }), 409);
+      return {
+        steps: [{ book: { jobUuid: job!.uuid, staffUuid: to, start: b.start, end: b.end } }, { off: b }],
+        said: `${name} has ${job!.number} now`,
+        /* the new booking's uuid is known once it's queued: filled in then */
+        undo: { do: "give", activity: "", to: b.staffUuid },
+        tell: [
+          { staffUuid: to, title: `${presser} booked you on ${job!.number}`, body: words(job!.where, span(b.start, b.end)), path: `/job?id=${job!.uuid}` },
+          { staffUuid: b.staffUuid, title: `${presser} gave your ${job!.number} to ${name}`, body: span(b.start, b.end), path: "/schedule" },
         ],
       };
     }
@@ -532,6 +559,7 @@ function undoOf(
   const uuidOf = (i: number) => rows.find((r) => r.id === creates[i]?.rowId)?.remote_uuid ?? "";
   switch (undo.do) {
     case "move":
+    case "give":
     case "time":
     case "off":
       return uuidOf(0) ? { ...undo, activity: uuidOf(0) } : null;

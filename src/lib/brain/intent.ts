@@ -230,9 +230,12 @@ function matches(text: string, cue: Cue): boolean {
    Conversations, and Luke was never told. A request modal opening on a verb
    that hands something to a person, or books or orders it, is the note flow's,
    which makes it that person's task. "Can you tell me…" and "can you check
-   whether…" stay questions. */
+   whether…" stay questions. A request to DO one of her skills is the same
+   (the gap audit after bug 112, 26 November 2026): "Can you put Alex onto
+   3587 at 2?", "can you mark 3602 complete?", "could you move my 3pm to
+   Friday?" each went to the answer loop, which said to put it plainly. */
 const HANDOFF =
-  /^(?:(?:hey |hi )?tiff,? )?(?:(?:can|could|would|will) (?:you|u) (?:please )?|please )(?:let \S+(?: \S+)? know|tell (?!me\b|us\b)|remind|ask (?!you\b|me\b)|pass (?:on|that|this|it)|message|text|email|ring|call|book|order|send|chase|organi[sz]e|get \S+(?: \S+)? to)\b/;
+  /^(?:(?:hey |hi )?tiff,? )?(?:(?:can|could|would|will) (?:you|u) (?:please )?|please )(?:let \S+(?: \S+)? know|tell (?!me\b|us\b)|remind|ask (?!you\b|me\b)|pass (?:on|that|this|it)|message|text|email|ring|call|book|order|send|chase|organi[sz]e|get \S+(?: \S+)? to|put|stick|add|mark|move|shift|give|swap|assign|cancel|star|unstar|log|block|take \S+(?: \S+)? off|change (?:my|the|\S+'s))\b/;
 
 /** Is this a request to tell someone, or to book or order something ("can you let Luke know…?")? The note flow's. */
 export function looksLikeHandOff(text: string): boolean {

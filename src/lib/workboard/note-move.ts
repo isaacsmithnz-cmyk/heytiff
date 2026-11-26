@@ -203,6 +203,21 @@ export function moveTo(b: Pick<MoveBooking, "start" | "end">, m: Pick<ProposedMo
   return { start, end: stamp(end) };
 }
 
+/** A clock time in the words that name a booking, "my 2pm", "the 7:30":
+    only with am or pm, or written with a colon, so a job number is never one. */
+export function clockIn(words: string): { start: string; rest: string } {
+  const m = /\b(\d{1,2})(?::(\d{2}))?\s*([ap])\.?\s*m\b\.?|\b(\d{1,2}):(\d{2})\b/i.exec(words);
+  if (!m) return { start: "", rest: words };
+  let h = Number(m[1] ?? m[4]);
+  const min = Number(m[2] ?? m[5] ?? 0);
+  const half = m[3]?.toLowerCase();
+  if (half === "p" && h < 12) h += 12;
+  if (half === "a" && h === 12) h = 0;
+  if (h > 23 || min > 59) return { start: "", rest: words };
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return { start: `${pad(h)}:${pad(min)}`, rest: (words.slice(0, m.index) + words.slice(m.index + m[0].length)).replace(/\s+/g, " ").trim() };
+}
+
 /* ── what she says ───────────────────────────────────────────────────── */
 
 /** "today 3:00 to 4:00 pm", "Friday 7:00 to 8:00 am". */

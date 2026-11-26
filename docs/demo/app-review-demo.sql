@@ -3,7 +3,7 @@
 --
 -- Apple signs in to review the app and needs a business to look at. This is
 -- one: Demo Air Conditioning, with four made-up people, eight made-up
--- customers, twelve jobs and a booking or two every day. Every name, address,
+-- customers, twenty-four jobs and a booking or two every day. Every name, address,
 -- email and phone here is invented (emails on example.com, the phone in the
 -- 02 5550 range set aside for fiction). Nothing in it is anyone's real data.
 --
@@ -19,8 +19,10 @@
 -- send skips a connection that isn't `connected`, so nothing ever reaches
 -- ServiceM8 and nothing overwrites the made-up copy.
 --
--- RUN AGAIN to move the bookings on (they run from 10 days ago to 60 days on,
--- counted from the day it is run) or after the reviewer deleted their account:
+-- RUN AGAIN to move the bookings on (they run from the day it is run to four
+-- weeks on, none in the past, so no job shows missed visits; 26 November 2026,
+-- when a job listed some twenty-five bookings, ten of them "missed") or after
+-- the reviewer deleted their account:
 -- make a new login, put its Auth0 id in v_reviewer below and run the whole
 -- file. Every row has a fixed id, so a re-run updates in place.
 
@@ -120,17 +122,62 @@ begin
     work_order_date = excluded.work_order_date, completion_date = excluded.completion_date, job_description = excluded.job_description,
     total_invoice_amount = excluded.total_invoice_amount, payment_received = excluded.payment_received, edit_date = excluded.edit_date;
 
-  -- the bookings, from 10 days ago to 60 days on: Alex has two a weekday and
-  -- one each weekend day (so a review on any day finds a day to look at),
-  -- Priya one a weekday. They cycle through the six jobs still to do.
+  -- twelve more jobs to do, 1013 to 1024, so the bookings spread out and each
+  -- job has three or four, as a real one would; at the customers above, each
+  -- job at its customer's address
+  insert into sm8_jobs (org_id, uuid, generated_job_id, status, company_uuid, job_address, geo_city, geo_state, geo_postcode, lat, lng,
+                        date, work_order_date, job_description, total_invoice_amount, payment_received, active, edit_date, synced_at)
+  select v_org, 'de300000-0000-4000-8000-00000000b' || lpad((12 + k)::text, 3, '0'), (1012 + k)::text, 'Work Order',
+         'de300000-0000-4000-8000-00000000c' || lpad(a.c::text, 3, '0'),
+         a.addr, a.city, 'NSW', a.pc, a.lat, a.lng,
+         to_char(current_date - (k % 7) - 1, 'YYYY-MM-DD') || ' 00:00:00',
+         to_char(current_date - (k % 7) - 1, 'YYYY-MM-DD') || ' 09:00:00',
+         d.descr, to_char(d.amount, 'FM999990.0000'), 0, 1, v_now, now()
+  from (values
+    (1,  'Service and clean the ducted system: filters, return-air grille and drains.', 420.00),
+    (2,  'Replace the leaking condensate pump on the hallway cassette.', 380.00),
+    (3,  'Install a 3.5 kW split system in the study.', 2350.00),
+    (4,  'Move the outdoor unit to the side of the house and re-run the pipework.', 960.00),
+    (5,  'Ducted system trips the breaker on start-up. Find the fault and repair.', 0),
+    (6,  'Fit a wi-fi controller to the existing ducted system.', 690.00),
+    (7,  'Take out the old window unit and make good the wall.', 450.00),
+    (8,  'Install a 9 kW split system in the open-plan living area.', 3480.00),
+    (9,  'Service the four wall splits in the office.', 560.00),
+    (10, 'Replace the zone controller and recommission the zones.', 1120.00),
+    (11, 'Leak check and regas on the bedroom split.', 390.00),
+    (12, 'Install a 2.5 kW split system in the nursery.', 2190.00)
+  ) d(k, descr, amount)
+  join (values
+    (1, E'14 Kingfisher Way\nChatswood NSW 2067',      'Chatswood',   '2067', -33.7969, 151.1803),
+    (2, E'Suite 3, 88 Pacific Parade\nManly NSW 2095', 'Manly',       '2095', -33.7970, 151.2856),
+    (3, E'7 Banksia Close\nCastle Hill NSW 2154',      'Castle Hill', '2154', -33.7310, 151.0040),
+    (4, E'220 Ridge Road\nParramatta NSW 2150',        'Parramatta',  '2150', -33.8150, 151.0011),
+    (5, E'31 Lyrebird Crescent\nCronulla NSW 2230',    'Cronulla',    '2230', -34.0550, 151.1520),
+    (6, E'5 Shoreline Drive\nRhodes NSW 2138',         'Rhodes',      '2138', -33.8300, 151.0870),
+    (7, E'62 Ironbark Avenue\nPenrith NSW 2750',       'Penrith',     '2750', -33.7510, 150.6940),
+    (8, E'41 Station Lane\nHornsby NSW 2077',          'Hornsby',     '2077', -33.7030, 151.0990)
+  ) a(c, addr, city, pc, lat, lng) on a.c = ((d.k - 1) % 8) + 1
+  on conflict (org_id, uuid) do update set status = excluded.status, company_uuid = excluded.company_uuid,
+    job_address = excluded.job_address, geo_city = excluded.geo_city, geo_postcode = excluded.geo_postcode,
+    lat = excluded.lat, lng = excluded.lng, date = excluded.date, work_order_date = excluded.work_order_date,
+    job_description = excluded.job_description, total_invoice_amount = excluded.total_invoice_amount, edit_date = excluded.edit_date;
+
+  -- the bookings, from today to four weeks on and none in the past (a past
+  -- booking with no visit shows as missed): Alex has two a weekday and one
+  -- each weekend day (so a review on any day finds a day to look at), Priya
+  -- one a weekday. They take the eighteen jobs to do in turn, 1004 to 1009
+  -- then 1013 to 1024, so today starts at 1004.
   delete from sm8_job_activities where org_id = v_org;
   insert into sm8_job_activities (org_id, uuid, job_uuid, staff_uuid, start_date, end_date, activity_was_scheduled, active, edit_date, synced_at)
   select v_org,
-         'de300000-0000-4000-8000-' || lpad(to_hex(row_number() over (order by d, slot)), 12, '0'),
-         'de300000-0000-4000-8000-00000000b' || lpad((4 + ((extract(doy from d)::int * 2 + slot) % 6))::text, 3, '0'),
+         'de300000-0000-4000-8000-' || lpad(to_hex(i), 12, '0'),
+         'de300000-0000-4000-8000-00000000b' || lpad((case when (i - 1) % 18 < 6 then 4 + (i - 1) % 18 else 7 + (i - 1) % 18 end)::text, 3, '0'),
          'de300000-0000-4000-8000-00000000e0' || who,
          to_char(d, 'YYYY-MM-DD') || ' ' || starts, to_char(d, 'YYYY-MM-DD') || ' ' || ends, 1, 1, v_now, now()
-  from generate_series(current_date - 10, current_date + 60, interval '1 day') g(d)
-  cross join (values (0, 'a1', '08:00:00', '10:30:00'), (1, 'a1', '12:00:00', '15:00:00'), (2, 'a3', '09:00:00', '12:00:00')) s(slot, who, starts, ends)
-  where extract(isodow from d) < 6 or slot = 0;
+  from (
+    select d, who, starts, ends, row_number() over (order by d, slot) as i
+    from generate_series(current_date, current_date + 27, interval '1 day') g(d)
+    cross join (values (0, 'a1', '08:00:00', '10:30:00'), (1, 'a3', '09:00:00', '12:00:00'), (2, 'a1', '12:00:00', '15:00:00')) s(slot, who, starts, ends)
+    where extract(isodow from d) < 6 or slot = 0
+  ) b;
 end $$;

@@ -13,7 +13,9 @@ import type { Ready } from "@/lib/mobile/used-plan";
 import { addStint, changeStint } from "@/lib/mobile/day";
 import { completeChecked } from "@/lib/mobile/complete-checked";
 import { createBlock, removeBlock } from "@/lib/schedule/blocks-store";
-import { sm8StaffOfCard } from "@/lib/workboard/note-move-read";
+import { comingBookingsOf, sm8StaffOfCard } from "@/lib/workboard/note-move-read";
+import { bookingLabel, bookingsThatFit, clockIn, noneFitLine, whenWords, type MoveBooking } from "@/lib/workboard/note-move";
+import { changeSchedule } from "@/lib/mobile/schedule-change";
 import { applyTaskEdit } from "@/lib/workboard/visit-tasks-server";
 import { workdayHours } from "@/lib/dashboard/reminders-query";
 import { getOwnVehicle, listVehiclePicker } from "@/lib/fleet/query";
@@ -27,7 +29,7 @@ import { requestLeave, cancelLeave } from "@/app/actions/leave";
 import { addLog, deleteLog } from "@/app/actions/fleet";
 import { addSiteNote, removeSiteNote } from "@/app/actions/site-notes";
 import { readCustomerForEdit, saveCustomer } from "@/app/actions/job-customer";
-import { STATUS_WORDS, clock, linesWords, shortDay, type ProposedSkill, type SkillLine, type SkillMade } from "./note-skills";
+import { STATUS_WORDS, clock, linesWords, shortDay, skillWho, type ProposedSkill, type SkillLine, type SkillMade } from "./note-skills";
 import type { NoteReceipt } from "./note-cost";
 import { jobHref } from "@/lib/shell/links";
 import { isStarred, setStar } from "@/lib/jobs/job-stars";
@@ -94,6 +96,11 @@ export async function doSkill(
   });
   const job = jobOf(target);
   const mine = !s.whoId || s.whoId === ctx.staffId;
+  /* A NAME SAID THAT MATCHES NOBODY IS NEVER THE SPEAKER (the gap audit
+     after bug 112): "block out Al Friday arvo" with no Al blocked the
+     speaker out, the row still saying Al */
+  const named = skillWho(s);
+  const nobody = !s.whoId && !!named && !SELF.test(named);
 
   switch (s.kind) {
     case "used":
@@ -169,11 +176,12 @@ export async function doSkill(
     }
 
     case "block_out": {
+      if (nobody) return said(`I don't know who ${named} is, so nothing's blocked out.`);
       const card = s.whoId ?? ctx.staffId;
       if (!card) return said("Your staff profile isn't set up yet, so nothing's blocked out.");
       if (!mine && !(await can("workboard_manage"))) return said(`Only someone who manages the schedule can block out ${o.who || "someone else"}'s time.`);
       const staffUuid = await sm8StaffOfCard(ctx.orgId, card);
-      if (!staffUuid) return said(`${mine ? "You're" : `${o.who || "They"} isn't`} not linked to a ServiceM8 staff member, so nothing's blocked out.`);
+      if (!staffUuid) return said(`${mine ? "You're not" : `${o.who || "They"} isn't`} linked to a ServiceM8 staff member, so nothing's blocked out.`);
       const press = sm8LeaveAllowed() ? ctx.press : null;
       const r = await createBlock(ctx.orgId, ctx.staffId, { what: s.what || "Away", where: "", minutes: minutes(s.end) - minutes(s.start), place: { staffUuid, day: s.day, startMin: minutes(s.start) } }, press);
       if (!r.ok) return said(`It wasn't blocked out: ${r.error}`);
@@ -192,7 +200,8 @@ export async function doSkill(
     }
 
     case "leave": {
-      if (!mine) return said(`${o.who || "They"} asks for their own leave, from Leave on their phone.`);
+      if (nobody) return said(`I don't know who ${named} is, so no leave's been asked for.`);
+      if (!mine) return said(`${o.who ? `${o.who} asks` : "They ask"} for their own leave, from Leave on their phone.`);
       const hours = await leaveHours(ctx, s.fromDay, s.toDay, s.part);
       const r = await requestLeave({
         kind: s.leave === "sick" ? "personal" : s.leave,
@@ -250,8 +259,12 @@ export async function doSkill(
     case "quote_add":
       return addToQuote(ctx, job, s.what, s.lines, index, s.kind);
 
+    /* A BOOKING HANDED OVER (bug 112): found among the bookings of whoever
+       has it, as a move's is, and given through the Schedule's own change
+       (schedule-change's {do:"give"}: the new person booked, then the old
+       one off), with its gates and its Tell. Undo hands it back. */
     case "swap_visit":
-      return said("I can't give a booking to someone else yet: drag it to them on the Schedule.");
+      return giveBooking(ctx, s, o, made);
 
     /* the job head's Star, as you (lib/jobs/job-stars); Undo puts it back as it was */
     case "star_job": {
@@ -265,6 +278,46 @@ export async function doSkill(
       return made(s.on ? `${name} is in your Starred.` : `${name} is off your Starred.`, { do: "star", job, on: was });
     }
   }
+}
+
+const SELF = /^(?:me|my|mine|myself|i)$/i;
+
+/** Hand one booking to someone else: "give my 2pm to Alex". */
+async function giveBooking(
+  ctx: SkillCtx,
+  s: Extract<ProposedSkill, { kind: "swap_visit" }>,
+  o: { today: string; who: string },
+  made: (line: string, undo: SkillMade["undo"]) => SkillStep,
+): Promise<SkillStep> {
+  if (!s.whoId) return said(`I don't know who ${s.toHint} is, so nothing's changed.`);
+  if (!s.fromId && s.fromHint && !SELF.test(s.fromHint)) return said(`I don't know who ${s.fromHint} is, so nothing's changed.`);
+  const fromCard = s.fromId ?? ctx.staffId;
+  if (!fromCard) return said("Your staff profile isn't set up yet, so nothing's changed.");
+  const mine = fromCard === ctx.staffId;
+  const fromName = mine ? "" : (s.fromHint.split(" ")[0] ?? "");
+  const toName = (o.who || s.toHint).split(" ")[0] ?? s.toHint;
+  if (fromCard === s.whoId) return said(`It's ${mine ? "yours" : `${fromName}'s`} already, so nothing's changed.`);
+  const [fromUuid, toUuid] = await Promise.all([sm8StaffOfCard(ctx.orgId, fromCard), sm8StaffOfCard(ctx.orgId, s.whoId)]);
+  if (!fromUuid) return said(mine ? "You're not linked to a ServiceM8 staff member, so I can't find your bookings." : `${fromName || "They"} isn't linked to a ServiceM8 staff member, so I can't find their bookings.`);
+  if (!toUuid) return said(`${toName} isn't linked to a ServiceM8 staff member, so nothing's changed.`);
+  const all = await comingBookingsOf(ctx.orgId, fromUuid, fromName, o.today);
+  if (!all) return said("I couldn't read the bookings just now, so nothing's changed. Try again in a moment.");
+  const { start, rest } = clockIn(s.booking);
+  const fit: MoveBooking[] = bookingsThatFit({ words: rest, fromDay: s.day, fromStart: start, fromPart: "day" }, all);
+  if (fit.length === 0) return said(noneFitLine({ words: s.booking }, mine, fromName));
+  if (fit.length > 1) {
+    const list = fit.slice(0, 3).map((b) => bookingLabel(b, o.today)).join("; ");
+    return said(`${fit.length > 3 ? "More than three" : fit.length === 2 ? "Two" : "Three"} of ${mine ? "your" : `${fromName}'s`} bookings fit: ${list}. Say which, with its time, and I'll give it to ${toName}.`);
+  }
+  const b = fit[0]!;
+  const r = await changeSchedule(await mobileCtx(ctx), ctx.press, { change: { do: "give", activity: b.uuid, to: toUuid }, tell: true });
+  if (!r.ok) return said(`It wasn't handed over: ${r.error}`);
+  const what = [b.place, whenWords(b.start, b.end, o.today)].filter(Boolean).join(", ");
+  const line =
+    r.state === "trial"
+      ? `${toName} would have ${what}, but ServiceM8 is in trial, so nothing went.`
+      : `${toName} has ${mine ? "your" : `${fromName}'s`} booking, ${what}${r.state === "waiting" ? ", once ServiceM8 has it" : ""}.`;
+  return made(line, r.undo?.do === "give" ? { do: "give", activity: r.undo.activity, to: r.undo.to } : null);
 }
 
 /** The contact's role, as ServiceM8 names it. */
@@ -393,6 +446,10 @@ export async function undoSkill(ctx: SkillCtx, m: SkillMade): Promise<string | n
     }
     case "siteNote": {
       const r = await removeSiteNote({ jobUuid: str("job"), id: str("id") });
+      return r.ok ? null : r.error;
+    }
+    case "give": {
+      const r = await changeSchedule(await mobileCtx(ctx), ctx.press, { change: { do: "give", activity: str("activity"), to: str("to") }, tell: true });
       return r.ok ? null : r.error;
     }
     case "star": {

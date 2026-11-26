@@ -276,6 +276,34 @@ describe("a move", () => {
   });
 });
 
+describe("a booking given to someone else (Tiff's \"give my 2pm to Alex\", bug 112)", () => {
+  it("books the new person on the same job at the same times, takes the old booking off, tells them, and its Undo hands it back", async () => {
+    booked(SAM_ON_OTHER, OTHER_JOB, SAM_SM8, at(TOMORROW, "08:00"), at(TOMORROW, "12:00"));
+    const answer = await change({ do: "give", activity: SAM_ON_OTHER, to: ALEX_SM8 });
+    expect(answer).toMatchObject({ ok: true, state: "sent", said: "Alex has 9002 now" });
+    const live = () => [...sm8.activities.values()].filter((a) => a.active === 1).map((a) => [a.staffUuid, a.jobUuid, a.start, a.end]);
+    expect(live()).toEqual([[ALEX_SM8, OTHER_JOB, at(TOMORROW, "08:00"), at(TOMORROW, "12:00")]]);
+    /* Sam pressed it: only Alex hears */
+    expect(push).toHaveBeenCalledTimes(1);
+    expect(push.mock.calls[0]).toEqual([ORG, ["staff-alex"], expect.objectContaining({ title: "Sam Tester booked you on 9002" })]);
+    const newUuid = creates()[0]!.remote_uuid as string;
+    expect(answer.ok && answer.undo).toEqual({ do: "give", activity: newUuid, to: SAM_SM8 });
+
+    if (!answer.ok || !answer.undo) throw new Error("no undo");
+    const back = await change(answer.undo, { tell: false });
+    expect(back).toMatchObject({ ok: true, state: "sent", said: "Sam has 9002 now" });
+    expect(live()).toEqual([[SAM_SM8, OTHER_JOB, at(TOMORROW, "08:00"), at(TOMORROW, "12:00")]]);
+  });
+
+  it("refuses giving it to whoever has it, and someone who isn't working, before anything is queued", async () => {
+    booked(SAM_ON_OTHER, OTHER_JOB, SAM_SM8, at(TOMORROW, "08:00"), at(TOMORROW, "12:00"));
+    expect(await change({ do: "give", activity: SAM_ON_OTHER, to: SAM_SM8 })).toMatchObject({ ok: false, error: "It's theirs already." });
+    (fake.db.sm8_staff as Row[]).find((r) => r.uuid === ALEX_SM8)!.active = 0;
+    expect(await change({ do: "give", activity: SAM_ON_OTHER, to: ALEX_SM8 })).toMatchObject({ ok: false });
+    expect(writes()).toHaveLength(0);
+  });
+});
+
 describe("a swap, a time, a take off and a booking", () => {
   it("a swap gives each the other's job and hours, and tells both", async () => {
     booked(ALEX_ON_JOB, JOB, ALEX_SM8, at(TOMORROW, "07:00"), at(TOMORROW, "15:00"));

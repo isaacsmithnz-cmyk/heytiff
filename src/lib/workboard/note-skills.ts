@@ -76,7 +76,9 @@ type SkillBody =
   | { kind: "job_contact"; name: string; phone: string; email: string; role: string }
   | { kind: "stock_taken"; what: string; qty: number; from: string }
   | { kind: "quote_add"; what: string; lines: SkillLine[] }
-  | { kind: "swap_visit"; booking: string; fromHint: string; toHint: string; day: string }
+  /* `fromId`: whose booking it is now, resolved like `whoId` (who takes it);
+     null for the speaker's own */
+  | { kind: "swap_visit"; booking: string; fromHint: string; toHint: string; day: string; fromId?: string | null }
   /** the speaker's star on this job (Isaac, 24 November 2026: "Star 3602 and remind me to contact them" stars it
       and adds the task; the task is the task lane's) */
   | { kind: "star_job"; on: boolean };
@@ -157,7 +159,7 @@ export const SKILL_TOOLS: Record<SkillKind, { description: string; item: ReturnT
     item: obj({ what: str, lines: LINES_SCHEMA }),
   },
   swap_visit: {
-    description: "A booking already made, given to someone else.",
+    description: "A booking someone already HAS, handed to another person: 'give my 2pm to Alex'. Never a new booking: putting someone onto a job at a time is a visit.",
     item: obj({ booking: str, from_hint: str, to_hint: str, day: str }),
   },
   star_job: {
@@ -193,8 +195,12 @@ export const SKILL_RULES = [
   "  (`qty`), in the words said: 'allow 1 hour for the tap and 2 for the",
   "  fans, no materials' is two labour lines. quote_add is before the client",
   "  has accepted; a variation is after. Not also a task.",
-  "- swap_visit: `booking` the words naming which one, `from_hint` whose it",
-  "  is now (empty for the speaker's), `to_hint` who takes it, `day` when.",
+  "- swap_visit: only a booking that is already someone's, handed over:",
+  "  'give my 2pm to Alex', 'Luke takes Leo's Sampleton job today'. `booking`",
+  "  the words naming which one, `from_hint` whose it is now (empty for the",
+  "  speaker's), `to_hint` who takes it, `day` when. 'Put Alex onto the",
+  "  Sampleco service call at 2', 'send Luke to 3239 tomorrow at 7' book",
+  "  someone new: a visit, never a swap_visit.",
   "- star_job: 'star 3602', 'unstar it'. `on` false only to take the star",
   "  off. What they want done as well ('and remind me to call them') is a",
   "  task for the speaker, as ever.",
@@ -346,7 +352,8 @@ export function skillsOf(raw: unknown): ProposedSkill[] {
     const r = (x && typeof x === "object" ? x : {}) as Record<string, unknown>;
     const s = isSkillKind(r.kind) ? skillFields(r.kind, r) : null;
     if (!s) return [];
-    return [typeof r.whoId === "string" && r.whoId ? { ...s, whoId: r.whoId } : s];
+    const who = typeof r.whoId === "string" && r.whoId ? { ...s, whoId: r.whoId } : s;
+    return [who.kind === "swap_visit" && typeof r.fromId === "string" && r.fromId ? { ...who, fromId: r.fromId } : who];
   });
 }
 
@@ -417,7 +424,7 @@ export function skillRow(s: ProposedSkill, who: string): { lead: string; text: s
     case "quote_add":
       return { lead: "Quote", text: join(s.what, linesWords(s.lines)), needs: false };
     case "swap_visit":
-      return { lead: who || s.toHint, text: join(`takes ${s.fromHint ? `${s.fromHint}'s` : "your"} ${s.booking || "booking"}`, s.day ? shortDay(s.day) : ""), needs: true };
+      return { lead: who || s.toHint, text: join(`takes ${s.fromHint ? `${s.fromHint}'s` : "your"} ${s.booking || "booking"}`, s.day ? shortDay(s.day) : ""), needs: false };
     case "star_job":
       return { lead: "Starred", text: s.on ? "added to your Starred" : "taken off your Starred", needs: false };
   }

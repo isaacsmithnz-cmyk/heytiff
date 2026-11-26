@@ -486,14 +486,16 @@ describe("the gates", () => {
     expect(appliedOf(noteRow().applied).taskIds).toEqual([tasks()[0]!.id]);
   });
 
-  it("a visit off a job can't be booked: a task for the speaker", async () => {
+  /* bug 112 (Isaac, 26 November 2026): a visit said on no job was made a
+     task to book it; she asks which job, as a cost or a flag does */
+  it("a visit off a job asks which job before anything is booked or made a task", async () => {
     note({ tasks: [], visits: [commissioning({ start: "14:00" })] });
     noteRow().target_kind = "none";
     noteRow().target_id = null;
     const res = await fileNote("n-1");
-    if (!res.ok) throw new Error(res.error);
+    expect(res).toMatchObject({ ok: false, ask: { question: "Which job is this for?" } });
     expect(bookJobIn).not.toHaveBeenCalled();
-    expect(res.turns.at(-1)!.text).toBe("A visit needs a ServiceM8 job, so I've made it a task: Book commissioning Friday.");
+    expect(tasks()).toEqual([]);
   });
 
   it("asks who's going before anything is filed, as for a task", async () => {

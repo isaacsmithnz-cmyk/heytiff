@@ -871,8 +871,10 @@ const MOVE_WORK = /^(?:move|moving|reschedul\w*|re-schedul\w*|push|shift|bring (
 export const isMoveWork = (work: string) => MOVE_WORK.test(work.trim());
 /** A move's words that say it's a booking moved: "booking", "visit", "my 3pm". */
 const BOOKING_WORDS_RE = /\b(?:booking|visit|appointment|job|\d{1,2}(?::\d{2})?\s*(?:am|pm))\b/i;
-/** What Tiff says when asked to move a booking, which she can't do yet. */
-export const MOVE_SAY = "I can't move a booking yet: open it on Schedule and change its time there.";
+/** What Tiff says when the words ask for a booking moved and she couldn't
+    read which one or where to. She can move one (note-move), so never "I
+    can't" (the gap audit after bug 112). */
+export const MOVE_SAY = "I couldn't tell which booking to move or where to: say its day or time and where it goes, or change it on Schedule.";
 
 const ROUTER_RULES = [
   "You route a tradesperson's site note into structured outcomes for an",
@@ -889,8 +891,11 @@ const ROUTER_RULES = [
   "  is what they'll do there; the person in `assignee_hint` as for a task;",
   "  `day` as YYYY-MM-DD; `start` HH:MM only when a clock time is said,",
   "  else empty, with the part of the day in `part`; `minutes` the length",
-  "  said, else 0. A visit is not also a task. Moving a booking already",
-  "  made ('move my 3pm to Friday') is never a visit: it is a move.",
+  "  said, else 0. A visit is not also a task. Putting, sending or",
+  "  booking someone onto a job ('put Alex onto the Sampleco service call",
+  "  at 2pm', 'send Luke to 3239 tomorrow at 7') is a visit for them, with",
+  "  the job in job_named. Moving a booking already made ('move my 3pm to",
+  "  Friday') is never a visit: it is a move.",
   "- moves: a booking already made, moved to another time: 'move my 3pm",
   "  to Friday 7am', 'push Leo's Sampleton job to tomorrow'. `who_hint` the",
   "  person whose booking it is, empty for the speaker's own; `booking`",
@@ -1096,20 +1101,28 @@ export function resolveAssignee(
   const h = norm(hint);
   if (!h) return { kind: "none" };
 
-  const full = staff.filter((s) => norm(s.fullName) === h);
-  if (full.length === 1) return { kind: "one", id: full[0].id };
-  if (full.length > 1) return { kind: "ambiguous", names: full.map((s) => s.fullName) };
+  /* TWO CARDS WITH ONE NAME, ONE OF THEM THE SPEAKER'S (bug 99, Isaac, 25
+     November 2026: "Which Isaac Smith did you mean?" offered Isaac Smith
+     twice, and either answer asked again): no answer could tell them apart,
+     so the speaker's own card is the one meant */
+  const pick = (list: readonly NoteStaff[]): AssigneeMatch | null => {
+    if (list.length === 1) return { kind: "one", id: list[0].id };
+    if (list.length === 0) return null;
+    if (authorId && list.some((s) => s.id === authorId) && new Set(list.map((s) => norm(s.fullName))).size === 1) return { kind: "one", id: authorId };
+    return { kind: "ambiguous", names: list.map((s) => s.fullName) };
+  };
 
-  const first = staff.filter((s) => norm(s.fullName).split(" ")[0] === h);
-  if (first.length === 1) return { kind: "one", id: first[0].id };
-  if (first.length > 1) return { kind: "ambiguous", names: first.map((s) => s.fullName) };
+  const full = pick(staff.filter((s) => norm(s.fullName) === h));
+  if (full) return full;
+
+  const first = pick(staff.filter((s) => norm(s.fullName).split(" ")[0] === h));
+  if (first) return first;
 
   /* A FIRST NAME AND THE START OF THE LAST: "Alex L" is Alex Lomond when
      he is the only Alex whose surname starts with L — how a crew with two
      Alexes tells them apart, and the label the "which Alex?" options wear. */
-  const initial = staff.filter((s) => startsLike(h, s.fullName));
-  if (initial.length === 1) return { kind: "one", id: initial[0].id };
-  if (initial.length > 1) return { kind: "ambiguous", names: initial.map((s) => s.fullName) };
+  const initial = pick(staff.filter((s) => startsLike(h, s.fullName)));
+  if (initial) return initial;
 
   /* A NAME THEY GO BY, after every real name: "Bobo" is Leonardo because
      somebody told Tiff so once, and a person actually called Bobo would
@@ -1504,7 +1517,19 @@ export function shapeProposal(raw: unknown, ctx: NoteContext, _said = ""): NoteP
       clarify = { question: `Which ${hint} did you mean?`, options: shortWhoLabels(match.names) };
       escalated = true;
     }
-    skills.push({ ...sk, whoId: match ? (match.kind === "one" ? match.id : null) : (ctx.author?.id ?? null) });
+    const whoId = match ? (match.kind === "one" ? match.id : null) : (ctx.author?.id ?? null);
+    /* A BOOKING HANDED OVER is someone's now: the speaker's when nobody is
+       named, else that person's, asked about when two share the name */
+    if (sk.kind === "swap_visit") {
+      const from = sk.fromHint && !/^(?:me|my|mine|myself|i)$/i.test(sk.fromHint) ? resolveAssignee(sk.fromHint, ctx.staff, ctx.author?.id) : null;
+      if (from?.kind === "ambiguous" && !clarify) {
+        clarify = { question: `Which ${sk.fromHint} did you mean?`, options: shortWhoLabels(from.names) };
+        escalated = true;
+      }
+      skills.push({ ...sk, whoId, fromId: from ? (from.kind === "one" ? from.id : null) : (ctx.author?.id ?? null) });
+      continue;
+    }
+    skills.push({ ...sk, whoId });
   }
 
   /* Tiff's line ends with the question when she has one to ask. When the

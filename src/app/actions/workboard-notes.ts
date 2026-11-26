@@ -1577,7 +1577,10 @@ export async function fileNote(
   const variationsOn = draft.variations.some((v) => v.on);
   /* and a skill done on a job, as the job's Used, time or list are */
   const skillsOnJob = draft.skills.some((k) => k.on && ON_A_JOB.has(k.kind));
-  const needsJob = jobBound(draft) || costsOn || variationsOn || skillsOnJob;
+  /* and a visit is a booking on a job (bug 112): one said on no job asks
+     which, rather than becoming a task to book it */
+  const visitsOn = draft.visits.some((v) => v.on);
+  const needsJob = jobBound(draft) || costsOn || variationsOn || skillsOnJob || visitsOn;
 
   /* THE JOB THE WORDS NAME (note-job; bugs 77, 87, 88): said on no job,
      a note that names one, by its client, its address or its number, lands

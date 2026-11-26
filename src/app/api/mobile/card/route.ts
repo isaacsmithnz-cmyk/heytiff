@@ -2,9 +2,8 @@ import { getStaff } from "@/lib/staff/query";
 import { staffIdFor } from "@/lib/workboard/projects-query";
 import { orgExpiryWindow } from "@/lib/org/query";
 import { getOwnVehicle } from "@/lib/fleet/query";
-import { ok, requireMobile } from "@/lib/mobile/auth";
+import { actAsPhoneUser, ok, requireMobile, type MobileCtx } from "@/lib/mobile/auth";
 import { readBirthdaySharing, setBirthdaySharing } from "@/lib/team/birthday-sharing";
-import { actAsPhoneUser, type MobileCtx } from "@/lib/mobile/auth";
 import { EMERGENCY_RELATIONSHIPS } from "@/lib/staff/profile";
 
 /* YOUR CARD for the phone: who you are on the team, as your own profile

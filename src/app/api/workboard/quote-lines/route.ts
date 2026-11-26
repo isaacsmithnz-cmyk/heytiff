@@ -6,7 +6,7 @@ import { addKit } from "@/lib/quotes/kits-server";
 import { packMakers } from "@/lib/quotes/lookups-server";
 import { coolingOf, linesFit } from "@/lib/quotes/fit-server";
 import { normaliseKitFacts } from "@/lib/quotes/kits";
-import { approveProposal, unapproveProposal, markAccepted, markVariation, nameOption, readByHand, saveProposal, setLoading, setNoDesign, setSupplier, startVariation, startVersion } from "@/lib/quotes/lines-job-server";
+import { approveProposal, unapproveProposal, keepFit, markAccepted, markVariation, nameOption, readByHand, saveProposal, setLoading, setNoDesign, setSupplier, startVariation, startVersion } from "@/lib/quotes/lines-job-server";
 import { readJobDesigns } from "@/lib/studio/job-designs-server";
 import { readVersions } from "@/lib/quotes/quote-versions-server";
 import { stageNamed, variationMaterials } from "@/lib/quotes/lines-job";
@@ -101,6 +101,8 @@ async function view(orgId: string, jobUuid: string, userId: string, money = true
     supplier: byHand.supplier,
     researched: byHand.researched,
     variations: byHand.variations,
+    /* lines kept past their fit check, as they stood when kept */
+    keptFits: byHand.keptFits ?? {},
     /* sent to ServiceM8 as a quote (7.3) */
     sent: byHand.sent ?? null,
     /* the Design step (28 October 2026): the job's designs, newest first,
@@ -332,6 +334,20 @@ export async function POST(req: Request) {
     case "undo":
       result = await undoChange(g.orgId, jobUuid, typeof body.change === "number" ? body.change : -1, g.userId);
       break;
+    /* a line a fit check flags, kept as it is on purpose, or the keep taken
+       back (Isaac, 27 November 2026: "Keep the line"): the work's, so
+       anyone quoting decides it */
+    case "keep-fit": {
+      const line = (await readLines(g.orgId, jobUuid)).find((l) => l.id === body.id);
+      if (!line) {
+        result = { ok: false, reason: "That line isn't on the quote any more." };
+        break;
+      }
+      const keep = body.keep !== false;
+      result = await keepFit(g.orgId, jobUuid, line, keep, g.userId);
+      if (result.ok) await mark(keep ? `${line.name} kept as it is` : `${line.name} checked again`);
+      break;
+    }
     /* the Design step's No design, or taken back: anyone quoting decides
        it, as they decide the scope, and only with the Studio to design in */
     case "design":

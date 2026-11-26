@@ -21,7 +21,7 @@ import { PAYMENT_PRESETS, type PaymentPreset, type PaymentStage } from "@/lib/qu
 import { Icon } from "@/components/shell/icon";
 import type { QuoteNote } from "@/lib/templates/settings";
 import { buildProgress, type PlannedPart } from "@/lib/quotes/build-progress";
-import type { Variation } from "@/lib/quotes/lines-job";
+import { fitKept, type Variation } from "@/lib/quotes/lines-job";
 import { VariationPaper } from "./variation-paper";
 import { VariationSm8 } from "./variation-sm8";
 import type { VariationSendAnswer } from "@/app/actions/quote-sm8";
@@ -94,6 +94,8 @@ export type LinesView = {
   fits?: Fit[];
   /** each unit line's cooling kW off its maker's pack, else its book name (fit-server.ts coolingOf) */
   coolKw?: Record<string, number>;
+  /** lines a person kept past their fit check, as they stood then (lines-job.ts fitPrint) */
+  keptFits?: Record<string, string>;
   /** the option the client took, marked by a person (lines-job.ts) */
   accepted?: number[];
   /** changes after it was accepted, each an option of its own (lines-job.ts) */
@@ -493,6 +495,17 @@ export function QuoteLinesFace({
     });
   };
 
+  /* KEEP THE LINE (Isaac, 27 November 2026, on https://claude.ai/artifact/Tx16qpWRbxfusq6xCEWKYn):
+     a line its fit check flags but that's right on purpose leaves To confirm
+     until its code, name or quantity changes, and the toast's Undo asks again */
+  const keepLine = async (l: QuoteLine) => {
+    const v = await act({ op: "keep-fit", id: l.id, keep: true });
+    if (!v?.ok) return;
+    onToast?.(`${l.name} kept as it is`, () => {
+      void act({ op: "keep-fit", id: l.id, keep: false });
+    });
+  };
+
   /* Swap from To confirm: the line items up, its group open, its pick list */
   const [swapAsk, setSwapAsk] = useState<{ id: string; n: number } | null>(null);
   const swapOnLine = (l: QuoteLine) => {
@@ -625,7 +638,7 @@ export function QuoteLinesFace({
      11.1) — what isn't known, what doesn't fit, and the profit */
   /** a thing to confirm; an estimate is confirmed from the list itself, and
       a line nobody knows the price of is priced on the line */
-  type Check = { tone: "due" | "info" | "ok"; text: string; confirm?: QuoteLine; price?: QuoteLine };
+  type Check = { tone: "due" | "info" | "ok"; text: string; confirm?: QuoteLine; price?: QuoteLine; keep?: QuoteLine };
   const variationOptions = new Set((view?.variations ?? []).map((v) => v.option));
   const twinsFor = (l: QuoteLine) => (variationOptions.has(l.optionIndex) ? [] : twinsOf(l, all, variationOptions));
   const checksFor = (i: number): Check[] => {
@@ -636,7 +649,10 @@ export function QuoteLinesFace({
     return [
       ...mine.filter((l) => l.source === "unknown" && l.costCents <= 0 && l.sellCents == null).map((l) => ({ tone: "due" as const, text: `${l.name}: not known yet`, price: l })),
       ...mine.filter((l) => l.estimate).map((l) => ({ tone: "due" as const, text: `${l.name}: ${l.why || "an estimate"}`, confirm: l })),
-      ...mine.filter((l) => (view?.fits ?? []).some((f) => f.key === l.id && f.state === "misfit")).map((l) => ({ tone: "due" as const, text: `${l.name}: ${(view?.fits ?? []).find((f) => f.key === l.id)!.why}` })),
+      /* a line that doesn't fit, unless a person kept it as it is (Isaac, 27 November 2026: "Keep the line") */
+      ...mine
+        .filter((l) => (view?.fits ?? []).some((f) => f.key === l.id && f.state === "misfit") && !fitKept(view?.keptFits, l))
+        .map((l) => ({ tone: "due" as const, text: `${l.name}: ${(view?.fits ?? []).find((f) => f.key === l.id)!.why}`, keep: l })),
       ...(oi?.build.loadingNeedsReason ? [{ tone: "due" as const, text: "The loading isn't on the price until it says why" }] : []),
       ...(assumed.length > 0 ? [{ tone: "info" as const, text: `${assumed.length} ${assumed.length === 1 ? "line" : "lines"} assumed` }] : []),
       ...(task ? [{ tone: "info" as const, text: `Your task hours make it ${task.hours} h for ${task.words}; the quote has ${task.quoted} h` }] : []),
@@ -678,6 +694,14 @@ export function QuoteLinesFace({
                   Swap
                 </Button>
                 <RemoveLine line={c.price} twins={twinsFor(c.price)} busy={busy} onRemove={(ls) => void removeLines(ls)} />
+              </span>
+            )}
+            {/* a line right on purpose, kept as it is until it changes, with Undo */}
+            {c.keep && (
+              <span className="ql-chkacts">
+                <Button size={32} disabled={busy} onClick={() => void keepLine(c.keep!)}>
+                  Keep the line
+                </Button>
               </span>
             )}
             {/* confirming an estimate confirms its price: the route takes

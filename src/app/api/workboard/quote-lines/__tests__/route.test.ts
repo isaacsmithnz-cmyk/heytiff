@@ -12,6 +12,7 @@ jest.mock("@/lib/workboard/all-jobs-query", () => ({ resolveJobCard: async () =>
 const changeLine = jest.fn(async () => ({ ok: true, line: null }));
 const approveProposal = jest.fn(async () => ({ ok: true, byHand: {} }));
 const setNoDesign = jest.fn(async () => ({ ok: true }));
+const keepFit = jest.fn(async (..._a: unknown[]) => ({ ok: true }));
 const LINE = {
   id: "l1", version: 1, updatedAt: "", updatedBy: "", optionIndex: 0, system: "", group: "Units", position: 0, name: "PEA-M125HAA",
   code: "PEA-M125HAA", supplierKey: "aad", kind: "unit", qty: 1, unit: "", costCents: 400000, sellCents: 520000, source: "said", why: "", duct: false,
@@ -40,6 +41,7 @@ jest.mock("@/lib/quotes/lines-job-server", () => ({
   saveProposal: jest.fn(),
   setLoading: jest.fn(),
   setNoDesign: (...a: unknown[]) => (setNoDesign as jest.Mock)(...a),
+  keepFit: (...a: unknown[]) => keepFit(...a),
   setSupplier: jest.fn(),
   startVariation: jest.fn(),
   startVersion: jest.fn(),
@@ -128,6 +130,18 @@ it("keeps No design for anyone quoting with the Studio, a tech included", async 
   expect(setNoDesign).toHaveBeenCalledWith("org-a", "job-1", true, "u-tech");
   await post({ op: "design", skip: false });
   expect(setNoDesign).toHaveBeenLastCalledWith("org-a", "job-1", false, "u-tech");
+});
+
+/* Keep the line (27 November 2026): anyone quoting keeps a flagged line, or takes the keep back */
+it("keeps a line past its fit check as it is, and takes the keep back, for anyone quoting", async () => {
+  grants.add("workboard");
+  await post({ op: "keep-fit", id: "l1", keep: true });
+  expect(keepFit).toHaveBeenLastCalledWith("org-a", "job-1", LINE, true, "u-tech");
+  await post({ op: "keep-fit", id: "l1", keep: false });
+  expect(keepFit).toHaveBeenLastCalledWith("org-a", "job-1", LINE, false, "u-tech");
+  const gone = await (await post({ op: "keep-fit", id: "nope", keep: true })).json();
+  expect(gone).toMatchObject({ ok: false, reason: "That line isn't on the quote any more." });
+  expect(keepFit).toHaveBeenCalledTimes(2);
 });
 
 /* TIFF'S CHECK (review.ts, 26 November 2026): Mark ready to send waits on it */

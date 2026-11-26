@@ -3,7 +3,7 @@
    beside the switch. */
 import { readingFromQuote } from "@/lib/certs/from-quote";
 import type { QuoteLine } from "../lines";
-import { byHandOf, sentStands, variationInSm8, variationMaterials, variationUntouched, withVariation, withVariationSent, withoutVariation, labourTasks, labourVisits, stageNamed, linesDraft, linesHours, linesMaterials, linesUnits, toggleAccepted, withApproval, withoutApproval, withSent, withLoading, withName, withNoDesign, withProposal } from "../lines-job";
+import { byHandOf, fitKept, fitPrint, withKeptFit, sentStands, variationInSm8, variationMaterials, variationUntouched, withVariation, withVariationSent, withoutVariation, labourTasks, labourVisits, stageNamed, linesDraft, linesHours, linesMaterials, linesUnits, toggleAccepted, withApproval, withoutApproval, withSent, withLoading, withName, withNoDesign, withProposal } from "../lines-job";
 import type { UnitSpecs } from "../lookups";
 import { acceptedOptions } from "../proposal";
 
@@ -342,5 +342,26 @@ describe("a variation's send and its take-back", () => {
     expect(back.variations).toEqual([]);
     expect(back.names).toEqual(["Main"]);
     expect(withVariation(back, 1, "again", "auth0|me", "2026-10-19T00:00:00.000Z").variations[0]!.n).toBe(1);
+  });
+});
+
+/* Keep the line (Isaac, 27 November 2026): a line a fit check flags, kept as
+   it is on purpose, until its code, name or quantity changes */
+describe("a line kept past its fit check", () => {
+  const coil = { id: "pc", code: "PC1258", name: "Pair coil 1/2 + 5/8", qty: 2 };
+  it("is kept as it stands, read back from the store, and asks again once it changes", () => {
+    const b = withKeptFit(byHandOf({}), coil, true);
+    expect(b.keptFits).toEqual({ pc: fitPrint(coil) });
+    const read = byHandOf({ byHand: JSON.parse(JSON.stringify(b)) });
+    expect(fitKept(read.keptFits, coil)).toBe(true);
+    expect(fitKept(read.keptFits, { ...coil, qty: 3 })).toBe(false);
+    expect(fitKept(read.keptFits, { ...coil, code: "PC1234" })).toBe(false);
+    expect(fitKept(read.keptFits, { ...coil, name: "Pair coil 1/4 + 1/2" })).toBe(false);
+  });
+  it("is taken back by its Undo, and the store drops what isn't a line's", () => {
+    const b = withKeptFit(withKeptFit(byHandOf({}), coil, true), coil, false);
+    expect(fitKept(b.keptFits, coil)).toBe(false);
+    expect(byHandOf({ byHand: { keptFits: { "bad id!": "x", ok: 5, pc: "PC1258|Pair coil|2" } } }).keptFits).toEqual({ pc: "PC1258|Pair coil|2" });
+    expect(byHandOf({}).keptFits).toBeUndefined();
   });
 });

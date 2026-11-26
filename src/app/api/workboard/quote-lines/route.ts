@@ -20,6 +20,8 @@ import { variationTasks } from "@/lib/workboard/task-plan";
 import { readQuoteSettings } from "@/lib/quotes/settings-query";
 import { readOrgDay } from "@/lib/quotes/org-day-server";
 import { taskCheck } from "@/lib/quotes/task-hours";
+import { quoteStamp } from "@/lib/quotes/review";
+import { answerReview, applyReviewFixes, reviewLetsApprove, runReview } from "@/lib/quotes/review-server";
 import { changesWithoutMoney, lineWithoutMoney, patchWithoutMoney } from "@/lib/quotes/money-hidden";
 
 /* A quote's kept lines (the engine rebuild, slices 2.1–2.3): read them with
@@ -51,7 +53,7 @@ async function gate(): Promise<Gate> {
 }
 
 /* what only someone who sees money may do to a quote, and what only a manager */
-const MONEY_OPS = new Set(["supplier", "proposal", "approve", "unapprove", "loading", "version", "variation", "variation-approve", "variation-accept"]);
+const MONEY_OPS = new Set(["supplier", "proposal", "approve", "review", "review-answer", "review-fix", "unapprove", "loading", "version", "variation", "variation-approve", "variation-accept"]);
 const MANAGE_OPS = new Set(["accept"]);
 
 /** The suppliers a job can buy from: the business's own, with items. */
@@ -115,6 +117,10 @@ async function view(orgId: string, jobUuid: string, userId: string, money = true
        the business's notes and payment terms it's set from (7.1) */
     proposal: byHand.proposal,
     approved: byHand.proposal ? approvalStands(byHand.proposal, lines.map((l) => l.updatedAt)) : false,
+    /* Tiff's check before it's marked ready to send, and the quote's
+       fingerprint now: a check made of anything else is run again (review.ts) */
+    review: money ? (byHand.review ?? null) : null,
+    reviewStamp: quoteStamp(lines, byHand.proposal ?? null),
     noteLibrary: templates?.quoteNotes ?? [],
     paymentTerms: templates?.paymentTerms ?? null,
   };
@@ -160,6 +166,8 @@ export async function POST(req: Request) {
   let onJob: { added: number; removed: number } | null = null;
   /* a variation just started: the option to open */
   let opened: number | null = null;
+  /* the fixes from Tiff's check, for the page to hand her as the person's words */
+  let fixes: string | undefined;
   /* the quote's history, in Tiff's thread where there is one (slice 6.2) */
   const mark = async (text: string) => {
     const session = await readSession(g.orgId, jobUuid).catch(() => null);
@@ -232,7 +240,25 @@ export async function POST(req: Request) {
     case "proposal":
       result = await saveProposal(g.orgId, jobUuid, body.patch, g.userId);
       break;
+    /* TIFF'S CHECK (review.ts): run, a finding answered, the fixes done */
+    case "review":
+      result = await runReview(g.orgId, jobUuid, g.userId);
+      break;
+    case "review-answer":
+      result = await answerReview(g.orgId, jobUuid, g.userId, body.id, body.pick, body.reason);
+      break;
+    case "review-fix": {
+      const done = await applyReviewFixes(g.orgId, jobUuid, g.userId);
+      result = done;
+      if (done.ok) fixes = done.message;
+      break;
+    }
     case "approve": {
+      /* checked as it stands, nothing left in the check but what was kept */
+      if (!(await reviewLetsApprove(g.orgId, jobUuid))) {
+        result = { ok: false, reason: "Tiff checks it first: press Mark ready to send." };
+        break;
+      }
       const approved = await approveProposal(g.orgId, jobUuid, g.userId);
       result = approved;
       /* marked in Tiff's thread, where there is one (slice 6.2) */
@@ -316,5 +342,5 @@ export async function POST(req: Request) {
       return Response.json({ ok: false, reason: "Not something a quote's lines can do." }, { status: 400 });
   }
   const now = await view(g.orgId, jobUuid, g.userId, g.money, g.studio);
-  return Response.json(result.ok ? { ...now, onJob, opened } : { ...now, ok: false, reason: result.reason, stale: result.stale ?? false }, { status: 200 });
+  return Response.json(result.ok ? { ...now, onJob, opened, fixes } : { ...now, ok: false, reason: result.reason, stale: result.stale ?? false }, { status: 200 });
 }

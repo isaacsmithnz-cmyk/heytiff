@@ -4,6 +4,7 @@ import { blocksChanged, proposalOf, type LinesProposal } from "./lines-proposal"
 import type { UnitSpecs } from "./lookups";
 import { normaliseDraft, type ProposalDraft, type UnitLine, type UnitRole } from "./proposal";
 import { roomIn } from "./unit-name";
+import { reviewOf, type QuoteReview } from "./review";
 
 /* A QUOTE BUILT ON ITS KEPT LINES, AS THE JOB READS IT (slice 3.3) — the
    ServiceM8 send, the accepted option's materials, the Installation hours
@@ -47,6 +48,8 @@ export type ByHand = {
   /** No design pressed on the Design step (Isaac, 28 October 2026): when,
       and by whom. A design of the job's drawn since outranks it. */
   noDesign?: { at: string; by: string } | null;
+  /** Tiff's check before it's marked ready to send (review.ts) */
+  review?: QuoteReview | null;
 };
 
 /** A VARIATION TO THE ACCEPTED QUOTE: an option of its own, started as a
@@ -190,8 +193,12 @@ export function byHandOf(draft: unknown): ByHand {
   const sent = kept && sentStands(kept, proposal?.approvedAt ?? null) ? kept : null;
   const rawNoDesign = o.noDesign && typeof o.noDesign === "object" ? (o.noDesign as Record<string, unknown>) : null;
   const noDesign = rawNoDesign && typeof rawNoDesign.at === "string" && rawNoDesign.at ? { at: rawNoDesign.at, by: said(rawNoDesign.by, 120) } : null;
-  return { accepted, names, loading, compare, supplier, proposal, researched, variations, ...(sent ? { sent } : {}), ...(noDesign ? { noDesign } : {}) };
+  const review = reviewOf(o.review);
+  return { accepted, names, loading, compare, supplier, proposal, researched, variations, ...(sent ? { sent } : {}), ...(noDesign ? { noDesign } : {}), ...(review ? { review } : {}) };
 }
+
+/** Tiff's check kept on the quote, or taken off. */
+export const withReview = (b: ByHand, review: QuoteReview | null): ByHand => ({ ...b, review });
 
 /** WHETHER A SEND STILL STANDS (Isaac, 20 November 2026, bug 59: "i
     updated quote, now it still says update quote, and wont let me sent new

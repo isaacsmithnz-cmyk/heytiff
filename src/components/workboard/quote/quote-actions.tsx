@@ -5,6 +5,7 @@ import { Button, type ControlSize } from "@/components/parts/button";
 import { Menu } from "@/components/parts/menu";
 import { StateWord } from "@/components/parts/state";
 import type { Variation } from "@/lib/quotes/lines-job";
+import type { ReviewStep } from "@/lib/quotes/review";
 
 /* THE QUOTE'S NEXT STEP, PINNED AT THE PANEL'S FOOT (layout B, Isaac's pick
    on 21 October 2026: "Price on top, buttons pinned"; one button since 21
@@ -83,6 +84,11 @@ export function QuoteActions({
   onApprove,
   onUpdate,
   onAccept,
+  review = null,
+  checking = false,
+  walk,
+  onCheck,
+  onFix,
 }: {
   money: boolean;
   /** how many lines the quote has, every option */
@@ -118,6 +124,15 @@ export function QuoteActions({
   onApprove: () => void;
   onUpdate: () => void;
   onAccept: () => void;
+  /** Tiff's check before it's marked ready to send (review.ts): where it's
+      left the quote; absent, Mark ready to send marks it straight away */
+  review?: ReviewStep | null;
+  /** she's checking it now */
+  checking?: boolean;
+  /** the finding she's on, as a card (quote-review.tsx) */
+  walk?: ReactNode;
+  onCheck?: () => void;
+  onFix?: () => void;
 }) {
   const { step } = panelFoot({ money, lines, kept, variation, approved, sending: !!send && !sent, acceptable, accepted, update, paper });
   const answering = step === "approve" && asked > 0 && !!onAnswer;
@@ -130,6 +145,21 @@ export function QuoteActions({
         <Button kind="main" disabled={busy} onClick={onAnswer}>
           {`Settle ${asked} ${asked === 1 ? "question" : "questions"}`}
         </Button>
+      ) : !variation && ready && review && review.step !== "clear" ? (
+        /* TIFF CHECKS IT FIRST (review.ts, 26 November 2026): the press
+           runs her check; what she finds comes one at a time here; the
+           fixes picked go to her as one message; then it's marked */
+        review.step === "walk" ? (
+          (walk ?? null)
+        ) : review.step === "fix" ? (
+          <Button kind="main" disabled={busy || checking} onClick={onFix}>
+            {`Fix ${review.fixes} with Tiff`}
+          </Button>
+        ) : (
+          <Button kind="main" disabled={busy || checking} onClick={onCheck}>
+            {checking ? "Checking the quote" : review.again ? "Check again" : "Mark ready to send"}
+          </Button>
+        )
       ) : (
         <Button kind="main" disabled={busy || !ready} onClick={onApprove}>
           {variation ? "Approve variation" : "Mark ready to send"}

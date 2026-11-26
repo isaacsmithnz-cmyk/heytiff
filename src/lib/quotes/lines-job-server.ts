@@ -17,6 +17,7 @@ import {
   withVariation,
   withVariationMark,
   withVariationSent,
+  withReview,
   withoutApproval,
   withoutVariation,
   withSent,
@@ -32,6 +33,7 @@ import type { QuoteLine } from "./lines";
 import { readOrgDay } from "./org-day-server";
 import type { ProposalDraft } from "./proposal";
 import { readStoredProposal } from "./old-draft-server";
+import type { QuoteReview } from "./review";
 import type { ResearchDetail } from "./research";
 import { approvalStands } from "./lines-proposal";
 import { readQuotePrice } from "./quote-price-server";
@@ -209,6 +211,10 @@ export const setNoDesign = (orgId: string, cardId: string, on: boolean, by: stri
 
 /** Sets option `i`'s loading, or takes it off. */
 export const setLoading = (orgId: string, cardId: string, i: number, loading: unknown, by: string) => changeByHand(orgId, cardId, by, (b) => withLoading(b, i, loading));
+
+/** Tiff's check, changed as `change` says (review-server.ts). */
+export const changeReview = (orgId: string, cardId: string, by: string, change: (r: QuoteReview | null) => QuoteReview | null) =>
+  changeByHand(orgId, cardId, by, (b) => withReview(b, change(b.review ?? null)));
 
 /** A change to a switched quote's by-hand record, written against the
     draft as it was read, so a proposal saved meanwhile is never

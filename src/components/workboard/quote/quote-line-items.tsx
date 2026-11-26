@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useEffectEvent, useId, useRef, useState, type KeyboardEvent } from "react";
 import { fmtAud } from "@/lib/workboard/project-money";
 import { againstFirst, isProvisional, missingFromFirst, PROVISIONAL, type LineFields, type QuoteLine } from "@/lib/quotes/lines";
 import { offerFor, type BookHit } from "@/lib/quotes/lookups";
@@ -289,6 +289,7 @@ export function QuoteLineItems({
   onRemove,
   swapAsk = null,
   optionRows = [],
+  spot = [],
 }: {
   job: string;
   view: LinesView | null;
@@ -315,6 +316,8 @@ export function QuoteLineItems({
   swapAsk?: { id: string; n: number } | null;
   /** every option and its total, for the slider */
   optionRows?: { option: number; name: string; total: string | null; on: boolean }[];
+  /** the lines Tiff's check is on (review.ts): their groups open, outlined */
+  spot?: readonly string[];
 }) {
   const [search, setSearch] = useState("");
   /* the one menu open, and which of This option's rows are */
@@ -367,6 +370,19 @@ export function QuoteLineItems({
      Whatever the change brought that wasn't here before is shown. Tiff's
      lines, and a line that wants looking at, leave the groups as they are:
      To confirm lists those. */
+  /* A FINDING OF TIFF'S CHECK ON THE LINES: their groups open and the
+     first comes into view, outlined while the card is on it */
+  const spotKey = spot.join(",");
+  const showSpot = useEffectEvent(() => {
+    const on = all.filter((l) => spot.includes(l.id));
+    if (on.length === 0) return;
+    onGroups([...new Set(on.map(groupKey))], true);
+    requestAnimationFrame(() => document.querySelector(`[data-line="${on[0]!.id}"]`)?.scrollIntoView?.({ block: "center" }));
+  });
+  useEffect(() => {
+    if (spotKey) showSpot();
+  }, [spotKey]);
+
   const adding = async (body: Record<string, unknown>) => {
     const had = new Set(all.map((l) => l.id));
     const v = await act(body);
@@ -732,7 +748,7 @@ export function QuoteLineItems({
                           const unknown = l.source === "unknown" && l.costCents <= 0 && l.sellCents == null;
                           const each = sells.get(l.id);
                           return [
-                            <tr key={l.id} className="ql-it">
+                            <tr key={l.id} className={spot.includes(l.id) ? "ql-it ql-spot" : "ql-it"} data-line={l.id}>
                               <td>
                                 <span className="ql-n">
                                   <Tooltip

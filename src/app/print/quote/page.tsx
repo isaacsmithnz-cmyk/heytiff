@@ -5,6 +5,7 @@ import "./quote-print.css";
 import { orgBrand } from "@/lib/org/query";
 import { readQuoteTicket } from "@/lib/quotes/pdf-ticket";
 import { readByHand } from "@/lib/quotes/lines-job-server";
+import { qualificationsOf } from "@/lib/quotes/review";
 import { namesBySignIn, readLines } from "@/lib/quotes/lines-server";
 import { proposalTitle } from "@/lib/quotes/proposal";
 import { readQuotePrice } from "@/lib/quotes/quote-price-server";
@@ -58,6 +59,7 @@ export default async function PrintQuotePage({ searchParams }: { searchParams: P
     coolKw,
     price,
     optionNames: byHand.names,
+    qualifications: qualificationsOf(byHand.review ?? null),
     noteLibrary: templates?.quoteNotes ?? [],
     paymentTerms: templates?.paymentTerms ?? null,
     title: proposalTitle(address),

@@ -80,11 +80,10 @@ test("without AUTH0_DOMAIN nothing is believed", async () => {
   spy.mockRestore();
 });
 
-test("someone signed in with no workspace is told to be invited on the web first", async () => {
-  expect(await status(await call(as("auth0|stranger")))).toEqual([
-    403,
-    "This sign-in has no HeyTiff workspace. Ask to be invited on the web first.",
-  ]);
+test("someone signed in with no workspace gets a 403 the phone can open its first door on", async () => {
+  const r = await call(as("auth0|stranger"));
+  expect(r instanceof Response && r.status).toBe(403);
+  expect(await (r as Response).json()).toEqual({ error: "This sign-in has no HeyTiff workspace yet.", code: "no_workspace" });
 });
 
 test("without a workspace named, it's the one the website opens: the oldest", async () => {

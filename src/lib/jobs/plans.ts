@@ -185,8 +185,12 @@ const EXISTING_BEFORE = /\bEXISTING\W{0,3}$/;
 const JOINED_BEFORE = /\bPROPOSED\s*(?:\/|&|AND|\+)\s*EXISTING\W{0,3}$/;
 const EXISTING_AFTER = /^\s*[-–:(]\s*EXISTING\b(?!\s*(?:\/|&|AND|\+)\s*PROPOSED)/;
 const PROPOSED_BEFORE = /\bPROPOSED\W{0,3}$/;
-/** a plan of something other than the rooms: never a floor to read */
-const NOT_A_FLOOR = /\b(DEMOLITION|ELECTRICAL|LIGHTING|REFLECTED\s+CEILING|RCP|DRAINAGE|STORMWATER|SEWER|HYDRAULIC|LANDSCAPE|SEDIMENT|EROSION|SET[\s-]?OUT|SLAB|FOOTING|FRAMING|BRACING|TILING|FINISHES|FURNITURE|CEILING\s+PLAN|SHADOW|WASTE|BASIX|FIRE|SIGNAGE|MARKING)\b/;
+/** a plan of something other than the rooms: never a floor to read. A
+    window and door sheet is named as a phrase ("WINDOW & DOOR PLAN - GF",
+    "DOOR SCHEDULE"), not by a bare DOOR, which a floor plan prints beside
+    its rooms (3608 page 18, "Window & Door Plan - GF", was read as the
+    ground floor and stacked on it) */
+const NOT_A_FLOOR = /\b(WINDOWS?\s*(?:&|AND|\/|\+)\s*DOORS?|DOORS?\s*(?:&|AND|\/|\+)\s*WINDOWS?|(?:WINDOW|DOOR)S?\s+(?:SCHEDULE|PLAN|LAYOUT)|PLUMBING|DEMOLITION|ELECTRICAL|LIGHTING|REFLECTED\s+CEILING|RCP|DRAINAGE|STORMWATER|SEWER|HYDRAULIC|LANDSCAPE|SEDIMENT|EROSION|SET[\s-]?OUT|SLAB|FOOTING|FRAMING|BRACING|TILING|FINISHES|FURNITURE|CEILING\s+PLAN|SHADOW|WASTE|BASIX|FIRE|SIGNAGE|MARKING)\b/;
 const SITE_TITLE = /\b(SITE\s+(?:ANALYSIS\s+)?PLAN|LOCATION\s+PLAN|LOCALITY\s+PLAN|SITE\s+AND\s+ROOF\s+PLAN|SITE\/ROOF\s+PLAN|BLOCK\s+PLAN)\b/;
 const ROOF_TITLE = /\bROOF\s+PLAN\b/;
 const ELEVATION_TITLE = /\bELEVATIONS?\b/;

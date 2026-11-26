@@ -83,6 +83,23 @@ describe("which pages are floors, by their words", () => {
     expect(guessPageByWords([])).toBeNull();
     expect(guessPageByWords(null)).toBeNull();
   });
+  it("leaves a window and door sheet out, and keeps a floor whose rooms print DOOR", () => {
+    const other = { kind: "other", name: "", level: null };
+    /* 3608 page 18 */
+    expect(guessPageByWords(words("Window & Door Plan - GF", "A-118"))).toEqual(other);
+    expect(guessPageByWords(words("WINDOW AND DOOR PLAN - FF"))).toEqual(other);
+    expect(guessPageByWords(words("WINDOWS/DOORS PLAN", "LEVEL 1"))).toEqual(other);
+    expect(guessPageByWords(words("DOOR & WINDOW SCHEDULE", "GF PLAN"))).toEqual(other);
+    expect(guessPageByWords(words("GROUND FLOOR WINDOW PLAN"))).toEqual(other);
+    expect(guessPageByWords(words("FIRST FLOOR DOOR SCHEDULE", "FIRST FLOOR PLAN"))).toEqual(other);
+    expect(guessPageByWords(words("GROUND FLOOR WINDOW LAYOUT", "GF PLAN"))).toEqual(other);
+    expect(guessPageByWords(words("GROUND FLOOR PLUMBING PLAN"))).toEqual(other);
+    expect(guessPageByWords(words("Ground Floor Plan", "A-102"))).toEqual({ kind: "floor", name: "Ground floor", level: 0 });
+    expect(guessPageByWords(words("Lower Ground Floor Plan", "A-101"))).toEqual({ kind: "floor", name: "Lower ground", level: -1 });
+    expect(guessPageByWords(words("SLIDING DOOR", "GROUND FLOOR PLAN", "FRONT DOOR"))).toEqual({ kind: "floor", name: "Ground floor", level: 0 });
+    expect(guessPageByWords(words("WINDOW", "FIRST FLOOR PLAN", "DOORS"))).toEqual({ kind: "floor", name: "Level 1", level: 1 });
+    expect(guessPageByWords(words("OUTDOOR DINING", "GF PLAN"))).toEqual({ kind: "floor", name: "Ground floor", level: 0 });
+  });
   it("names the levels a title can carry", () => {
     expect(levelOfTitle("LOWER GROUND FLOOR PLAN")).toEqual({ level: -1, name: "Lower ground" });
     expect(levelOfTitle("MEZZANINE PLAN")).toEqual({ level: 1, name: "Mezzanine" });

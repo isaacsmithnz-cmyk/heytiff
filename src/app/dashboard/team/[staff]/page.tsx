@@ -29,6 +29,7 @@ import { readRegularDaysOff } from "@/lib/team/regular-days-off-query";
 import { todayInAu } from "@/lib/au-dates";
 import { orgExpiryWindow } from "@/lib/org/query";
 import { aliasesOf } from "@/lib/staff/aliases-query";
+import { readPersonActivity } from "@/lib/team/person-activity-query";
 import {
   addStaffLicence,
   attachStaffLicenceDocument,
@@ -191,6 +192,22 @@ export default async function StaffPersonPage({
           : "Only an owner, or someone granted Permissions, can change access.",
   };
 
+  /* THE ACTIVITY FEED: their hours are read only when they're the viewer's
+     to read (their own, or Time & Pay's `timepay_all`); a normal day is the
+     shift start to finish, its break in it, for the time over it. */
+  const perDay = derivedDayHours(hours.start, hours.end, settings);
+  const activity = await readPersonActivity(orgId, {
+    staffId,
+    userId: row.userId ?? null,
+    today,
+    hours: isSelf || timepayAll,
+    perDayMinutes: perDay != null ? Math.round(perDay * 60 + (settings.breakPaid ? 0 : settings.breakMinutes)) : null,
+    leave:
+      leave?.annual && leave.personal
+        ? { annualHours: leave.annual.available, personalHours: leave.personal.available, perDay }
+        : null,
+  });
+
   /* Only for a viewer who sees Pay: the week Time & Pay fills in, beside the
      typed hours a week, so the two can be seen to agree. */
   const rosteredWeek = canPay ? rosteredWeekHours(settings, own, employment) : null;
@@ -221,7 +238,7 @@ export default async function StaffPersonPage({
       start: hours.start,
       end: hours.end,
       days: own.workDays ?? settings.workDays,
-      perDay: derivedDayHours(hours.start, hours.end, settings),
+      perDay,
       breakMinutes: settings.breakMinutes,
       breakPaid: settings.breakPaid,
       weekHours: rosteredWeekHours(settings, own, employment),
@@ -235,6 +252,7 @@ export default async function StaffPersonPage({
     leave,
     canSetBalances: caps.has("team"),
     regularDaysOff,
+    activity,
     deletable: !!inUse && !inUse.has(staffId) && !row.isMaster && row.orgRole !== "owner" && row.userId !== ownership.userId,
     inviteRoles: invitableRoles(ownership.role, caps),
     initialTab: typeof query.tab === "string" ? query.tab : undefined,

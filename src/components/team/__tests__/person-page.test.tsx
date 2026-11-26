@@ -78,6 +78,22 @@ const LICENCES: StaffLicence[] = [
 
 const PERMS: PermissionsCtx = { role: "staff", caps: new Set(["workboard"]), settable: new Set(), canChangeRole: true, editable: true };
 
+const ACTIVITY: PersonPageData["activity"] = {
+  days: [
+    {
+      day: TODAY,
+      label: "Today",
+      entries: [
+        { key: "site-1", kind: "site", at: `${TODAY}T21:35:00Z`, name: "On site, 3 h 10", line: "arrived 7:35 am", job: { uuid: "job-1", number: "3570" } },
+        { key: "on-1", kind: "on", at: `${TODAY}T20:42:00Z`, name: "Clocked on 6:42 am", line: null, job: null },
+      ],
+    },
+  ],
+  stats: { week: { minutes: 2090, days: 4 }, overtimeMinutes: 160, averageDay: { minutes: 512, days: 61 }, leave: null },
+  hours: true,
+  leave: false,
+};
+
 function dataFor(over: Partial<PersonPageData> = {}): PersonPageData {
   return {
     header: { ...baseHeader, userId: "auth0|1", importedFrom: null, isMaster: false, photoUrl: null },
@@ -98,6 +114,7 @@ function dataFor(over: Partial<PersonPageData> = {}): PersonPageData {
     payroll: null,
     rosteredWeek: null,
     permissions: PERMS,
+    activity: ACTIVITY,
     notes: { notes: "Asked for more commissioning work" },
     week: { start: "7:00 AM", end: "3:30 PM", days: [0, 1, 2, 3, 4], perDay: 8, breakMinutes: 30, breakPaid: false, weekHours: 40, ownHours: false, ownDays: false },
     crew: { staffUuid: "sm8-1", included: true, dailyMinutes: 480 },
@@ -137,7 +154,8 @@ describe("the head", () => {
   it("names them, says what they do and since when, and offers Actions", () => {
     setup();
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Jordan Mills");
-    expect(screen.getByText("Lead Installer, with you since Jun 2020")).toBeInTheDocument();
+    // where they stand first, then what they do and since when, on one line
+    expect(document.querySelector(".tm2-pline")).toHaveTextContent("Active, Lead Installer, with you since Jun 2020");
     expect(screen.getByRole("button", { name: "Actions" })).toBeInTheDocument();
   });
 
@@ -178,7 +196,7 @@ describe("the tabs", () => {
 describe("Overview", () => {
   it("draws Name, Contact, Employment, Uniform and the notes, each a group with its own Edit", () => {
     setup();
-    for (const name of ["Name", "Contact", "Employment", "Uniform", "Notes about Jordy", "Emergency contact"]) expect(group(name)).toBeInTheDocument();
+    for (const name of ["Name", "Contact", "Employment", "Uniform", "Notes about Jordy", "In an emergency"]) expect(group(name)).toBeInTheDocument();
     expect(within(group("Name")).getByText("Goes by")).toBeInTheDocument();
     expect(within(group("Contact")).getByText("Date of birth")).toBeInTheDocument();
   });
@@ -195,18 +213,18 @@ describe("Overview", () => {
     expect(within(group("Contact")).getByRole("button", { name: /^Edit/ })).toBeInTheDocument();
   });
 
-  it("puts the emergency contact first beside them, the name large, what's missing in amber", () => {
+  it("puts the emergency contact under Contact, the person beside who they are, what's missing in amber", () => {
     setup({ profile: { ...jordan, emergency_relationship: null } });
-    const ice = group("Emergency contact");
+    const ice = group("In an emergency");
     expect(within(ice).getByText("Sarah Mills")).toHaveClass("tm2-ename");
     expect(within(ice).getByRole("link", { name: "0411 111 111" })).toHaveAttribute("href", "tel:0411111111");
     expect(within(ice).getByText("Not set").closest(".pt-state")).toHaveClass("pt-state--look");
-    expect(within(ice).getByRole("button", { name: "Edit Emergency contact" })).toBeInTheDocument();
+    expect(within(ice).getByRole("button", { name: "Edit In an emergency" })).toBeInTheDocument();
   });
 
   it("reads where the papers, the vehicle, the week and leave stand, a row each", () => {
     setup();
-    const rail = screen.getByRole("complementary");
+    const rail = document.querySelector(".tm2-facts") as HTMLElement;
     expect(within(rail).getByText("1 running out").closest(".pt-state")).toHaveClass("pt-state--look");
     expect(within(rail).getByText("Not recorded")).toBeInTheDocument();
     expect(within(rail).getByRole("link", { name: "Hilux XQG 41B" })).toHaveAttribute("href", "/dashboard/vehicles/v1");
@@ -217,7 +235,7 @@ describe("Overview", () => {
 
   it("says when leave balances aren't set, and Set goes to them", async () => {
     const { user } = setup({ leave: { annual: null, personal: null, coming: [] } });
-    const rail = screen.getByRole("complementary");
+    const rail = document.querySelector(".tm2-facts") as HTMLElement;
     expect(within(rail).getByText("Balances not set").closest(".pt-state")).toHaveClass("pt-state--look");
     await user.click(within(rail).getByRole("button", { name: "Set" }));
     expect(screen.getByRole("tab", { name: /^Hours & leave/ })).toHaveAttribute("aria-selected", "true");

@@ -6931,6 +6931,28 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jc-convo > .jov-head .pt-vtab--look .pt-vtab-word::after,
 .fg .jc-convo > .jov-head .pt-vtab--wrong .pt-vtab-word::after { content:""; display:inline-block; width:8px; height:8px; margin-left:4px; border-radius:50%; background:var(--orange); vertical-align:2px; }
 .fg .jc-convo > .jov-head .pt-vtab--wrong .pt-vtab-word::after { background:var(--red); }
+/* A PERSON'S ACTIVITY (person-activity.tsx): the job feed's card on purple,
+   its pressed filter's word purple to match. A header's colour says what the
+   card is: grey a thing's facts, green a job's story, purple a person's
+   (Isaac, 26 November 2026, "1" of purple, black and pink). */
+.fg .jov .jov-sec.jc-convo.pp-feed { background:var(--purple-w); }
+.fg .jc-convo.pp-feed > .jov-head .pt-vtab[aria-pressed="true"] { color:var(--purple-w); }
+.fg .jc-convo.pp-feed > .jov-head .jc-filter { margin-left:auto; }
+/* their week in four figures over the days, a hairline between them */
+.fg .pp-figs { flex:none; display:grid; margin:0 -16px; border-bottom:1px solid var(--line); }
+.fg .pp-figs > div { min-width:0; padding:12px 16px; }
+.fg .pp-figs > div + div { box-shadow:inset 1px 0 var(--line); }
+.fg .pp-figs dt { font-size:13px; line-height:18px; color:var(--q); }
+.fg .pp-figs dd { margin:0; font-size:20px; line-height:28px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .pp-figs dd.pp-figsub { font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
+.fg .pp-figs dd.pp-over { color:var(--orange-w); }
+.fg .jc-evwords .pp-over { font-size:13px; line-height:18px; font-weight:600; color:var(--orange-w); }
+/* the job a row was on, its number its door, at the row's right */
+.fg .pp-job { flex:none; margin-left:auto; padding:4px 8px; margin-right:-8px; border-radius:var(--r-button); font-size:13px; line-height:18px; font-weight:600; color:var(--ink); text-decoration:none; transition:background-color var(--t-fast) var(--ease); }
+.fg .pp-job:hover { background:var(--hov); }
+.fg .pp-job:focus-visible { outline:none; box-shadow:var(--ring); }
+/* a note's words under its row, filled */
+.fg .pp-words { margin:0 0 4px calc(32px + 12px); padding:8px 12px; border-radius:var(--r-button); background:var(--sel); font-size:14px; line-height:20px; color:var(--ink); white-space:pre-line; overflow-wrap:anywhere; }
 .fg .jc-convo > .jc-body { display:flex; flex-direction:column; flex:1 1 auto; min-height:0; padding:0 16px 16px; border-radius:26px 26px 0 0; background:var(--paper); }
 /* the feed fades at both ends rather than stopping at a line: 24 fade out
    under its head and over its box, and 24 over its oldest item and under
@@ -8665,7 +8687,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .tm2-head { display:flex; align-items:center; justify-content:space-between; gap:24px; }
 .fg .tm2-title { display:flex; align-items:baseline; gap:12px; min-width:0; }
 .fg .tm2-title h1 { margin:0; font-size:24px; line-height:32px; font-weight:600; color:var(--ink); }
-.fg .tm2-count { font-size:14px; line-height:20px; font-weight:400; color:var(--q); font-variant-numeric:tabular-nums; }
 .fg .tm2-headacts { display:flex; align-items:center; justify-content:flex-end; gap:12px; flex:1 1 auto; min-width:0; }
 .fg .tm2-search { position:relative; display:flex; align-items:center; flex:0 1 320px; min-width:0; }
 .fg .tm2-search-icon { position:absolute; left:12px; display:inline-flex; color:var(--q); pointer-events:none; }
@@ -8726,16 +8747,28 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    head with its quiet text door, label and value rows at 14, the sub-groups
    at 14/600. Today's forms open in place, in their own fields. */
 .fg .tm2-p { gap:24px; }
-.fg .tm2-phead { display:flex; align-items:center; gap:16px; }
-.fg .tm2-pid { display:flex; flex-direction:column; gap:4px; flex:1 1 auto; min-width:0; }
-.fg .tm2-pname { display:flex; align-items:baseline; gap:12px; min-width:0; flex-wrap:wrap; }
-.fg .tm2-pname h1 { margin:0; min-width:0; font-size:24px; line-height:32px; font-weight:600; color:var(--ink); }
+/* THE HEAD, A JOB'S (Isaac, 26 November 2026: "Take job card styling and
+   apply it to staff profile mock", then "Build it"): one white card on the
+   job page's grey, their photo or initials at 40, the name at 24, and one
+   line beside it, where they stand in its colour first; the tabs under it,
+   Actions at their end (job-page-head's `.jp-words` and `.jp-tabrow`). */
+.fg .main:has(.tm2-ov) { --jp-ground:color-mix(in srgb, var(--ink) 5%, var(--paper)); }
+.fg .main:has(.tm2-ov),
+.fg .main:has(.tm2-ov) .outlet,
+.fg .main:has(.tm2-ov) .topbar.fr-head { background:var(--jp-ground); }
+.fg .tm2-p:has(.tm2-ov) { padding-bottom:16px; }
+.fg .tm2-phead .jp-words { gap:12px; }
+.fg .tm2-pline { flex:1 1 auto; min-width:0; margin:0; font-size:14px; line-height:20px; color:var(--q); }
+.fg .tm2-pline b { font-weight:600; color:var(--ink); }
+.fg .tm2-pline b.tm2-on { color:var(--green-w); }
 .fg .tm2-photo { flex:0 0 auto; }
-.fg .tm2-photo .pphoto { width:56px; height:56px; border-radius:50%; }
+.fg .tm2-photo .pphoto { width:40px; height:40px; border-radius:50%; }
 .fg .tm2-photo .pphoto .inn { border-radius:50%; }
-.fg .tm2-photo .pphoto.nophoto, .fg .tm2-photo .pphoto.nophoto .inn { background:var(--sel); color:var(--ink); font-size:16px; line-height:24px; font-weight:600; }
-/* the tabs' pages: Overview's groups beside its rail; two columns; one */
-.fg .tm2-ov { display:grid; grid-template-columns:minmax(0,1fr) 360px; gap:48px; align-items:start; }
+.fg .tm2-photo .pphoto.nophoto, .fg .tm2-photo .pphoto.nophoto .inn { background:var(--q); color:var(--white); font-size:14px; line-height:20px; font-weight:600; }
+/* the tabs' pages: Overview's two cards, a job's (`.jov--fit`) with Details
+   at 400, so a phone number, an email and a relationship each keep a line;
+   two columns; one */
+.fg .jov.jov--fit.tm2-ov { grid-template-columns:400px minmax(0,1fr); }
 .fg .tm2-two { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:48px; align-items:start; }
 .fg .tm2-one { max-width:720px; }
 /* Access names its switches in the sidebar's words, some of them long */
@@ -8760,15 +8793,23 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .tm2-ic--pink { color:var(--pink-w); }
 /* the emergency contact: a card (rule 35, you call them), its title in red
    on his ruling, the name large, what's missing in amber */
-.fg .tm2-emerg { padding:16px; border:1px solid var(--edge); border-radius:var(--r-card); }
-.fg .tm2-p .tm2-emerg .pdlcard.psec-group { border-top:0; padding-top:0; }
-.fg .tm2-p .tm2-emerg .psec-group > .pdlh > span:first-child { color:var(--red-w); }
-.fg .tm2-ename { margin:8px 0; font-size:20px; line-height:28px; font-weight:600; color:var(--ink); }
-.fg .tm2-p .tm2-emerg .pdrow { grid-template-columns:112px minmax(0,1fr); }
-/* the rail's rows: a mark, what it is, where it stands, one button at most */
-.fg .tm2-facts { margin:24px 0 0; padding:0; list-style:none; }
-.fg .tm2-fact { display:grid; grid-template-columns:20px 96px minmax(0,1fr) auto; align-items:center; gap:8px; padding:12px 0; border-bottom:1px solid var(--line); }
-.fg .tm2-fact:first-child { border-top:1px solid var(--line); }
+/* DETAILS, A JOB'S AT A GLANCE (`.jfc`): each group a part of the card, its
+   head the part's label at 13 with its mark and its Edit, rows at 14 with
+   the label in a 112 column. In an emergency is a part like Contact, its
+   label in red, the person beside who they are to them (Isaac, 26 November
+   2026: "The emergency part looks a bit weird" of the red block). */
+.fg .tm2-details .jfc-part > * { align-self:stretch; }
+.fg .tm2-p .tm2-details .pdlcard.psec-group { border-top:0; padding-top:0; }
+.fg .tm2-p .tm2-details .psec-group > .pdlh { min-height:32px; margin:-4px 0 0; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.fg .tm2-p .tm2-details .psec-group .pdlh .tm2-ic { width:16px; height:16px; }
+.fg .tm2-p .tm2-details .psec-group .pdlh .tm2-ic svg { width:16px; height:16px; }
+.fg .tm2-p .tm2-details .pdrow { grid-template-columns:112px minmax(0,1fr); }
+.fg .tm2-p .tm2-emerg .psec-group > .pdlh > span:first-child { color:var(--red-w); font-weight:600; }
+.fg .tm2-ename { margin:0; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+/* the rows of facts: a mark, what it is, where it stands, one button at most */
+.fg .tm2-facts { margin:0; padding:0; list-style:none; }
+.fg .tm2-fact { display:grid; grid-template-columns:20px 96px minmax(0,1fr) auto; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid var(--line); }
+.fg .tm2-fact:last-child { border-bottom:0; }
 .fg .tm2-fact-k { font-size:14px; line-height:20px; color:var(--q); }
 .fg .tm2-fact-v { display:flex; flex-direction:column; min-width:0; }
 .fg .tm2-fact-w { font-size:14px; line-height:20px; color:var(--ink); }
@@ -8819,7 +8860,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .tm2-dow:focus-visible { outline:none; box-shadow:var(--ring); }
 .fg .tm2-formacts { display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
 @media (max-width:900px) {
-  .fg .tm2-ov, .fg .tm2-two { grid-template-columns:minmax(0,1fr); gap:32px; }
+  .fg .jov.jov--fit.tm2-ov, .fg .tm2-two { grid-template-columns:minmax(0,1fr); gap:32px; }
 }
 @media print {
   .fg .tm2-p .jumpb, .fg .tm2-phead .pt-btn { display:none; }

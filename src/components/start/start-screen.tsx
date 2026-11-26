@@ -2,168 +2,251 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { AFTER, DoorFrame, LEAD, PRIMARY, QUIET, TITLE } from "./door";
+import { DoorFrame, GROUP, LEAD, PRIMARY, QUIET, SECOND, TITLE } from "./door";
+import { Box, Field, Row } from "@/components/first-run/parts";
 import type { CreateOrgResult } from "@/app/actions/org-create";
+import type { DoorResult, FirstRunStep } from "@/app/actions/first-run";
+import type { SaveResult } from "@/app/actions/profile";
+import type { StartState } from "@/lib/mobile/start";
+import { fmtAuDayMonth } from "@/lib/au-dates";
 
-/* What a signed-in person with no workspace sees.
+/* What a signed-in person with no workspace sees: the phone's first door, in
+   its words (heytiff-mobile app/start; Isaac, 26 November 2026: "make the web
+   first run match the phone").
 
-   OUTSIDE THE DASHBOARD SHELL, on the /welcome and /invite vocabulary:
-   Tailwind, zinc-50 ground, one white card. The shell is org-scoped
-   furniture and this is the screen for someone who has no org to furnish.
+   OUTSIDE THE DASHBOARD SHELL: the shell is org-scoped furniture and this is
+   the screen for someone who has no org to furnish.
 
-   THE ACTION ARRIVES AS A PROP. A static import of a `"use server"` module
-   that pulls next/cache kills every jsdom suite in the file that renders it —
-   the failure lands as `ReferenceError: Request is not defined` before the
-   first assertion, and not always in the suite that caused it. The server
-   page passes it down instead.
+   THE ACTIONS ARRIVE AS PROPS. A static import of a `"use server"` module that
+   pulls next/cache kills every jsdom suite in the file that renders it; the
+   server page passes them down instead. */
 
-   FOUR STATES, ONE CARD. Each one leads with the thing that is true of this
-   person, not with a menu of everything the screen can do. */
+export type { StartState };
 
-export type StartState =
-  | { kind: "invite"; company: string | null; role: string; token: string }
-  | { kind: "expired"; company: string | null }
-  /** A membership exists but this cookie predates it — only a fresh sign-in
-      re-runs the hook that puts orgId in the session. */
-  | { kind: "member" }
-  | { kind: "none" };
+export type StartActions = {
+  join: (id: string) => Promise<DoorResult>;
+  ask: (id: string) => Promise<DoorResult>;
+  confirm: () => Promise<DoorResult>;
+  create: () => Promise<CreateOrgResult>;
+  save: (step: FirstRunStep, fields: Record<string, string>) => Promise<SaveResult>;
+};
 
-export function StartScreen({
-  state,
-  email,
-  onCreate,
-}: {
-  state: StartState;
-  email: string | null;
-  onCreate: () => Promise<CreateOrgResult>;
-}) {
+const NETWORK = "Couldn't reach HeyTiff. Check the connection and try again.";
+const first = (name: string | null) => name?.split(" ")[0] ?? null;
+const initials = (name: string | null) =>
+  (name ?? "?")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]!.toUpperCase())
+    .join("");
+const day = (iso: string) => fmtAuDayMonth(iso) || iso.slice(0, 10);
+
+export function StartScreen({ state, email, actions }: { state: StartState; email: string | null; actions: StartActions }) {
   const router = useRouter();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [said, setSaid] = useState<string | null>(null);
+  const [asked, setAsked] = useState(false);
+  const [sent, setSent] = useState(false);
+  /* nothing waiting: first what that may mean (the wrong address), then the business's form */
+  const [settingUp, setSettingUp] = useState(false);
+  const [biz, setBiz] = useState({ trading_name: "", abn: "", gst_registered: "Yes" });
+  const [bad, setBad] = useState<string[]>([]);
+  const who = email ?? "the address you signed in with";
 
-  const create = async () => {
+  const run = async (what: string, fn: () => Promise<{ ok: boolean; error?: string }>, then: () => void) => {
     if (busy) return;
-    setBusy(true);
-    setError(null);
-    const res = await onCreate();
-    if (res.ok) {
-      /* PUSH ONLY — no refresh() first. The action already wrote the session
-         cookie, so /welcome is fetched with the new org in hand; refreshing
-         would re-render THIS page, which now redirects to /dashboard for
-         having an org, and the two navigations would race. */
-      router.push("/welcome");
-      return;
+    setBusy(what);
+    setSaid(null);
+    try {
+      const r = await fn();
+      if (r.ok) return then();
+      setSaid(r.error ?? NETWORK);
+    } catch {
+      setSaid(NETWORK);
     }
-    setError(res.error);
-    setBusy(false);
+    setBusy(null);
   };
 
-  /* Named after what it does to THIS reader. On the invite screens it is the
-     other door and reads as one; with nothing waiting it is the only door and
-     carries the weight. */
-  const createDoor = (primary: boolean) =>
-    primary ? (
-      <button type="button" className={PRIMARY} disabled={busy} onClick={create}>
-        {busy ? "Creating the company" : "Create a company"}
-      </button>
-    ) : (
-      <button type="button" className={QUIET} disabled={busy} onClick={create}>
-        {busy ? "Creating the company" : "Create a company instead"}
-      </button>
+  /* the business is made, then named; the first run on /welcome picks up at how customers reach it */
+  const setUp = () => {
+    if (!biz.trading_name.trim()) {
+      setBad(["trading_name"]);
+      return setSaid("Give the business a name.");
+    }
+    void run(
+      "business",
+      async () => {
+        const made = await actions.create();
+        if (!made.ok) return made;
+        const named = await actions.save("business", biz);
+        if (!named.ok) setBad(named.fields ?? []);
+        return { ok: true };
+      },
+      () => router.push("/welcome")
     );
+  };
 
-  const company = state.kind === "invite" || state.kind === "expired" ? state.company : null;
-  const named = company ?? "A company on HeyTiff";
+  const signedInAs = (
+    <p className="text-center text-[13px] text-[var(--q)]">
+      {email ? `Signed in as ${email}. ` : null}
+      <a className="font-semibold text-[var(--ink)] underline underline-offset-2" href="/auth/logout">
+        Sign out
+      </a>
+    </p>
+  );
+
+  const nothing = state.kind === "none" || settingUp;
+  const form = nothing && settingUp;
 
   return (
-    <DoorFrame
-      footer={
-        /* Signing in with the wrong account is the other way to land here, and
-           without this the screen is a dead end for anyone who did. */
-        <p className="text-sm text-zinc-500">
-          {email ? `Signed in as ${email}. ` : null}
-          <a className="font-semibold text-zinc-700 underline underline-offset-2" href="/auth/logout">
-            Sign out
-          </a>
-        </p>
-      }
-    >
-      {error && (
-        <p className="mb-4 rounded-lg bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">
-          {error}
-        </p>
-      )}
+    <DoorFrame bare footer={signedInAs}>
+      <div className="flex flex-col gap-4">
+        {state.kind === "invite" ? (
+          <>
+            <h1 className={TITLE}>Join {state.company ?? "the team"}</h1>
+            <div className={GROUP}>
+              <div className="flex items-center gap-3 p-4">
+                <span className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-[var(--soft)] text-[14px] font-semibold">
+                  {initials(state.inviter ?? state.company)}
+                </span>
+                <div>
+                  <div className="text-[14px] font-semibold">{state.inviter ?? state.company ?? "Your team"}</div>
+                  <div className="text-[13px] text-[var(--q)]">
+                    added you as {state.role} on {day(state.invitedOn)}
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-3 border-t border-[var(--line)] p-4 text-[14px]">
+                <span className="w-16 font-semibold">{state.role}</span>
+                <span className="flex-1 text-[var(--q)]">{state.roleBlurb.replace("their own", "your own")}</span>
+              </div>
+            </div>
+            <button type="button" className={`${PRIMARY} w-full`} disabled={!!busy} onClick={() => void run("join", () => actions.join(state.id), () => router.push("/dashboard"))}>
+              {busy === "join" ? "Joining" : `Join ${state.company ?? "the team"}`}
+            </button>
+          </>
+        ) : null}
 
-      {state.kind === "invite" && (
-        <>
-          <h1 className={TITLE}>You&rsquo;ve been invited</h1>
-          <p className={LEAD}>
-            {named} has invited you to join as <b className="text-zinc-700">{state.role}</b>.
-          </p>
-          <a className={PRIMARY} href={`/invite/accept?token=${state.token}`}>
-            Join {company ?? "the team"}
-          </a>
-          <div className={AFTER}>{createDoor(false)}</div>
-        </>
-      )}
+        {state.kind === "expired" && !settingUp ? (
+          <>
+            <div>
+              <h1 className={TITLE}>That invitation has run out</h1>
+              <p className={LEAD}>
+                {state.company ?? "The business"} invited you on {day(state.invitedOn)}, and invitations last seven days.
+              </p>
+            </div>
+            <div className={`${GROUP} p-4`}>
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-[var(--soft)] text-[14px] font-semibold">
+                  {initials(state.inviter ?? state.company)}
+                </span>
+                <div>
+                  <div className="text-[14px] font-semibold">{state.inviter ?? state.company ?? "Whoever invited you"}</div>
+                  <div className="text-[13px] text-[var(--q)]">can send it again from Team</div>
+                </div>
+              </div>
+              {asked ? (
+                <p className="mt-3 text-[14px] font-semibold text-[var(--green-w)]">Asked. {first(state.inviter) ?? "They"} gets a notification.</p>
+              ) : (
+                <button type="button" className={`${SECOND} mt-3 w-full`} disabled={!!busy} onClick={() => void run("ask", () => actions.ask(state.id), () => (setAsked(true), setBusy(null)))}>
+                  {state.inviter ? `Ask ${first(state.inviter)} to resend it` : "Ask for a new one"}
+                </button>
+              )}
+            </div>
+            <button type="button" className={`${QUIET} w-full`} onClick={() => setSettingUp(true)}>
+              Set up my own business
+            </button>
+          </>
+        ) : null}
 
-      {state.kind === "expired" && (
-        <>
-          <h1 className={TITLE}>
-            That invitation has expired
-          </h1>
-          {/* The renewal is one press on their end, and saying so is the
-              difference between waiting and giving up — it is not visible
-              from this side of the invite. */}
-          {/* `{" "}` is load-bearing: this paragraph carries an `&rsquo;`,
-              and a JSXText run holding an entity loses the space that sits
-              between `{named}` and the words after it — "Diamond Airinvited
-              you". Same trap as the one already logged for entities after an
-              expression; the remedy is the explicit space. */}
-          <p className={LEAD}>
-            {named}{" "}
-            invited you, but invitations run out after seven days. Ask them to renew it from
-            their Team page and you&rsquo;ll get a fresh link.
-          </p>
-          <div className={AFTER}>{createDoor(false)}</div>
-        </>
-      )}
+        {state.kind === "confirm" ? (
+          <>
+            <div>
+              <h1 className={TITLE}>Confirm your email</h1>
+              <p className={LEAD}>Open the email Auth0 sent to {who}, then come back.</p>
+            </div>
+            <button type="button" className={`${PRIMARY} w-full`} onClick={() => router.refresh()}>
+              I&apos;ve confirmed it
+            </button>
+            <button type="button" className={`${SECOND} w-full`} disabled={!!busy || sent} onClick={() => void run("confirm", actions.confirm, () => (setSent(true), setBusy(null)))}>
+              {sent ? "Sent. Check your inbox." : "Send it again"}
+            </button>
+          </>
+        ) : null}
 
-      {state.kind === "member" && (
-        <>
-          <h1 className={TITLE}>Your workspace is ready</h1>
-          <p className={LEAD}>
-            You joined from another browser or device. Sign in again here to open it.
-          </p>
-          <a className={PRIMARY} href="/auth/login?returnTo=%2Fdashboard">
-            Sign in again
-          </a>
-        </>
-      )}
+        {state.kind === "member" ? (
+          <>
+            <div>
+              <h1 className={TITLE}>Your workspace is ready</h1>
+              <p className={LEAD}>You joined from another browser or device. Sign in again here to open it.</p>
+            </div>
+            <a className={`${PRIMARY} w-full`} href="/auth/login?returnTo=%2Fdashboard">
+              Sign in again
+            </a>
+          </>
+        ) : null}
 
-      {state.kind === "none" && (
-        <>
-          <h1 className={TITLE}>Set up your workspace</h1>
-          <p className={LEAD}>
-            Create the company you run, and you can invite your team once it exists.
+        {nothing && !form ? (
+          <>
+            <div>
+              <h1 className={TITLE}>No invitation for this address</h1>
+              <p className={LEAD}>Nothing is waiting for {who}.</p>
+            </div>
+            <div className={GROUP}>
+              <Row first name="Invited on another address?" sub="Sign out and use that one">
+                <a className={SECOND} href="/auth/logout">
+                  Sign out
+                </a>
+              </Row>
+              <Row name="Not invited yet?" sub={`Ask your boss to add ${who}`} />
+            </div>
+            <button type="button" className={`${SECOND} w-full`} onClick={() => setSettingUp(true)}>
+              Set up my own business
+            </button>
+          </>
+        ) : null}
+
+        {form ? (
+          <>
+            <div className="flex items-center justify-between">
+              <h1 className={TITLE}>Set up your business</h1>
+              <button type="button" className={QUIET} onClick={() => (setSettingUp(false), setSaid(null))}>
+                Back
+              </button>
+            </div>
+            <div className={`${GROUP} flex flex-col gap-4 p-5`}>
+              <Box id="trading_name" label="Business name" value={biz.trading_name} bad={bad.includes("trading_name")} onChange={(v) => setBiz({ ...biz, trading_name: v })} />
+              <Box id="abn" label="ABN" value={biz.abn} bad={bad.includes("abn")} inputMode="numeric" onChange={(v) => setBiz({ ...biz, abn: v })} />
+              <Field label="Registered for GST?">
+                <div role="radiogroup" aria-label="Registered for GST?" className="grid h-9 grid-cols-2 gap-[3px] rounded-[var(--r-button)] bg-[var(--soft)] p-[3px]">
+                  {["Yes", "No"].map((o) => (
+                    <button
+                      key={o}
+                      type="button"
+                      role="radio"
+                      aria-checked={biz.gst_registered === o}
+                      onClick={() => setBiz({ ...biz, gst_registered: o })}
+                      className={`rounded-[8px] text-[14px] font-semibold ${biz.gst_registered === o ? "bg-white text-[var(--ink)]" : "text-[var(--q)]"}`}
+                    >
+                      {o}
+                    </button>
+                  ))}
+                </div>
+              </Field>
+            </div>
+            <button type="button" className={`${PRIMARY} w-full`} disabled={!!busy} onClick={setUp}>
+              {busy === "business" ? "Setting up the business" : "Continue"}
+            </button>
+          </>
+        ) : null}
+
+        {said ? (
+          <p role="alert" className="text-[14px] font-medium text-[var(--bad-t)]">
+            {said}
           </p>
-          {createDoor(true)}
-          {/* The one fact nobody can see from here: an invitation is bound
-              to an address, and this is the address they arrived on. Someone
-              waiting for an invite that is sitting in a different inbox has
-              no other way to find that out. */}
-          <p className={`${AFTER} text-sm text-zinc-500`}>
-            Waiting on an invitation? It has to be sent to the address you sign in with
-            {email ? (
-              <>
-                {" "}
-                — <b className="font-semibold text-zinc-700">{email}</b>
-              </>
-            ) : null}
-            .
-          </p>
-        </>
-      )}
+        ) : null}
+      </div>
     </DoorFrame>
   );
 }

@@ -14,6 +14,7 @@ import { skipOrgSetup } from "@/app/actions/org-setup";
 import { createInvite } from "@/app/actions/invite";
 import { readStaffLicenceDocument } from "@/app/actions/staff-licence-ai";
 import { EMERGENCY_RELATIONSHIPS } from "@/lib/staff/profile";
+import { ONBOARDING_LICENCES } from "@/lib/staff/onboarding-licences";
 
 /* THE PHONE'S FIRST RUN, after the first door (lib/mobile/start) has put
    someone in a workspace: the mock's steps, each the web's own save
@@ -45,9 +46,6 @@ export type Setup = {
   teamLocation: boolean;
 };
 
-/** The tickets an air conditioning business keeps on file. A business's own
-    list waits on Settings growing one (the mock's call 2). */
-export const ONBOARDING_LICENCES = ["Refrigerant handling licence", "Driver licence", "Electrical licence", "White card"];
 
 const str = (v: unknown) => (typeof v === "string" ? v : "");
 
@@ -94,7 +92,7 @@ export async function readSetup(ctx: MobileCtx): Promise<Setup> {
             postcode: str(o.postcode),
           }
         : null,
-    licences: ONBOARDING_LICENCES,
+    licences: [...ONBOARDING_LICENCES],
     relationships: [...EMERGENCY_RELATIONSHIPS],
     teamLocation: o?.live_location === true,
   };

@@ -56,9 +56,10 @@ it("on the quote's own tab, puts her open questions in the talk as groups of ans
   render(<TiffPanel job="j" onChanged={jest.fn()} />);
   const asks = within(await screen.findByRole("region", { name: "Tiff's questions" }));
   expect(asks.getByText("Single or three phase?")).toBeInTheDocument();
-  expect(asks.getAllByRole("button").map((b) => b.textContent)).toEqual(["Single phase", "Three phase+$520"]);
+  const taps = asks.getAllByRole("button").filter((b) => b.classList.contains("qx-answer"));
+  expect(taps.map((b) => b.textContent)).toEqual(["Single phase", "Three phase+$520"]);
   /* buttons, the likely one blue, as the phone has them (Isaac, 24 November 2026) */
-  const [likely, other] = asks.getAllByRole("button");
+  const [likely, other] = taps;
   expect(likely).toHaveClass("pt-btn--main", "pt-btn--44", "qx-answer");
   expect(other).toHaveClass("pt-btn--second", "qx-answer");
   /* her words come first, the questions under them, then the box */
@@ -70,22 +71,130 @@ it("on the quote's own tab, puts her open questions in the talk as groups of ans
   expect(posted).toContainEqual({ job: "j", op: "answer", event: 3, answer: 1 });
 });
 
-it("on the quote's own tab, ticks the answer picked while another of the same asking is open, and draws none once all are answered", async () => {
-  const two = {
-    ...thread,
-    events: [...thread.events.slice(0, 3), { id: 6, turnId: "t1", kind: "question", author: "tiff", at: "", body: { question: "Roof or ground?", answers: [{ label: "Roof" }, { label: "Ground" }] } }, thread.events[3]!],
-    questions: { 3: { deltas: [0, 51996], answered: { label: "Three phase", typed: false } }, 6: { deltas: [0, 0], answered: null } },
-  };
-  (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => respond(two));
-  const { unmount } = render(<TiffPanel job="j" onChanged={jest.fn()} />);
+/* ONE AT A TIME (Isaac, 26 November 2026, "B"): the one answered a ticked
+   line with Change, the one you're on the card under it, the rest to come */
+const three = {
+  ...thread,
+  events: [
+    ...thread.events.slice(0, 3),
+    { id: 6, turnId: "t1", kind: "question", author: "tiff", at: "", body: { question: "Roof or ground?", topic: "Outdoor", answers: [{ label: "Roof" }, { label: "Ground" }] } },
+    { id: 7, turnId: "t1", kind: "question", author: "tiff", at: "", body: { question: "How long is the pipe run?", put: "10 m", answers: [] } },
+    thread.events[3]!,
+  ],
+  questions: { 3: { deltas: [0, 51996], answered: null }, 6: { deltas: [0, 0], answered: null }, 7: { deltas: [], answered: null } },
+};
+
+it("asks one question at a time: answered, it's a line with Change, and the next is up", async () => {
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async (_url: string, init?: { body?: string }) => {
+    if (init?.body) {
+      posted.push(JSON.parse(init.body));
+      return respond({ ok: true });
+    }
+    return respond(three);
+  });
+  render(<TiffPanel job="j" onChanged={jest.fn()} />);
   const asks = within(await screen.findByRole("region", { name: "Tiff's questions" }));
-  const picked = asks.getByRole("button", { name: /^Three phase/ });
-  expect(picked).toHaveClass("picked");
-  expect(picked).toHaveAttribute("aria-pressed", "true");
-  expect(picked).toBeDisabled();
-  expect(asks.getByRole("button", { name: "Roof" })).toBeEnabled();
-  unmount();
-  (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => respond({ ...two, questions: { 3: two.questions[3], 6: { deltas: [0, 0], answered: { label: "Roof", typed: true } } } }));
+  expect(asks.getByText("Question 1 of 3")).toBeInTheDocument();
+  expect(asks.queryByText("Roof or ground?")).toBeNull();
+  await act(async () => {
+    fireEvent.click(asks.getByRole("button", { name: /^Three phase/ }));
+  });
+  expect(posted).toContainEqual({ job: "j", op: "answer", event: 3, answer: 1 });
+  /* the next is up at once, while she works on the first */
+  expect(asks.getByText("Question 2 of 3")).toBeInTheDocument();
+  expect(asks.getByText("Roof or ground?")).toBeInTheDocument();
+  expect(asks.getByText("Three phase").closest(".qx-done")).toBeInTheDocument();
+  expect(asks.getByRole("button", { name: "Change your answer to: Single or three phase?" })).toBeInTheDocument();
+});
+
+it("sends your own answer to the question it's under, with the question, and gives way to her once the last is answered", async () => {
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async (_url: string, init?: { body?: string }) => {
+    if (init?.body) {
+      posted.push(JSON.parse(init.body));
+      return respond({ ok: true, turn: "t2" });
+    }
+    return respond({ ...three, questions: { ...three.questions, 3: { deltas: [0, 51996], answered: { label: "Three phase", typed: false } }, 6: { deltas: [0, 0], answered: { label: "Roof", typed: false } } } });
+  });
+  render(<TiffPanel job="j" onChanged={jest.fn()} />);
+  const field = await screen.findByLabelText("Your own answer to: How long is the pipe run?");
+  /* a question with nothing to tap is its field alone */
+  expect(screen.getByText("Question 3 of 3")).toBeInTheDocument();
+  fireEvent.change(field, { target: { value: "6, 12 and 14 m" } });
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Send your answer to Tiff" }));
+  });
+  expect(posted).toContainEqual({ job: "j", message: "How long is the pipe run? 6, 12 and 14 m" });
+  /* the last answered, she works on them: the questions give way to her */
+  expect(screen.queryByRole("region", { name: "Tiff's questions" })).toBeNull();
+});
+
+it("asks an answered one again from its Change, its answer marked, and Leave it as it is closes it", async () => {
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async (_url: string, init?: { body?: string }) => {
+    if (init?.body) {
+      posted.push(JSON.parse(init.body));
+      return respond({ ok: true, turn: "t2" });
+    }
+    return respond({ ...three, questions: { ...three.questions, 3: { deltas: [0, 51996], answered: { label: "Three phase", typed: false } } } });
+  });
+  render(<TiffPanel job="j" onChanged={jest.fn()} />);
+  fireEvent.click(await screen.findByRole("button", { name: "Change your answer to: Single or three phase?" }));
+  expect(screen.getByText("Changing question 1")).toBeInTheDocument();
+  const yours = screen.getByRole("button", { name: /^Three phase/ });
+  expect(yours).toHaveAttribute("aria-pressed", "true");
+  expect(yours).toBeDisabled();
+  /* one at a time: the open one waits while you change this */
+  expect(screen.queryByText("Roof or ground?")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Leave it as it is" }));
+  expect(screen.getByText("Roof or ground?")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Change your answer to: Single or three phase?" }));
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Single phase" }));
+  });
+  /* a change goes to her, who changes the quote */
+  expect(posted).toContainEqual({ job: "j", message: "Single or three phase? Single phase" });
+});
+
+it("opens Settle over the talk from the panel's button: one question large, Skip for now, Previous and Back to the chat", async () => {
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async (_url: string, init?: { body?: string }) => {
+    if (init?.body) {
+      posted.push(JSON.parse(init.body));
+      return respond({ ok: true });
+    }
+    return respond(three);
+  });
+  const { rerender } = render(<TiffPanel job="j" onChanged={jest.fn()} settle={0} />);
+  await screen.findByRole("region", { name: "Tiff's questions" });
+  expect(screen.queryByRole("region", { name: "Questions to settle" })).toBeNull();
+  rerender(<TiffPanel job="j" onChanged={jest.fn()} settle={1} />);
+  const settle = within(screen.getByRole("region", { name: "Questions to settle" }));
+  expect(settle.getByText("1 of 3")).toBeInTheDocument();
+  expect(screen.getByLabelText("Message Tiff").closest(".qc-comp")).not.toBeVisible();
+  fireEvent.click(settle.getByRole("button", { name: "Skip for now" }));
+  expect(settle.getByText("Roof or ground?")).toBeInTheDocument();
+  expect(settle.getByText("2 of 3")).toBeInTheDocument();
+  await act(async () => {
+    fireEvent.click(settle.getByRole("button", { name: "Roof" }));
+  });
+  expect(posted).toContainEqual({ job: "j", op: "answer", event: 6, answer: 0 });
+  /* settled under it, and Previous asks it again */
+  expect(within(settle.getByRole("heading", { name: "Settled" }).parentElement!).getByText("Roof")).toBeInTheDocument();
+  fireEvent.click(settle.getByRole("button", { name: "Previous" }));
+  expect(settle.getByText("Changing question 2")).toBeInTheDocument();
+  fireEvent.click(settle.getByRole("button", { name: "Back to the chat" }));
+  expect(screen.queryByRole("region", { name: "Questions to settle" })).toBeNull();
+  expect(screen.getByLabelText("Message Tiff")).toBeVisible();
+});
+
+it("leaves out her numbered repeat of the questions she asks under it", async () => {
+  const listed = { ...three, events: three.events.map((e) => (e.kind === "reply" ? { ...e, body: { text: "Three things to check.\n\n1. Single or three phase?\n2. Roof or ground?" } } : e)) };
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => respond(listed));
+  render(<TiffPanel job="j" onChanged={jest.fn()} />);
+  expect(await screen.findByText("Three things to check.")).toBeInTheDocument();
+  expect(document.querySelector(".qc-says ol")).toBeNull();
+});
+
+it("draws none once all are answered", async () => {
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => respond({ ...three, questions: { 3: { deltas: [], answered: { label: "Three phase", typed: false } }, 6: { deltas: [], answered: { label: "Roof", typed: false } }, 7: { deltas: [], answered: { label: "14 m", typed: true } } } }));
   render(<TiffPanel job="j" onChanged={jest.fn()} />);
   await screen.findByText("A 12.5 kW ducted, priced from your book.");
   expect(screen.queryByRole("region", { name: "Tiff's questions" })).toBeNull();
@@ -180,8 +289,8 @@ it("sends on Enter, never on Shift+Enter or mid-word in an input method", async 
   });
   render(<TiffPanel job="j" onChanged={jest.fn()} />);
   const box = await screen.findByLabelText("Message Tiff");
-  /* a question of hers is open */
-  expect(box).toHaveAttribute("placeholder", "Answer in your own words");
+  /* each question has its own answer: the box is for the rest */
+  expect(box).toHaveAttribute("placeholder", "Reply to Tiff");
   fireEvent.change(box, { target: { value: "Three phase" } });
   await act(async () => {
     fireEvent.keyDown(box, { key: "Enter", shiftKey: true });
@@ -422,14 +531,16 @@ it("asks her questions in the talk, says what the quote has, and ticks off what 
   );
   render(<TiffPanel job="j" onChanged={jest.fn()} />);
   const asks = within(await screen.findByRole("region", { name: "Tiff's questions" }));
+  /* the one his own words answered is a ticked line, by its topic */
+  expect(asks.getByText("Pipe run, indoor to outdoor")).toBeInTheDocument();
+  expect(asks.getByText("14 m").closest(".qx-done")).toBeInTheDocument();
+  /* the one he's on: a figure to type has nothing to tap, only its field */
+  expect(asks.getByText("Question 2 of 3")).toBeInTheDocument();
   expect(asks.getByText("How far is the switchboard from the outdoor unit?")).toBeInTheDocument();
   expect(asks.getByText("On the quote now: 15 m")).toBeInTheDocument();
-  /* a figure to type has nothing to tap; a few-answer one has its answers */
-  expect(asks.getByRole("button", { name: /2 lengths/ })).toBeInTheDocument();
-  /* the one his own words answered stays, ticked, said as from his message */
-  expect(asks.getByText("How long is the pipe run, indoor to outdoor?")).toBeInTheDocument();
-  expect(asks.getByText("14 m").closest(".qx-row")).toHaveClass("picked");
-  expect(asks.getByText("From your message")).toBeInTheDocument();
+  expect(asks.queryAllByRole("button").filter((b) => b.classList.contains("qx-answer"))).toHaveLength(0);
+  /* the third waits its turn */
+  expect(asks.queryByRole("button", { name: /2 lengths/ })).toBeNull();
 });
 
 /* Isaac, 2026-10-17, option A of the working-notes mocks: the notes she

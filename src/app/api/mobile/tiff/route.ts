@@ -62,6 +62,13 @@ export async function POST(request: Request) {
           open = false;
         }
       };
+      /* THE ANSWER OPENS AT ONCE (Isaac's Talk, 27 November 2026, 6:41 am:
+         "Couldn't reach HeyTiff" over an answer that was on its way). The
+         phone gives the reply's head 20 s, and the head only leaves with the
+         first bytes; a question she thinks over for three rounds took 26. So
+         a line goes first, before she has thought at all, and the phone,
+         which reads only the lines it knows, carries on waiting for her. */
+      write({ t: "open" });
       try {
         for await (const event of answer(viewer, shaped, { signal: abort.signal, files })) {
           if (event.type === "delta") write({ t: "delta", text: event.text });
@@ -85,5 +92,8 @@ export async function POST(request: Request) {
       }
     },
   });
-  return new Response(stream, { headers: { "content-type": "application/x-ndjson; charset=utf-8", "cache-control": "no-store" } });
+  /* no-transform: nothing between here and the phone may hold the lines back to compress them */
+  return new Response(stream, {
+    headers: { "content-type": "application/x-ndjson; charset=utf-8", "cache-control": "no-store, no-transform" },
+  });
 }

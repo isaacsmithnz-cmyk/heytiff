@@ -103,7 +103,10 @@ afterAll(() => {
 it("answers in the web's own words for the verified person, the phone's screen for 'take me there', and nothing only the web can do", async () => {
   const res = await ask(req("tiff", { question: "When is Placeholm booked?" }, "auth0|lyle"));
   expect(res.headers.get("content-type")).toContain("application/x-ndjson");
+  /* nothing may hold the lines back, and the first goes before she has thought */
+  expect(res.headers.get("cache-control")).toContain("no-transform");
   expect(await lines(res)).toEqual([
+    { t: "open" },
     { t: "tool", name: "jobs.search", label: "Looking at jobs" },
     { t: "delta", text: "Job 2935 is booked " },
     { t: "delta", text: "for Monday." },

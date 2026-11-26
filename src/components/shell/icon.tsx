@@ -176,6 +176,8 @@ export const ICON_PATHS: Record<string, string> = {
      playback, the opposite of what the button does. */
   keyboard:
     '<rect x="3" y="6" width="18" height="12" rx="2.5"/><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10"/>',
+  /* Talk's glyph: four bars of a voice, the wave the box shows while you speak */
+  wave: '<path d="M6 10v4M10 7v10M14 9v6M18 11v2"/>',
   mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
   lock: '<rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
   car:

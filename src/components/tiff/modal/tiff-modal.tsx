@@ -25,6 +25,7 @@ import {
   type Point,
   type QuickAnswer,
 } from "./use-conversation";
+import { ReadOut, readKey } from "@/components/tiff/read-out";
 
 /* THE TIFF MODAL — where you talk to Tiff, on every screen.
 
@@ -423,6 +424,8 @@ export function TurnView({
   /** Listening, and nothing said yet. */
   const asked = live === "words" && !c.draft.trim() && !c.interim.trim();
   const rows = turn.rows ?? [];
+  /* Read out under every finished word of hers (Tiff speaks, 26 November 2026) */
+  const readable = turn.who === "tiff" && !turn.streaming && !live && turn.text.trim() !== "";
 
   return (
     <div
@@ -519,7 +522,7 @@ export function TurnView({
         </div>
       )}
 
-      {((turn.doors?.length ?? 0) > 0 || turn.undo) && (
+      {((turn.doors?.length ?? 0) > 0 || turn.undo || readable) && (
         <div className="tm-doors">
           {turn.doors?.map((d) => (
             <span key={d.kind}>{d.label}</span>
@@ -537,6 +540,7 @@ export function TurnView({
               Undo
             </Button>
           )}
+          {readable && <ReadOut id={readKey(turn.key)} text={turn.text} />}
         </div>
       )}
     </div>

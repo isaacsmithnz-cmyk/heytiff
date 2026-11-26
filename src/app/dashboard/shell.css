@@ -7272,6 +7272,9 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .cv-text .tk-tbl th { font-size:12px; line-height:16px; font-weight:500; color:var(--q); background:transparent; border-bottom:1px solid var(--line); }
 .fg .cv-text .tk-tbl td { font-weight:400; }
 .fg .cv-aside { margin:0; font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
+/* READ OUT under her answer, and "Reading out" by her name while she does (Tiff speaks, 26 November 2026) */
+.fg .tf-doors { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
+.tf-reading { font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
 /* what she read: a card each, its dot, its name, a grey line and Open */
 .fg .cv-results { display:flex; flex-direction:column; gap:8px; margin:4px 0 0; padding:0; list-style:none; }
 /* the job Tiff proposes from a forwarded email (components/tiff/email-job-card,
@@ -7345,6 +7348,8 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .cv-save:disabled { opacity:.5; cursor:default; }
 /* "↑ waits until she's done" (6-revisions.md, "While Tiff works") */
 .fg .cv-send.cv-send--wait { opacity:.4; }
+/* TALK in the empty box, where ↑ stands until you type: the main button's blue, its glyph and its word (Tiff speaks, 26 November 2026) */
+.fg .cv-talk { display:inline-flex; align-items:center; gap:8px; padding:0 16px 0 12px; }
 /* speaking: the words on their own, then the bar */
 .fg .cv-speak { display:flex; flex-direction:column; gap:8px; }
 .fg .cv-live { min-height:24px; margin:0 4px; font-size:16px; line-height:24px; }
@@ -8992,6 +8997,22 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .tc-dots i:nth-child(3) { animation-delay:.4s; }
 @keyframes tcDots { 0%, 80%, 100% { opacity:.25; } 40% { opacity:1; } }
 @media (prefers-reduced-motion:reduce) { .tc-dots i { animation:none; opacity:.6; } }
+/* TALKING TO TIFF (components/tiff/talk; Tiff speaks, 26 November 2026, board 3
+   of https://claude.ai/artifact/2vtUgVFZHbJf5gamXZZBPm). In a dialog, so on
+   <body> and unscoped: her mark at 96 over the word for what she's doing, the
+   talk so far under it, newest at the foot, then the blue wave in the box's
+   own bar, or "Your microphone is off". */
+.tlk { display:flex; flex-direction:column; gap:16px; }
+.tlk-face { display:flex; flex-direction:column; align-items:center; gap:12px; padding:8px 0 0; }
+.tlk-word { display:flex; align-items:center; gap:8px; margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+.tlk-turns { display:flex; flex-direction:column; gap:12px; min-height:120px; max-height:40vh; overflow-y:auto; }
+.tlk-you { align-self:flex-end; max-width:80%; margin:0; padding:8px 12px; border-radius:16px; background:var(--bubble-them); color:var(--ink); font-size:16px; line-height:24px; white-space:pre-line; overflow-wrap:anywhere; }
+.tlk-you--live { color:var(--q); font-style:italic; }
+.tlk-tiff { display:flex; flex-direction:column; gap:8px; }
+.tlk-tiff p { margin:0; font-size:16px; line-height:24px; color:var(--ink); white-space:pre-line; overflow-wrap:anywhere; }
+.tlk-steps { display:flex; flex-direction:column; gap:4px; margin:0; padding:0; list-style:none; font-size:13px; line-height:18px; color:var(--q); }
+.tlk-bar { min-height:52px; }
+.tlk-off { flex:1 1 auto; padding:0 12px; font-size:14px; line-height:20px; color:var(--q); }
 
 /* EDIT CUSTOMER (job-customer-dialog), the v2 dialog (Isaac, 25 October
    2026): fields with their labels above, each contact a card (rule 35) with

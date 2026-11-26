@@ -1414,44 +1414,6 @@ describe("the page turned round", () => {
   };
   const before = (a: Element, b: Element) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
 
-  /* layout C (Isaac, 18 October): no view tabs; layout B (21 October): the
-     rail's Line items, under the price, swaps the left to the line items,
-     and says Back to the conversation */
-  it("fills the left with the conversation, and the rail's Line items swaps it for the line items and back", async () => {
-    tiffOn();
-    face();
-    expect(await screen.findByText("Priced from your book.")).toBeVisible();
-    expect(screen.queryByRole("tablist", { name: "Conversation and line items" })).toBeNull();
-    expect(screen.queryByRole("tab", { name: "Conversation" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Units" })).toBeNull();
-    /* what's to confirm is the conversation's own tab (Isaac, 27 October
-       2026), never at its foot: the rail has none */
-    const rail = within(screen.getByRole("complementary", { name: "On this quote" }));
-    expect(rail.queryByRole("region", { name: "To confirm" })).toBeNull();
-    expect(screen.queryByText("Core hole 200 mm: not known yet")).toBeNull();
-    fireEvent.click(screen.getByRole("radio", { name: /^To confirm/ }));
-    expect(screen.getByText("Core hole 200 mm: not known yet")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("radio", { name: "Conversation" }));
-
-    /* the rail's buttons wait on knowing whether she's on */
-    const items = await rail.findByRole("button", { name: "Line items" });
-    /* under the price, full width, out of the pinned buttons */
-    expect(before(rail.getByRole("region", { name: "The quote" }), items)).toBe(true);
-    expect(items.closest('[role="group"]')).toBeNull();
-    fireEvent.click(items);
-    expect(screen.getByRole("button", { name: "Units" })).toBeInTheDocument();
-    expect(rail.queryByRole("button", { name: "Line items" })).toBeNull();
-    /* the Add buttons over the table, the history at its foot */
-    expect(before(screen.getByRole("region", { name: "Add a line" }), screen.getByRole("button", { name: "Units" }))).toBe(true);
-    expect(before(screen.getByRole("region", { name: "Add a line" }), screen.getByRole("heading", { name: "Changes" }))).toBe(true);
-    /* her column stays mounted under them, so her work still lands */
-    expect(screen.getByText("Priced from your book.")).not.toBeVisible();
-
-    fireEvent.click(rail.getByRole("button", { name: "Back to the conversation" }));
-    expect(screen.queryByRole("button", { name: "Units" })).toBeNull();
-    expect(screen.getByText("Priced from your book.")).toBeVisible();
-    expect(rail.getByRole("button", { name: "Line items" })).toBeInTheDocument();
-  });
 
   /* "open groups stay open while you're on the page" (2026-10-15) */
   it("keeps a group open while the page is up, to the conversation and back", async () => {
@@ -1495,31 +1457,6 @@ describe("the page turned round", () => {
     expect(onStage).toHaveBeenLastCalledWith(expect.objectContaining({ word: "2 to price", settle: true }));
   });
 
-  /* 11.1 with her on: the paper stands where the conversation was, so the
-     review that was the conversation's foot stands beside it in the rail,
-     her open questions counted in it */
-  it("reviews every option beside the paper while Tiff is on, her open questions with them (11.1)", async () => {
-    const second = { ...core, id: "l3", optionIndex: 1, name: "Core hole 100 mm" };
-    const asking = {
-      ...session,
-      events: [...session.events, { id: 2, turnId: "t1", kind: "question", author: "tiff", at: "", body: { question: "Single or three phase?", answers: [] } }],
-      questions: { 2: { deltas: [], answered: null } },
-    };
-    (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string) => ({
-      json: async () => (String(url).startsWith("/api/workboard/quote-session") ? asking : view([indoor, core, second])),
-    }));
-    render(<QuoteLinesFace job="job-3377" price={price} onPriced={jest.fn()} />);
-    fireEvent.click(await screen.findByRole("radio", { name: /^To confirm/ }));
-    expect(await screen.findByText("Single or three phase?")).toBeVisible();
-    fireEvent.click(await screen.findByRole("button", { name: "Preview quote" }));
-    const rail = within(screen.getByRole("complementary", { name: "On this quote" }));
-    const review = within(rail.getByRole("region", { name: "Before you approve" }));
-    expect(review.getByText("Tiff's question: not answered yet")).toBeVisible();
-    expect(review.getByText("Option 1: Core hole 200 mm: not known yet")).toBeVisible();
-    expect(review.getByText("Option 2: Core hole 100 mm: not known yet")).toBeVisible();
-    /* once, beside the paper: the conversation behind it holds no copy */
-    expect(screen.getAllByText("Option 1: Core hole 200 mm: not known yet")).toHaveLength(1);
-  });
 
   /* layout B (21 October 2026): what she cost left the rail */
   it("says nothing of what Tiff has cost, even to someone who sees money", async () => {
@@ -1537,14 +1474,6 @@ describe("the page turned round", () => {
     expect(screen.queryByRole("region", { name: "The quote" })).toBeNull();
   });
 
-  it("takes Price it from what's to confirm to the line's cost box in the line items", async () => {
-    tiffOn();
-    face();
-    fireEvent.click(await screen.findByRole("radio", { name: /^To confirm/ }));
-    fireEvent.click(await screen.findByRole("button", { name: "Price it" }));
-    expect(screen.getByRole("button", { name: "Back to the conversation" })).toBeInTheDocument();
-    expect(screen.getByLabelText("What one Core hole 200 mm costs you")).toHaveFocus();
-  });
 
   it("lays the line items out on the left where Tiff isn't on, and To confirm heads the rail under the progress", async () => {
     face();

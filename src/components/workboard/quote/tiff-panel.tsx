@@ -2,9 +2,7 @@
 
 import { Button } from "@/components/parts/button";
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
-import { Dot } from "@/components/parts/state";
 import { Fade } from "@/components/parts/fade";
-import { Tray } from "@/components/parts/tabs";
 import { Icon } from "@/components/shell/icon";
 import { appendSpoken, useDictation } from "@/components/notes/dictation";
 import { useNoteScope } from "@/components/notes/note-context";
@@ -18,17 +16,14 @@ import { replyBlocks, type ReplySpan } from "@/lib/quotes/session/reply-blocks";
 import { latestAsked } from "@/lib/quotes/session/answers";
 import { buildingFirst, liveWords, stepOf, stepOfTool, timeLeft, turnStartOf, type LiveNow, type Took } from "@/lib/quotes/session/time-left";
 import { waitingIds } from "@/lib/quotes/session/queued";
-import { writeUpOf } from "@/lib/quotes/write-up";
 import { fmtAddition, fmtAud } from "@/lib/workboard/project-money";
-import { QuoteScope, type QuoteScopeWords } from "./quote-scope";
 
 /* TIFF ON THE QUOTE: the page's main column (the chat-first quote page,
    Isaac, 2026-10-13; it was a grey card in the rail, slice 5.1). The
    conversation reads down a column no wider than reading wants: your words
    in a light bubble on the right, hers under her name, what she did as she
-   did it, and at the foot what's To confirm (her questions, each answer
-   priced, then what the page has to confirm), down to the reply box (Isaac,
-   2026-10-11), with the microphone and a blue Send that carries its word
+   did it, and at the foot her questions, each answer priced, down to the
+   reply box (Isaac, 2026-10-11), with the microphone and a blue Send that carries its word
    (layout C, Q6). Before the first message, her mark and a hello. What
    she has cost is the rail's to say now, to someone who sees money: the
    page is told it, and whether she's on, as she's read.
@@ -155,42 +150,26 @@ const herWords = (text: string) =>
     )
   );
 
-/** What the conversation's column shows: the talk, her reading of the job,
-    or what's to confirm. */
-export type QuoteFace = "talk" | "scope" | "confirm";
-
 export function TiffPanel({
   job,
   onChanged,
   onOpen,
   onPlan,
   onStatus,
-  confirm,
-  confirmTitle = "To confirm",
   hidden = false,
   start = false,
-  words,
   say = null,
   onSaid,
-  face: faceAsked,
-  onFace,
 }: {
   job: string;
   onChanged: () => void;
-  /** how many of her questions are open, for the progress line's To confirm */
+  /** how many of her questions are open, for the rail's Answer button */
   onOpen?: (n: number) => void;
   /** the parts she said she'd build, while she builds them; null when she isn't (5.2) */
   onPlan?: (plan: { option: number; parts: PlannedPart[] } | null) => void;
-  /** the proposal's words, which Scope opens with */
-  words?: QuoteScopeWords;
   /** whether she's on for the business, once read, and what she has cost
       (sent only to someone who sees money): the page's layout, and its rail */
   onStatus?: (status: { on: boolean; spentUsd: number | null }) => void;
-  /** what the page has to confirm, under her questions (lines it can't
-      price, assumptions, a loading with no reason); null when nothing */
-  confirm?: ReactNode;
-  /** the list's name: on the proposal, "Before you approve" */
-  confirmTitle?: string;
   /** the line items or the paper are up: kept mounted, so her work still lands */
   hidden?: boolean;
   /** opened from the job card to start the quote: the reply box takes the keys */
@@ -199,11 +178,6 @@ export function TiffPanel({
   say?: { id: number; text: string } | null;
   /** she has them */
   onSaid?: () => void;
-  /** the face, where the page holds the one tray (the job's Price tab: Chat,
-      Scope, To confirm, Line items, Preview; the walk of 15 November 2026,
-      T2); the panel then draws no tray of its own */
-  face?: QuoteFace;
-  onFace?: (face: QuoteFace) => void;
 }) {
   /* null until her thread is first read: the page lays out nothing of hers
      or the lines' until it knows which */
@@ -232,13 +206,6 @@ export function TiffPanel({
   /* Read the job: its sources, and which are ticked */
   const [sources, setSources] = useState<{ list: Source[]; left: number } | null>(null);
   const [ticked, setTicked] = useState<Set<string>>(new Set());
-  /* the conversation, her reading of the job, or what's to confirm: her
-     questions have their own tab so the conversation's foot stays its
-     newest words (Isaac, 27 October 2026: "move all of the questions away
-     from the bottom of the screen so they don't clog it up") */
-  const [ownFace, setOwnFace] = useState<QuoteFace>("talk");
-  const face = faceAsked ?? ownFace;
-  const setFace = onFace ?? setOwnFace;
   /* the newest event when the page opened: what's there then is simply there
      (a page appears, law 8), and only what lands after it eases in (Isaac, 30
      October 2026: "Things should transition in smoothly... rather than just
@@ -321,7 +288,7 @@ export function TiffPanel({
     const el = threadRef.current;
     const still = !!globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     if (el && typeof el.scrollTo === "function") el.scrollTo({ top: el.scrollHeight, behavior: grew && !still ? "smooth" : "auto" });
-  }, [events.length, hidden, on, face]);
+  }, [events.length, hidden, on]);
   useEffect(() => {
     const el = threadRef.current;
     if (!working || hidden || !el) return;
@@ -482,25 +449,11 @@ export function TiffPanel({
   };
 
   const who = (author: string) => (author === me ? "You" : (names[author] ?? "Someone"));
-  /* the job, written out: her newest write-up */
-  const writeUps = events.filter((e) => e.kind === "tool" && e.body.name === "write_up" && e.body.ok !== false);
-  const latest = writeUps.length ? writeUpOf((writeUps[writeUps.length - 1]!.body.detail as { writeUp?: unknown } | undefined)?.writeUp) : null;
   const open = answersIn ? events.filter((e) => e.kind === "question" && !questions[e.id]?.answered) : [];
-  /* her questions numbered as her message numbers them: from 1 in each
-     asking; the latest asking's answered ones stay, ticked (Isaac,
-     2026-10-11: answered in his own words, as in the chat) */
-  const numberOf = new Map<number, number>();
-  let n = 0;
-  for (const e of events) {
-    if (e.kind === "message" && e.author !== "tiff" && typeof e.body.answered !== "number") n = 0;
-    if (e.kind === "question") numberOf.set(e.id, ++n);
-  }
   const asking = new Set(latestAsked(events));
-  const settled = events.filter((e) => e.kind === "question" && asking.has(e.id) && questions[e.id]?.answered);
-  /* in the talk itself, where the page holds the faces (the quote's own
-     tab): every question still open, and while one is, the ones of the same
-     asking already answered, ticked */
-  const asks = faceAsked !== undefined && open.length > 0 ? events.filter((e) => e.kind === "question" && (!questions[e.id]?.answered || asking.has(e.id))) : [];
+  /* in the talk itself: every question still open, and while one is, the
+     ones of the same asking already answered, ticked */
+  const asks = open.length > 0 ? events.filter((e) => e.kind === "question" && (!questions[e.id]?.answered || asking.has(e.id))) : [];
 
   /* her name over what she says, and when, once for a run of it, as a chat
      names a speaker; what she did stands as she did it, a run of steps together */
@@ -648,90 +601,9 @@ export function TiffPanel({
   const typing = working ? liveWords(liveNow, events) : "";
   if (typing) thread.push(her(-1, <Typing text={typing} />, !hers));
 
-  const scope = <QuoteScope words={words} writeUp={latest} />;
-
   return (
     <div className="qt" hidden={hidden}>
-      <div className="qc-face" hidden={faceAsked !== undefined}>
-        <div className="qc-col">
-          <Tray
-            ariaLabel="Conversation, scope or what's to confirm"
-            value={face}
-            onChange={setFace}
-            options={[
-              { value: "talk", label: "Conversation" },
-              { value: "scope", label: "Scope" },
-              { value: "confirm", label: confirmTitle, tone: open.length > 0 ? "look" : undefined },
-            ]}
-          />
-        </div>
-      </div>
-      {face === "scope" && (
-        <div className="qc-thread">
-          <div className="qc-col">{scope}</div>
-        </div>
-      )}
-      {face === "confirm" && (
-        <div className="qc-thread">
-          <div className="qc-col">
-            {open.length > 0 || settled.length > 0 || confirm ? (
-              <section aria-label={confirmTitle}>
-                {open.map((q) => {
-                  const answers = (Array.isArray(q.body.answers) ? q.body.answers : []) as Answer[];
-                  const deltas = questions[q.id]?.deltas ?? [];
-                  const put = typeof q.body.put === "string" ? q.body.put : "";
-                  return (
-                    <div key={q.id} className={`qt-qa${landed(q.id)}`}>
-                      <p className="qt-q">
-                        {/* an item to settle: an orange dot and its number (Q5) */}
-                        <span className="qt-qn">
-                          <Dot hue="orange" />
-                          {numberOf.get(q.id)}
-                        </span>
-                        {String(q.body.question ?? "")}
-                      </p>
-                      {put && <p className="qt-put">{`On the quote now: ${put}`}</p>}
-                      {answers.length > 0 && (
-                        <ul className="qt-ans">
-                          {answers.map((a, i) => (
-                            <li key={i}>
-                              <button type="button" disabled={busy || deltas[i] === null} onClick={() => void answer(q.id, i)}>
-                                <b>{a.label}</b>
-                                {deltaWords(deltas[i]) && <em>{deltaWords(deltas[i])}</em>}
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  );
-                })}
-                {settled.length > 0 && (
-                  <ul className="ql-checks qt-done" aria-label="Answered">
-                    {settled.map((q) => {
-                      const a = questions[q.id]!.answered!;
-                      const topic = typeof q.body.topic === "string" && q.body.topic ? q.body.topic : String(q.body.question ?? "");
-                      return (
-                        <li key={q.id} className="ok">
-                          <i aria-hidden="true" />
-                          <span>
-                            <b>{`${topic}: ${a.label}`}</b>
-                            <small>{a.typed ? "From your message" : "Tapped"}</small>
-                          </span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-                {confirm}
-              </section>
-            ) : (
-              <p className="qt-did">Nothing to confirm.</p>
-            )}
-          </div>
-        </div>
-      )}
-      <div ref={threadRef} className="qc-thread" hidden={face !== "talk"}>
+      <div ref={threadRef} className="qc-thread">
         <div ref={colRef} className="qc-col">
           {events.length === 0 && (
             <div className="qt-hello">

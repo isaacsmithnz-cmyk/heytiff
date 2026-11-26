@@ -12,7 +12,7 @@ import { cents2 } from "@/lib/quotes/quote-sum";
 import { QuoteStepsLine, leftOn, priceState } from "./quote-parts";
 import { answerWord, confirmWord, priceWord } from "@/lib/quotes/quote-left";
 import { estimatesOf, unpricedOf } from "@/lib/quotes/quote-card";
-import { TiffPanel, type QuoteFace } from "./tiff-panel";
+import { TiffPanel } from "./tiff-panel";
 import { LinesProposalPaper } from "./lines-proposal-paper";
 import { proposalOf, type LinesProposal } from "@/lib/quotes/lines-proposal";
 import { PAYMENT_PRESETS, type PaymentPreset, type PaymentStage } from "@/lib/quotes/payment";
@@ -260,8 +260,6 @@ export function QuoteLinesFace({
   /* what fills the left while Tiff is on for the business: the
      conversation, or the line items, switched from the rail */
   const [tab, setTab] = useState<"chat" | "lines">("chat");
-  /* on the Price tab the conversation's own faces join the one tray */
-  const [face, setFace] = useState<QuoteFace>("talk");
   /* whether she's on, once her thread is read (what she's cost left the
      rail with layout B, 21 October 2026) */
   const [tiff, setTiff] = useState<{ on: boolean; spentUsd: number | null } | null>(null);
@@ -932,7 +930,6 @@ export function QuoteLinesFace({
               setViewing(null);
               if (k === "breakdown") return setTab("lines");
               setTab("chat");
-              setFace("talk");
             }}
           />
           {money && <span className="qc-gst">All ex GST</span>}
@@ -946,16 +943,10 @@ export function QuoteLinesFace({
           <TiffPanel
             job={job}
             hidden={paper || tab !== "chat"}
-            face={views ? face : undefined}
-            onFace={views ? setFace : undefined}
             start={start}
             onStatus={setTiff}
             onOpen={setAsked}
             onPlan={setPlan}
-            /* behind the paper, the review is the rail's */
-            confirm={paper || views ? null : confirm}
-            confirmTitle={confirmTitle}
-            words={{ proposal: view?.proposal ?? null, optionNames: view?.optionNames ?? [], options: quoteOptions }}
             say={say}
             onSaid={() => {
               takeOff(

@@ -7,7 +7,7 @@ import { LiveWords, saidSomething, useDictation } from "@/components/notes/dicta
 import { TiffGlyph } from "@/components/notes/tiff-mark";
 import { Wave } from "@/components/conversations/speak-bar";
 import { quietLimit } from "@/components/tiff/modal/quiet";
-import { stopSpeaking, useReadingOut } from "@/lib/voice/speaker";
+import { stopSpeaking, useReadingOut, useVoiceUnavailable, VOICE_UNAVAILABLE } from "@/lib/voice/speaker";
 
 /* TALKING TO TIFF, HANDS-FREE (Isaac, 26 November 2026: "both", then
    "Flow's right" to https://claude.ai/artifact/2vtUgVFZHbJf5gamXZZBPm,
@@ -111,6 +111,8 @@ export function TalkDialog({
   const reading = useReadingOut();
   const last = turns[turns.length - 1];
   const speaking = !!last && last.who === "tiff" && reading === readingId(last.key);
+  /* her voice couldn't be had for her last answer: said, and the talk goes on in writing */
+  const unvoiced = useVoiceUnavailable(last && last.who === "tiff" ? readingId(last.key) : "");
   const shown: Phase = phase === "thinking" && (speaking || (last?.who === "tiff" && last.text)) ? "speaking" : phase;
 
   const end = () => {
@@ -188,6 +190,7 @@ export function TalkDialog({
               </span>
             )}
           </p>
+          {unvoiced && <p className="tlk-off">{VOICE_UNAVAILABLE}</p>}
         </div>
         <div className="tlk-turns" ref={scroll}>
           {turns.map((t) =>

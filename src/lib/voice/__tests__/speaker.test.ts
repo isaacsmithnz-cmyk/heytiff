@@ -4,47 +4,46 @@
 
 /* The one reader: an answer said in pieces as it arrives, the first piece
    small so she starts at once, a table never read, one answer at a time
-   page-wide, and the device's voice once the route says hers can't be had. */
+   page-wide, and, when her voice can't be had, nothing played and the
+   answer saying so (Isaac, 27 November 2026: "just have it say that voice
+   is unavailable at the moment"). */
 
-import { readOut, startReading, stopSpeaking } from "../speaker";
+import { act, renderHook } from "@testing-library/react";
+import { readOut, startReading, stopSpeaking, useVoiceUnavailable } from "../speaker";
 
-type Utt = { text: string; onend: (() => void) | null; onerror: (() => void) | null; voice?: unknown; lang?: string; rate?: number };
-let spoken: string[] = [];
 let asked: string[] = [];
+let played = 0;
+let status = 200;
 let hold = false;
-const queue: Utt[] = [];
 
 beforeAll(() => {
-  (globalThis as unknown as { SpeechSynthesisUtterance: unknown }).SpeechSynthesisUtterance = function (this: Utt, text: string) {
-    this.text = text;
-    this.onend = null;
-    this.onerror = null;
-  };
-  Object.defineProperty(window, "speechSynthesis", {
-    value: {
-      speaking: false,
-      getVoices: () => [],
-      speak: (u: Utt) => {
-        if (!u.text) return;
-        spoken.push(u.text);
-        if (hold) queue.push(u);
-        else setTimeout(() => u.onend?.(), 0);
-      },
-      cancel: () => {
-        for (const u of queue.splice(0)) u.onend?.();
-      },
+  Object.defineProperty(HTMLMediaElement.prototype, "play", {
+    configurable: true,
+    value(this: HTMLMediaElement) {
+      played++;
+      if (!hold) setTimeout(() => this.onended?.(new Event("ended")), 0);
+      return Promise.resolve();
     },
   });
+  Object.defineProperty(HTMLMediaElement.prototype, "pause", {
+    configurable: true,
+    value(this: HTMLMediaElement) {
+      this.onpause?.(new Event("pause"));
+    },
+  });
+  Object.defineProperty(HTMLMediaElement.prototype, "paused", { configurable: true, get: () => false });
+  (URL as unknown as { createObjectURL: () => string }).createObjectURL = () => "blob:x";
+  (URL as unknown as { revokeObjectURL: () => void }).revokeObjectURL = () => {};
   global.fetch = jest.fn(async (_url: unknown, init?: RequestInit) => {
-    const { text } = JSON.parse(String(init?.body));
-    asked.push(text);
-    return { ok: false, status: 503, json: async () => ({ fallback: true, say: text }) } as unknown as Response;
+    asked.push(JSON.parse(String(init?.body)).text);
+    return { ok: status === 200, status, blob: async () => ({}), json: async () => ({}) } as unknown as Response;
   }) as typeof fetch;
 });
 
 beforeEach(() => {
-  spoken = [];
   asked = [];
+  played = 0;
+  status = 200;
   hold = false;
 });
 
@@ -54,13 +53,14 @@ it("says an answer arriving in pieces, the first as soon as there's a sentence",
   const r = startReading("a1");
   r.feed("Sam and Jordan are both free after one o'clock. Sam fin");
   await tick();
-  expect(spoken).toEqual(["Sam and Jordan are both free after one o'clock."]);
+  expect(asked).toEqual(["Sam and Jordan are both free after one o'clock."]);
   r.feed("ishes in Burwood at half past twelve.\n| Who | When |\n| Sam | 1 |\nShall I book Sam?");
   r.finish();
   await r.done;
-  expect(spoken.join(" ")).toBe(
+  expect(asked.join(" ")).toBe(
     "Sam and Jordan are both free after one o'clock. Sam finishes in Burwood at half past twelve. The table's on the screen. Shall I book Sam?"
   );
+  expect(played).toBe(asked.length);
 });
 
 it("reads one answer at a time: a second stops the first", async () => {
@@ -71,15 +71,19 @@ it("reads one answer at a time: a second stops the first", async () => {
   const second = readOut("two", "The second answer.");
   await first;
   await second;
-  expect(spoken[spoken.length - 1]).toBe("The second answer.");
+  expect(asked[asked.length - 1]).toBe("The second answer.");
 });
 
-it("after the route says no voice, the device's voice is used without asking again", async () => {
-  await readOut("x", "One more thing to say.");
+it("with her voice unavailable nothing plays, the answer says so, and the route rests a minute", async () => {
+  const { result } = renderHook(() => useVoiceUnavailable("u1"));
+  status = 503;
+  await act(() => readOut("u1", "One more thing to say."));
+  expect(played).toBe(0);
+  expect(result.current).toBe(true);
   const before = asked.length;
-  await readOut("y", "And another.");
+  await act(() => readOut("u2", "And another."));
   expect(asked.length).toBe(before);
-  expect(spoken[spoken.length - 1]).toBe("And another.");
+  expect(result.current).toBe(false);
 });
 
 it("stops when asked", async () => {

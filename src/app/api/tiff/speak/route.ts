@@ -11,8 +11,8 @@ import { speakable, synthesize } from "@/lib/voice/speak";
 
    When she can't speak in her own voice (no voice set yet, or the key isn't
    allowed text to speech) the answer is 503 with the words cleaned for
-   saying, `{ fallback: true, say }`, and the screen says them in the
-   device's voice. That is the only case the screen hears about; a vendor's
+   saying, `{ fallback: true, say }`, and the screen says "Voice is
+   unavailable at the moment." That is the only case it hears about; a vendor's
    words never leave this file. */
 
 export async function POST(request: Request) {

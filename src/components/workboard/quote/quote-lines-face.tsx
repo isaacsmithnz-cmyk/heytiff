@@ -13,6 +13,8 @@ import { leftOn, priceState } from "./quote-parts";
 import { answerWord, confirmWord, priceWord } from "@/lib/quotes/quote-left";
 import { estimatesOf, unpricedOf } from "@/lib/quotes/quote-card";
 import { TiffPanel } from "./tiff-panel";
+import { ReviewWalk } from "./quote-review";
+import { qualificationsOf, reviewStep, type QuoteReview } from "@/lib/quotes/review";
 import { LinesProposalPaper } from "./lines-proposal-paper";
 import { proposalOf, type LinesProposal } from "@/lib/quotes/lines-proposal";
 import { PAYMENT_PRESETS, type PaymentPreset, type PaymentStage } from "@/lib/quotes/payment";
@@ -112,6 +114,11 @@ export type LinesView = {
       business's notes and payment terms (7.1) */
   proposal?: LinesProposal | null;
   approved?: boolean;
+  /** Tiff's check before it's marked ready to send, and the quote's
+      fingerprint now (review.ts); `fixes`: what the check's fixes ask of her */
+  review?: QuoteReview | null;
+  reviewStamp?: string;
+  fixes?: string;
   noteLibrary?: QuoteNote[];
   paymentTerms?: Record<PaymentPreset, { label: string; stages: PaymentStage[] }> | null;
   /** the supplier the whole job buys from, and the business's suppliers */
@@ -328,6 +335,10 @@ export function QuoteLinesFace({
      the quote, for Update quote, not a price to change */
   const [gone, setGone] = useState<{ quoted: ScopeQuoted | null; accepted: boolean } | null>(null);
   const [say, setSay] = useState<{ id: number; text: string } | null>(null);
+  /* Tiff is checking the quote before it's marked ready to send (review.ts) */
+  const [checking, setChecking] = useState(false);
+  /* the finding of hers the page last showed the spot of */
+  const [spotShown, setSpotShown] = useState<string | null>(null);
   useEffect(() => {
     if (!chat) return;
     let live = true;
@@ -717,6 +728,11 @@ export function QuoteLinesFace({
     />
   );
 
+  /* TIFF'S CHECK (review.ts): where it's left the quote, and the finding
+     she's on shown at its spot beside the panel */
+  const rstep = money && view?.reviewStamp ? reviewStep(view.review ?? null, view.reviewStamp) : null;
+  const walking = rstep?.step === "walk" ? rstep.at : null;
+
   const lineItems = (
     <QuoteLineItems
       job={job}
@@ -741,6 +757,7 @@ export function QuoteLinesFace({
       onRemove={(ls) => void removeLines(ls)}
       swapAsk={swapAsk}
       optionRows={optionRows}
+      spot={walking && walking.tab === "breakdown" ? walking.lineIds : []}
     />
   );
 
@@ -845,6 +862,36 @@ export function QuoteLinesFace({
     tellStage();
   }, [stageKey]);
 
+  const runCheck = async () => {
+    setChecking(true);
+    await act({ op: "review" });
+    setChecking(false);
+  };
+  const answerFinding = (id: string, pick: number | "keep", reason: string) => void act({ op: "review-answer", id, pick, reason });
+  const sendFixes = async () => {
+    const v = await act({ op: "review-fix" });
+    if (v?.ok && v.fixes) {
+      setSay({ id: (say?.id ?? 0) + 1, text: v.fixes });
+      setPaper(false);
+      setViewing(null);
+      setTab("chat");
+    }
+  };
+  /* the page beside the card shows what the finding is about: the paper
+     for its words, Breakdown for its lines, on its option */
+  const walkingId = walking?.id ?? null;
+  if (walking && walkingId !== spotShown) {
+    /* once each finding, as it comes up: set while drawing, as the paper's
+       own asked-for block is (lines-proposal-paper.tsx) */
+    setSpotShown(walkingId);
+    if (walking.option !== null && walking.option < options) setAt(walking.option);
+    setViewing(null);
+    setPaper(walking.tab === "proposal");
+    if (walking.tab === "breakdown") setTab("lines");
+  }
+  const walkCard =
+    walking && rstep?.step === "walk" && view?.review ? <ReviewWalk review={view.review} at={walking} n={rstep.n} of={rstep.of} busy={busy || checking} onAnswer={answerFinding} /> : null;
+
   const actions =
     tiff === null ? null : (
       <QuoteActions
@@ -880,6 +927,11 @@ export function QuoteLinesFace({
         onApprove={() => void (variation ? markVariation("variation-approve", variation.option, true) : act({ op: "approve" }))}
         onUpdate={() => setUpdating("")}
         onAccept={() => void (variation ? markVariation("variation-accept", variation.option, !variation.acceptedAt) : accept())}
+        review={rstep}
+        checking={checking}
+        walk={walkCard}
+        onCheck={() => void runCheck()}
+        onFix={() => void sendFixes()}
       />
     );
 
@@ -981,6 +1033,8 @@ export function QuoteLinesFace({
                     preparedBy={view?.names[view?.me ?? ""] ?? null}
                     busy={busy}
                     editAsk={paperAsk}
+                    spot={walking && walking.tab === "proposal" ? walking.block || null : null}
+                    qualifications={qualificationsOf(view?.review ?? null)}
                     photos={photos && photos.map((m) => ({ id: m.remoteId, url: m.url }))}
                     onSave={(patch) => void act({ op: "proposal", patch }).then((v) => v?.ok && setSavedAt(new Date().toISOString()))}
                   />

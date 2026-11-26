@@ -181,3 +181,18 @@ it("drawn to read (the Price tab's preview, the PDF), has no box to type in and 
   expect(screen.getByText("Thanks for having us out.")).toBeInTheDocument();
   expect(screen.getByText("Duct to each room")).toBeInTheDocument();
 });
+
+/* TIFF'S CHECK (review.ts, 26 November 2026): what's kept with a reason is
+   said under Qualifications, and the block a finding is on is outlined */
+it("says what Tiff's check kept, and outlines the block a finding is on", () => {
+  paper({ qualifications: ["Copper tees for CMY joints: Budget estimate; CMY joints on the firm price."], spot: "units-0" });
+  const q = screen.getByRole("region", { name: "Qualifications" });
+  expect(q.textContent).toMatch(/Copper tees for CMY joints: Budget estimate/);
+  expect(document.querySelector('[data-block="units-0"]')?.className).toMatch(/lp-spot/);
+  expect(document.querySelector('[data-block="payment"]')?.className).not.toMatch(/lp-spot/);
+});
+
+it("has no Qualifications when nothing was kept", () => {
+  paper({ qualifications: [] });
+  expect(screen.queryByRole("region", { name: "Qualifications" })).toBeNull();
+});

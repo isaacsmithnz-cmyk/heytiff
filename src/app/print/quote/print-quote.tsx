@@ -25,6 +25,8 @@ export function PrintQuote(props: {
   preparedBy: string | null;
   brand: OrgBrand;
   photos: { id: string; url: string | null }[];
+  /** kept from Tiff's check with a reason (review.ts) */
+  qualifications: string[];
 }) {
   return (
     <div className="fg qpdf">

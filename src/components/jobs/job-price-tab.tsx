@@ -15,6 +15,7 @@ import { JobQuoteSend, sendVariation } from "@/components/workboard/board/job-qu
 import { useQuotePrice } from "@/components/workboard/quote/quote-parts";
 import { QuoteLinesFace, useQuoteLines, type QuoteStage } from "@/components/workboard/quote/quote-lines-face";
 import { LinesProposalPaper } from "@/components/workboard/quote/lines-proposal-paper";
+import { qualificationsOf } from "@/lib/quotes/review";
 import { openInTab } from "@/components/shell/open-tabs";
 import type { DocStage } from "./job-doc-head";
 import type { Sm8Quote } from "@/components/workboard/quote/sm8-quote-of";
@@ -538,6 +539,7 @@ function QuotePreview({
                 optionNames={view.optionNames ?? []}
                 noteLibrary={view.noteLibrary ?? []}
                 paymentTerms={view.paymentTerms ?? null}
+                qualifications={qualificationsOf(view.review ?? null)}
                 client={detail?.clientName ?? null}
                 site={address}
                 jobNumber={detail?.jobNumber ?? null}

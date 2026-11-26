@@ -52,6 +52,10 @@ type Props = {
   /** the job's photos, by id, with their addresses: a photo put on the
       proposal is drawn from here; null while they're still coming */
   photos?: readonly { id: string; url: string | null }[] | null;
+  /** the block Tiff's check is on (review.ts): outlined, and brought into view */
+  spot?: string | null;
+  /** what's kept from Tiff's check with a reason, said to the customer */
+  qualifications?: readonly string[];
 };
 
 type Block = "intro" | "notIncluded" | "payment" | "choice" | "notes" | `summary-${number}` | `work-${number}` | `included-${number}`;
@@ -87,6 +91,11 @@ export function LinesProposalPaper(props: Props) {
     setEditing(ask.block);
   }
   const askedBlock = ask?.block ?? null;
+  const spot = props.spot ?? null;
+  const spotted = (...blocks: string[]) => (spot && blocks.includes(spot) ? " lp-spot" : "");
+  useEffect(() => {
+    if (spot) paperRef.current?.querySelector(`[data-block="${spot}"]`)?.scrollIntoView?.({ block: "center" });
+  }, [spot]);
   useEffect(() => {
     if (asked === 0 || !askedBlock) return;
     paperRef.current?.querySelector(`[data-block="${askedBlock}"]`)?.scrollIntoView?.({ block: "center" });
@@ -132,7 +141,7 @@ export function LinesProposalPaper(props: Props) {
       </div>
 
       {/* typed where it sits, as on a page in Word (the Price overhaul, 18 November 2026) */}
-      <div className="lp-intro">
+      <div className={`lp-intro${spotted("title", "intro")}`} data-block="intro">
         <Typed as="h2" value={p.title || props.title} label="The proposal's title" readOnly={ro} onSave={(title) => save({ title })} />
         <RichTyped
           name="intro"
@@ -159,19 +168,21 @@ export function LinesProposalPaper(props: Props) {
                 <h3>{nameOf(i)}</h3>
               </div>
             </header>
-            <RichTyped
-              name={`summary-${i}`}
-              className="lp-osum"
-              value={w.summary}
-              label={`Option ${i + 1}'s summary`}
-              empty="No summary written yet."
-              readOnly={ro}
-              photoUrl={photoUrl}
-              photosKnown={photosKnown}
-              onSave={(summary) => setOption(i, { summary })}
-            />
+            <div className={spotted(`summary-${i}`).trim() || undefined} data-block={`summary-${i}`}>
+              <RichTyped
+                name={`summary-${i}`}
+                className="lp-osum"
+                value={w.summary}
+                label={`Option ${i + 1}'s summary`}
+                empty="No summary written yet."
+                readOnly={ro}
+                photoUrl={photoUrl}
+                photosKnown={photosKnown}
+                onSave={(summary) => setOption(i, { summary })}
+              />
+            </div>
             <div className="lp-ocols">
-              <div className="lp-work">
+              <div className={`lp-work${spotted(`work-${i}`)}`} data-block={`work-${i}`}>
                 <h4 className="lp-oh">The work</h4>
                 {w.areas.length === 0 && (
                   <TypedList items={[]} label={`Option ${i + 1}'s work`} empty="Not written yet." readOnly={ro} onSave={(items) => setOption(i, { areas: [{ name: "", items }] })} />
@@ -196,13 +207,13 @@ export function LinesProposalPaper(props: Props) {
                   </div>
                 ))}
               </div>
-              <aside className="lp-inc">
+              <aside className={`lp-inc${spotted(`included-${i}`)}`} data-block={`included-${i}`}>
                 <h4 className="lp-oh">Included</h4>
                 <TypedList className="lp-in" items={w.included} label={`What option ${i + 1} includes`} empty="Not written yet." readOnly={ro} onSave={(included) => setOption(i, { included })} />
               </aside>
             </div>
             {units.length > 0 && (
-              <table className="lp-eq">
+              <table className={`lp-eq${spotted(`units-${i}`)}`} data-block={`units-${i}`}>
                 <thead>
                   <tr>
                     <th>Where</th>
@@ -241,7 +252,7 @@ export function LinesProposalPaper(props: Props) {
         );
       })}
 
-      <section className="lp-sec" aria-label="Your choice" data-block="choice">
+      <section className={`lp-sec${spotted("choice")}`} aria-label="Your choice" data-block="choice">
         <Editable
           readOnly={ro}
           label="how the client chooses"
@@ -288,12 +299,24 @@ export function LinesProposalPaper(props: Props) {
         </table>
       </section>
 
-      <section className="lp-sec" aria-label="Not included">
+      <section className={`lp-sec${spotted("notIncluded")}`} aria-label="Not included" data-block="notIncluded">
         <h3 className="lp-ph">Not included</h3>
         <TypedList className="lp-ex" items={p.notIncluded} label="What isn't included" empty="Not written yet." readOnly={ro} onSave={(notIncluded) => save({ notIncluded })} />
       </section>
 
-      <section className="lp-sec" aria-label="Payment" data-block="payment">
+      {/* kept from Tiff's check with a reason (review.ts): said, not typed */}
+      {(props.qualifications ?? []).length > 0 && (
+        <section className={`lp-sec${spotted("qualifications")}`} aria-label="Qualifications" data-block="qualifications">
+          <h3 className="lp-ph">Qualifications</h3>
+          <ul className="lp-ex">
+            {props.qualifications!.map((q, k) => (
+              <li key={k}>{q}</li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <section className={`lp-sec${spotted("payment")}`} aria-label="Payment" data-block="payment">
         <Editable
           readOnly={ro}
           label="the payment stages"
@@ -350,7 +373,7 @@ export function LinesProposalPaper(props: Props) {
         </table>
       </section>
 
-      <section className="lp-sec" aria-label="Notes" data-block="notes">
+      <section className={`lp-sec${spotted("notes")}`} aria-label="Notes" data-block="notes">
         <Editable
           readOnly={ro}
           label="the notes"

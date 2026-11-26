@@ -53,6 +53,15 @@ jest.mock("@/lib/quotes/accepted-materials-server", () => ({ putAcceptedOnJob: j
 jest.mock("@/lib/workboard/visit-tasks-server", () => ({ addTasksToJob: jest.fn(), makeTasksFromQuote: jest.fn() }));
 jest.mock("@/lib/quotes/settings-query", () => ({ readQuoteSettings: async () => ({ taskHours: { zone: null, grille: null, metre: null, visit: null } }) }));
 jest.mock("@/lib/quotes/org-day-server", () => ({ readOrgDay: async () => ({ hours: { hours: 8 } }) }));
+const reviewLetsApprove = jest.fn(async () => true);
+const runReview = jest.fn(async () => ({ ok: true, review: { at: "", by: "u", stamp: "s", findings: [], usd: null } }));
+const applyReviewFixes = jest.fn(async () => ({ ok: true, message: "From the check, fix these:\n1) Say 102 h", review: null }));
+jest.mock("@/lib/quotes/review-server", () => ({
+  reviewLetsApprove: (...a: unknown[]) => (reviewLetsApprove as jest.Mock)(...a),
+  runReview: (...a: unknown[]) => (runReview as jest.Mock)(...a),
+  answerReview: jest.fn(async () => ({ ok: true, review: null })),
+  applyReviewFixes: (...a: unknown[]) => (applyReviewFixes as jest.Mock)(...a),
+}));
 
 import { GET, POST } from "../route";
 
@@ -119,4 +128,21 @@ it("keeps No design for anyone quoting with the Studio, a tech included", async 
   expect(setNoDesign).toHaveBeenCalledWith("org-a", "job-1", true, "u-tech");
   await post({ op: "design", skip: false });
   expect(setNoDesign).toHaveBeenLastCalledWith("org-a", "job-1", false, "u-tech");
+});
+
+/* TIFF'S CHECK (review.ts, 26 November 2026): Mark ready to send waits on it */
+it("won't mark it ready to send until Tiff's check is clear, and runs the check for money access only", async () => {
+  grants.add("workboard").add("financials");
+  reviewLetsApprove.mockResolvedValueOnce(false);
+  const held = await (await post({ op: "approve" })).json();
+  expect(held).toMatchObject({ ok: false, reason: expect.stringMatching(/Tiff checks it first/) });
+  expect(approveProposal).not.toHaveBeenCalled();
+  await post({ op: "approve" });
+  expect(approveProposal).toHaveBeenCalledTimes(1);
+  await post({ op: "review" });
+  expect(runReview).toHaveBeenCalledWith("org-a", "job-1", "u-tech");
+  const fixed = await (await post({ op: "review-fix" })).json();
+  expect(fixed.fixes).toMatch(/Say 102 h/);
+  grants.delete("financials");
+  expect((await post({ op: "review" })).status).toBe(403);
 });

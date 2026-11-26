@@ -1033,9 +1033,11 @@ What the guard cannot count is noted here on the same word:
   hue. They are the drawing, which law 31 lets carry colour.
 - **The front page, outside the frame.** `/` for anyone signed out is
   `components/landing`, and it breaks the app's rules on purpose: on the
-  ink, Tiff's mark in black chrome in 3D in front of a giant HeyTiff, four
-  parts as you scroll, each a giant word behind the mark and one of the
-  app's screens in front, the quote rising from behind a lit horizon, and
+  ink, Tiff's mark in 3D in the logo's colours, a pearl white chevron and a
+  metal grey boomerang, above a giant HeyTiff and behind every word on the
+  page (Isaac, 2026-11-27: "Make the logo its correct colors", "Any text, it
+  should always be behind it"), four parts as you scroll, each a giant word
+  and one of the app's screens, the quote rising from behind a lit horizon, and
   Sign in alone, as new businesses join by invitation for now (Isaac,
   2026-11-26: "lock create account for now", "how hectic can you make that
   landing page", "your first loud one was still best", "With app's flight",

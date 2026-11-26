@@ -2,7 +2,7 @@ import type * as THREE_NS from "three";
 import { CHEVRON_STROKES } from "@/components/logo";
 import { FLIGHT, flightAt } from "@/lib/brand/tiff-flight-path";
 
-/* THE FRONT PAGE'S STAGE: Tiff's mark in black chrome, in 3D, behind the
+/* THE FRONT PAGE'S STAGE: Tiff's mark in 3D, a pearl chevron and a metal boomerang, behind the
    giant words and the app's own screens (Isaac, 26 November 2026, after five
    rounds of mocks: "your first loud one was still best", then "With app's
    flight"). The mock is https://claude.ai/artifact/BRVbBq25HzeQk7r46LQaAb.
@@ -80,6 +80,11 @@ export async function startStage(canvas: HTMLCanvasElement, input: StageInput): 
   const env = pmrem.fromScene(room, 0.02).texture;
   pmrem.dispose();
   scene.environment = env;
+  /* a soft fill and a key from the top left, so the pearl reads white and not grey; the softboxes still draw its edges */
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x1c1c22, 0.7));
+  const key = new THREE.DirectionalLight(0xfff8f2, 1.4);
+  key.position.set(-4, 5, 6);
+  scene.add(key);
 
   /* THE MARK, from the logo's own numbers, centred on the chevron's middle */
   const CX = 56, CY = 50;
@@ -91,8 +96,18 @@ export async function startStage(canvas: HTMLCanvasElement, input: StageInput): 
     depth: 0.32, bevelEnabled: true, bevelThickness: 0.09, bevelSize: 0.085, bevelSegments: 8, curveSegments: 4,
   });
   chevGeo.translate(0, 0, -0.16);
-  const chrome = new THREE.MeshPhysicalMaterial({ color: 0x16171b, metalness: 1, roughness: 0.2, clearcoat: 1, clearcoatRoughness: 0.08 });
-  const grey = new THREE.MeshPhysicalMaterial({ color: 0x8d939c, metalness: 1, roughness: 0.3, clearcoat: 0.6 });
+  /* THE LOGO'S COLOURS on the ink: the chevron white and the boomerang its
+     grey (Isaac, 27 November 2026: "Make the logo its correct colors. Don't
+     change the actual 3D itself. Give it that same light capturing
+     reflection ... like a pearlescent white and a metallic grey"). The same
+     room and softboxes light it, so the edges still catch their long lines
+     of light; the white is a pearl, a clearcoat over a pale sheen with a
+     little iridescence, and the grey is a metal. */
+  const chrome = new THREE.MeshPhysicalMaterial({
+    color: 0xf6f4f0, metalness: 0.45, roughness: 0.14, clearcoat: 1, clearcoatRoughness: 0.03, envMapIntensity: 1.8,
+    sheen: 0.6, sheenColor: new THREE.Color(0xeee6f4), sheenRoughness: 0.4, iridescence: 0.35, iridescenceIOR: 1.3,
+  });
+  const grey = new THREE.MeshPhysicalMaterial({ color: 0x9ea3ab, metalness: 1, roughness: 0.2, clearcoat: 0.8, clearcoatRoughness: 0.06, envMapIntensity: 1.6 });
 
   const mark = new THREE.Group();
   scene.add(mark);

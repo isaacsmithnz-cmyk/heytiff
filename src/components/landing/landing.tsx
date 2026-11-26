@@ -8,9 +8,8 @@ import { startStage, type Pose } from "./stage";
 /* THE FRONT PAGE, for anyone signed out (Isaac, 26 November 2026). After
    five rounds of mocks he picked the first loud one: "your first loud one
    was still best", https://claude.ai/artifact/BRVbBq25HzeQk7r46LQaAb. On the
-   ink, Tiff's mark in black chrome in front of a giant HeyTiff, then four
-   parts as you scroll, each a giant word behind the mark and one of the
-   app's own screens in front of it. Two things joined on his word: the
+   ink, Tiff's mark in 3D over a giant HeyTiff, then four parts as you
+   scroll, each a giant word and one of the app's own screens. Two things joined on his word: the
    boomerang flies the app's own flight ("With app's flight"), and the quote
    rises from behind a lit horizon ("the horizon one you made was cool too.
    maybe incorporate", https://claude.ai/artifact/NJJJfbRxAfj1JqSMKx2eww).
@@ -24,8 +23,11 @@ import { startStage, type Pose } from "./stage";
    docs/design.md, under Named exemptions: its type is display type, its
    ground is the ink, and its mark moves. Every figure on it is made up.
 
-   THREE LAYERS. The giant words sit under the canvas, so the mark passes in
-   front of them; the screens and the words you read sit over it. Each scene
+   THREE LAYERS, THE MARK AT THE BACK. Every word is in front of it: the giant
+   words, the screens and the words you read (Isaac, 27 November 2026: "It
+   should never go in front of it. Any text, it should always be behind it"),
+   and on the first screen it sits above HeyTiff, not over it ("the TIFF
+   logo should sit higher than the actual word"). Each scene
    pins one screen while its stretch of the page scrolls past, and sets --p:
    -1 coming in, 0 in the middle, 1 leaving. */
 
@@ -33,16 +35,16 @@ const SCENES = 6;
 
 const POSES: { wide: Pose[]; narrow: Pose[] } = {
   wide: [
-    { x: 0, y: 0.09, ry: -0.22, rx: 0.08, s: 1.25 },
+    { x: 0, y: 0.24, ry: -0.22, rx: 0.08, s: 0.85 },
     { x: 0.33, y: 0.27, ry: -0.6, rx: 0.1, s: 0.5 },
-    { x: -0.22, y: 0, ry: 0.75, rx: -0.1, s: 0.95 },
-    { x: 0.22, y: 0, ry: -0.5, rx: 0.25, s: 0.95 },
-    { x: -0.22, y: 0, ry: 0.9, rx: -0.05, s: 0.95 },
-    { x: 0, y: 0.1, ry: Math.PI * 2, rx: 0, s: 1.06 },
+    { x: -0.22, y: 0.1, ry: 0.75, rx: -0.1, s: 0.85 },
+    { x: 0.22, y: 0.1, ry: -0.5, rx: 0.25, s: 0.85 },
+    { x: -0.22, y: 0.1, ry: 0.9, rx: -0.05, s: 0.85 },
+    { x: 0, y: 0.14, ry: Math.PI * 2, rx: 0, s: 0.9 },
   ],
   narrow: [
-    { x: 0, y: 0.09, ry: -0.22, rx: 0.08, s: 0.69 },
-    { x: 0.24, y: 0.34, ry: -0.6, rx: 0.1, s: 0.28 },
+    { x: 0, y: 0.19, ry: -0.22, rx: 0.08, s: 0.62 },
+    { x: 0.22, y: 0, ry: -0.6, rx: 0.1, s: 0.26 },
     { x: 0, y: 0.13, ry: 0.6, rx: -0.1, s: 0.38 },
     { x: 0, y: 0.13, ry: -0.5, rx: 0.2, s: 0.38 },
     { x: 0, y: 0.13, ry: 0.7, rx: 0, s: 0.38 },
@@ -102,7 +104,7 @@ export function Landing() {
 
   return (
     <div ref={root} className="relative bg-[var(--ink)] text-[var(--white)] antialiased [overflow-x:clip]">
-      <canvas ref={canvas} aria-hidden="true" className="pointer-events-none fixed inset-0 z-[1] block h-full w-full" />
+      <canvas ref={canvas} aria-hidden="true" className="pointer-events-none fixed inset-0 z-0 block h-full w-full" />
 
       <header className="fixed inset-x-0 top-0 z-[6] flex items-center justify-between py-4" style={{ ...GUTTER, top: "env(safe-area-inset-top, 0px)" }}>
         <Link href="/" className="inline-flex items-center gap-2 text-xl font-bold" aria-label="HeyTiff">
@@ -119,7 +121,7 @@ export function Landing() {
             <p
               aria-hidden="true"
               className="absolute inset-x-0 top-1/2 m-0 whitespace-nowrap text-center font-bold"
-              style={{ ...DISPLAY, fontSize: "clamp(88px, 23vw, 400px)", transform: "translateY(calc(-50% - 9vh)) scale(calc(1 + var(--p, 0) * .25))" }}
+              style={{ ...DISPLAY, fontSize: "clamp(80px, 19vw, 340px)", transform: "translateY(calc(-50% + 4vh)) scale(calc(1 + var(--p, 0) * .25))" }}
             >
               HeyTiff
             </p>
@@ -202,7 +204,7 @@ export function Landing() {
 /* ---- the layers ---- */
 
 function Under({ children }: { children: ReactNode }) {
-  return <div className="sticky top-0 z-0 h-screen overflow-hidden [height:100svh]">{children}</div>;
+  return <div className="sticky top-0 z-[1] h-screen overflow-hidden [height:100svh]">{children}</div>;
 }
 
 function Over({ children, className = "", style }: { children: ReactNode; className?: string; style?: CSSProperties }) {

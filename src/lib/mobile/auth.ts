@@ -1,7 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { resolve, type Capability } from "@/lib/permissions";
 import type { Role } from "@/lib/roles-shared";
-import { checkMobileToken, KEYS_UNREACHABLE, tenantKeys, type KeyLookup } from "./token";
+import { checkMobileToken, KEYS_UNREACHABLE, mobileIssuers, tenantKeys, type KeyLookup } from "./token";
 import { enterPhoneSession } from "@/lib/phone-session";
 
 /* WHO THE PHONE IS, AND FOR WHICH WORKSPACE (native app, phase 1).
@@ -85,7 +85,7 @@ export async function requireMobile(
   const bearer = /^Bearer\s+(\S+)$/i.exec(request.headers.get("authorization") ?? "");
   if (!bearer) return UNSIGNED();
 
-  const check = await checkMobileToken(bearer[1]!, { domain, keyFor: opts.keyFor ?? tenantKeys(domain), now: opts.now });
+  const check = await checkMobileToken(bearer[1]!, { domain, issuers: mobileIssuers(process.env), keyFor: opts.keyFor ?? tenantKeys(domain), now: opts.now });
   if (!check.ok) return check.reason === KEYS_UNREACHABLE ? json(503, "HeyTiff couldn't check your sign-in just now. Try again.") : UNSIGNED();
   const userId = check.sub;
 

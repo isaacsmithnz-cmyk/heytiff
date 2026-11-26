@@ -1,6 +1,7 @@
 import "server-only";
 
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { mainJobsOnly } from "@/lib/mobile/main-jobs";
 import type { Sm8Press } from "@/lib/integrations/sm8-press";
 import { readSm8WriteState } from "@/lib/integrations/sm8-writes";
 import { bookingZone } from "@/lib/integrations/sm8-booking-zone";
@@ -1401,7 +1402,7 @@ export async function placesFor(ctx: MobileCtx, now: number = Date.now()): Promi
   const skipped = new Set(((skips ?? []) as { job_uuid: string }[]).map((s) => s.job_uuid.toLowerCase()));
   const open = ((openJobs ?? []) as (JobRow & { edit_date: string | null })[]).filter((j) => hasLife(j, from, visited) && !skipped.has(j.uuid.toLowerCase()));
   const done = ((doneJobs ?? []) as (JobRow & { completion_date: string | null })[]).filter((j) => finishedLately(j, from) && !skipped.has(j.uuid.toLowerCase()));
-  return { office, home, booked, next, open: [...open, ...done].map(placeOf) };
+  return { office, home, booked, next, open: mainJobsOnly([...open, ...done].map(placeOf)) };
 }
 
 /* HOME, THE ADDRESS ON YOUR CARD (the day clock fixes): getting back there after being away offers Clock off, and a

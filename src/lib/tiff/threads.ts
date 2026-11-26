@@ -35,6 +35,9 @@ export type TiffMsg = {
   /** The email to Tiff this answer is about (email_in_messages.id): its job
       card is drawn under the words, its state read from the email's row. */
   email?: string;
+  /** Said in a talk with her (the Talk screen): the talk's start, epoch ms.
+      The chat draws "Talk, 2:44 pm, 1 min" over each talk's turns. */
+  talk?: number;
 };
 
 export type TiffThread = { id: string; title: string; updatedAt: number; messages: TiffMsg[] };
@@ -73,6 +76,7 @@ function msgOf(v: unknown): TiffMsg | null {
   if (Array.isArray(m.sources)) out.sources = m.sources as AskSourceItem[];
   if (Array.isArray(m.steps) && m.steps.every((s) => typeof s === "string")) out.steps = m.steps as string[];
   if (typeof m.email === "string" && /^[0-9a-f-]{36}$/i.test(m.email)) out.email = m.email;
+  if (typeof m.talk === "number" && Number.isFinite(m.talk)) out.talk = m.talk;
   if (Array.isArray(m.files)) {
     const files = m.files.flatMap((f: unknown) => {
       const o = (f && typeof f === "object" ? f : {}) as Record<string, unknown>;

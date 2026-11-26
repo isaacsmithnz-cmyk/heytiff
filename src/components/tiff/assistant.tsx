@@ -13,6 +13,10 @@ import { loadThreads, STORE_KEY, type TiffMsg, type TiffThread } from "@/lib/tif
 import { pullThreads, pushThreads } from "@/lib/tiff/thread-sync";
 import { categoryHue, clockOf, dayKeyOf, dayLabel, isEmailThread, threadWhen } from "@/lib/tiff/conversations";
 import { Button } from "@/components/parts/button";
+import { ReadOut, ReadingWord, useIsReading } from "@/components/tiff/read-out";
+import { startReading, stopSpeaking, unlockSpeech, type Reader } from "@/lib/voice/speaker";
+import { TalkDialog, type TalkTurn } from "@/components/tiff/talk";
+import { talkLines } from "@/lib/tiff/talk-line";
 import { ConfirmDialog, Dialog } from "@/components/parts/dialog";
 import { Field, TextInput } from "@/components/parts/field";
 import { Empty, Wrong } from "@/components/parts/states";
@@ -357,6 +361,11 @@ export function TiffAssistant({
     text: string;
     /** What she did before answering: her readers' own words. */
     steps: string[];
+    /** When she began, which is the answer's time once kept, and what Read
+        out knows it by. */
+    at: number;
+    /** Said in a talk: the talk's start (TiffMsg.talk). */
+    talk?: number;
   };
   const [live, setLive] = useState<Live | null>(null);
   const liveRef = useRef<Live | null>(null);
@@ -416,6 +425,7 @@ export function TiffAssistant({
     onTranscript: (spoken, { capped }) => {
       setVoiceErr(null);
       setRanOut(capped);
+      voiceAsked.current = true;
       setTyped((prev) => appendSpoken(prev ?? prefill ?? "", spoken));
     },
     onError: setVoiceErr,
@@ -532,7 +542,8 @@ export function TiffAssistant({
     appendTo(state.threadId, {
       role: "tiff",
       text: state.text,
-      at: nowMs(),
+      at: state.at,
+      ...(state.talk ? { talk: state.talk } : {}),
       ...(state.steps.length ? { steps: state.steps } : {}),
     });
   };
@@ -542,19 +553,46 @@ export function TiffAssistant({
      ask (/api/brain/ask), with her readers and her moves, so a chat begun on
      Home goes on here as the same Tiff, as the phone's do. What she reaches
      for is her steps; a screen she opens is the end of the turn. */
-  const run = (threadId: string, question: string, history: AskTurn[]) => {
+  /* ASKED OUT LOUD, ANSWERED OUT LOUD (the mock's first decision): a
+     question that came through the microphone has its answer read out as it
+     arrives, by the same reader as Read out, so the door under it says Stop
+     reading while she does. Typed, she only writes. */
+  const voiceAsked = useRef(false);
+  const readerRef = useRef<Reader | null>(null);
+  /* A TALK, open: when it began, which every turn said in it carries. */
+  const [talking, setTalking] = useState<number | null>(null);
+
+  /** Ask her, into the thread. Resolves once she has finished answering
+      and, out loud, saying it. */
+  const run = (
+    threadId: string,
+    question: string,
+    history: AskTurn[],
+    { aloud = false, talk }: { aloud?: boolean; talk?: number } = {}
+  ): Promise<void> => {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
 
     setFailure(null);
-    setLiveBoth({ threadId, text: "", steps: [] });
+    const at = nowMs();
+    setLiveBoth({ threadId, text: "", steps: [], at, ...(talk ? { talk } : {}) });
+    const reader = aloud ? startReading(`${threadId}:${at}`) : null;
+    readerRef.current = reader;
+    let answered!: () => void;
+    const over$ = new Promise<void>((r) => (answered = r));
+    controller.signal.addEventListener("abort", () => {
+      answered();
+      if (reader && readerRef.current === reader) stopSpeaking();
+    });
 
     let moved: string | null = null;
     let over = false;
     const finish = () => {
       if (over) return;
       over = true;
+      answered();
+      reader?.finish();
       const state = liveRef.current;
       if (state) commitLive(state);
       setLiveBoth(null);
@@ -570,6 +608,7 @@ export function TiffAssistant({
       {
         onDelta: (text) => {
           if (controller.signal.aborted) return;
+          reader?.feed(text);
           patchLive((prev) => ({ ...prev, text: prev.text + text }));
         },
         onTool: (label) => {
@@ -588,6 +627,8 @@ export function TiffAssistant({
         onError: (message) => {
           if (controller.signal.aborted || over) return;
           over = true;
+          answered();
+          reader?.finish();
           const state = liveRef.current;
           if (state) commitLive(state);
           setLiveBoth(null);
@@ -595,6 +636,7 @@ export function TiffAssistant({
         },
       }
     );
+    return Promise.all([over$, reader?.done]).then(() => {});
   };
 
   /** The last few turns, text only — what the route replays as context. */
@@ -604,12 +646,13 @@ export function TiffAssistant({
       text: m.text,
     }));
 
-  const send = (text: string) => {
+  const send = (text: string, { aloud = false, talk }: { aloud?: boolean; talk?: number } = {}): Promise<void> => {
     const trimmed = text.trim();
-    if (!trimmed) return;
+    voiceAsked.current = false;
+    if (!trimmed) return Promise.resolve();
 
     const at = nowMs();
-    const msg: Msg = { role: "user", text: trimmed, at };
+    const msg: Msg = { role: "user", text: trimmed, at, ...(talk ? { talk } : {}) };
     let threadId = active?.id ?? activeId;
     let next: Thread[];
 
@@ -630,7 +673,7 @@ export function TiffAssistant({
     persist(next);
     setTyped("");
     followRef.current = true;
-    run(threadId!, trimmed, historyOf(active?.messages ?? []));
+    return run(threadId!, trimmed, historyOf(active?.messages ?? []), { aloud, talk });
   };
 
   const retry = () => {
@@ -647,6 +690,7 @@ export function TiffAssistant({
      thread, deleting this one). */
   const leaveThread = () => {
     abortRef.current?.abort();
+    stopSpeaking();
     setLiveBoth(null);
     setFailure(null);
     setActiveId(null);
@@ -684,15 +728,38 @@ export function TiffAssistant({
      writeAskQuestion) is asked once the threads are in, in a conversation of
      its own: before then a send would write over the threads it can't see. */
   const askedHandoff = useRef(false);
-  const askHandedOver = useEffectEvent((question: string) => send(question));
+  const askHandedOver = useEffectEvent((question: string) => void send(question));
   useEffect(() => {
     if (!handoff.ask || askedHandoff.current || !hydrated) return;
     askedHandoff.current = true;
     askHandedOver(handoff.ask);
   }, [handoff.ask, hydrated]);
 
+  /* the talk's own turns, as the chat has them, hers still arriving last */
+  const talkTurns: TalkTurn[] =
+    talking === null
+      ? []
+      : [
+          ...(active?.messages ?? [])
+            .filter((m) => m.talk === talking)
+            .map((m) => ({ key: String(m.at), who: m.role === "tiff" ? ("tiff" as const) : ("you" as const), text: m.text, steps: m.steps })),
+          ...(live && live.talk === talking ? [{ key: String(live.at), who: "tiff" as const, text: live.text, steps: live.steps }] : []),
+        ];
+  const talkThread = active?.id ?? activeId ?? "";
+
   const dialogs = (
     <>
+      {talking !== null && (
+        <TalkDialog
+          turns={talkTurns}
+          readingId={(key) => `${talkThread}:${key}`}
+          onSay={(words) => send(words, { aloud: true, talk: talking })}
+          onEnd={() => {
+            setTalking(null);
+            focusBox();
+          }}
+        />
+      )}
       {peek && <SourcePeek source={peek} onClose={() => setPeek(null)} />}
       {renaming && (
         <RenameThread
@@ -744,6 +811,7 @@ export function TiffAssistant({
   /* in an email, her read is drawn by the Inbox; what was asked after it is
      a chat like any other */
   const shown = email ? afterRead(messages) : messages;
+  const talks = talkLines(shown, clockOf);
   const pane = (
     <section className="cv-pane" aria-label={email ? email.title : active ? active.title : "New conversation"}>
       {email ? (
@@ -770,6 +838,8 @@ export function TiffAssistant({
               <CvTurn
                 key={i}
                 m={m}
+                talk={talks[i]}
+                readId={`${active?.id ?? email?.threadId ?? ""}:${m.at}`}
                 day={!email && (i === 0 || dayKeyOf(shown[i - 1].at) !== dayKeyOf(m.at)) ? dayLabel(m.at, now) : null}
                 you={you}
                 titles={docTitles}
@@ -816,12 +886,21 @@ export function TiffAssistant({
       <CvBox
         value={input}
         onChange={setTyped}
-        onSubmit={() => send(input)}
+        onSubmit={() => void send(input, { aloud: voiceAsked.current })}
         label="Ask Tiff"
         placeholder={email ? "Ask Tiff about this email" : active ? "Reply to Tiff" : "Ask Tiff about this document"}
         sendWord="Send"
         waiting={working}
-        dict={voiceEnabled ? dict : null}
+        dict={voiceEnabled ? { ...dict, start: () => (unlockSpeech(), dict.start()) } : null}
+        onTalk={
+          voiceEnabled && !email
+            ? () => {
+                unlockSpeech();
+                stopSpeaking();
+                setTalking(nowMs());
+              }
+            : undefined
+        }
         voiceError={voiceErr}
         ranOut={ranOut}
         boxRef={boxRef}
@@ -852,6 +931,8 @@ export function TiffAssistant({
 
 function CvTurn({
   m,
+  readId,
+  talk,
   day,
   you,
   titles,
@@ -859,6 +940,10 @@ function CvTurn({
   onPeek,
 }: {
   m: Msg;
+  /** What Read out knows this answer by: its thread and its time. */
+  readId: string;
+  /** "Talk, 2:44 pm, 1 min", over the first turn of a talk. */
+  talk: string | null;
   /** The day's divider, on the first turn of each day. */
   day: string | null;
   you: string;
@@ -868,11 +953,17 @@ function CvTurn({
 }) {
   const docs = m.sources?.length ? groupSources(m.sources, titles) : [];
   const mine = m.role === "user";
+  const reading = useIsReading(readId);
   return (
     <>
       {day && (
         <div className="cv-day">
           <span>{day}</span>
+        </div>
+      )}
+      {talk && (
+        <div className="cv-day">
+          <span>{talk}</span>
         </div>
       )}
       {mine ? (
@@ -888,8 +979,9 @@ function CvTurn({
       ) : (
         <article className="jc-tiffturn">
           <p className="jc-tiffname">
-            <TiffGlyph size={18} />
+            <TiffGlyph size={18} working={reading} />
             <b>Tiff</b>
+            {reading && <ReadingWord />}
           </p>
           {m.steps && m.steps.length > 0 && <CvSteps steps={m.steps} />}
           <div className="cv-text">
@@ -898,6 +990,9 @@ function CvTurn({
           {m.truncated && <p className="cv-aside">That answer ran to its limit and stops mid-thought. Ask for the rest.</p>}
           {docs.length > 0 && <CvResults docs={docs} onPeek={onPeek} />}
           <CvSource m={m} docs={docs} canManage={canManage} />
+          <div className="tf-doors">
+            <ReadOut id={readId} text={m.text} />
+          </div>
           <p className="jc-bmtime">{clockOf(m.at)}</p>
         </article>
       )}

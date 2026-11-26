@@ -52,6 +52,7 @@ export function CvBox({
   onSave,
   saving = false,
   tiff = true,
+  onTalk,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -84,6 +85,10 @@ export function CvBox({
   /** The main button is Tiff's (her arrow and name); false where the box only
       keeps, and its main button says `sendWord`. */
   tiff?: boolean;
+  /** Talk: a hands-free talk with her. Where there is one, it stands in the
+      main button's place while the box is empty, and typing brings the ↑
+      back (the mock's board 2). */
+  onTalk?: () => void;
 }) {
   const listening = !!dict && (dict.recording || dict.transcribing);
   const empty = !value.trim();
@@ -202,7 +207,12 @@ export function CvBox({
                 Save
               </button>
             )}
-            {tiff ? (
+            {tiff && onTalk && empty && !hearing ? (
+              <button type="button" className="cv-save cv-save--main cv-talk" onClick={onTalk} disabled={waiting}>
+                <Icon name="wave" size={18} sw={2.2} />
+                Talk
+              </button>
+            ) : tiff ? (
               <TiffButton save={!!onSave}>
                 <button
                   type="submit"

@@ -10,7 +10,7 @@ import { jobMoneyOf } from "@/lib/workboard/job-money";
 import { getSm8Timezone } from "@/lib/workboard/query";
 import { sm8StaffLinkMap } from "@/lib/integrations/links";
 import { readLines } from "@/lib/quotes/lines-server";
-import { byHandOf, optionNames } from "@/lib/quotes/lines-job";
+import { byHandOf, optionNames, pickOption } from "@/lib/quotes/lines-job";
 import type { QuoteLine } from "@/lib/quotes/lines";
 import { getPaySettings } from "@/lib/timepay/query";
 import { DEFAULT_SUPER_PCT } from "@/lib/staff/my-pay";
@@ -53,13 +53,9 @@ export type JobMoneyRead = {
 const UUID = /^[0-9a-f-]{36}$/i;
 const low = (s: string) => s.toLowerCase();
 
-/** The option the money is about: the one accepted, or the only one there is. Pure. */
-export function pickOption(accepted: readonly number[], present: readonly number[]): number | null {
-  const there = [...new Set(present)].sort((a, b) => a - b);
-  const took = accepted.find((i) => there.includes(i));
-  if (took !== undefined) return took;
-  return there.length === 1 ? there[0]! : null;
-}
+/* The option the money is about (lines-job.ts pickOption): kept there so
+   purchases measure against the same option. */
+export { pickOption };
 
 /** One option's lines at cost, by kind. A labour line's quantity is hours. Pure. */
 export function allowedOf(lines: readonly QuoteLine[], option: number, name: string): Allowed {

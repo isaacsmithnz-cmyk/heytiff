@@ -185,6 +185,30 @@ export function JobMediaViewer({
     if (el && !el.contains(document.activeElement))
       el.focus({ preventScroll: true });
   }, []);
+  /* FULL SCREEN (bug 119, Isaac, 26 November 2026: "cant go fullscreen
+     with plans"): the viewer itself, in the browser's own full screen, a
+     plan's page or a PDF filling the screen; the button or Escape brings
+     it back. Offered only where the browser can. A question over it, or
+     the viewer closing, leaves full screen first: nothing drawn outside the
+     viewer shows while it fills the screen. */
+  const canFull = typeof document !== "undefined" && typeof document.documentElement.requestFullscreen === "function";
+  const [full, setFull] = useState(false);
+  useEffect(() => {
+    const el = dialog.current;
+    const on = () => setFull(el !== null && document.fullscreenElement === el);
+    document.addEventListener("fullscreenchange", on);
+    return () => {
+      document.removeEventListener("fullscreenchange", on);
+      if (el && document.fullscreenElement === el) void document.exitFullscreen().catch(() => {});
+    };
+  }, []);
+  useEffect(() => {
+    if (asking && document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+  }, [asking]);
+  const toggleFull = () => {
+    if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+    else void dialog.current?.requestFullscreen().catch(() => {});
+  };
   /* The arrows walk the lens, unless the question over it is open. */
   const askingNow = asking !== null;
   useEffect(() => {
@@ -408,6 +432,11 @@ export function JobMediaViewer({
               onClick={() => onStar(item.remoteId)}
             >
               {starred ? "Starred" : "Star"}
+            </Button>
+          )}
+          {canFull && (
+            <Button kind="second" aria-pressed={full} onClick={toggleFull}>
+              {full ? "Exit full screen" : "View full screen"}
             </Button>
           )}
           <IconButton glyph="close" label="Close viewer" onClick={onClose} />

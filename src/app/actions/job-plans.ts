@@ -3,7 +3,7 @@
 import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
 import { staffProfileIdFor } from "@/lib/fleet/query";
-import { addJobPlans, choosePlanFloors, readPlanAgain, keepSubfloorHeight, planPageForScale, readJobPlans, setPlanScale, type AddPlansResult, type PageForScale } from "@/lib/jobs/plans-server";
+import { addJobPlans, choosePlanFloors, readPlanAgain, keepSubfloorHeight, planPageForScale, planPagesToView, readJobPlans, setPlanScale, type AddPlansResult, type PageForScale, type PageToView } from "@/lib/jobs/plans-server";
 import type { JobPlanRead, PlanPick } from "@/lib/jobs/plans";
 import type { LinkPlansResult } from "@/lib/jobs/plans-link-server";
 
@@ -72,6 +72,15 @@ export async function pageForScale(jobUuid: string, planId: string, n: number): 
   const page = num(n);
   if (!ctx || !job || !plan || page == null) return null;
   return planPageForScale(ctx.orgId, job, plan, page);
+}
+
+/** A plan's floor pages, their full pictures, to look at big (bug 119). */
+export async function pagesToView(jobUuid: string, planId: string): Promise<PageToView[] | null> {
+  const ctx = await context();
+  const job = trim(jobUuid);
+  const plan = trim(planId);
+  if (!ctx || !job || !plan) return null;
+  return planPagesToView(ctx.orgId, job, plan);
 }
 
 /** Set scale: the length between two points on a page, kept on the job's

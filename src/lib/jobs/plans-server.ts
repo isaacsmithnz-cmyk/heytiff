@@ -829,6 +829,26 @@ export async function planPageForScale(orgId: string, jobUuid: string, planId: s
   return { url: data.signedUrl, width: page.width, height: page.height, at };
 }
 
+/** A plan's floor page, its full picture signed, to look at over the job
+    (bug 119). */
+export type PageToView = { n: number; url: string; width: number; height: number };
+
+/** Every floor page of a job's plan, its full picture signed, in the order
+    the set prints them: what a page's picture on the Scope tab opens, to
+    walk with Previous and Next. Null when the plan isn't this job's. */
+export async function planPagesToView(orgId: string, jobUuid: string, planId: string): Promise<PageToView[] | null> {
+  const plan = await readJobPlan(orgId, planId);
+  if (!plan || plan.jobUuid !== jobUuid) return null;
+  const floors = plan.pages.filter((p) => p.kind === "floor" && p.ref).sort((a, b) => a.n - b.n);
+  if (floors.length === 0) return [];
+  const { data } = await supabaseAdmin.storage.from(PLANS_BUCKET).createSignedUrls(floors.map((p) => p.ref as string), SIGNED_SECONDS);
+  const signed = new Map((data ?? []).flatMap((u) => (u.path && u.signedUrl ? [[u.path, u.signedUrl] as const] : [])));
+  return floors.flatMap((p) => {
+    const url = signed.get(p.ref as string);
+    return url ? [{ n: p.n, url, width: p.width, height: p.height }] : [];
+  });
+}
+
 /** the shortest line a scale may be set from, in the page's pixels: a
     shorter one makes every room's error large */
 const SET_SPAN_PX = 20;

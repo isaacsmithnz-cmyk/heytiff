@@ -4345,6 +4345,8 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring);; }
   box-sizing:border-box; overflow:hidden; background:var(--white); color:var(--ink); border-radius:var(--r-card);
   box-shadow:var(--shadow-overlay); font-family:var(--font); }
 .wb2-mv:focus { outline:none; }
+/* full screen (bug 119): the screen's own edges, nothing floating */
+.wb2-mv:fullscreen { border-radius:0; box-shadow:none; }
 .wb2-mvtop { display:flex; align-items:center; gap:8px; min-width:0; }
 .wb2-mvwho { flex:1; min-width:0; display:flex; flex-direction:column; }
 .wb2-mvname { margin:0; min-width:0; font-size:20px; line-height:28px; font-weight:600; color:var(--ink); }
@@ -6696,6 +6698,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jst-rail .jpl-pages { align-self:stretch; display:grid; grid-template-columns:repeat(auto-fill, minmax(120px, 1fr)); gap:12px 8px; }
 .fg .jst-rail .jpl-page { width:auto; min-width:0; }
 .fg .jst-rail .jpl-page img { width:100%; height:auto; aspect-ratio:160 / 113; }
+.fg .jst-rail .jpl-page .jpl-pageopen { width:100%; }
 .fg .jst .jsc { max-width:none; }
 /* To do: a task's tick, and its words as the door to its own form (Isaac, 24 October 2026) */
 .fg .jov-task { justify-content:flex-start; align-items:flex-start; gap:8px; padding:8px 0; }
@@ -9106,6 +9109,9 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jpl-page img { display:block; width:160px; height:113px; object-fit:cover; border:1px solid var(--edge); border-radius:var(--r-control); background:var(--white); }
 .fg .jpl-page > span { font-size:12px; line-height:16px; font-weight:500; color:var(--q); }
 .fg .jpl-page .pt-btn { align-self:flex-start; margin-top:4px; }
+/* a page's picture opens it big (bug 119): the picture is the button */
+.fg .jpl-page .jpl-pageopen { display:block; margin:0; padding:0; border:0; background:none; border-radius:var(--r-control); cursor:zoom-in; }
+.fg .jpl-page .jpl-pageopen:focus-visible { outline:none; box-shadow:var(--ring); }
 /* under a set she isn't sure of: its pages, then Choose floors */
 .fg .jpl-below { display:flex; flex-direction:column; align-items:flex-start; gap:12px; position:relative; z-index:var(--z-raised); }
 /* the bar under a plan Tiff is reading: its words, then how far, the row's width */
@@ -9278,7 +9284,8 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 /* REPORT BUG (Your name, for the owner; components/shell/report-bug). The
    dialog portals to <body>, so these are one class each. The picture that
    goes with the bug, whole, its edge the line and the button's 10 corner. */
+/* the picture gives way on a short window, so What's wrong? is never under the foot (bug 115) */
 .rb-body { display:flex; flex-direction:column; gap:16px; }
 .rb-shot { display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
-.rb-pic { display:block; max-width:100%; max-height:320px; width:auto; height:auto; box-sizing:border-box; border:1px solid var(--line); border-radius:10px; background:var(--white); }
+.rb-pic { display:block; max-width:100%; max-height:min(320px, 40vh); width:auto; height:auto; box-sizing:border-box; border:1px solid var(--line); border-radius:10px; background:var(--white); }
 .rb-none { margin:0; font-size:14px; line-height:20px; color:var(--q); }

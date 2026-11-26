@@ -804,6 +804,55 @@ it("offers Choose floors on a set she isn't sure of, opening Plans on it, and sa
   await waitFor(() => expect(screen.queryByRole("dialog", { name: "Plans" })).toBeNull());
 });
 
+/* bug 117 (Isaac, 26 November 2026: "it says check the read but nothing
+   to action?"): the word sat over the row's door and did nothing */
+it("makes Check the read a button that opens what's to check: the floors, or else the set", async () => {
+  const onChooseFloors = jest.fn(async () => null);
+  const onOpen = jest.fn();
+  const unsure = readPlan({ state: "check", said: "Pages 3 and 4 both read as Ground floor: choose which floor each is" });
+  face({ documents: [fictor], plans: [unsure], onChooseFloors, onOpen });
+  const row = within(group("Plans")).getByText(fictor.name).closest(".pt-row") as HTMLElement;
+  await userEvent.click(within(row).getByRole("button", { name: "Check the read" }));
+  expect(await screen.findByRole("dialog", { name: "Plans" })).toBeInTheDocument();
+  expect(onOpen).not.toHaveBeenCalled();
+  cleanup();
+
+  /* nothing here to choose: the set opens, to look at */
+  face({ documents: [fictor], plans: [readPlan({ state: "check", said: "The roof wasn't read" })], onOpen });
+  await userEvent.click(screen.getByRole("button", { name: "Check the read" }));
+  expect(onOpen).toHaveBeenCalledWith(fictor);
+});
+
+it("keeps Read a word, not a button", () => {
+  face({ documents: [fictor], plans: [readPlan()], onChooseFloors: async () => null });
+  expect(screen.queryByRole("button", { name: "Read" })).toBeNull();
+  expect(screen.getByText("Read")).toBeInTheDocument();
+});
+
+/* bug 119: a page's picture opened nothing */
+it("opens a floor page big from its picture", async () => {
+  const onOpenPage = jest.fn();
+  const plan = readPlan();
+  face({ documents: [fictor], plans: [plan], onOpenPage, part: "plans" });
+  await userEvent.click(screen.getByRole("button", { name: "Open Level 1, page 4" }));
+  expect(onOpenPage).toHaveBeenCalledWith(plan, 4);
+});
+
+/* bug 118 (Isaac, 26 November 2026: "no plans in files"): on Files, where
+   the plans aren't drawn, the set filed on the job left the list */
+it("lists the plans' own files on Files, first, as files that open, with nothing of the read", async () => {
+  const onOpen = jest.fn();
+  face({ documents: [fictor, photoDoc], plans: [readPlan()], onOpen, part: "papers" });
+  const groups = screen.getAllByRole("region").map((g) => g.getAttribute("aria-label"));
+  expect(groups.slice(0, 2)).toEqual(["Plans", "Files"]);
+  const row = within(group("Plans")).getByText(fictor.name).closest(".pt-row") as HTMLElement;
+  expect(within(row).queryByRole("img")).toBeNull();
+  expect(within(row).queryByText("Read")).toBeNull();
+  await userEvent.click(within(row).getByRole("button", { name: fictor.name }));
+  expect(onOpen).toHaveBeenCalledWith(fictor);
+  expect(screen.queryByText("No documents on this job")).toBeNull();
+});
+
 it("offers no Choose floors on a plan she read sure, or where it can't be saved", () => {
   face({ documents: [fictor], plans: [readPlan()], onChooseFloors: async () => null });
   expect(screen.queryByRole("button", { name: "Choose floors" })).toBeNull();
@@ -848,7 +897,7 @@ it("offers Read again on a plan that read, but not on one being read, or where i
 });
 
 /* the plans on Scope, the papers on Files (Isaac, 15 November 2026: "Plans move too") */
-it("draws the plans alone on Scope, with Add plans, and Files without them", async () => {
+it("draws the plans alone on Scope, with Add plans, and Files with their files alone (bug 118)", async () => {
   const onAddPlans = jest.fn(async () => null);
   const first = face({ documents: [fictor, photoDoc], plans: [readPlan()], onAddPlans, onUpload: async () => null, part: "plans" });
   expect(screen.getByRole("heading", { name: "Plans" })).toBeInTheDocument();
@@ -857,7 +906,8 @@ it("draws the plans alone on Scope, with Add plans, and Files without them", asy
   expect(screen.getByRole("button", { name: "Add plans" })).toBeInTheDocument();
   first.unmount();
   face({ documents: [fictor, photoDoc], plans: [readPlan()], onAddPlans, onUpload: async () => null, part: "papers" });
-  expect(screen.queryByRole("region", { name: "Plans" })).toBeNull();
+  expect(within(group("Plans")).getByText(fictor.name)).toBeInTheDocument();
+  expect(within(group("Plans")).queryByText("Read")).toBeNull();
   const items = within(await addMenu()).getAllByRole("menuitem").map((i) => i.textContent);
   expect(items).not.toContain("Add plans");
 });

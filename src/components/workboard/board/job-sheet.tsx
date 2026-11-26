@@ -28,9 +28,9 @@ import { readBilling } from "@/lib/workboard/job-billing";
 import { buildJobStory, storyStamp } from "@/lib/workboard/job-story";
 import { JobMoneyBlock } from "./job-money-block";
 import { cacheJobFiles } from "@/app/actions/workboard-media";
-import { addPlansToJob, chooseFloorsOnPlan, pageForScale, readPlanAgainOnJob, readPlansOnJob, setScaleOnPlan } from "@/app/actions/job-plans";
+import { addPlansToJob, chooseFloorsOnPlan, pageForScale, pagesToView, readPlanAgainOnJob, readPlansOnJob, setScaleOnPlan } from "@/app/actions/job-plans";
 import { kickPlanReads, PLAN_POLL_MS, plansToAskAgain, SCOPE_FROM_PLANS_MS } from "@/lib/jobs/plans-client";
-import type { JobPlanRead, PlanPick } from "@/lib/jobs/plans";
+import { floorPagesOf, pageCaption, type JobPlanRead, type PlanPick } from "@/lib/jobs/plans";
 import { fileOnJob } from "@/lib/documents/file-on-job";
 import { readJobPhotos } from "@/app/actions/photo-readings";
 import {
@@ -469,6 +469,8 @@ export function JobSheet({
     | { kind: "page"; item: JobMediaItem }
     /* a licence or certificate on the job — its pages, by where the arrows are */
     | { kind: "papers"; id: string; index: number }
+    /* a plan's floor pages, big, by where the arrows are (bug 119) */
+    | { kind: "plan"; items: JobMediaItem[]; index: number; line: string }
     | null
   >(null);
   const [name, setName] = useState("");
@@ -599,6 +601,38 @@ export function JobSheet({
     const fresh = await readPlansOnJob(cardId).catch(() => null);
     if (fresh) setPlans(fresh);
     return null;
+  };
+
+  /* A PLAN'S PAGE, BIG (bug 119, Isaac, 26 November 2026: "cant go
+     fullscreen with plans, no horizontal scroll"): a page's picture on the
+     Scope tab opens the set's floor pages in the viewer, on the one
+     pressed, each its full picture, so the wheel zooms it, a drag or the
+     scrollbars move it either way, and the head takes it full screen. */
+  const openPlanPage = async (plan: JobPlanRead, n: number) => {
+    if (!cardId) return;
+    const shown = await pagesToView(cardId, plan.id).catch(() => null);
+    if (!shown || shown.length === 0) {
+      onToast("The plan's pages couldn't be opened. Try again.");
+      return;
+    }
+    const floors = floorPagesOf(plan);
+    const items: JobMediaItem[] = shown.map((pg) => {
+      const page = floors.find((f) => f.n === pg.n);
+      return {
+        remoteId: `plan:${plan.id}:${pg.n}`,
+        name: page ? pageCaption(page) : `Page ${pg.n}`,
+        fileType: ".png",
+        kind: "photo",
+        origin: null,
+        takenAt: null,
+        url: pg.url,
+        width: pg.width,
+        height: pg.height,
+        fromClaim: null,
+      };
+    });
+    const at = items.findIndex((i) => i.remoteId === `plan:${plan.id}:${n}`);
+    setViewer({ kind: "plan", items, index: Math.max(0, at), line: plan.name });
   };
 
   /* WHO ELSE HAS THIS JOB OPEN (use-record-presence), and word when one of
@@ -2033,6 +2067,7 @@ export function JobSheet({
           onPageForScale={cardId ? (planId, n) => pageForScale(cardId, planId, n) : undefined}
           onSetScale={cardId ? setPlanScale : undefined}
           onChooseFloors={cardId ? choosePlanFloors : undefined}
+          onOpenPage={cardId ? (plan, n) => void openPlanPage(plan, n) : undefined}
         />
       )}
     </section>
@@ -2358,10 +2393,23 @@ export function JobSheet({
           );
         })()}
 
+      {/* A plan's floor pages, big (bug 119). */}
+      {viewer?.kind === "plan" && (
+        <JobMediaViewer
+          items={viewer.items}
+          index={Math.min(viewer.index, viewer.items.length - 1)}
+          favourites={null}
+          line={viewer.line}
+          onNav={(i) => setViewer({ ...viewer, index: i })}
+          onClose={() => setViewer(null)}
+        />
+      )}
+
       {/* The shared viewer — same portal, same law as the claim modal. */}
       {viewer &&
         viewer.kind !== "page" &&
         viewer.kind !== "papers" &&
+        viewer.kind !== "plan" &&
         media &&
         (() => {
           /* THE VIEWER CARRIES ONLY WHAT IT CAN SHOW. A video's bytes stay

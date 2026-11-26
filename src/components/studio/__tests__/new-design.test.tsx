@@ -254,6 +254,18 @@ describe("New design, opened on a job", () => {
     expect(saved().meta).toMatchObject({ name: "6 Nostrud Avenue", jobNumber: "3406", client: "Tangent" });
   });
 
+  /* bug 120: a second press makes no second design */
+  it("a blank canvas pressed twice makes one design", async () => {
+    render(<Studio store={new LocalDesignStore(window.localStorage)} planImages={new FakePlanImages()} sm8Jobs forJob={job} />);
+    const dialog = await screen.findByRole("dialog", { name: "New design" });
+    const blank = within(dialog).getByRole("button", { name: "Start with a blank canvas" });
+    fireEvent.click(blank);
+    fireEvent.click(blank);
+    await waitFor(() => expect(saved().jobLink).toMatchObject({ remoteId: "job-3406" }));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(JSON.parse(window.localStorage.getItem(INDEX) ?? "[]")).toHaveLength(1);
+  });
+
   it("plans dropped on a job go into the job's Plans, read once there, not into the design alone", async () => {
     fileOnJob.mockResolvedValue({ ok: true, documentId: "doc-1" });
     addPlansToJob.mockResolvedValue({ ok: true, planIds: ["plan-1"] });

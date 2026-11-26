@@ -37,6 +37,10 @@ export type FirstRunActions = {
 };
 
 const NETWORK = "Couldn't save. Check your connection and try again.";
+/* Out here, not inline in a try: React Compiler 1.0 can't lower a value block (`??`, a ternary) inside a try/catch
+   and gives up on the whole component when it meets one. */
+const fieldsOf = (f: string[] | undefined) => f ?? [];
+const sourceOf = (mode: ScanMode) => (mode === "scanned" ? "scan" : "manual");
 
 const TITLES: Record<Step, string> = {
   business: "Set up your business",
@@ -122,7 +126,7 @@ export function FirstRun({
       if (r.ok) next();
       else {
         setSaid(r.error);
-        setBad(r.fields ?? []);
+        setBad(fieldsOf(r.fields));
       }
     } catch {
       setSaid(NETWORK);
@@ -402,8 +406,9 @@ function LicenceDialog({
   const save = async () => {
     setBusy(true);
     setSaid(null);
+    const scan: LicenceTermInput = { ...termInput(term), documentId: docId, source: sourceOf(mode) };
     try {
-      const r = await actions.addLicence({ typeName }, { ...termInput(term), documentId: docId, source: mode === "scanned" ? "scan" : "manual" });
+      const r = await actions.addLicence({ typeName }, scan);
       if (r.ok) {
         onSaved();
         return onClose();

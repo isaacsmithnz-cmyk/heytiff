@@ -32,6 +32,8 @@ export type StartActions = {
 };
 
 const NETWORK = "Couldn't reach HeyTiff. Check the connection and try again.";
+/* Out here, not inline in a try: React Compiler 1.0 can't lower a `??` inside a try/catch. */
+const errorOf = (e: string | undefined) => e ?? NETWORK;
 const first = (name: string | null) => name?.split(" ")[0] ?? null;
 const initials = (name: string | null) =>
   (name ?? "?")
@@ -61,7 +63,7 @@ export function StartScreen({ state, email, actions }: { state: StartState; emai
     try {
       const r = await fn();
       if (r.ok) return then();
-      setSaid(r.error ?? NETWORK);
+      setSaid(errorOf(r.error));
     } catch {
       setSaid(NETWORK);
     }

@@ -36,6 +36,8 @@ export type PanelJob = {
   tone: Tone;
   toBook: boolean;
   words: string;
+  /** what the job is, ServiceM8's description on one line, or null */
+  about: string | null;
 };
 
 export type SchedulePage = {
@@ -184,7 +186,8 @@ export async function loadSchedulePage(params: Record<string, string | string[] 
     its days and the panel reads this once, kept in the browser between
     switches and read again behind them (app/actions/schedule-panel). */
 export async function schedulePanelJobs(): Promise<PanelJob[]> {
-  const list = await loadJobsList();
+  const list = await loadJobsList({ about: true });
+  const about = list?.about ?? {};
   return (list?.rows ?? [])
     .filter((r) => r.key.startsWith(SM8))
     .map((r) => ({
@@ -198,5 +201,6 @@ export async function schedulePanelJobs(): Promise<PanelJob[]> {
       tone: r.tone,
       toBook: r.views.includes("to-book"),
       words: r.words,
+      about: about[r.key.slice(SM8.length)] ?? null,
     }));
 }

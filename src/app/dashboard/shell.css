@@ -8029,7 +8029,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .sc-bar { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
 .fg .sc-pager { display:inline-flex; align-items:center; gap:4px; }
 .fg .sc-pager b { font-size:14px; line-height:20px; font-weight:600; color:var(--ink); padding:0 4px; font-variant-numeric:tabular-nums; }
-.fg .sc-body { display:flex; align-items:stretch; gap:24px; min-width:0; flex:1 1 auto; min-height:0; }
+.fg .sc-body { display:flex; align-items:stretch; gap:16px; min-width:0; flex:1 1 auto; min-height:0; }
 .fg .sc-board { position:relative; flex:1 1 auto; min-width:0; min-height:0; overflow:auto; transition:opacity var(--t-fast) var(--ease); }
 .fg .sc-board.sc-switching { opacity:.5; }
 .fg .sc-who { width:152px; flex:none; display:flex; align-items:center; gap:8px; padding:8px 8px 8px 0; min-width:0; }
@@ -8037,11 +8037,24 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .sc-name { font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
 .fg .sc-pn em { font-style:normal; font-size:12px; line-height:16px; font-weight:500; color:var(--q); white-space:nowrap; }
 .fg .sc-pn .pt-state { font-size:12px; line-height:16px; white-space:nowrap; }
-/* the day: an axis, then a row per person */
-.fg .sc-axis { position:relative; height:24px; margin-left:152px; border-bottom:1px solid var(--line); }
-.fg .sc-axis span { position:absolute; bottom:4px; transform:translateX(-50%); font-size:12px; line-height:16px; font-weight:500; color:var(--q); white-space:nowrap; }
+/* THE BOARD IS A CARD WITH A FILLED HEAD (Isaac, 27 November 2026, "Yes"
+   to the Schedule mock, https://claude.ai/artifact/NzyufStjUFAzFpGpDYxKm7),
+   as a job page's At a glance: the hours (the week's days) in white on the
+   quiet grey, the people's rows on white under it, curling into the head at
+   both corners with the job page's 26. The rows scroll; the head stays. */
+.fg .sc-board:has(> .sc-day), .fg .sc-board:has(> .sc-week) { display:flex; flex-direction:column; overflow:hidden; }
+.fg .sc-day, .fg .sc-week { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; border-radius:var(--r-card); background:var(--q); box-shadow:var(--shadow-card); }
+.fg .sc-dhead { flex:none; padding:0 16px 0 8px; }
+.fg .sc-dhead .sc-shutname { padding-top:8px; color:var(--white); }
+.fg .sc-rows { flex:1 1 auto; min-height:0; overflow-y:auto; padding:8px 16px 8px 8px; border-radius:26px 26px var(--r-card) var(--r-card); background:var(--paper); }
+/* the day: the hours in the head, then a row per person */
+.fg .sc-axis { position:relative; height:56px; margin-left:152px; }
+.fg .sc-axis span { position:absolute; top:16px; transform:translateX(-50%); font-size:13px; line-height:24px; font-weight:600; color:var(--white); white-space:nowrap; }
 .fg .sc-axis span:first-child { transform:none; }
-.fg .sc-row { display:flex; align-items:stretch; min-height:64px; border-bottom:1px solid var(--line); }
+.fg .sc-row { display:flex; align-items:stretch; min-height:92px; }
+.fg .sc-rows > .sc-row + .sc-row { border-top:1px solid var(--line); }
+/* someone with nothing on the day: a shorter row, at the foot of the board */
+.fg .sc-row.sc-freerow { min-height:56px; }
 .fg .sc-track { position:relative; flex:1 1 auto; min-width:0; }
 .fg .sc-holding .sc-track, .fg .sc-holding .sc-cell { cursor:copy; }
 .fg .sc-vl { position:absolute; top:0; bottom:0; border-left:1px solid var(--line); }
@@ -8094,8 +8107,9 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .sc-dim .sc-who, .fg .sc-dim .sc-blk, .fg .sc-dim .sc-wbar { opacity:.45; }
 /* the week: a row per person, a column per day, a job over days one bar */
 .fg .sc-week { display:flex; flex-direction:column; }
-.fg .sc-wh { display:grid; grid-template-columns:152px repeat(5, minmax(0,1fr)); border-bottom:1px solid var(--line); }
-.fg .sc-wh b { padding:8px; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); border-left:1px solid var(--line); }
+.fg .sc-wh { flex:none; display:grid; grid-template-columns:152px repeat(5, minmax(0,1fr)); align-items:center; min-height:56px; padding:0 16px 0 8px; }
+.fg .sc-wh b { padding:8px; font-size:14px; line-height:20px; font-weight:600; color:var(--white); }
+.fg .sc-wh .sc-shutname { color:var(--white); }
 .fg .sc-wrow { display:grid; grid-template-columns:152px minmax(0,1fr); border-bottom:1px solid var(--line); min-height:64px; }
 .fg .sc-cells { position:relative; display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); grid-auto-flow:row dense; gap:4px 0; padding:8px 0; align-content:start; }
 .fg .sc-cell { border-left:1px solid var(--line); margin:-8px 0; }
@@ -8109,7 +8123,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .sc-ask p { margin:0; font-size:14px; line-height:20px; color:var(--ink); }
 .fg .sc-askacts { display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
 /* Jobs, on the right */
-.fg .sc-panel { width:320px; flex:none; display:flex; flex-direction:column; gap:12px; min-height:0; padding-left:24px; border-left:1px solid var(--line); }
+.fg .sc-panel { width:400px; flex:none; display:flex; flex-direction:column; gap:12px; min-height:0; }
 .fg .sc-panel .pt-tray { align-self:flex-start; flex:none; }
 .fg .sc-h2 { margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
 .fg .sc-panelhead { display:flex; align-items:center; justify-content:space-between; gap:8px; }
@@ -8128,6 +8142,75 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .sc-job.sc-card:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
 .fg .sc-job.sc-card.sc-picked { background:var(--sel); }
 .fg .sc-job .sc-grip { display:inline-flex; align-self:center; flex:none; margin-right:8px; color:var(--q); }
+/* A BOOKING ON THE DAY (the same mock): white words' room on the soft
+   grey, no hairline, its start time first in bold and where it's up to
+   beside it, then the client, the suburb and the kind. A card narrower than
+   170 carries its number in a band across the top and keeps the time, the
+   client and the suburb (the card's own container query). */
+.fg .sc-day .sc-blk.sc-card { height:76px; border:0; border-radius:var(--r-button); background:var(--soft); }
+.fg .sc-day .sc-card .sc-cn { min-width:52px; font-size:13px; line-height:18px; }
+.fg .sc-day .sc-card--off .sc-cn { background:var(--paper); }
+.fg .sc-dcard { container-type:inline-size; }
+.fg .sc-ci { flex:1 1 auto; display:flex; align-items:stretch; min-width:0; }
+.fg .sc-dcard .sc-cb { justify-content:flex-start; padding:4px 8px; }
+.fg .sc-c0 { display:flex; align-items:center; gap:8px; min-width:0; font-size:12px; line-height:16px; }
+.fg .sc-ct { min-width:0; font-weight:700; color:var(--ink); }
+.fg .sc-dcard .sc-c1 { font-size:13px; line-height:18px; }
+.fg .sc-c4 { font-size:12px; line-height:16px; color:var(--q); }
+@container (max-width:169px) {
+  .fg .sc-ci { flex-direction:column; }
+  .fg .sc-ci > .sc-cn { flex:none; min-width:0; height:20px; justify-content:flex-start; font-size:12px; line-height:16px; }
+  .fg .sc-ci > .sc-cb { padding:2px 8px; }
+  .fg .sc-ci .sc-cs, .fg .sc-ci .sc-c4 { display:none; }
+}
+/* A TEAM'S BOOKING, drawn once across its people's rows (TeamCard): each
+   row of the team 76 high with no hairline between, the card white on a
+   hairline and the card shadow so it reads as one thing, read as a job
+   page's Next visit (the hours at 20, the client at 16, the street whole, a
+   person and who); what the job is under them, two lines, where the card
+   spans three rows or more */
+.fg .sc-row.sc-trow { box-sizing:content-box; min-height:76px; height:76px; }
+.fg .sc-rows > .sc-trow:not(.sc-tfirst) { border-top-color:transparent; }
+.fg .sc-day .sc-blk.sc-tcard { z-index:1; background:var(--paper); box-shadow:inset 0 0 0 1px var(--line), var(--shadow-card); }
+.fg .sc-holding .sc-tcard { pointer-events:none; }
+.fg .sc-day .sc-tcard .sc-cn { min-width:64px; align-items:flex-start; padding-top:16px; font-size:16px; line-height:24px; }
+.fg .sc-tcard .sc-cb { justify-content:flex-start; padding:8px 16px; }
+.fg .sc-tcard .sc-c0 { align-items:baseline; }
+.fg .sc-tw { font-size:20px; line-height:28px; font-weight:600; color:var(--ink); white-space:nowrap; }
+.fg .sc-tk { font-size:14px; line-height:20px; color:var(--q); white-space:nowrap; }
+.fg .sc-tcard .sc-cs { font-size:13px; line-height:18px; }
+.fg .sc-tcard .sc-c1 { margin-top:4px; font-size:16px; line-height:24px; }
+.fg .sc-ta { font-size:14px; line-height:20px; color:var(--q); overflow-wrap:anywhere; }
+.fg .sc-tp { display:flex; align-items:center; gap:4px; min-width:0; margin-top:4px; overflow:hidden; white-space:nowrap; font-size:14px; line-height:20px; color:var(--ink); }
+.fg .sc-tp svg { flex:none; color:var(--q); }
+.fg .sc-tp b { margin-right:4px; font-weight:600; font-variant-numeric:tabular-nums; }
+.fg .sc-td { margin-top:8px; font-size:14px; line-height:20px; color:var(--ink); }
+.fg .sc-tcard[data-span="2"] .sc-td { display:none; }
+/* JOBS IS A CARD WITH A FILLED HEAD (the same mock): Jobs and its tabs in
+   white on the quiet grey, the picked tab white with grey words, as a job
+   page's Activity feed; the search and Block out time at the top of the
+   white body, which curls into the head; each job a row of a white group,
+   its number in the job's colour, the client, the suburb and the kind,
+   then two lines of what the job is */
+.fg .sc-panel:has(> .sc-pbody) { gap:0; overflow:hidden; border-radius:var(--r-card); background:var(--q); box-shadow:var(--shadow-card); }
+.fg .sc-panel > .sc-panelhead { flex:none; min-height:56px; padding:0 12px 0 16px; }
+.fg .sc-panelhead .sc-h2 { color:var(--white); }
+.fg .sc-panelhead .pt-tray { align-self:center; padding:0; border:0; }
+.fg .sc-panelhead .pt-tray .pt-tray-opt, .fg .sc-panelhead .pt-tray .pt-tray-opt:hover { font-size:14px; line-height:20px; font-weight:600; color:var(--white); }
+.fg .sc-panelhead .pt-tray .pt-tray-opt[aria-checked="true"] { background:var(--white); color:var(--q); }
+.fg .sc-pbody { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; gap:12px; padding:16px 16px 0; border-radius:26px 26px 0 0; background:var(--paper); }
+.fg .sc-pbar { flex:none; display:flex; align-items:center; gap:8px; }
+.fg .sc-pbar > .pt-search { flex:1 1 auto; min-width:0; }
+.fg .sc-pbody > .sc-jobs:not(.sc-offs) { gap:0; margin:0 -16px; }
+.fg .sc-pbody .sc-jobs > li + li > .sc-job { border-top:1px solid var(--line); }
+.fg .sc-pbody .sc-job.sc-card { min-height:64px; gap:12px; align-items:flex-start; padding:12px 8px 12px 16px; border:0; border-radius:0; }
+.fg .sc-pbody .sc-jobs.sc-offs .sc-job.sc-card { border-radius:var(--r-button); }
+.fg .sc-pbody .sc-job .sc-cn { min-width:48px; height:40px; border-radius:var(--r-control); font-size:13px; line-height:18px; }
+.fg .sc-pbody .sc-job .sc-cb { justify-content:flex-start; padding:0; }
+.fg .sc-pbody .sc-job .sc-c1 { font-size:16px; line-height:24px; }
+.fg .sc-pbody .sc-job .sc-c3, .fg .sc-pbody .sc-job .sc-c2 { font-size:14px; line-height:20px; }
+.fg .sc-pbody .sc-job .sc-cs { font-size:13px; line-height:18px; }
+.fg .sc-jd { font-size:14px; line-height:20px; color:var(--ink); }
 /* Schedule, 4 weeks: each weekday's booked hours against the crew's, as a
    word (Room under 85%, Full to 100%, Over past it); a day opens its Day */
 /* 4 weeks and the month fill the board's height, a row each week, and a

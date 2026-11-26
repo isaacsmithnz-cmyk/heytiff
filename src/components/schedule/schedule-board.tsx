@@ -34,7 +34,9 @@ import {
   clockWord,
   dayHead,
   dayLine,
+  dayOrder,
   daysFit,
+  firstNames,
   fitOf,
   isWeekend,
   fitWord,
@@ -51,6 +53,7 @@ import {
   workingDaysFrom,
   type DayAway,
   type DayBlock,
+  type DayTeam,
   type Fit,
   type PersonRow,
   type ScheduleView,
@@ -139,6 +142,91 @@ export function BookingCard({
             </StateWord>
           ) : null}
         </span>
+      </span>
+    </Link>
+  );
+}
+
+/* A BOOKING ON THE DAY (Isaac, 27 November 2026, "Yes" to the Schedule
+   mock, https://claude.ai/artifact/NzyufStjUFAzFpGpDYxKm7): its start time
+   first, in bold, and where it's up to beside it, then the client, the
+   suburb and the kind, each fading at the card's edge (rule 50). A card too
+   narrow for its words carries its number in a band across the top instead
+   of a box on the left (the card's own container query). */
+export function DayCard({ blk, clash = false, style }: { blk: DayBlock; clash?: boolean; style: CSSProperties }) {
+  const state = blk.state ? STATE_WORD[blk.state] : null;
+  return (
+    <Link
+      href={jobPageHref(blk.jobUuid)}
+      className={`sc-blk sc-card sc-dcard sc-card--${blk.state === "done" ? "grey" : blk.hue}${clash ? " sc-clash" : ""}`}
+      style={style}
+    >
+      <span className="sc-ci">
+        {blk.number ? <span className="sc-cn">{blk.number}</span> : null}
+        <span className="sc-cb">
+          <span className="sc-c0">
+            <Fade className="sc-ct">{clockWord(blk.startMin, true)}</Fade>
+            {state ? (
+              <StateWord tone={state.tone} className="sc-cs">
+                {state.word}
+              </StateWord>
+            ) : null}
+          </span>
+          <Fade className="sc-c1">{blk.client ?? "A job"}</Fade>
+          {blk.suburb ? <Fade className="sc-c2">{blk.suburb}</Fade> : null}
+          {blk.kind ? <Fade className="sc-c4">{blk.kind}</Fade> : null}
+        </span>
+      </span>
+    </Link>
+  );
+}
+
+/** A team's row, as tall as its card needs: the card spans the team's rows. */
+export const TEAM_ROW = 76;
+
+/* A TEAM'S BOOKING, drawn once across its people's rows (the same mock),
+   read as a job page's Next visit: the hours at 20, the kind beside them
+   and where it's up to; the client; the street and suburb, whole (an
+   address never fades); a person, how many and who, by first name; then
+   what the job is, two lines fading. It counts only the team: someone on
+   the same job at other hours is drawn in their own row. */
+export function TeamCard({ team, style }: { team: DayTeam; style: CSSProperties }) {
+  const { blk } = team;
+  const state = blk.state ? STATE_WORD[blk.state] : null;
+  const n = team.staff.length;
+  const where = [blk.street, blk.suburb].filter(Boolean).join(", ");
+  return (
+    <Link
+      href={jobPageHref(blk.jobUuid)}
+      className={`sc-blk sc-card sc-tcard sc-card--${blk.state === "done" ? "grey" : blk.hue}`}
+      style={{ ...style, height: `calc(${n} * ${TEAM_ROW + 1}px - 17px)` }}
+      data-span={n}
+    >
+      {blk.number ? <span className="sc-cn">{blk.number}</span> : null}
+      <span className="sc-cb">
+        <span className="sc-c0">
+          <b className="sc-tw">
+            {clockWord(blk.startMin, true)} to {clockWord(blk.endMin, true)}
+          </b>
+          {blk.kind ? <span className="sc-tk">{blk.kind}</span> : null}
+          {state ? (
+            <StateWord tone={state.tone} className="sc-cs">
+              {state.word}
+            </StateWord>
+          ) : null}
+        </span>
+        <Fade className="sc-c1">{blk.client ?? "A job"}</Fade>
+        {where ? <span className="sc-ta">{where}</span> : null}
+        <span className="sc-tp" aria-label={`${n} people booked: ${firstNames(team.names)}`}>
+          <Icon name="user" size={16} />
+          <b>{n}</b>
+          <span>{firstNames(team.names)}</span>
+        </span>
+        {blk.about ? (
+          <Fade lines={2} className="sc-td">
+            {blk.about}
+          </Fade>
+        ) : null}
       </span>
     </Link>
   );
@@ -656,18 +744,25 @@ function DayRows({ board, held, at, busy, setAt, dropOn, nameDoor, shut, offDoor
   };
 
   const closed = shut.get(day);
+  const { rows, teamOf } = dayOrder(board.people);
   return (
     <div className={`sc-day${closed ? " sc-shutday" : ""}`}>
-      {closed ? <p className="sc-shutname">{closed}</p> : null}
-      <div className="sc-axis" aria-hidden="true">
-        {hours.map((h) => (
-          <span key={h} style={{ left: `${pct(h, a, b)}%` }}>
-            {clockWord(h, h === a)}
-          </span>
-        ))}
+      {/* the board's head, as a job page's At a glance: the hours in white on the quiet grey */}
+      <div className="sc-dhead">
+        {closed ? <p className="sc-shutname">{closed}</p> : null}
+        <div className="sc-axis" aria-hidden="true">
+          {hours.map((h) => (
+            <span key={h} style={{ left: `${pct(h, a, b)}%` }}>
+              {clockWord(h, h === a)}
+            </span>
+          ))}
+        </div>
       </div>
-      {board.people.map((row) => {
+      <div className="sc-rows">
+      {rows.map((row) => {
         const d = row.days[0];
+        const team = teamOf.get(row.staffUuid);
+        const teamFirst = !!team && team.staff[0] === row.staffUuid;
         const hot = !!held && at?.staff === row.staffUuid;
         /* a Saturday or Sunday is bookable but outside standard hours: no
            row says it's free, and only the row under the hand lights */
@@ -677,12 +772,13 @@ function DayRows({ board, held, at, busy, setAt, dropOn, nameDoor, shut, offDoor
            drawn over anything; only bookings over bookings are two at once */
         const stack = stackDay([...d.blocks, ...d.away]);
         const clash = stackDay(d.blocks).clash;
+        const free = d.blocks.length === 0 && d.away.length === 0;
         return (
           <div
             key={row.staffUuid}
-            className={`sc-row${dim ? " sc-dim" : ""}${hot ? " sc-hot" : ""}`}
-            /* a line a booking, where two are at once (the row's own 64 is the first) */
-            style={stack.lines > 1 ? { minHeight: `calc(64px + ${stack.lines - 1} * 56px)` } : undefined}
+            className={`sc-row${team ? (teamFirst ? " sc-trow sc-tfirst" : " sc-trow") : ""}${free ? " sc-freerow" : ""}${dim ? " sc-dim" : ""}${hot ? " sc-hot" : ""}`}
+            /* a line a booking, where two are at once (the row's own first line is in the sheet) */
+            style={stack.lines > 1 ? { minHeight: `calc(8px + ${stack.lines} * 84px)` } : undefined}
           >
             <Who row={row} line={busy === row.staffUuid ? "Booking" : weekend ? (d.away.find((x) => x.whole)?.word ?? "") : dayLine(d)} door={nameDoor(row)} clash={clash.size > 0 && busy !== row.staffUuid} />
             <div
@@ -714,30 +810,26 @@ function DayRows({ board, held, at, busy, setAt, dropOn, nameDoor, shut, offDoor
                   away={x}
                   who={row.name}
                   when={offWhen(x)}
-                  className="sc-blk"
+                  className="sc-blk sc-dcard"
                   onOpen={offDoor(row, x, day)}
                   style={{
                     left: `${pct(Math.max(x.startMin, a), a, b)}%`,
                     width: `${pct(Math.min(x.endMin, b), a, b) - pct(Math.max(x.startMin, a), a, b)}%`,
-                    top: `calc(6px + ${stack.line.get(x.key) ?? 0} * 56px)`,
+                    top: `calc(8px + ${stack.line.get(x.key) ?? 0} * 84px)`,
                   }}
                 />
               ))}
-              {d.blocks.map((blk) => (
-                <BookingCard
-                  key={blk.key}
-                  blk={blk}
-                  crew={blk.with.length + 1}
-                  when={clockWord(blk.startMin, true)}
-                  clash={clash.has(blk.key)}
-                  className="sc-blk"
-                  style={{
-                    left: `${pct(blk.startMin, a, b)}%`,
-                    width: `${pct(blk.endMin, a, b) - pct(blk.startMin, a, b)}%`,
-                    top: `calc(6px + ${stack.line.get(blk.key) ?? 0} * 56px)`,
-                  }}
-                />
-              ))}
+              {d.blocks.map((blk) => {
+                const place = {
+                  left: `${pct(blk.startMin, a, b)}%`,
+                  width: `${pct(blk.endMin, a, b) - pct(blk.startMin, a, b)}%`,
+                  top: `calc(8px + ${stack.line.get(blk.key) ?? 0} * 84px)`,
+                };
+                /* the team's booking is drawn once, from its first person's row */
+                if (team && blk.key === team.blk.key) return teamFirst ? <TeamCard key={blk.key} team={team} style={{ ...place, top: "8px" }} /> : null;
+                if (team && `${blk.jobUuid.toLowerCase()}|${blk.startMin}|${blk.endMin}` === team.key) return null;
+                return <DayCard key={blk.key} blk={blk} clash={clash.has(blk.key)} style={place} />;
+              })}
               {fit && (fit.kind === "free" || fit.kind === "part") ? (
                 <div
                   className={`sc-fit${fit.kind === "free" ? " sc-ok" : " sc-part"}`}
@@ -755,6 +847,7 @@ function DayRows({ board, held, at, busy, setAt, dropOn, nameDoor, shut, offDoor
           </div>
         );
       })}
+      </div>
     </div>
   );
 }
@@ -788,6 +881,7 @@ function WeekRows({ board, held, at, busy, setAt, dropOn, nameDoor, shut, offDoo
           </b>
         ))}
       </div>
+      <div className="sc-rows">
       {board.people.map((row) => {
         const fit = held && span.length ? daysFit(row, span) : null;
         const hot = !!held && at?.staff === row.staffUuid;
@@ -848,6 +942,7 @@ function WeekRows({ board, held, at, busy, setAt, dropOn, nameDoor, shut, offDoo
           </div>
         );
       })}
+      </div>
     </div>
   );
 }
@@ -1129,17 +1224,27 @@ function JobsPanel({
 
   return (
     <aside className="sc-panel" aria-label="Jobs">
+      {/* JOBS IS A CARD WITH A FILLED HEAD (Isaac, 27 November 2026, the
+          Schedule mock): the title and its tabs in white on the quiet grey,
+          as a job page's Activity feed holds its tabs; the search and Block
+          out time at the top of the white body, which curls into the head */}
       <div className="sc-panelhead">
         <h2 className="sc-h2">Jobs</h2>
-        {canBlock ? (
-          <Button kind="second" size={32} icon="plus" onClick={newBlock}>
-            Block out time
-          </Button>
-        ) : null}
+        <Tray
+          ariaLabel="Which jobs"
+          options={[
+            { value: "book", label: "To book" },
+            { value: "recent", label: "Recent" },
+            { value: "all", label: "All" },
+          ]}
+          value={tab}
+          onChange={setTab}
+        />
       </div>
-      {/* BLOCKS OUT, in their own group at the top of Jobs, above the search
-          and the tabs, which never hide them (Isaac, 6 November 2026: "should
-          it sit under jobs?", then "Sweet"); each leaves once it's on a day */}
+      <div className="sc-pbody">
+      {/* BLOCKS OUT, in their own group at the top of Jobs, above the search,
+          which never hides them (Isaac, 6 November 2026: "should it sit
+          under jobs?", then "Sweet"); each leaves once it's on a day */}
       {canBlock && blocks.length > 0 ? (
         <ul className="sc-jobs sc-offs" aria-label="Blocked out">
           {blocks.map((b) => (
@@ -1149,17 +1254,14 @@ function JobsPanel({
           ))}
         </ul>
       ) : null}
-      <SearchField label="Find a job, client or site" value={q} onChange={setQ} />
-      <Tray
-        ariaLabel="Which jobs"
-        options={[
-          { value: "book", label: "To book" },
-          { value: "recent", label: "Recent" },
-          { value: "all", label: "All" },
-        ]}
-        value={tab}
-        onChange={setTab}
-      />
+      <div className="sc-pbar">
+        <SearchField label="Find a job, client or site" value={q} onChange={setQ} />
+        {canBlock ? (
+          <Button kind="second" size={32} icon="plus" onClick={newBlock}>
+            Block out time
+          </Button>
+        ) : null}
+      </div>
       {held?.block ? (
         <div className="sc-held">
           <span className="sc-heldn">
@@ -1219,9 +1321,9 @@ function JobsPanel({
                 {j.number ? <span className="sc-cn">{j.number}</span> : null}
                 <span className="sc-cb">
                   <Fade className="sc-c1">{j.client}</Fade>
-                  {j.site ? <Fade className="sc-c2">{j.site}</Fade> : null}
+                  {/* the suburb and the kind on one line, as the Jobs list draws a job */}
                   <span className="sc-c3">
-                    {j.kind ? <b>{j.kind}</b> : null}
+                    <Fade className="sc-c2">{[j.site, j.kind].filter(Boolean).join(", ")}</Fade>
                     {/* every job on To book is waiting for a day: the tab says it once */}
                     {j.state && tab !== "book" ? (
                       <StateWord tone={j.tone} className="sc-cs">
@@ -1229,6 +1331,12 @@ function JobsPanel({
                       </StateWord>
                     ) : null}
                   </span>
+                  {/* what the job is, two lines fading, as ServiceM8's list says it */}
+                  {j.about ? (
+                    <Fade lines={2} className="sc-jd">
+                      {j.about}
+                    </Fade>
+                  ) : null}
                 </span>
                 {/* the grip says it can be dragged (Isaac, 20 October) */}
                 <span className="sc-grip" aria-hidden="true">
@@ -1239,6 +1347,7 @@ function JobsPanel({
           ))}
         </ul>
       )}
+      </div>
     </aside>
   );
 }

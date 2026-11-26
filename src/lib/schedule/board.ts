@@ -127,6 +127,10 @@ export type DayBlock = {
   with: string[];
   /** ServiceM8's category, its own words ("Install"), or null */
   kind: string | null;
+  /** the job's street, its address's first line ("14 Example St"), or null */
+  street: string | null;
+  /** what the job is, ServiceM8's description on one line, or null */
+  about: string | null;
   /** where the booking is up to, said on the card: on site now, done, the
       job marked complete while this day is still on the run, or a job that
       didn't go ahead; null while it is just booked */
@@ -187,10 +191,12 @@ export function boardOf(payloads: readonly SchedulePayload[]): Board {
       for (const b of lane.blocks) byJob.set(b.remoteId, [...(byJob.get(b.remoteId) ?? []), lane.name]);
     }
     const lanes = new Map(laid.lanes.filter((l) => l.staffUuid).map((l) => [low(l.staffUuid), l]));
-    return { day: p.dayISO, lanes, byJob };
+    const about = new Map(p.jobs.map((j) => [low(j.remoteId), j.description?.trim() || null]));
+    const streets = new Map(Object.entries(p.addresses ?? {}).map(([u, s]) => [low(u), s]));
+    return { day: p.dayISO, lanes, byJob, about, streets };
   });
 
-  const block = (b: ScheduleBlock, me: string, byJob: Map<string, string[]>): DayBlock => ({
+  const block = (b: ScheduleBlock, me: string, d: (typeof perDay)[number]): DayBlock => ({
     key: b.key,
     jobUuid: b.remoteId,
     number: b.jobNumber,
@@ -200,8 +206,10 @@ export function boardOf(payloads: readonly SchedulePayload[]): Board {
     hue: jobHue(b.categoryColour, b.status),
     startMin: b.startMin,
     endMin: b.endMin,
-    with: [...new Set((byJob.get(b.remoteId) ?? []).filter((n) => n !== me))],
+    with: [...new Set((d.byJob.get(b.remoteId) ?? []).filter((n) => n !== me))],
     kind: b.categoryName?.trim() || null,
+    street: d.streets.get(low(b.remoteId)) ?? null,
+    about: d.about.get(low(b.remoteId)) ?? null,
     state:
       b.status === "Unsuccessful" ? "unsuccessful"
       : b.closure === "stale" ? "stale"
@@ -221,7 +229,7 @@ export function boardOf(payloads: readonly SchedulePayload[]): Board {
           const lane = d.lanes.get(key);
           return {
             day: d.day,
-            blocks: (lane?.blocks ?? []).map((b) => block(b, name, d.byJob)),
+            blocks: (lane?.blocks ?? []).map((b) => block(b, name, d)),
             away: (lane?.away ?? []).map((a) => ({
               key: a.key,
               word: a.word,
@@ -257,6 +265,68 @@ export function stackDay(blocks: readonly Pick<DayBlock, "key" | "startMin" | "e
   for (const a of sorted)
     for (const b of sorted) if (a !== b && a.startMin < b.endMin && b.startMin < a.endMin) clash.add(a.key);
   return { line, lines: Math.max(1, ends.length), clash };
+}
+
+/** A TEAM ON THE DAY (Isaac, 27 November 2026, "Yes" to the Schedule mock,
+    https://claude.ai/artifact/NzyufStjUFAzFpGpDYxKm7): the people booked on
+    the same job for the same hours sit together, and the booking is drawn
+    once, one card across their rows. `blk` is the first person's booking;
+    `staff` the team's people in the order their rows are drawn. */
+export type DayTeam = { key: string; blk: DayBlock; staff: string[]; names: string[] };
+
+/** The day's rows in the order the day runs, and its teams. Teams first,
+    the largest first (then the earliest, then by job number), each team's
+    people A to Z; then everyone else with something booked, A to Z; then
+    whoever has nothing booked, A to Z.
+
+    A person sits in one team at most: where two would take them, the larger
+    (then the longer, then the earlier) does. Someone whose day has two
+    things at once stays out of every team, as their row needs its lines;
+    and a booking of a team's person on the same job at other hours is not
+    the team's (Eli on 3517 at 7 am, outside the team on 3517 all day): it
+    is drawn in their own row, and the team's card counts only its people. */
+export function dayOrder(people: readonly PersonRow[], dayIndex = 0): { rows: PersonRow[]; teams: DayTeam[]; teamOf: Map<string, DayTeam> } {
+  const groups = new Map<string, { blk: DayBlock; rows: PersonRow[] }>();
+  for (const row of people) {
+    const d = row.days[dayIndex];
+    if (!d || stackDay([...d.blocks, ...d.away]).lines > 1) continue;
+    const seen = new Set<string>();
+    for (const b of d.blocks) {
+      const k = `${low(b.jobUuid)}|${b.startMin}|${b.endMin}`;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      const g = groups.get(k);
+      if (g) g.rows.push(row);
+      else groups.set(k, { blk: b, rows: [row] });
+    }
+  }
+  const num = (b: DayBlock) => Number(b.number ?? Infinity);
+  const ranked = [...groups.entries()]
+    .filter(([, g]) => g.rows.length > 1)
+    .sort(([, a], [, b]) => b.rows.length - a.rows.length || (b.blk.endMin - b.blk.startMin) - (a.blk.endMin - a.blk.startMin) || a.blk.startMin - b.blk.startMin || num(a.blk) - num(b.blk));
+  const taken = new Set<string>();
+  const teams: DayTeam[] = [];
+  for (const [key, g] of ranked) {
+    const free = g.rows.filter((r) => !taken.has(r.staffUuid)).sort((a, b) => a.name.localeCompare(b.name));
+    if (free.length < 2) continue;
+    for (const r of free) taken.add(r.staffUuid);
+    const first = free[0].days[dayIndex].blocks.find((b) => `${low(b.jobUuid)}|${b.startMin}|${b.endMin}` === key)!;
+    teams.push({ key, blk: first, staff: free.map((r) => r.staffUuid), names: free.map((r) => r.name) });
+  }
+  teams.sort((a, b) => b.staff.length - a.staff.length || a.blk.startMin - b.blk.startMin || num(a.blk) - num(b.blk));
+  const byUuid = new Map(people.map((r) => [r.staffUuid, r]));
+  const teamOf = new Map<string, DayTeam>();
+  for (const t of teams) for (const u of t.staff) teamOf.set(u, t);
+  const rest = people.filter((r) => !teamOf.has(r.staffUuid));
+  const booked = (r: PersonRow) => (r.days[dayIndex]?.blocks.length ?? 0) > 0;
+  const rows = [...teams.flatMap((t) => t.staff.map((u) => byUuid.get(u)!)), ...rest.filter(booked), ...rest.filter((r) => !booked(r))];
+  return { rows, teams, teamOf };
+}
+
+/** "Ben", "Ben and Gus", "Ben, Gus and Hamish": a team's people by first name. */
+export function firstNames(names: readonly string[]): string {
+  const f = names.map((n) => n.trim().split(/\s+/)[0] ?? n);
+  return f.length <= 1 ? (f[0] ?? "") : `${f.slice(0, -1).join(", ")} and ${f[f.length - 1]}`;
 }
 
 /** A person against some hours on one day. */

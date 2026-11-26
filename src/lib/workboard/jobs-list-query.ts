@@ -40,10 +40,14 @@ export type JobsListData = {
   /** the ServiceM8 jobs the person signed in starred: a star at the end of
       each one's row (Isaac, 24 November 2026, the Star a job mock) */
   starred?: string[];
+  /** ServiceM8 job uuid → what the job is, on one line: only where it was
+      asked for (the Schedule's Jobs panel says it under each job; Isaac, 27
+      November 2026), so the Jobs page sends none */
+  about?: Record<string, string>;
 };
 
 
-export async function loadJobsList(): Promise<JobsListData | null> {
+export async function loadJobsList(opts: { about?: boolean } = {}): Promise<JobsListData | null> {
   const session = await auth0.getSession();
   const orgId = session?.orgId as string | undefined;
   if (!orgId) return null;
@@ -139,5 +143,6 @@ export async function loadJobsList(): Promise<JobsListData | null> {
     syncing: connected && !(sync?.objects.find((o) => o.object === "jobs")?.backfillDone ?? false),
     truncated: allJobs.truncated,
     ...(stars.length ? { starred: stars.map((s) => s.job) } : {}),
+    ...(opts.about ? { about: Object.fromEntries(allJobs.jobs.filter((j) => j.description?.trim()).map((j) => [j.remoteId, j.description!.trim()])) } : {}),
   };
 }

@@ -8,7 +8,7 @@ import { bestCustomers, nameFits, searchWords, type CustomerHit } from "./find";
    any word of the name said, and find's `nameFits` decides. Read only,
    org-scoped, service role: the caller holds the right to ask. */
 
-type Company = { uuid: string; name: string | null; address: string | null; parent_company_uuid: string | null };
+type Company = { uuid: string; name: string | null; address: string | null; parent_company_uuid: string | null; is_individual?: number | null };
 type Contact = { first: string | null; last: string | null; company_uuid?: string | null; job_uuid?: string | null };
 type Job = { uuid: string; generated_job_id: string | null; job_address: string | null; status: string | null; date: string | null; company_uuid: string | null };
 
@@ -49,7 +49,7 @@ export async function findCustomers(orgId: string, said: string): Promise<Custom
   ];
   const [{ data: clientRows }, { data: latestRows }] = clientUuids.length
     ? await Promise.all([
-        supabaseAdmin.from("sm8_companies").select("uuid, name, address, parent_company_uuid").eq("org_id", orgId).in("uuid", clientUuids),
+        supabaseAdmin.from("sm8_companies").select("uuid, name, address, parent_company_uuid, is_individual").eq("org_id", orgId).in("uuid", clientUuids),
         supabaseAdmin.from("sm8_jobs").select(JOB_COLS).eq("org_id", orgId).eq("active", 1).in("company_uuid", clientUuids).order("date", { ascending: false }).limit(200),
       ])
     : [{ data: [] }, { data: [] }];
@@ -60,12 +60,14 @@ export async function findCustomers(orgId: string, said: string): Promise<Custom
   const hits: CustomerHit[] = [
     ...companyHits.map(({ c, fit }): CustomerHit => {
       const j = latest.get(c.uuid);
-      return { name: c.name ?? said, via: "client", client: null, address: c.address ?? j?.job_address ?? null, job: jobOf(j), fit };
+      return { name: c.name ?? said, via: "client", client: null, address: c.address ?? j?.job_address ?? null, job: jobOf(j), fit, clientUuid: c.uuid };
     }),
     ...contactHits.map(({ c, fit }): CustomerHit => {
       const co = c.company_uuid ? clients.get(c.company_uuid) : undefined;
       const j = c.company_uuid ? latest.get(c.company_uuid) : undefined;
-      return { name: fullName(c), via: "contact", client: co?.name ?? null, address: co?.address ?? j?.job_address ?? null, job: jobOf(j), fit };
+      /* a person's own client is one kept as an individual: a company's contact is the company's */
+      const own = co && Number(co.is_individual) === 1 ? co.uuid : null;
+      return { name: fullName(c), via: "contact", client: co?.name ?? null, address: co?.address ?? j?.job_address ?? null, job: jobOf(j), fit, clientUuid: own };
     }),
     ...jobContactHits.map(({ c, fit }): CustomerHit => {
       const j = c.job_uuid ? jobs.get(c.job_uuid) : undefined;

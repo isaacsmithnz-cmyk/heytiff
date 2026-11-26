@@ -30,6 +30,10 @@ export type CustomerHit = {
   job: { number: string; status: string | null; date: string | null } | null;
   /** how well it fits the name said, 0 to 1 */
   fit: number;
+  /** the ServiceM8 client a new job for them goes under: the client itself,
+      or the person's own client when they're its contact. Never a builder
+      they were a contact on a job for: that job was the builder's. */
+  clientUuid?: string | null;
 };
 
 /** The fewest a fit can be and still be said. */
@@ -127,4 +131,18 @@ export function customerLine(said: string, hits: readonly CustomerHit[]): string
     return `${h.name} is already a customer${rest ? `: ${rest}` : ""}.`;
   }
   return `I found ${hits.length} customers like ${name}: ${hits.map(hitWords).join("; ")}.`;
+}
+
+/** The one client a new job for `said` goes under, when the book is sure:
+    every close fit (a letter out at most) that has a client of its own names
+    the same one. Null when there's none, or two, and the job makes a new
+    client as it always did (Isaac, 26 November 2026: the person he asked
+    about was in the book, and a job made then would have been a second of
+    her). */
+export function ownClient(hits: readonly CustomerHit[]): { uuid: string; name: string } | null {
+  const close = hits.filter((h) => h.fit >= 0.8 && h.clientUuid);
+  const uuids = [...new Set(close.map((h) => h.clientUuid!))];
+  if (uuids.length !== 1) return null;
+  const h = close[0]!;
+  return { uuid: uuids[0]!, name: h.via === "client" ? h.name : (h.client ?? h.name) };
 }

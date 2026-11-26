@@ -1,16 +1,18 @@
 import "server-only";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { sameStreet, streetOf, streetSearch } from "@/lib/address/street";
-import { clientScore, clientWords, type JobNamed, type JobsFound, type NamedJob } from "./note-job";
+import { clientScore, clientWords, workWords, type JobNamed, type JobsFound, type NamedJob } from "./note-job";
 
 /* THE JOBS THE WORDS NAME, read from the ServiceM8 mirror (note-job says
    what is found and why). Every status, finished jobs included: a warranty
    call or a builder's callback is about a job that is done. Read only. */
 
-type JobRow = { uuid: string; generated_job_id: string | null; job_address: string | null; status: string | null; company_uuid: string | null; date: string | null };
+type JobRow = { uuid: string; generated_job_id: string | null; job_address: string | null; status: string | null; company_uuid: string | null; date: string | null; job_description?: string | null };
 type CompanyRow = { uuid: string; name: string | null; parent_company_uuid: string | null };
 
-const JOB_COLS = "uuid, generated_job_id, job_address, status, company_uuid, date";
+const JOB_COLS = "uuid, generated_job_id, job_address, status, company_uuid, date, job_description";
+/** What a job still open is in ServiceM8: a quote, or work accepted and not done. */
+const OPEN = ["Quote", "Work Order"];
 /** How many of a client's or a place's jobs are read, newest first. */
 const JOBS_READ = 40;
 
@@ -88,6 +90,24 @@ export async function findNamedJobs(orgId: string, named: JobNamed): Promise<Job
         rows = ((data ?? []) as JobRow[]).filter((r) => !street || sameStreet(streetOf(r.job_address), street));
       }
     }
+  }
+  /* A JOB NAMED BY ITS WORK (Isaac, 26 November 2026: "We need to get a
+     quote built out for the split system that is outstanding" made a task
+     and asked who, never which job): the open jobs whose description has
+     every word of the work. Only open ones: by its work alone, a finished
+     job is any of hundreds. With a client or a place too, the work narrows
+     what they found, when it leaves any. */
+  const work = workWords(named.work ?? "");
+  const hasWork = (r: JobRow) => work.every((w) => (r.job_description ?? "").toLowerCase().includes(w));
+  if (!rows.length && work.length && !named.client && !named.place && !named.number) {
+    let q = supabaseAdmin.from("sm8_jobs").select(JOB_COLS).eq("org_id", orgId).eq("active", 1).in("status", OPEN);
+    for (const w of work) q = q.ilike("job_description", `%${like(w)}%`);
+    const { data } = await q.order("date", { ascending: false }).limit(JOBS_READ);
+    rows = (data ?? []) as JobRow[];
+  } else if (rows.length > 1) {
+    const open = named.open ? rows.filter((r) => OPEN.includes(r.status ?? "")) : rows;
+    const narrowed = work.length ? open.filter(hasWork) : open;
+    if (narrowed.length) rows = narrowed;
   }
   const names = await clientNames(orgId, rows);
   const jobs: NamedJob[] = rows.map((r) => ({

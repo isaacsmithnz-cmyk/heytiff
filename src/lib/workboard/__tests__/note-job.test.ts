@@ -6,6 +6,7 @@ import {
   jobNumberOf,
   notFoundLine,
   pickNamedJob,
+  workWords,
   type NamedJob,
 } from "../note-job";
 import { rawFromCalls, shapeProposal, noteTools, type NoteContext } from "../note-brain";
@@ -22,7 +23,7 @@ const job = (over: Partial<NamedJob>): NamedJob => ({
   date: "2026-01-01 00:00:00",
   ...over,
 });
-const named = (over: Partial<{ client: string; place: string; number: string; latest: boolean }> = {}) => ({
+const named = (over: Partial<{ client: string; place: string; number: string; latest: boolean; work: string; open: boolean }> = {}) => ({
   client: "",
   place: "",
   number: "",
@@ -119,5 +120,32 @@ describe("what she says", () => {
     expect(notFoundLine(named({ client: "Sampleco" }), true)).toBe("I couldn't find Sampleco among your clients.");
     expect(notFoundLine(named({ place: "12 Sample Road" }), false)).toBe("I looked for jobs at 12 Sample Road and found none.");
     expect(notFoundLine(named({ number: "3239A" }), false)).toBe("I looked for job 3239A and found none.");
+  });
+});
+
+/* Isaac, 26 November 2026: "We need to get a quote built out for the split
+   system that is outstanding" made a task and asked who, never which job. */
+describe("a job named by its work", () => {
+  it("is what the router said, open when they said outstanding", () => {
+    expect(jobNamedOf({ client: "", place: "", number: "", latest: false, work: "split system", open: true })).toEqual(named({ work: "split system", open: true }));
+    expect(workWords("the split system quote that's outstanding")).toEqual(["split", "system"]);
+    // words that say nothing of the work name nothing
+    expect(jobNamedOf({ client: "", place: "", number: "", latest: false, work: "the job", open: true })).toBeNull();
+  });
+
+  it("reaches the stored proposal", () => {
+    const raw = rawFromCalls([{ name: "job_named", input: { client: "", place: "", number: "", latest: false, work: "split system", open: true } }]);
+    const p = shapeProposal(raw, { staff: [], todayISO: "2026-11-27" });
+    expect(storedProposal(JSON.parse(JSON.stringify(p)))?.jobNamed).toEqual(named({ work: "split system", open: true }));
+  });
+
+  it("one open job is that one; several at different places are asked about", () => {
+    expect(pickNamedJob([job({ uuid: "a", status: "Quote" })], named({ work: "split system", open: true }))).toEqual({ kind: "one", job: job({ uuid: "a", status: "Quote" }) });
+    expect(pickNamedJob([job({ uuid: "a", status: "Quote" }), job({ uuid: "b", status: "Quote", address: "2 Two St\nExampleton NSW 2000" })], named({ work: "split system", open: true })).kind).toBe("several");
+  });
+
+  it("says what she looked for when none is open", () => {
+    expect(notFoundLine(named({ work: "split system", open: true }), false)).toBe("I looked for open jobs for a split system and found none.");
+    expect(notFoundLine(named({ client: "Sampleco", work: "ducted quote", open: true }), false)).toBe("I looked for Sampleco's open jobs for a ducted quote and found none.");
   });
 });

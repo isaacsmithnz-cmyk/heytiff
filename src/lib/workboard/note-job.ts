@@ -32,6 +32,11 @@ export type JobNamed = {
   number: string;
   /** They said the last, latest or most recent one. */
   latest: boolean;
+  /** What the job is, when the words name it by its work: "split system"
+      of "the split system that is outstanding" (Isaac, 26 November 2026). */
+  work?: string;
+  /** They said one still open: outstanding, still to quote, not done. */
+  open?: boolean;
 };
 
 /** A ServiceM8 job the words may name, as the finder reads it. */
@@ -70,8 +75,20 @@ export function jobNumberOf(said: string): string {
 export function jobNamedOf(raw: unknown): JobNamed | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const r = raw as Record<string, unknown>;
-  const named = { client: text(r.client), place: text(r.place), number: jobNumberOf(text(r.number)), latest: r.latest === true };
-  return named.client || named.place || named.number ? named : null;
+  const named: JobNamed = { client: text(r.client), place: text(r.place), number: jobNumberOf(text(r.number)), latest: r.latest === true };
+  const work = text(r.work);
+  if (work) named.work = work;
+  if (r.open === true) named.open = true;
+  return named.client || named.place || named.number || workWords(named.work ?? "").length ? named : null;
+}
+
+/** Words a job's work is no clearer for. */
+const NOT_WORK = new Set(["the", "that", "this", "for", "job", "jobs", "quote", "quotes", "one", "outstanding", "open", "still", "work", "with", "and", "new"]);
+
+/** The words a job's description is looked for by: each of three letters
+    or more that says what the work is ("split", "system"), at most four. */
+export function workWords(work: string): string[] {
+  return [...new Set(work.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 3 && !NOT_WORK.has(w)))].slice(0, 4);
 }
 
 /** A name squashed to its letters and digits, its legal ending gone. */
@@ -163,6 +180,7 @@ export const foundJobLine = (j: NamedJob): string => `On job ${namedJobLabel(j)}
 /** Her line when she found nothing: what she looked for, as said. */
 export function notFoundLine(named: JobNamed, noClient: boolean): string {
   if (noClient && named.client) return `I couldn't find ${named.client} among your clients.`;
-  const whose = named.client ? `${named.client}'s jobs` : named.number ? `job ${named.number}` : "jobs";
-  return `I looked for ${whose}${named.place ? ` at ${named.place}` : ""} and found none.`;
+  const work = named.work && workWords(named.work).length ? named.work : "";
+  const whose = named.client ? `${named.client}'s ${named.open ? "open " : ""}jobs` : named.number ? `job ${named.number}` : work ? "open jobs" : "jobs";
+  return `I looked for ${whose}${work ? ` for ${/^(?:an?|the)\s/i.test(work) ? work : `a ${work}`}` : ""}${named.place ? ` at ${named.place}` : ""} and found none.`;
 }

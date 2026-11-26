@@ -8,7 +8,7 @@
    way at a time. */
 
 import { generateKeyPairSync, sign, type KeyObject } from "node:crypto";
-import { checkMobileToken, MOBILE_AUDIENCE, tenantKeys } from "../token";
+import { checkMobileToken, KEYS_UNREACHABLE, KeysUnreachable, MOBILE_AUDIENCE, tenantKeys } from "../token";
 
 const DOMAIN = "tenant.example.auth0.com";
 const { publicKey, privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
@@ -99,10 +99,14 @@ describe("the tenant's keys", () => {
     expect(fetched).toHaveLength(1);
   });
 
-  test("a tenant that can't be reached believes nothing", async () => {
+  test("a tenant that can't be reached believes nothing, and says it couldn't check", async () => {
     global.fetch = jest.fn(async () => new Response("down", { status: 503 })) as typeof fetch;
     const spy = jest.spyOn(console, "error").mockImplementation(() => {});
-    expect(await tenantKeys("down.example.auth0.com")("k1")).toBeNull();
+    await expect(tenantKeys("down.example.auth0.com")("k1")).rejects.toBeInstanceOf(KeysUnreachable);
+    expect(await checkMobileToken(mint(), { domain: DOMAIN, keyFor: tenantKeys("down2.example.auth0.com"), now: NOW })).toEqual({
+      ok: false,
+      reason: KEYS_UNREACHABLE,
+    });
     spy.mockRestore();
   });
 

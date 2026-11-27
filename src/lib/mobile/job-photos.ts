@@ -1,7 +1,9 @@
 import { takeInAfter } from "@/lib/jobs/take-in-server";
 import "server-only";
 
+import { after } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { keepVideoWords } from "@/lib/mobile/job-video-words";
 import type { Sm8Press } from "@/lib/integrations/sm8-press";
 import { readSm8WriteState } from "@/lib/integrations/sm8-writes";
 import { readJobSends } from "@/lib/integrations/sm8-job-sends";
@@ -140,6 +142,19 @@ export async function landJobPhoto(ctx: MobileCtx, press: Sm8Press | null, jobId
   if (!landed.ok) return { ok: false, error: landed.error, status: 409 };
 
   if (press && press.orgId === ctx.orgId && press.userId === ctx.userId) await sendJobPhotoAs(press, { jobUuid: job, documentId: doc.id });
+  /* A VIDEO'S WORDS, after the answer goes: what was said becomes its captions and a note on the job (Isaac, 27
+     November 2026: "Why don't we have the captions and shit on the video?"; lib/mobile/job-video-words) */
+  if (isVideoMime(doc.mime_type)) {
+    try {
+      after(() =>
+        keepVideoWords({ orgId: ctx.orgId, userId: ctx.userId, jobUuid: job, documentId: doc.id }).catch((e) =>
+          console.error(`[video-words] ${doc.id}: ${e instanceof Error ? e.message : String(e)}`)
+        )
+      );
+    } catch {
+      /* no request to run after */
+    }
+  }
   const state = await readSm8WriteState(ctx.orgId);
   const refused = sendRefusal(state, "attachment");
   const sends = await readJobSends(ctx.orgId, job.toLowerCase());

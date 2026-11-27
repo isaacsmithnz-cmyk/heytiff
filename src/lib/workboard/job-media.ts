@@ -244,6 +244,10 @@ export type JobMediaItem = {
   /** A photo of ours (taken with the phone): what ServiceM8 has of it, in
       the Documents face's words. Absent everywhere else. */
   sent?: { word: string; tone: "ok" | "warn" | "bad" | null } | null;
+  /** A video of ours: where its words are (captions and what was said,
+      lib/jobs/video-cues VideoWords), signed for the same hour, once HeyTiff
+      has heard it. Absent until then, and on everything else. */
+  wordsUrl?: string;
 };
 
 export type JobMediaGroups = {

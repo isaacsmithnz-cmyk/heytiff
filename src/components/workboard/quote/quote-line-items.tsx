@@ -8,6 +8,7 @@ import type { Offer } from "@/lib/quotes/price-book";
 import type { OptionPrice, QuotePrice } from "@/lib/quotes/quote-price-server";
 import { OLD_PIPES, PIPE_SIZES } from "@/lib/quotes/kits";
 import { cents2 } from "@/lib/quotes/quote-sum";
+import { auDayOf, fmtAuDayMonth, fmtAuTime } from "@/lib/au-dates";
 import { unitPartOf } from "@/lib/quotes/brands";
 import { namedUnit, unitRoleOf } from "@/lib/quotes/unit-name";
 import { systemRowWords, visitSummary, withHours, withoutTask, withTask, type LineVisit } from "@/lib/quotes/line-visit";
@@ -23,11 +24,39 @@ import { Typed } from "./typed";
 import type { LinesView } from "./quote-lines-face";
 import type { LineStand } from "@/lib/quotes/design-units";
 
+const shortModel = (m: string) => /^[A-Z]+-(P\d+)/.exec(m)?.[1] ?? m;
+const signed = (c: number) => `${c > 0 ? "+" : ""}${cents2(c)}`;
+
 /** Where a unit line came from, as its second line says it (the units mock,
     27 November 2026): the design's, the quote's only, or waiting for the
-    Studio to take it; nothing for one not joined yet. */
-const standWords = (s: LineStand | undefined): string =>
-  !s ? "" : s.from === "design" ? "From the design" : s.from === "quote" ? "Quote only" : "For the Studio to take";
+    Studio to take it; nothing for one not joined yet. Before it's sent, a
+    change it followed says when and what it was; sent, the design's change
+    is said with what it does to the price, and the line keeps what the
+    customer has. */
+function standWords(
+  s: LineStand | undefined,
+  o: { sent: boolean; cents?: number | null; followed?: { at: string; was: string | null } | null }
+): string {
+  if (!s) return "";
+  if (s.from === "quote") return "Quote only";
+  if (s.from === "waiting") return "For the Studio to take";
+  const money = o.cents ? `, ${signed(o.cents)}` : "";
+  if (s.gone) return o.sent ? `The design took ${s.units.length === 0 ? "it" : s.gone} out${money}` : "From the design";
+  if (s.now) return o.sent ? `The design now has ${shortModel(s.now)}${money}` : "From the design";
+  if (o.sent) return "Same as the design";
+  if (o.followed) return `From the design, changed with it ${o.followed.at}${o.followed.was ? `, was ${shortModel(o.followed.was)}` : ""}`;
+  return "From the design";
+}
+
+/** The last change a line took from the design, as "at 10:42" today or "on 25 Nov". */
+function followedOf(changes: readonly { lineId: string; why: string; madeAt: string; before: { code?: string | null } | null }[] | undefined, lineId: string) {
+  const c = changes?.find((x) => x.lineId === lineId && x.why === "Changed with the design");
+  if (!c) return null;
+  const d = new Date(c.madeAt);
+  if (Number.isNaN(d.getTime())) return null;
+  const today = auDayOf(new Date()) === auDayOf(d);
+  return { at: today ? `at ${fmtAuTime(d)}` : `on ${fmtAuDayMonth(auDayOf(d))}`, was: c.before?.code ?? null };
+}
 
 /* THE LINE ITEMS: the quote by hand, on its kept lines (the engine rebuild,
    slice 2.3, to the mock-ups Isaac shaped on 7 October), the main column's
@@ -297,6 +326,8 @@ export function QuoteLineItems({
   swapAsk = null,
   optionRows = [],
   designStand = null,
+  designSent = false,
+  designMoney = null,
   spot = [],
 }: {
   job: string;
@@ -327,6 +358,10 @@ export function QuoteLineItems({
   /** ONE LIST OF UNITS (design-units.ts): where each unit line of the open
       option stands against the job's design; null with no design joined */
   designStand?: Readonly<Record<string, LineStand>> | null;
+  /** the quote's been sent: the design's changes are said, not taken */
+  designSent?: boolean;
+  /** what each of those does to the price, by line; null without money */
+  designMoney?: Readonly<Record<string, number>> | null;
   /** the lines Tiff's check is on (review.ts): their groups open, outlined */
   spot?: readonly string[];
 }) {
@@ -364,6 +399,8 @@ export function QuoteLineItems({
   const lines = all.filter((l) => l.optionIndex === at);
   const o = price && price.ok ? price.options[at] : undefined;
   const sells = sellEachOf(o, lines);
+  /* a unit line's words against the job's design (design-units.ts) */
+  const stand = (id: string) => standWords(designStand?.[id], { sent: designSent, cents: designMoney?.[id] ?? null, followed: followedOf(view?.changes, id) });
   const systems = [...new Set(lines.map((l) => l.system))];
   const fitOf = new Map((view?.fits ?? []).map((f) => [f.key, f]));
   const versions = view?.versions ?? [];
@@ -785,11 +822,11 @@ export function QuoteLineItems({
                                       <em className="ql-vs">{againstFirst(l, all, base) === "added" ? " Added" : " Changed"}</em>
                                     )}
                                   </span>
-                                  {!l.code && standWords(designStand?.[l.id]) && <span className="cd">{standWords(designStand?.[l.id])}</span>}
+                                  {!l.code && stand(l.id) && <span className="cd">{stand(l.id)}</span>}
                                   {l.code && (
                                     <span className="cd">
                                       {l.code}
-                                      {standWords(designStand?.[l.id]) && <em className="ql-from">{standWords(designStand?.[l.id])}</em>}
+                                      {stand(l.id) && <em className={designStand?.[l.id]?.from === "design" && designSent && (designStand[l.id] as { now?: string; gone?: number }).now ? "ql-from ql-look" : "ql-from"}>{stand(l.id)}</em>}
                                       {buyFrom && l.supplierKey && l.supplierKey !== buyFrom && (
                                         <em className="ql-not">{`Not at ${supplierName(buyFrom)}: ${supplierName(l.supplierKey)}`}</em>
                                       )}

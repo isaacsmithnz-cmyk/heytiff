@@ -3,7 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { migrateDesign } from "@/lib/studio/migrations";
 import type { DesignDocument } from "@/lib/studio/document";
 import { designPacks, designsOnJob } from "./design-read-server";
-import { addLine, changeLine, readEngine, readLines, removeLine, setJoins } from "./lines-server";
+import { addLine, changeLine, readEngine, readLines, removeLine, setJoins, undoChange } from "./lines-server";
 import { keepDesignUnits, markDesign, readByHand } from "./lines-job-server";
 import type { QuoteTake } from "@/lib/studio/take-from-quote";
 import { readQuoteSettings } from "./settings-query";
@@ -14,6 +14,7 @@ import {
   answersOf,
   bookOf,
   designRowOf,
+  designSystems,
   questionWords,
   readJoin,
   unitLineName,
@@ -27,6 +28,8 @@ import {
   type UnitLine,
 } from "./design-units";
 import { cents2 } from "./quote-sum";
+import { readQuotePrice } from "./quote-price-server";
+import { auDayOf, fmtAuDayMonth } from "@/lib/au-dates";
 
 /* ONE LIST OF UNITS, read and answered (design-units.ts says the rule): the
    job's design, the one its lines are joined in or else its newest, against
@@ -37,7 +40,7 @@ import { cents2 } from "./quote-sum";
    browser prices a model; what the design is to take waits on the line.
    Service role, by org; the route gates. */
 
-type Read = { doc: DesignDocument; read: JoinRead; lines: QuoteLine[]; book: Book };
+type Read = { doc: DesignDocument; read: JoinRead; lines: QuoteLine[]; book: Book; sent: boolean };
 
 const unitLineOf = (l: QuoteLine): UnitLine => ({
   id: l.id,
@@ -49,19 +52,23 @@ const unitLineOf = (l: QuoteLine): UnitLine => ({
   costCents: l.costCents,
   sellCents: l.sellCents,
   design: l.design ?? null,
+  updatedAt: l.updatedAt,
 });
 
-async function readDesignDoc(orgId: string, id: string): Promise<DesignDocument | null> {
-  const { data } = await supabaseAdmin.from("studio_designs").select("doc").eq("org_id", orgId).eq("id", id).maybeSingle();
+async function readDesignDoc(orgId: string, id: string): Promise<{ doc: DesignDocument; at: string } | null> {
+  const { data } = await supabaseAdmin.from("studio_designs").select("doc, updated_at").eq("org_id", orgId).eq("id", id).maybeSingle();
   try {
-    return migrateDesign((data as { doc: unknown } | null)?.doc).doc;
+    const row = data as { doc: unknown; updated_at: string | null } | null;
+    return { doc: migrateDesign(row?.doc).doc, at: row?.updated_at ?? "" };
   } catch {
     return null;
   }
 }
 
-/** The join as it stands, with the joins it found kept; null with no design, no unit lines, or a quote on the old engine. */
-async function readNow(orgId: string, jobUuid: string): Promise<Read | null> {
+/** The join as it stands, with the joins it found kept; null with no
+    design, no unit lines, or a quote on the old engine. `open`: the design
+    as the Studio has it this second, in place of the one saved. */
+async function readNow(orgId: string, jobUuid: string, open: DesignDocument | null = null): Promise<Read | null> {
   if (!jobUuid || (await readEngine(orgId, jobUuid)) !== "lines") return null;
   const [designs, lines, byHand] = await Promise.all([designsOnJob(orgId, jobUuid), readLines(orgId, jobUuid), readByHand(orgId, jobUuid)]);
   if (designs.length === 0) return null;
@@ -70,19 +77,22 @@ async function readNow(orgId: string, jobUuid: string): Promise<Read | null> {
   /* the design its lines are joined in, else the newest */
   const joinedIn = new Set(units.map((l) => l.design?.design).filter(Boolean));
   const chosen = designs.find((d) => joinedIn.has(d.id)) ?? designs[0]!;
-  const doc = await readDesignDoc(orgId, chosen.id);
-  if (!doc) return null;
+  const saved = open && open.id === chosen.id ? { doc: open, at: new Date().toISOString() } : await readDesignDoc(orgId, chosen.id);
+  if (!saved) return null;
+  const doc = saved.doc;
   const pack = await designPacks(doc);
   const marks = byHand.designJoin ?? { leftOff: [], drop: [] };
   const book = bookOf(pack);
-  const read = readJoin({ doc, lines: units.map(unitLineOf), accepted: byHand.accepted, book, leftOff: marks.leftOff, drop: marks.drop });
+  const read = readJoin({ doc, lines: units.map(unitLineOf), accepted: byHand.accepted, book, leftOff: marks.leftOff, drop: marks.drop, designAt: saved.at });
   if (!read) return null;
   if (read.found.length) {
     await setJoins(orgId, jobUuid, read.found.map((f) => ({ id: f.lineId, join: f.join })));
     const by = new Map(read.found.map((f) => [f.lineId, f.join]));
     for (const l of lines) if (by.has(l.id)) l.design = by.get(l.id)!;
   }
-  return { doc, read, lines, book };
+  /* sent for real, or taken: the quote is the customer's, a change only said */
+  const sent = (!!byHand.sent && !byHand.sent.trial) || byHand.accepted.length > 0;
+  return { doc, read, lines, book, sent };
 }
 
 /** A pack model as the book sells it: the supplier the business buys it
@@ -144,7 +154,9 @@ export async function readDesignJoin(orgId: string, jobUuid: string, money: bool
   return {
     design: read.design,
     option: read.option,
-    row: designRowOf(read),
+    row: designRowOf(read, now.sent),
+    sent: now.sent,
+    changes: money ? await changesSinceSent(orgId, now) : null,
     lines: read.lines,
     waiting: read.waiting,
     asks: all.map(({ q, answers }) => {
@@ -259,4 +271,162 @@ export async function refuseTakes(orgId: string, jobUuid: string, lineIds: reado
   const ok = await setJoins(orgId, jobUuid, lineIds.map((id) => ({ id, join: null })));
   if (dropped.length) await keepDesignUnits(orgId, jobUuid, dropped, by);
   return ok;
+}
+
+/* ── FOLLOWING THE DESIGN (the units mock, boards 3 and 5) ── */
+
+/** What following the design did to one line, for the Studio's toast and its Undo. */
+export type Followed = { lineId: string; words: string; deltaCents: number; changeId: number | null; before: LineJoin | null };
+
+const short = (m: string) => /^[A-Z]+-(P\d+)/.exec(m)?.[1] ?? m;
+
+/** What the design changed since the quote was sent, as the quote's page
+    says it: each line's model now and what it does to the price. */
+async function changesSinceSent(orgId: string, now: Read): Promise<{ count: number; deltaCents: number; lines: Record<string, number> } | null> {
+  if (!now.sent || now.read.follow.length === 0) return null;
+  const models = now.read.follow.flatMap((f) => (f.kind === "model" ? [f.model] : f.kind === "split" ? f.moved.map((m) => m.model) : []));
+  const [prices, settings] = await Promise.all([bookPrices(orgId, models), readQuoteSettings(orgId)]);
+  const markup = settings.unitMarkupPct ?? 0;
+  const sell = (c: number) => c * (1 + markup / 100);
+  const lines: Record<string, number> = {};
+  for (const f of now.read.follow) {
+    const l = now.lines.find((x) => x.id === f.lineId);
+    if (!l) continue;
+    const each = l.sellCents ?? sell(l.costCents);
+    if (f.kind === "model") {
+      const p = prices.get(f.model);
+      lines[l.id] = p ? Math.round((sell(p.costCents) - each) * l.qty) : 0;
+    } else if (f.kind === "gone") lines[l.id] = Math.round(-each * (l.qty - f.left));
+    else lines[l.id] = Math.round(f.moved.reduce((n, m) => n + (prices.get(m.model) ? sell(prices.get(m.model)!.costCents) - each : 0), 0));
+  }
+  return { count: now.read.follow.length, deltaCents: Object.values(lines).reduce((a, b) => a + b, 0), lines };
+}
+
+/** THE QUOTE FOLLOWS THE DESIGN until it's sent: a unit the design made
+    another model, the line takes the book's price for it; units the design
+    took out, the line counts what's left. Each a change in Changes with
+    Undo, said "Changed with the design". Sent, nothing is touched: the
+    change is said on the line, and Update quote takes it. `open`: the
+    design as the Studio has it, when it asks as it changes. */
+export async function followDesign(orgId: string, jobUuid: string, by: string, open: DesignDocument | null = null): Promise<{ sent: boolean; followed: Followed[]; waiting: number }> {
+  const now = await readNow(orgId, jobUuid, open);
+  if (!now) return { sent: false, followed: [], waiting: 0 };
+  if (now.sent || now.read.follow.length === 0) return { sent: now.sent, followed: [], waiting: now.read.follow.length };
+  const models = now.read.follow.flatMap((f) => (f.kind === "model" ? [f.model] : f.kind === "split" ? f.moved.map((m) => m.model) : []));
+  const [prices, settings] = await Promise.all([bookPrices(orgId, models), readQuoteSettings(orgId)]);
+  const markup = settings.unitMarkupPct ?? 0;
+  const sell = (c: number) => c * (1 + markup / 100);
+  const unitRooms = new Map(now.doc.systems.flatMap((s) => (s.settings.allocations as { id: string; roomId?: string | null }[] | undefined ?? []).map((a) => [a.id, a.roomId ?? null] as const)));
+  const roomName = (unit: string) => {
+    const r = unitRooms.get(unit);
+    return r ? String(now.doc.objects.find((o) => o.id === r)?.props.name ?? "") : "Outdoor";
+  };
+  const why = "Changed with the design";
+  const followed: Followed[] = [];
+  for (const f of now.read.follow) {
+    const l = now.lines.find((x) => x.id === f.lineId);
+    if (!l) continue;
+    const each = l.sellCents ?? sell(l.costCents);
+    const before = l.design ?? null;
+    if (f.kind === "model") {
+      const p = prices.get(f.model);
+      const patch = p ? { code: p.code, supplierKey: p.supplierKey, costCents: p.costCents, source: "said" } : { code: f.model, supplierKey: null, costCents: 0, source: "unknown" };
+      const r = await changeLine(orgId, jobUuid, l.id, l.version, patch, by, why, { design: now.read.design.id, units: f.units, model: f.model, code: patch.code });
+      if (r.ok) followed.push({ lineId: l.id, words: `${roomName(f.units[0]!)} ${short(f.model)}`, deltaCents: p ? Math.round((sell(p.costCents) - each) * l.qty) : 0, changeId: r.changeId ?? null, before });
+    } else if (f.kind === "gone") {
+      const r =
+        f.left > 0
+          ? await changeLine(orgId, jobUuid, l.id, l.version, { qty: f.left }, by, why, { ...(before ?? { design: now.read.design.id }), units: f.units, design: now.read.design.id })
+          : await removeLine(orgId, jobUuid, l.id, l.version, by, why);
+      if (r.ok) followed.push({ lineId: l.id, words: `${l.name} taken out`, deltaCents: Math.round(-each * (l.qty - f.left)), changeId: r.changeId ?? null, before });
+    } else {
+      const r = await changeLine(orgId, jobUuid, l.id, l.version, { qty: f.keep.length }, by, why, { ...(before ?? { design: now.read.design.id }), design: now.read.design.id, units: f.keep });
+      if (r.ok) followed.push({ lineId: l.id, words: `${l.name}, ${f.keep.length} kept`, deltaCents: Math.round(-each * f.moved.length), changeId: r.changeId ?? null, before });
+      for (const m of f.moved) {
+        const p = prices.get(m.model) ?? null;
+        const unit = { id: m.unit, systemId: "", role: "idu" as const, model: m.model, rooms: [roomName(m.unit)] };
+        const a = await addUnit(orgId, jobUuid, l.optionIndex, l.system, unit, p, by, why, { design: now.read.design.id, units: [m.unit], model: m.model });
+        if (a.ok) followed.push({ lineId: a.line?.id ?? "", words: `${roomName(m.unit)} ${short(m.model)}`, deltaCents: p ? Math.round(sell(p.costCents)) : 0, changeId: a.changeId ?? null, before: null });
+      }
+    }
+  }
+  return { sent: false, followed, waiting: 0 };
+}
+
+/** The Studio's Undo of what the quote did with it: each change undone, and
+    each line joined as it was before. */
+export async function undoFollowed(orgId: string, jobUuid: string, followed: readonly Pick<Followed, "lineId" | "changeId" | "before">[], by: string): Promise<boolean> {
+  /* only what following the design did: any other change is undone on the quote, where money is gated */
+  const ids = followed.flatMap((f) => (f.changeId == null ? [] : [f.changeId]));
+  if (ids.length === 0) return true;
+  const { data } = await supabaseAdmin.from("quote_line_changes").select("id").eq("org_id", orgId).eq("sm8_job_uuid", jobUuid).eq("why", "Changed with the design").in("id", ids);
+  const mine = new Set(((data ?? []) as { id: number }[]).map((r) => r.id));
+  let ok = true;
+  for (const f of [...followed].reverse()) {
+    if (f.changeId == null || !mine.has(f.changeId)) continue;
+    const r = await undoChange(orgId, jobUuid, f.changeId, by);
+    if (!r.ok) ok = false;
+    else if (r.line && f.before) await setJoins(orgId, jobUuid, [{ id: r.line.id, join: f.before }]);
+  }
+  return ok;
+}
+
+/* ── ON THE QUOTE, in the Studio (the units mock, board 4) ── */
+
+export type QuoteOnDesign = {
+  /** the option the design is joined to, as the quote names it */
+  option: string;
+  /** each of the design's systems on the quote: what its quote system comes to, ex GST; null without money */
+  systems: Record<string, { cents: number | null }>;
+  /** where the customer is: Not sent yet, Sent 25 Nov, Accepted, Option 1 */
+  customer: string;
+};
+
+/** What the quote did with each of the design's systems. Null where the job has no quote joined to this design. */
+export async function quoteOnDesign(orgId: string, jobUuid: string, designId: string, money: boolean): Promise<QuoteOnDesign | null> {
+  const now = await readNow(orgId, jobUuid);
+  if (!now || now.read.design.id !== designId) return null;
+  const byHand = await readByHand(orgId, jobUuid);
+  const opt = now.read.option;
+  const name = byHand.names[opt]?.trim() || `Option ${opt + 1}`;
+  const systemOfUnit = new Map(designSystems(now.doc).flatMap((s) => s.units.map((u) => [u.id, s.id] as const)));
+  /* each design system's quote systems: the ones whose lines are its units */
+  const quoteSystems = new Map<string, Set<string>>();
+  for (const l of now.lines) {
+    const st = now.read.lines[l.id];
+    if (l.optionIndex !== opt || st?.from !== "design") continue;
+    for (const u of st.units) {
+      const sid = systemOfUnit.get(u);
+      if (sid) quoteSystems.set(sid, (quoteSystems.get(sid) ?? new Set()).add(l.system));
+    }
+  }
+  let sells: Map<string, number> | null = null;
+  if (money) {
+    const price = await readQuotePrice(orgId, jobUuid).catch(() => null);
+    const o = price && price.ok ? price.options[opt] : undefined;
+    if (o) {
+      sells = new Map();
+      for (const g of o.build.groups) for (const bl of g.lines) sells.set(bl.key, bl.sellCents);
+      const labour = now.lines.filter((l) => l.optionIndex === opt && l.kind === "labour" && !(l.source === "unknown" && l.costCents <= 0 && l.sellCents == null));
+      labour.forEach((l, i) => {
+        const v = o.build.labour.visits[i];
+        if (v) sells!.set(l.id, v.sellCents);
+      });
+    }
+  }
+  const systems: QuoteOnDesign["systems"] = {};
+  for (const [sid, keys] of quoteSystems) {
+    const lines = now.lines.filter((l) => l.optionIndex === opt && keys.has(l.system));
+    systems[sid] = { cents: sells ? Math.round(lines.reduce((n, l) => n + (sells!.get(l.id) ?? 0), 0)) : null };
+  }
+  const took = byHand.accepted.find((i) => i === opt);
+  const customer =
+    took !== undefined
+      ? `Accepted, ${name}`
+      : byHand.accepted.length > 0
+        ? `Accepted, Option ${byHand.accepted[0]! + 1}`
+        : byHand.sent && !byHand.sent.trial
+          ? `Sent ${fmtAuDayMonth(auDayOf(byHand.sent.at))}`
+          : "Not sent yet";
+  return { option: name, systems, customer };
 }

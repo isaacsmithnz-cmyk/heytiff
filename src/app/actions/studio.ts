@@ -250,6 +250,48 @@ export async function refuseQuoteTakes(jobRemoteId: string, lineIds: string[], d
   return refuseTakes(orgId, jobRemoteId, ids(lineIds), ids(dropped), userId);
 }
 
+/* THE QUOTE FOLLOWS THE DESIGN (design-units-server.ts): as a unit changes
+   in the Studio, the job's quote takes it until it's sent, and says what it
+   did, the money only to someone who sees it; sent, it's only said. Undo
+   puts the quote back as it was. */
+export async function followDesignNow(jobRemoteId: string, doc: unknown): Promise<{ sent: boolean; words: string[]; deltaCents: number | null; followed: { lineId: string; changeId: number | null; before: unknown }[]; waiting: number }> {
+  const none = { sent: false, words: [], deltaCents: null, followed: [], waiting: 0 };
+  const { orgId, userId } = await requireOrg("studio");
+  if (!(await can("workboard")) || typeof jobRemoteId !== "string" || !jobRemoteId || !isDesignDocumentShape(doc)) return none;
+  const [{ followDesign }, { migrateDesign }, money] = await Promise.all([import("@/lib/quotes/design-units-server"), import("@/lib/studio/migrations"), can("financials")]);
+  let open;
+  try {
+    open = migrateDesign(doc).doc;
+  } catch {
+    return none;
+  }
+  const r = await followDesign(orgId, jobRemoteId, userId, open);
+  return {
+    sent: r.sent,
+    words: r.followed.map((f) => f.words),
+    deltaCents: money ? r.followed.reduce((n, f) => n + f.deltaCents, 0) : null,
+    followed: r.followed.map(({ lineId, changeId, before }) => ({ lineId, changeId, before })),
+    waiting: r.waiting,
+  };
+}
+
+/* ON THE QUOTE (the units mock, board 4): what the job's quote did with
+   each of this design's systems, the money only to someone who sees it */
+export async function readQuoteOnDesign(jobRemoteId: string, designId: string): Promise<import("@/lib/quotes/design-units-server").QuoteOnDesign | null> {
+  const { orgId } = await requireOrg("studio");
+  if (!(await can("workboard")) || typeof jobRemoteId !== "string" || !jobRemoteId || typeof designId !== "string") return null;
+  const [{ quoteOnDesign }, money] = await Promise.all([import("@/lib/quotes/design-units-server"), can("financials")]);
+  return quoteOnDesign(orgId, jobRemoteId, designId, money);
+}
+
+export async function undoFollowDesign(jobRemoteId: string, followed: { lineId: string; changeId: number | null; before: unknown }[]): Promise<boolean> {
+  const { orgId, userId } = await requireOrg("studio");
+  if (!(await can("workboard")) || typeof jobRemoteId !== "string" || !jobRemoteId || !Array.isArray(followed)) return false;
+  const [{ undoFollowed }, { joinOf }] = await Promise.all([import("@/lib/quotes/design-units-server"), import("@/lib/quotes/design-join")]);
+  const safe = followed.slice(0, 100).map((f) => ({ lineId: String(f?.lineId ?? ""), changeId: typeof f?.changeId === "number" ? f.changeId : null, before: joinOf(f?.before) }));
+  return undoFollowed(orgId, jobRemoteId, safe, userId);
+}
+
 /** the installed brands whose books have one of these codes, newest edition */
 async function quotedBrands(codes: readonly string[]): Promise<string[]> {
   if (codes.length === 0) return [];

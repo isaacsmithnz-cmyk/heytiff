@@ -75,6 +75,8 @@ export type UnitLine = {
   costCents: number;
   sellCents: number | null;
   design: LineJoin | null;
+  /** when the line last changed, to tell whose change came last */
+  updatedAt?: string;
 };
 
 /** The book's models a code can be: the pack's indoor and outdoor units. */
@@ -207,7 +209,8 @@ export type JoinQuestion =
 
 /** Where a unit line stands against the design. */
 export type LineStand =
-  | { from: "design"; units: string[] }
+  /** `now`: the design's model since the two agreed, where the quote hasn't followed (it's been sent) */
+  | { from: "design"; units: string[]; now?: string; gone?: number }
   | { from: "quote" }
   /** the design is to take it from the quote, when the Studio next opens */
   | { from: "waiting" }
@@ -225,7 +228,18 @@ export type JoinRead = {
   waiting: number;
   /** of a line waiting, how many units the design is still to add */
   toAdd?: Record<string, number>;
+  /** what the design changed since the two agreed, for the quote to follow
+      until it's sent, and to say once it has been */
+  follow: Follow[];
 };
+
+/** A change the design made to a joined line's units: another model, or
+    units taken out (`left`: how many of the line's units it still has). */
+export type Follow =
+  | { kind: "model"; lineId: string; units: string[]; model: string; was: string }
+  | { kind: "gone"; lineId: string; units: string[]; left: number }
+  /** some of a line's units another model: the line keeps the rest, the others are lines of their own */
+  | { kind: "split"; lineId: string; keep: string[]; moved: { unit: string; model: string }[] };
 
 /** Which option the design joins: one already joined, else the one the
     client took, else the one with most units the design has, else the
@@ -267,6 +281,8 @@ export function readJoin(input: {
   book: Book;
   leftOff?: readonly string[];
   drop?: readonly string[];
+  /** when the design was last saved, to tell whose change came last */
+  designAt?: string;
 }): JoinRead | null {
   const { doc, book } = input;
   const systems = designSystems(doc);
@@ -295,6 +311,9 @@ export function readJoin(input: {
   const open: Slot[] = [];
   const takes: { l: UnitLine; j: LineJoin; g: QuoteGroup }[] = [];
   const toAdd: Record<string, number> = {};
+  const follow: Follow[] = [];
+  const modelNow: Record<string, string> = {};
+  const goneFrom: Record<string, number> = {};
   for (const l of lines) {
     const j = l.design && l.design.design === doc.id ? l.design : null;
     const g = groupOf.get(l.id)!;
@@ -312,11 +331,50 @@ export function readJoin(input: {
       joinedUnits.set(l.id, kept);
       vote(g, unitById.get(kept[0]!)!.systemId);
     }
+    /* WHOSE CHANGE (the two-way rule, 26 November 2026): against what the two
+       said when they last agreed, the design's model and the quote's code */
+    const mixed = j?.model && kept.length > 1 && kept.some((u) => unitById.get(u)!.model !== j.model) && kept.some((u) => unitById.get(u)!.model === j.model);
+    if (j?.model && mixed) {
+      const keep = kept.filter((u) => unitById.get(u)!.model === j.model);
+      const moved = kept.filter((u) => unitById.get(u)!.model !== j.model).map((u) => ({ unit: u, model: unitById.get(u)!.model }));
+      follow.push({ kind: "split", lineId: l.id, keep, moved });
+      modelNow[l.id] = moved[0]!.model;
+    } else if (j && kept.length && j.model) {
+      const dModel = unitById.get(kept[0]!)!.model;
+      const dChanged = dModel !== j.model;
+      const qChanged = "code" in j && (j.code ?? null) !== l.code;
+      const qModel = lineModel(book, l.code).model;
+      if (dChanged && qChanged && qModel === dModel) {
+        found.push({ lineId: l.id, join: { design: doc.id, units: kept, model: dModel, code: l.code } });
+      } else if (dChanged && (!qChanged || !(l.updatedAt && input.designAt && l.updatedAt > input.designAt))) {
+        follow.push({ kind: "model", lineId: l.id, units: kept, model: dModel, was: j.model });
+        modelNow[l.id] = dModel;
+      } else if (qChanged && qModel && qModel !== dModel) {
+        /* the quote's: the design takes it when the Studio next opens */
+        takes.push({ l, j: { ...j, units: kept, take: qModel }, g });
+        kept.forEach((u) => taken.delete(u));
+        joinedUnits.delete(l.id);
+        found.push({ lineId: l.id, join: { ...j, units: kept, take: qModel } });
+        continue;
+      } else if (qChanged) {
+        found.push({ lineId: l.id, join: { design: doc.id, units: kept, model: dModel, code: l.code } });
+      }
+    }
+    /* units the design took out since: the line counts what's left, and
+       one it has none of left isn't asked about again */
+    if (j && j.units.length > kept.length && !j.take && !j.only) {
+      follow.push({ kind: "gone", lineId: l.id, units: kept, left: kept.length });
+      goneFrom[l.id] = j.units.length - kept.length;
+      if (kept.length === 0) {
+        stand[l.id] = { from: "design", units: [], gone: goneFrom[l.id] };
+        continue;
+      }
+    }
     /* said to be the design's system, its units not settled yet */
     if (j && !j.only && !j.take && j.system && !kept.length) vote(g, j.system);
     const m = slotOf(book, l);
     const room = roomWordsOf(l, g.byRoom);
-    for (let n = kept.length; n < Math.max(1, Math.round(l.qty)); n++) open.push({ line: l, role: m.role, model: m.model, room });
+    for (let n = kept.length; n < Math.max(1, Math.round(l.qty)) - (goneFrom[l.id] ?? 0); n++) open.push({ line: l, role: m.role, model: m.model, room });
   }
 
   /* what the design was to take from the quote: taken once the Studio has
@@ -391,7 +449,9 @@ export function readJoin(input: {
   for (const l of lines) {
     const units = joinedUnits.get(l.id);
     if (!units?.length) continue;
-    stand[l.id] = { from: "design", units };
+    stand[l.id] = { from: "design", units, ...(modelNow[l.id] ? { now: modelNow[l.id] } : {}), ...(goneFrom[l.id] ? { gone: goneFrom[l.id] } : {}) };
+    /* a change the design made waits for the quote to follow, or to be said */
+    if (modelNow[l.id] || goneFrom[l.id] || found.some((f) => f.lineId === l.id)) continue;
     const was = l.design && l.design.design === doc.id ? l.design : null;
     const had = was?.units ?? [];
     /* new to it, or what it waited for is in: kept as it stands now */
@@ -517,7 +577,7 @@ export function readJoin(input: {
   }
 
   for (const l of lines) if (!(l.id in stand)) stand[l.id] = null;
-  return { design: { id: doc.id, name: doc.meta.name?.trim() || "Design" }, option, lines: stand, questions, found, waiting, toAdd };
+  return { design: { id: doc.id, name: doc.meta.name?.trim() || "Design" }, option, lines: stand, questions, found, waiting, toAdd, follow };
 }
 
 /* ── answers ── */
@@ -696,8 +756,9 @@ export function questionWords(q: JoinQuestion, money?: (lines: readonly UnitLine
 }
 
 /** The Design row of Where it's up to: the same as the quote, or what's left. */
-export function designRowOf(read: JoinRead | null): { words: string; tone: "good" | "due" } | null {
+export function designRowOf(read: JoinRead | null, sent = false): { words: string; tone: "good" | "due" } | null {
   if (!read) return null;
+  if (sent && read.follow.length) return { words: `${read.follow.length} ${read.follow.length === 1 ? "change" : "changes"} since sent`, tone: "due" };
   const n = read.questions.length;
   if (n > 0) return { words: `${n} to join`, tone: "due" };
   if (read.waiting > 0) return { words: `${read.waiting} for the Studio`, tone: "due" };
@@ -730,4 +791,8 @@ export type JoinView = {
   lines: Record<string, LineStand>;
   asks: JoinAsk[];
   waiting: number;
+  /** sent for real, or taken: a change in the design is only said */
+  sent?: boolean;
+  /** what the design changed since it was sent: how many, what it comes to, by line; null without money */
+  changes?: { count: number; deltaCents: number; lines: Record<string, number> } | null;
 };

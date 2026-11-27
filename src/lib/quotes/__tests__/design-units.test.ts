@@ -275,3 +275,63 @@ describe("reading the quote's systems", () => {
     expect(joinOf({ design: "d", units: ["a", "a", 3], only: true })).toEqual({ design: "d", units: ["a"], only: true });
   });
 });
+
+describe("whose change it was, once they're joined", () => {
+  const vrf = (master: string, extra = true) =>
+    doc(
+      [
+        {
+          id: "sV",
+          name: "First floor rear",
+          type: "vrf",
+          allocations: [
+            { id: "oV", role: "odu", model: "PUMY-SP80VKMD2-A", roomId: null },
+            { id: "hM", role: "idu", model: master, roomId: "rM" },
+            ...(extra ? [{ id: "hS", role: "idu" as const, model: "PEFY-P20VMX-E", roomId: "rS" }] : []),
+          ],
+        },
+      ],
+      { rM: "Master Bedroom", rS: "Study" }
+    );
+  const joined = (id: string, units: string[], model: string, code: string): UnitLine["design"] => ({ design: "dsn_1", units, model, code });
+  const ls = (masterCode: string, at = "2026-11-27T10:00:00Z"): UnitLine[] => [
+    { ...line("First floor rear", "VRF outdoor", "PUMY-SP80VKMD2-A"), id: "o", design: joined("o", ["oV"], "PUMY-SP80VKMD2-A", "PUMY-SP80VKMD2-A") },
+    { ...line("First floor rear", "Concealed ducted, Master Bedroom", masterCode), id: "m", updatedAt: at, design: joined("m", ["hM"], "PEFY-P32VMX-E", "PEFY-P32VMX-E1") },
+    { ...line("First floor rear", "Concealed ducted, Study", "PEFY-P20VMX-E1"), id: "s", design: joined("s", ["hS"], "PEFY-P20VMX-E", "PEFY-P20VMX-E1") },
+  ];
+
+  test("the design's: the quote follows, until it's sent", () => {
+    const r = readJoin({ doc: vrf("PEFY-P40VMX-E"), lines: ls("PEFY-P32VMX-E1"), accepted: [], book })!;
+    expect(r.follow).toEqual([{ kind: "model", lineId: "m", units: ["hM"], model: "PEFY-P40VMX-E", was: "PEFY-P32VMX-E" }]);
+    expect(r.lines.m).toEqual({ from: "design", units: ["hM"], now: "PEFY-P40VMX-E" });
+    expect(r.questions).toEqual([]);
+    expect(designRowOf(r, true)).toEqual({ words: "1 change since sent", tone: "due" });
+  });
+
+  test("the quote's: the design takes it when the Studio next opens", () => {
+    const r = readJoin({ doc: vrf("PEFY-P32VMX-E"), lines: ls("PEFY-P25VMX-E1"), accepted: [], book })!;
+    expect(r.follow).toEqual([]);
+    expect(r.lines.m).toEqual({ from: "waiting" });
+    expect(r.found).toEqual([{ lineId: "m", join: { design: "dsn_1", units: ["hM"], model: "PEFY-P32VMX-E", code: "PEFY-P32VMX-E1", take: "PEFY-P25VMX-E" } }]);
+  });
+
+  test("both to the same model: agreed again", () => {
+    const r = readJoin({ doc: vrf("PEFY-P40VMX-E"), lines: ls("PEFY-P40VMX-E1"), accepted: [], book })!;
+    expect(r.follow).toEqual([]);
+    expect(r.found).toEqual([{ lineId: "m", join: { design: "dsn_1", units: ["hM"], model: "PEFY-P40VMX-E", code: "PEFY-P40VMX-E1" } }]);
+  });
+
+  test("both apart: the later change wins", () => {
+    const quoteLater = readJoin({ doc: vrf("PEFY-P40VMX-E"), lines: ls("PEFY-P25VMX-E1", "2026-11-27T11:00:00Z"), accepted: [], book, designAt: "2026-11-27T10:30:00Z" })!;
+    expect(quoteLater.lines.m).toEqual({ from: "waiting" });
+    const designLater = readJoin({ doc: vrf("PEFY-P40VMX-E"), lines: ls("PEFY-P25VMX-E1", "2026-11-27T10:00:00Z"), accepted: [], book, designAt: "2026-11-27T10:30:00Z" })!;
+    expect(designLater.follow.map((f) => f.kind)).toEqual(["model"]);
+  });
+
+  test("a unit the design took out: the line counts what's left", () => {
+    const r = readJoin({ doc: vrf("PEFY-P32VMX-E", false), lines: ls("PEFY-P32VMX-E1"), accepted: [], book })!;
+    expect(r.follow).toEqual([{ kind: "gone", lineId: "s", units: [], left: 0 }]);
+    expect(r.lines.s).toEqual({ from: "design", units: [], gone: 1 });
+    expect(r.questions).toEqual([]);
+  });
+});

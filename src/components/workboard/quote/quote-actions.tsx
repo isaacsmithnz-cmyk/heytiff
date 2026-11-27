@@ -50,12 +50,14 @@ export function panelFoot(a: {
   accepted: boolean;
   update: boolean;
   paper: boolean;
+  /** the design changed since it was sent: Update quote comes before the customer's yes (design-units.ts) */
+  updateFirst?: boolean;
 }): { step: FootStep | null; moved: Moved[] } {
   if (!a.money || a.lines === 0 || a.kept) return { step: null, moved: [] };
   if (a.variation) return { step: a.variation.approvedAt ? "accept" : "approve", moved: [] };
   const accept = a.acceptable && !a.accepted;
   const update = a.update && !a.paper;
-  const step: FootStep | null = !a.approved ? "approve" : a.sending ? "send" : accept ? "accept" : update ? "update" : null;
+  const step: FootStep | null = !a.approved ? "approve" : a.sending ? "send" : update && a.updateFirst ? "update" : accept ? "accept" : update ? "update" : null;
   const moved: Moved[] = [];
   if (accept && step !== "accept") moved.push("accept");
   if (update && step !== "update") moved.push("update");
@@ -77,6 +79,7 @@ export function QuoteActions({
   send,
   acceptable,
   update,
+  updateFirst = false,
   options,
   at,
   accepted,
@@ -115,6 +118,8 @@ export function QuoteActions({
   acceptable: boolean;
   /** Update quote is offered: it's approved or accepted, and no variation is open */
   update: boolean;
+  /** the design changed since it was sent: Update quote is the next step */
+  updateFirst?: boolean;
   options: number;
   at: number;
   /** the option open is the one the client took */
@@ -134,7 +139,7 @@ export function QuoteActions({
   onCheck?: () => void;
   onFix?: () => void;
 }) {
-  const { step } = panelFoot({ money, lines, kept, variation, approved, sending: !!send && !sent, acceptable, accepted, update, paper });
+  const { step } = panelFoot({ money, lines, kept, variation, approved, sending: !!send && !sent, acceptable, accepted, update, paper, updateFirst });
   const answering = step === "approve" && asked > 0 && !!onAnswer;
   const node =
     step === "approve" ? (

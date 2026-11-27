@@ -299,6 +299,8 @@ export async function POST(req: Request) {
       const kept = await startVersion(g.orgId, jobUuid, what, g.userId);
       result = kept;
       if (kept.ok) await mark(`Version ${kept.n + 1} started${what.trim() ? `: ${what.trim().slice(0, 200)}` : ""}`);
+      /* the new version takes what the design changed since it was sent (design-units-server.ts) */
+      if (kept.ok && g.studio) await import("@/lib/quotes/design-units-server").then((m) => m.followDesign(g.orgId, jobUuid, g.userId)).catch(() => null);
       break;
     }
     case "variation-approve":

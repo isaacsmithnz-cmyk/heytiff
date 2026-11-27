@@ -95,6 +95,8 @@ import { RISER_PAINT } from "@/lib/studio/duct-size";
 import { StudioFlowContext, useStudioFlow, type StudioFlow } from "./flow";
 import { ClearDesignDialog } from "./clear-design-dialog";
 import { QuoteTakes } from "./quote-takes";
+import type { QuoteOnDesign } from "@/lib/quotes/design-units-server";
+import { cents2 } from "@/lib/quotes/quote-sum";
 import { clearKeeping, keptLabelOf } from "@/lib/studio/clear-design";
 import { measuredForJob, setupNeeds, shareAcrossSet } from "@/lib/studio/plan-set";
 import { InstallQuestions } from "./install-questions";
@@ -1826,6 +1828,37 @@ function Editor({
       on = false;
     };
   }, [quoteJob, packLoader]);
+  /* ON THE QUOTE (the units mock, board 4): what the job's quote did with
+     each of this design's systems, read as it opens, when its tab is come
+     back to, and when the quote changed with it */
+  const [quoteOn, setQuoteOn] = useState<{ job: string; design: string; on: QuoteOnDesign } | null>(null);
+  const [quoteRev, setQuoteRev] = useState(0);
+  useEffect(() => {
+    if (!quoteJob || packLoader) return;
+    let on = true;
+    const look = () =>
+      void studioActions()
+        .then((a) => a.readQuoteOnDesign(quoteJob, doc.id))
+        .then((r) => {
+          if (on) setQuoteOn(r ? { job: quoteJob, design: doc.id, on: r } : null);
+        })
+        .catch(() => {});
+    look();
+    const back = () => {
+      if (document.visibilityState === "visible") look();
+    };
+    document.addEventListener("visibilitychange", back);
+    return () => {
+      on = false;
+      document.removeEventListener("visibilitychange", back);
+    };
+  }, [quoteJob, packLoader, doc.id, quoteRev]);
+  const quoteOnSystem = (systemId: string) => {
+    if (!quoteOn || quoteOn.job !== quoteJob || quoteOn.design !== doc.id || !quoteJob) return null;
+    const sys = quoteOn.on.systems[systemId];
+    if (!sys) return null;
+    return { option: quoteOn.on.option, value: sys.cents == null ? null : cents2(sys.cents), customer: quoteOn.on.customer, href: jobPageHref(quoteJob, "price") };
+  };
   const quoted = useMemo(() => {
     if (!pack || !quotedRead || quotedRead.job !== quoteJob) return [];
     const all = quotedOptions(doc, pack, quotedRead.lines, quotedRead.accepted, quotedRead.names);
@@ -2392,7 +2425,7 @@ function Editor({
           2 November 2026: she looked out of place in the tool bar) */}
       {(flow !== "next" || step !== 1 || !activeFloor) && <AskTiffPill />}
       {/* what the quote's answers left for the design to take (take-from-quote.ts); not where the pack is a test's */}
-      {quoteJob && !packLoader && <QuoteTakes job={quoteJob} designId={doc.id} pack={pack} docRef={docRef} mutate={mutate} />}
+      {quoteJob && !packLoader && <QuoteTakes job={quoteJob} designId={doc.id} pack={pack} doc={doc} docRef={docRef} mutate={mutate} onQuote={() => setQuoteRev((n) => n + 1)} />}
       {/* three tracks so the tab switcher sits dead-centre: the flanks share
           the leftover width equally, whatever each of them holds */}
       <header className="ds-topbar">
@@ -2779,6 +2812,7 @@ function Editor({
             <SystemScreen
               doc={doc}
               pack={pack}
+              quote={quoteOnSystem(effectiveSystemId)}
               basis={doc.settings.sizingBasis}
               systemId={effectiveSystemId}
               claiming={claiming === effectiveSystemId}

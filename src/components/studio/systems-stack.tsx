@@ -32,7 +32,7 @@ import type { TrayItem } from "@/lib/studio/builder";
 import { Switch } from "@/components/parts/tick";
 import { Icon } from "@/components/shell/icon";
 import { RACK_DRAG, type PlacingUnit } from "./canvas";
-import { StackDot, StackGroup, StackHead, StackRow, StackScreen } from "./stack";
+import { StackDot, StackGroup, StackHead, StackRow, StackScreen, StackSection } from "./stack";
 import { VariationButton } from "./variation-menu";
 
 const kwText = kwWords;
@@ -200,11 +200,16 @@ export function SystemScreen({
   onArmPlace,
   onToggleZone,
   litRoomId = null,
+  quote = null,
 }: {
   doc: DesignDocument;
   pack: DataPack | null;
   basis: SizingBasis;
   systemId: string;
+  /** ON THE QUOTE (the units mock, board 4): the option that holds it, what
+      it comes to there (null without money), where the customer is, and
+      the quote to open; null while the job's quote hasn't got it */
+  quote?: { option: string; value: string | null; customer: string; href: string } | null;
   /** the zone picked on the plan while this system is open: its row lit */
   litRoomId?: string | null;
   /** its zones being picked: the zones with a switch each */
@@ -309,6 +314,15 @@ export function SystemScreen({
         {rows.zones.map(zoneRow)}
         <StackRow blue lead={<Lead icon="plus" />} name="Add zones" onPress={onAddZones} />
       </StackGroup>
+      {quote && (
+        <>
+          <StackSection>On the quote</StackSection>
+          <StackGroup>
+            <StackRow name={quote.option} value={quote.value ?? undefined} chevron onPress={() => window.open(quote.href, "_blank", "noopener")} />
+            <StackRow name="Customer" value={quote.customer} />
+          </StackGroup>
+        </>
+      )}
       <StackGroup>
         {hasAir && <StackRow name="Air" chevron onPress={onAir} />}
         <StackRow name="Install details" value={asked ? `${asked.answered} of ${asked.total}` : ""} chevron onPress={() => setInstallOpen(true)} />

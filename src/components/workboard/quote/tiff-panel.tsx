@@ -45,6 +45,8 @@ const ROUTE = "/api/workboard/quote-session";
 /** How often the thread is read while she works, ms: her reply types out
     between reads (Typing), so a read a second keeps it near her. */
 const POLL_MS = 1000;
+/** the lines of her working in view while she works (bug 121) */
+const LIVE_TAIL = 3;
 
 type Ev = { id: number; turnId: string | null; kind: string; author: string; body: Record<string, unknown>; at: string };
 type QState = { deltas: (number | null)[]; answered: { index: number; label: string; by: string; typed?: true } | null };
@@ -554,17 +556,22 @@ export function TiffPanel({
         if (!next.delete(key)) next.add(key);
         return next;
       });
+    /* while she works only her last few lines show, the rest under the fold
+       (bug 121, Isaac, 26 November 2026: "too much text displayed while
+       working"): 25 lines of book searches pushed the talk off the page */
+    const tail = live && !opened.has(key) && run.length > LIVE_TAIL;
+    const shown = tail ? run.slice(-LIVE_TAIL) : run;
     thread.push(
       <div key={`steps-${key}`} className={`qt-dids qt-fold${landed(key)}`}>
-        {!live && (
-          <button type="button" className="qt-foldbtn" aria-expanded={open} onClick={flip}>
+        {(!live || run.length > LIVE_TAIL) && (
+          <button type="button" className="qt-foldbtn" aria-expanded={live ? !tail : open} onClick={flip}>
             <Icon name="chevR" size={14} />
-            <b>Worked through it</b>
+            <b>{live ? "Working through it" : "Worked through it"}</b>
             <span>{`${n} ${n === 1 ? "step" : "steps"}`}</span>
           </button>
         )}
         {open &&
-          run.map((e) =>
+          shown.map((e) =>
             e.kind === "reply" ? (
               <p key={e.id} className={`qt-did note${landed(e.id)}`}>
                 {String(e.body.text ?? "")}
@@ -608,7 +615,7 @@ export function TiffPanel({
           <div className={mine ? "qt-bub me" : "qt-bub them"}>{paras(text)}</div>
           <span className="qt-meta">{who(e.author)}</span>
           {/* sent while she worked: she takes it up when she's free */}
-          {waiting.has(e.id) && <span className="qt-meta">Next</span>}
+          {waiting.has(e.id) && <span className="qt-meta">{"Tiff reads it when she's done"}</span>}
         </div>
       );
       hers = false;

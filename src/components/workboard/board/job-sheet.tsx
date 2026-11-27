@@ -60,7 +60,7 @@ import { CertWizard } from "@/components/certs/cert-wizard";
 import { CERT_TITLE } from "@/lib/certs/mechanical";
 import { readComplianceChoices, readEmailDraft } from "@/app/actions/job-compliance";
 import { ourDocumentSendKey, paperLabel, paperMeta, type JobPaper } from "@/lib/compliance/papers";
-import { fileTypeForMime, type JobMediaItem } from "@/lib/workboard/job-media";
+import { fileTypeForMime, proposalPictures, type JobMediaItem } from "@/lib/workboard/job-media";
 import { todayInAu } from "@/lib/au-dates";
 import { JobMediaViewer, type ViewerAct } from "./job-media-viewer";
 import { DocumentsSend } from "./documents-send";
@@ -1985,7 +1985,7 @@ export function JobSheet({
           materials={materials}
           ask={priceAsk}
           doc={page.doc ?? null}
-          photos={media ? media.photos.filter((m) => m.kind === "photo") : null}
+          photos={media ? proposalPictures(media) : null}
           onDocStage={setDocStage}
           onOpenPaper={(item) =>
             setViewer(media?.documents.some((d) => d.remoteId === item.remoteId) ? { kind: "paper", id: item.remoteId } : { kind: "page", item })

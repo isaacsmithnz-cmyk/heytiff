@@ -257,6 +257,14 @@ export type JobMediaGroups = {
   elsewhere: JobMediaItem[];
 };
 
+/** The pictures a quote's proposal can show: the job's photos, and a picture
+    filed with its papers, as a photo of a rating plate that came in by email
+    is (bug 123, Isaac, 26 November 2026: "add photo doesnt work": 3608's
+    only pictures were papers, so the button never woke). */
+export function proposalPictures(g: Pick<JobMediaGroups, "photos" | "documents">): JobMediaItem[] {
+  return [...g.photos.filter((m) => m.kind === "photo"), ...g.documents.filter((m) => jobMediaKind(m.fileType) === "photo")];
+}
+
 /** Split one job's attachments into the three things the sheet renders.
     Order is preserved inside each group, so whatever the loader sorted by
     (newest first) survives.

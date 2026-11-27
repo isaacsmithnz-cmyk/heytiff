@@ -51,6 +51,12 @@ const PHOTO = svg(
   </>,
 );
 
+/* back and forward through what was typed, the browser's own history of
+   the box (bug 123, Isaac, 26 November 2026: "needs undo/redo for text
+   edits"), first on the bar as a document's are */
+const UNDO = svg(<path d="M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />);
+const REDO = svg(<path d="m15 14 5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13" />);
+
 type Where = { kind: "block" | "inline"; name: string | null; style: BlockStyle | null; b: boolean; i: boolean; u: boolean; ul: boolean; ol: boolean };
 /** what the bar picked up as the style menu or the picker opened */
 type Grab = { name: string; md: string; k: number };
@@ -130,12 +136,13 @@ export function FormatBar({ photos, children }: { photos: readonly BarPhoto[]; c
   const block = at?.kind === "block";
   const words = !!at;
   const styleWord = STYLES.find((s) => s.key === at?.style)?.label ?? "Paragraph";
-  const tool = (label: string, on: boolean, enabled: boolean, cmd: string, face: ReactNode, cls: string) => (
+  /* on: null for a button that does, not one that stays pressed */
+  const tool = (label: string, on: boolean | null, enabled: boolean, cmd: string, face: ReactNode, cls: string) => (
     <button
       type="button"
       className={`qc-tb-g ${cls}${on ? " on" : ""}`}
       aria-label={label}
-      aria-pressed={on}
+      aria-pressed={on ?? undefined}
       disabled={!enabled}
       onMouseDown={keepCaret}
       onClick={() => run(cmd)}
@@ -146,6 +153,9 @@ export function FormatBar({ photos, children }: { photos: readonly BarPhoto[]; c
 
   return (
     <div ref={bar} className="qc-fmt qc-tb" role="toolbar" aria-label="Format">
+      {tool("Undo", null, words, "undo", UNDO, "")}
+      {tool("Redo", null, words, "redo", REDO, "")}
+      <i className="qc-tb-sep" aria-hidden="true" />
       <Button
         ref={styleRef}
         size={32}

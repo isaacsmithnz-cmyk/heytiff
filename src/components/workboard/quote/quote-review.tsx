@@ -1,8 +1,6 @@
 "use client";
 
-import { useState } from "react";
 import { Button } from "@/components/parts/button";
-import { Field, TextArea } from "@/components/parts/field";
 import { StateWord } from "@/components/parts/state";
 import type { QuoteReview, ReviewFinding } from "@/lib/quotes/review";
 
@@ -29,17 +27,13 @@ export function ReviewWalk({
   n: number;
   of: number;
   busy: boolean;
-  /** a fix picked by its index, or kept with its reason */
+  /** a fix picked by its index, or kept as written */
   onAnswer: (id: string, pick: number | "keep", reason: string) => void;
   /** the check put away: it's advice, and Mark ready to send is under it */
   onIgnore?: () => void;
 }) {
-  const [keeping, setKeeping] = useState<string | null>(null);
-  const [why, setWhy] = useState("");
   const live = review.findings.filter((f) => f.state !== "sent");
   const mismatch = at.kind === "mismatch";
-  const open = keeping === at.id;
-  const needWhy = mismatch && !why.trim();
   return (
     <div className="qx-card qx-ask qx-now qr-walk" aria-label="Tiff's check">
       <p className="qx-step">
@@ -56,49 +50,18 @@ export function ReviewWalk({
       <p className="qx-askq">{at.words}</p>
       {at.put && <p className="qx-askput">{`On the quote now: ${at.put}`}</p>}
       <div className="qx-answers">
-        {!open &&
-          at.answers.map((a, i) => (
-            <Button key={i} kind={i === 0 ? "main" : "second"} size={44} className="qx-answer" disabled={busy} onClick={() => onAnswer(at.id, i, "")}>
-              <span>{a.label}</span>
-            </Button>
-          ))}
-        {!open ? (
-          <Button
-            kind="second"
-            size={44}
-            className="qx-answer"
-            disabled={busy}
-            onClick={() => {
-              setKeeping(at.id);
-              setWhy("");
-            }}
-          >
-            Keep as written
+        {at.answers.map((a, i) => (
+          <Button key={i} kind={i === 0 ? "main" : "second"} size={44} className="qx-answer" disabled={busy} onClick={() => onAnswer(at.id, i, "")}>
+            <span>{a.label}</span>
           </Button>
-        ) : (
-          <>
-            <Field label={mismatch ? "Why it stays, on the quote" : "Why it stays, on the quote (if you like)"}>
-              <TextArea rows={2} value={why} maxLength={300} onChange={(e) => setWhy(e.target.value)} autoFocus />
-            </Field>
-            <Button
-              kind="main"
-              size={44}
-              className="qx-answer"
-              disabled={busy || needWhy}
-              onClick={() => {
-                onAnswer(at.id, "keep", why);
-                setKeeping(null);
-              }}
-            >
-              {why.trim() ? "Keep with this reason" : "Keep it"}
-            </Button>
-            <Button kind="quiet" size={44} className="qx-answer" disabled={busy} onClick={() => setKeeping(null)}>
-              Back to the fixes
-            </Button>
-          </>
-        )}
+        ))}
+        {/* one press: a reason was asked for and printed on the paper, and
+            "right" and "no issue" went to the customer (27 November 2026) */}
+        <Button kind="second" size={44} className="qx-answer" disabled={busy} onClick={() => onAnswer(at.id, "keep", "")}>
+          Keep as written
+        </Button>
         {/* put away: it's advice, not a gate (Isaac, 27 November 2026) */}
-        {!open && onIgnore && (
+        {onIgnore && (
           <Button kind="quiet" size={44} className="qx-answer" disabled={busy} onClick={onIgnore}>
             Ignore
           </Button>

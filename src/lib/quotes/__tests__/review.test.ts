@@ -98,9 +98,10 @@ describe("where the check leaves the quote", () => {
     /* the fixes gone to Tiff: the quote changes under them, and it's checked again */
     expect(reviewStep(fixesSent(both), "s1")).toEqual({ step: "clear", kept: 1 });
   });
-  it("won't keep a Doesn't match without a reason, and keeps a Worth a look without one", () => {
+  /* advice, not a gate (27 November 2026): either kind keeps with one press */
+  it("keeps either kind as written without a reason", () => {
     const r = review([finding({ id: "a" }), finding({ id: "b", kind: "look" })]);
-    expect(answered(r, "a", "keep", "  ")).toEqual({ error: "Say why it stays as written." });
+    expect(answered(r, "a", "keep", "  ")).not.toHaveProperty("error");
     expect(answered(r, "b", "keep", "")).not.toHaveProperty("error");
     expect(answered(r, "a", 3, "")).toEqual({ error: "That isn't one of the fixes." });
     expect(answered(r, "zz", 0, "")).toEqual({ error: "That finding isn't on the check." });
@@ -120,9 +121,11 @@ describe("the fixes and the qualifications", () => {
     expect(r.findings.map(paymentFixOf)).toEqual([null, "domestic_construction", null]);
     expect(fixesMessage(review([finding({ state: "kept", reason: "x" })]))).toBe("");
   });
-  it("puts what's kept with a reason on the quote, and carries it to the next check", () => {
+  /* 3598's paper read "Fan quantity: right." (27 November 2026): a reason
+     to keep one is for Tiff, never the customer */
+  it("puts nothing kept on the paper, and carries what's kept to the next check", () => {
     const r = review([finding({ id: "k", topic: "Copper tees for CMY joints", kind: "look", state: "kept", reason: "Budget estimate; CMY joints on the firm price." }), finding({ id: "x", state: "kept", reason: "" })]);
-    expect(qualificationsOf(r)).toEqual(["Copper tees for CMY joints: Budget estimate; CMY joints on the firm price."]);
+    expect(qualificationsOf(r)).toEqual([]);
     const next = carried(r, [finding({ id: "n1", topic: "copper tees for cmy joints" }), finding({ id: "n2", topic: "Labour hours" })]);
     expect(next.map((f) => f.id)).toEqual(["k", "x", "n2"]);
   });

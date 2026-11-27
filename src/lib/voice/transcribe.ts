@@ -275,3 +275,61 @@ export async function transcribeAudio(
     return { ok: false, error: FAILED };
   }
 }
+
+/* ── a recording's words WITH their times: a job video's captions ──
+
+   The same endpoint, the same model and the same rules as `transcribeAudio`,
+   plus word-level timestamps, which Scribe returns as `words[]` with `start`
+   and `end` in seconds (`type` is word, spacing or audio_event). Verified
+   against elevenlabs.io/docs/api-reference/speech-to-text/convert on
+   2026-11-27: `file` takes "all major audio and video formats", under 5 GB,
+   so a phone's MP4 goes as it is, with no audio pulled out first. Batch is
+   $0.20 an hour, billed per second: a minute of video is a third of a cent. */
+
+export type TimedWord = { text: string; start: number; end: number };
+export type TimedResult =
+  | { ok: true; text: string; words: TimedWord[]; languageCode: string | null }
+  | { ok: false; error: string };
+
+/** Transcribe a recording or a video, with each word's time. Never throws. */
+export async function transcribeTimed(
+  file: Blob,
+  name: string,
+  opts: { keyterms?: readonly string[] } = {}
+): Promise<TimedResult> {
+  const apiKey = process.env.ELEVENLABS_API_KEY;
+  if (!apiKey) return { ok: false, error: UNAVAILABLE };
+
+  const form = new FormData();
+  form.append("file", file, name);
+  form.append("model_id", MODEL_ID);
+  form.append("no_verbatim", "true");
+  form.append("tag_audio_events", "false");
+  form.append("timestamps_granularity", "word");
+  for (const term of prepareKeyterms(opts.keyterms ?? [])) form.append("keyterms", term);
+
+  try {
+    const res = await fetch(ENDPOINT, {
+      method: "POST",
+      headers: { "xi-api-key": apiKey },
+      body: form,
+      signal: AbortSignal.timeout(HTTP_TIMEOUT_MS),
+    });
+    if (!res.ok) return { ok: false, error: upstreamMessage(res.status, await logUpstreamFailure(res)) };
+    const body: unknown = await res.json();
+    if (!body || typeof body !== "object") return { ok: false, error: FAILED };
+    const r = body as Record<string, unknown>;
+    const text = typeof r.text === "string" ? r.text.trim() : "";
+    if (!text) return { ok: false, error: EMPTY };
+    const words: TimedWord[] = [];
+    for (const w of Array.isArray(r.words) ? r.words : []) {
+      const o = (w && typeof w === "object" ? w : {}) as Record<string, unknown>;
+      if (o.type !== "word" || typeof o.text !== "string" || typeof o.start !== "number" || typeof o.end !== "number") continue;
+      words.push({ text: o.text, start: o.start, end: o.end });
+    }
+    return { ok: true, text, words, languageCode: typeof r.language_code === "string" ? r.language_code : null };
+  } catch (err) {
+    console.error(`[transcribe] timed request failed: ${err instanceof Error ? err.message : String(err)}`);
+    return { ok: false, error: FAILED };
+  }
+}

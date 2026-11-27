@@ -20,6 +20,7 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { DOCUMENTS_BUCKET, SIGNED_URL_SECONDS } from "@/lib/documents/query";
 import { isVideoMime } from "@/lib/documents/files";
+import { wordsRefOf } from "@/lib/jobs/video-cues";
 import { isPartialInvoicePaper } from "./job-family";
 import { jobShareLinks, type JobShareLink } from "@/lib/email/share-links";
 import {
@@ -328,6 +329,19 @@ async function readOurs(orgId: string, jobUuid: string, kind: "job_document" | "
   ]);
   const urls = new Map<string, string>();
   for (const s of signed.data ?? []) if (s.path && s.signedUrl) urls.set(s.path, s.signedUrl);
+  /* a video's words beside it, where HeyTiff has heard them (lib/mobile/job-video-words) */
+  const videos = rows.filter((r) => kind === "job_photo" && isVideoMime(r.mime_type));
+  const wordsFor = new Map<string, string>();
+  if (videos.length) {
+    const { data: words } = await supabaseAdmin.storage
+      .from(DOCUMENTS_BUCKET)
+      .createSignedUrls(
+        videos.map((r) => wordsRefOf(r.storage_ref)),
+        SIGNED_URL_SECONDS
+      )
+      .catch(() => ({ data: null }));
+    for (const w of words ?? []) if (w.path && w.signedUrl && !w.error) wordsFor.set(w.path, w.signedUrl);
+  }
 
   return rows.map((r) => ({
     remoteId: ourDocumentRemoteId(r.id),
@@ -340,6 +354,7 @@ async function readOurs(orgId: string, jobUuid: string, kind: "job_document" | "
        arrive in, so the face's day reads the same for both */
     takenAt: naiveInZone(r.uploaded_at, timezone),
     url: urls.get(r.storage_ref) ?? null,
+    ...(wordsFor.has(wordsRefOf(r.storage_ref)) ? { wordsUrl: wordsFor.get(wordsRefOf(r.storage_ref))! } : {}),
     width: null,
     height: null,
     fromClaim: null,

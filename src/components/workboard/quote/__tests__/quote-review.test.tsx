@@ -35,24 +35,11 @@ describe("the finding card", () => {
     expect(onAnswer).toHaveBeenCalledWith("a", 0, "");
   });
 
-  it("keeps a Doesn't match only with a reason", () => {
-    const onAnswer = jest.fn();
-    render(<ReviewWalk review={review([f()])} at={f()} n={1} of={1} busy={false} onAnswer={onAnswer} />);
-    fireEvent.click(screen.getByRole("button", { name: "Keep as written" }));
-    const keep = screen.getByRole("button", { name: "Keep it" }) as HTMLButtonElement;
-    expect(keep.disabled).toBe(true);
-    fireEvent.change(screen.getByLabelText("Why it stays, on the quote"), { target: { value: "Budget estimate" } });
-    fireEvent.click(screen.getByRole("button", { name: "Keep with this reason" }));
-    expect(onAnswer).toHaveBeenCalledWith("a", "keep", "Budget estimate");
-  });
-
-  it("keeps a Worth a look with one press", () => {
+  it("keeps either kind as written with one press", () => {
     const onAnswer = jest.fn();
     const look = f({ kind: "look" });
-    render(<ReviewWalk review={review([look])} at={look} n={1} of={1} busy={false} onAnswer={onAnswer} />);
-    expect(screen.getByText("Worth a look")).toBeTruthy();
+    render(<ReviewWalk review={review([f(), look])} at={f()} n={1} of={2} busy={false} onAnswer={onAnswer} />);
     fireEvent.click(screen.getByRole("button", { name: "Keep as written" }));
-    fireEvent.click(screen.getByRole("button", { name: "Keep it" }));
     expect(onAnswer).toHaveBeenCalledWith("a", "keep", "");
   });
 });

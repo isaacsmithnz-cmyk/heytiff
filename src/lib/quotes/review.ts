@@ -177,7 +177,6 @@ export function answered(r: QuoteReview, id: string, pick: number | "keep", reas
   if (!f) return { error: "That finding isn't on the check." };
   if (pick === "keep") {
     const why = text(reason, MAX_REASON);
-    if (f.kind === "mismatch" && !why) return { error: "Say why it stays as written." };
     return { ...r, findings: r.findings.map((x) => (x.id === id ? { ...x, state: "kept", picked: null, reason: why } : x)) };
   }
   if (!Number.isInteger(pick) || pick < 0 || pick >= f.answers.length) return { error: "That isn't one of the fixes." };
@@ -208,9 +207,12 @@ export function fixesMessage(r: QuoteReview): string {
 /** The fixes sent: those findings done with, the rest as they were. */
 export const fixesSent = (r: QuoteReview): QuoteReview => ({ ...r, findings: r.findings.map((f) => (f.state === "fix" ? { ...f, state: "sent" } : f)) });
 
-/** What's kept with a reason, for the paper's Qualifications. */
-export function qualificationsOf(r: QuoteReview | null): string[] {
-  return (r?.findings ?? []).filter((f) => f.state === "kept" && f.reason).map((f) => `${f.topic}: ${f.reason.replace(/[.\s]+$/, "")}.`);
+/** The paper's Qualifications from the check: none. A reason to keep a
+    finding is said to Tiff, not the customer: 3598's paper read "Fan
+    quantity: right." and "Repair labour hours: no issue." (Isaac, 27
+    November 2026, the check made advice, not a gate). */
+export function qualificationsOf(_r: QuoteReview | null): string[] {
+  return [];
 }
 
 /** A new check's findings with the person's decisions on the last ones kept:
@@ -394,6 +396,7 @@ Rules:
 - One finding per problem: never the same thing twice under two topics.
 - The topic says what the words say.
 - Before raising that the lines don't have something, look for it under another name: a plenum box is a plenum, a pair coil is the pipe, a kit holds its parts. Found, it's not a finding.
+- A line with a price is priced, by hand or from a supplier's note as much as from the book: never ask the paper to say its price is to be confirmed.
 - Your words never contradict themselves: "nothing on the lines is X" and then naming X on the lines is no finding at all.
 - At most ${MAX_FINDINGS}, the ones that matter most first.
 - "topic": a few plain words a customer could read ("Unit cooling figures", "Copper tees for CMY joints").

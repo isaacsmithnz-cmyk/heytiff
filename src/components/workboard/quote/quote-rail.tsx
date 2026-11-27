@@ -183,10 +183,12 @@ export function WhereUpTo({
   children?: ReactNode;
 }) {
   const lastDone = steps.findLastIndex((s) => s.state === "done");
+  /* a done step that's kept in view: the Design row, Same as the quote */
+  const kept = steps.filter((s, i) => s.keep && s.state === "done" && i !== lastDone);
   const due = steps.filter((s) => s.state === "due");
   const next = steps.find((s, i) => i > lastDone && !stepPassed(s) && s.state !== "due");
   const row = (s: QuoteStep, tone: "done" | "look" | "next") => (
-    <li key={s.key} className={`qx-row qx-step ${tone}`} aria-current={tone === "next" ? "step" : undefined}>
+    <li key={s.key} className={`qx-row qx-step ${tone}${s.keep && tone === "done" ? " kept" : ""}`} aria-current={tone === "next" ? "step" : undefined}>
       <i className="qx-dot" aria-hidden="true" />
       <b>{s.label}</b>
       <span className="qx-r">{s.words || (tone === "next" ? "Not yet" : "")}</span>
@@ -203,6 +205,7 @@ export function WhereUpTo({
       <div className="qx-card qx-rows">
         {(lastDone >= 0 || due.length > 0) && (
           <ol className="qx-steps" aria-label="Where the quote is">
+            {kept.map((s) => row(s, "done"))}
             {lastDone >= 0 && row(steps[lastDone]!, "done")}
             {due.map((s) => row(s, "look"))}
           </ol>

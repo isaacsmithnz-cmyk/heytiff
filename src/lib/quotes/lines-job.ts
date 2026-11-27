@@ -54,7 +54,38 @@ export type ByHand = {
       line as it stood when kept (`fitPrint`), so a new code, name or
       quantity asks again (Isaac, 27 November 2026: "Keep the line") */
   keptFits?: Record<string, string>;
+  /** the design's systems a person left off the quote, and its units a
+      person said go, for the Studio to take out (design-units.ts) */
+  designJoin?: DesignJoinMarks;
 };
+
+export type DesignJoinMarks = { leftOff: string[]; drop: string[] };
+
+const ids = (v: unknown): string[] => (Array.isArray(v) ? [...new Set(v.filter((x): x is string => typeof x === "string" && /^[\w-]{1,60}$/.test(x)))].slice(0, 200) : []);
+
+/** The design's marks on the quote, made safe. */
+export function designJoinOf(raw: unknown): DesignJoinMarks {
+  const o = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  return { leftOff: ids(o.leftOff), drop: ids(o.drop) };
+}
+
+/** Units the Studio was to take out, taken back: the design keeps them (its Undo). */
+export function withoutDesignDrops(b: ByHand, ids: readonly string[]): ByHand {
+  const was = b.designJoin ?? { leftOff: [], drop: [] };
+  return { ...b, designJoin: { leftOff: was.leftOff, drop: was.drop.filter((d) => !ids.includes(d)) } };
+}
+
+/** A system left off the quote, or a unit for the Studio to take out. */
+export function withDesignMark(b: ByHand, mark: { leftOff?: string; drop?: string }): ByHand {
+  const was = b.designJoin ?? { leftOff: [], drop: [] };
+  return {
+    ...b,
+    designJoin: {
+      leftOff: mark.leftOff && !was.leftOff.includes(mark.leftOff) ? [...was.leftOff, mark.leftOff] : was.leftOff,
+      drop: mark.drop && !was.drop.includes(mark.drop) ? [...was.drop, mark.drop] : was.drop,
+    },
+  };
+}
 
 /** A VARIATION TO THE ACCEPTED QUOTE: an option of its own, started as a
     copy of the accepted one and changed from there, priced as the
@@ -224,6 +255,7 @@ export function byHandOf(draft: unknown): ByHand {
     ...(noDesign ? { noDesign } : {}),
     ...(review ? { review } : {}),
     ...(Object.keys(keptFits).length ? { keptFits } : {}),
+    ...(o.designJoin ? { designJoin: designJoinOf(o.designJoin) } : {}),
   };
 }
 

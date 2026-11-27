@@ -22,7 +22,19 @@ export type StepKey = "brief" | "questions" | "design" | "buildup" | "approved" 
     the one the corner button does. todo: not yet. skipped: passed by on
     purpose, which the line counts as settled (the Design step's No design). */
 export type StepState = "done" | "due" | "next" | "todo" | "skipped";
-export type QuoteStep = { key: StepKey; label: string; state: StepState; words: string };
+export type QuoteStep = {
+  key: StepKey;
+  label: string;
+  state: StepState;
+  words: string;
+  /** shown in Where it's up to while it's done, not only as the last done:
+      the Design row once the quote and the design share their units */
+  keep?: boolean;
+};
+
+/** How the quote's units stand with the design's (design-units.ts): the
+    questions where they don't agree, and the units the design waits to take. */
+export type DesignJoinState = { open: number; waiting: number };
 
 /** Where the job's design is, for the Design step: drawn, a design of the
     job's is in the Studio; skipped, No design was pressed, or the quote was
@@ -62,9 +74,17 @@ const LABELS: Record<StepKey, string> = {
 };
 
 /** The Design step: Design while it's drawn or still to do, No design once
-    it's skipped. */
-const designStep = (d: DesignState): QuoteStep =>
-  d === "drawn"
+    it's skipped. Drawn and joined to the quote, it says how the two stand:
+    the same as the quote in green, or what's left in orange (the units
+    mock, 27 November 2026). */
+const designStep = (d: DesignState, join: DesignJoinState | null = null): QuoteStep =>
+  d === "drawn" && join
+    ? join.open > 0
+      ? { key: "design", label: LABELS.design, state: "due", words: `${join.open} to join` }
+      : join.waiting > 0
+        ? { key: "design", label: LABELS.design, state: "due", words: `${join.waiting} for the Studio` }
+        : { key: "design", label: LABELS.design, state: "done", words: "Same as the quote", keep: true }
+    : d === "drawn"
     ? { key: "design", label: LABELS.design, state: "done", words: "Drawn" }
     : d === "skipped"
       ? { key: "design", label: "No design", state: "skipped", words: "" }
@@ -100,6 +120,8 @@ export function linesSteps(input: {
   /** where the job's design is (designState); absent without the Studio,
       and then the line has no Design step */
   design?: DesignState | null;
+  /** how its units stand with the design's, where the two are joined */
+  designJoin?: DesignJoinState | null;
 }): QuoteStep[] {
   const step = (key: StepKey, state: StepState, words: string): QuoteStep => ({ key, label: LABELS[key], state, words });
   const { lines, asked, price } = input;
@@ -128,7 +150,7 @@ export function linesSteps(input: {
        confirm, the web's own (24 November 2026). It said "N to settle", the
        two counted together. */
     step("questions", open ? "due" : lines > 0 ? "done" : "todo", open ? (asked > 0 ? answerWord(asked) : confirmWord(unknown)) : lines > 0 ? "Settled" : ""),
-    ...(input.design ? [designStep(input.design)] : []),
+    ...(input.design ? [designStep(input.design, input.designJoin ?? null)] : []),
     built,
     /* version 2 on, the version it's at (quote-versions.ts) */
     input.approved

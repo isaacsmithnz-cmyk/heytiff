@@ -94,6 +94,7 @@ import type { Suggestion } from "@/lib/studio/rooms-from-reading";
 import { RISER_PAINT } from "@/lib/studio/duct-size";
 import { StudioFlowContext, useStudioFlow, type StudioFlow } from "./flow";
 import { ClearDesignDialog } from "./clear-design-dialog";
+import { QuoteTakes } from "./quote-takes";
 import { clearKeeping, keptLabelOf } from "@/lib/studio/clear-design";
 import { measuredForJob, setupNeeds, shareAcrossSet } from "@/lib/studio/plan-set";
 import { InstallQuestions } from "./install-questions";
@@ -2390,6 +2391,8 @@ function Editor({
           a plan, the same pill in the plan's own corner beside zoom (Isaac,
           2 November 2026: she looked out of place in the tool bar) */}
       {(flow !== "next" || step !== 1 || !activeFloor) && <AskTiffPill />}
+      {/* what the quote's answers left for the design to take (take-from-quote.ts); not where the pack is a test's */}
+      {quoteJob && !packLoader && <QuoteTakes job={quoteJob} designId={doc.id} pack={pack} docRef={docRef} mutate={mutate} />}
       {/* three tracks so the tab switcher sits dead-centre: the flanks share
           the leftover width equally, whatever each of them holds */}
       <header className="ds-topbar">

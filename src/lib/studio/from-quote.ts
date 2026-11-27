@@ -75,7 +75,7 @@ export function modelForCode(models: readonly string[], code: string): string | 
 const words = (s: string) => s.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
 
 /** How well a room's name answers the quote's words for it: 0 not at all. */
-function roomScore(roomName: string, said: string): number {
+export function roomScore(roomName: string, said: string): number {
   const r = norm(roomName);
   const q = norm(said);
   if (!q) return 0;

@@ -19,6 +19,8 @@ import {
   withVariationSent,
   withReview,
   withKeptFit,
+  withDesignMark,
+  withoutDesignDrops,
   withoutApproval,
   withoutVariation,
   withSent,
@@ -211,6 +213,12 @@ export const setNoDesign = (orgId: string, cardId: string, on: boolean, by: stri
   changeByHand(orgId, cardId, by, (b) => withNoDesign(b, on, by, new Date().toISOString()));
 
 /** Sets option `i`'s loading, or takes it off. */
+/** The design's marks on the quote: a system left off it, a unit to go (design-units.ts). */
+export const markDesign = (orgId: string, cardId: string, mark: { leftOff?: string; drop?: string }, by: string) => changeByHand(orgId, cardId, by, (b) => withDesignMark(b, mark));
+
+/** Units the Studio was to take out, kept after all (its Undo). */
+export const keepDesignUnits = (orgId: string, cardId: string, ids: readonly string[], by: string) => changeByHand(orgId, cardId, by, (b) => withoutDesignDrops(b, ids));
+
 export const setLoading = (orgId: string, cardId: string, i: number, loading: unknown, by: string) => changeByHand(orgId, cardId, by, (b) => withLoading(b, i, loading));
 
 /** A line kept past its fit check as it now is, or the keep taken back. */

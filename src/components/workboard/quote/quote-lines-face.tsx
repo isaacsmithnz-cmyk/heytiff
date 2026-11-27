@@ -757,6 +757,8 @@ export function QuoteLinesFace({
   /* TIFF'S CHECK (review.ts): where it's left the quote, and the finding
      she's on shown at its spot beside the panel */
   const rstep = money && view?.reviewStamp ? reviewStep(view.review ?? null, view.reviewStamp) : null;
+  /* the check put away, for the quote as it stands: advice, not a gate */
+  const [ignored, setIgnored] = useState<string | null>(null);
   const walking = rstep?.step === "walk" ? rstep.at : null;
 
   const lineItems = (
@@ -894,8 +896,7 @@ export function QuoteLinesFace({
     setChecking(false);
   };
   const answerFinding = (id: string, pick: number | "keep", reason: string) => void act({ op: "review-answer", id, pick, reason });
-  /* past the check, ready to send on your word */
-  const proceed = () => void act({ op: "approve", proceed: true });
+
   const sendFixes = async () => {
     const v = await act({ op: "review-fix" });
     if (v?.ok && v.fixes) {
@@ -918,7 +919,9 @@ export function QuoteLinesFace({
     if (walking.tab === "breakdown") setTab("lines");
   }
   const walkCard =
-    walking && rstep?.step === "walk" && view?.review ? <ReviewWalk review={view.review} at={walking} n={rstep.n} of={rstep.of} busy={busy || checking} onAnswer={answerFinding} onProceed={proceed} /> : null;
+    walking && rstep?.step === "walk" && view?.review && ignored !== view.reviewStamp ? (
+      <ReviewWalk review={view.review} at={walking} n={rstep.n} of={rstep.of} busy={busy || checking} onAnswer={answerFinding} onIgnore={() => setIgnored(view.reviewStamp ?? null)} />
+    ) : null;
 
   const actions =
     tiff === null ? null : (
@@ -960,7 +963,6 @@ export function QuoteLinesFace({
         walk={walkCard}
         onCheck={() => void runCheck()}
         onFix={() => void sendFixes()}
-        onProceed={proceed}
       />
     );
 

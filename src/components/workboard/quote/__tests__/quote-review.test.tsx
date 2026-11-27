@@ -81,45 +81,38 @@ describe("the panel's one button", () => {
     onFix: jest.fn(),
   };
 
-  it("checks first: Mark ready to send runs Tiff's check, and says so while she does", () => {
-    const { rerender } = render(<QuoteActions {...base} review={{ step: "check", again: false }} />);
+  /* advice, not a gate (Isaac, 27 November 2026) */
+  it("marks it ready straight away, with Check with Tiff beside it", () => {
+    const onApprove = jest.fn();
+    const onCheck = jest.fn();
+    const { rerender } = render(<QuoteActions {...base} onApprove={onApprove} onCheck={onCheck} review={{ step: "check", again: false }} />);
     fireEvent.click(screen.getByRole("button", { name: "Mark ready to send" }));
-    expect(base.onCheck).toHaveBeenCalled();
-    expect(base.onApprove).not.toHaveBeenCalled();
+    expect(onApprove).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Check with Tiff" }));
+    expect(onCheck).toHaveBeenCalled();
     rerender(<QuoteActions {...base} review={{ step: "check", again: false }} checking />);
     expect((screen.getByRole("button", { name: "Checking the quote" }) as HTMLButtonElement).disabled).toBe(true);
     rerender(<QuoteActions {...base} review={{ step: "check", again: true }} />);
-    expect(screen.getByRole("button", { name: "Check again" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Check with Tiff again" })).toBeTruthy();
   });
 
-  it("sends the fixes to Tiff, then marks it once the check is clear", () => {
-    const { rerender } = render(<QuoteActions {...base} review={{ step: "fix", fixes: 2 }} />);
+  it("offers the fixes to Tiff beside Mark ready to send", () => {
+    const onFix = jest.fn();
+    const onApprove = jest.fn();
+    render(<QuoteActions {...base} onFix={onFix} onApprove={onApprove} review={{ step: "fix", fixes: 2 }} />);
     fireEvent.click(screen.getByRole("button", { name: "Fix 2 with Tiff" }));
-    expect(base.onFix).toHaveBeenCalled();
-    rerender(<QuoteActions {...base} review={{ step: "clear", kept: 1 }} />);
+    expect(onFix).toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Mark ready to send" }));
-    expect(base.onApprove).toHaveBeenCalled();
+    expect(onApprove).toHaveBeenCalled();
   });
 
-  /* Isaac, 27 November 2026, on 3610: "make a way to skip it or say that
-     you are happy to proceed" */
-  it("goes past the check on your word, at every step of it", () => {
-    const onProceed = jest.fn();
-    const { rerender } = render(<QuoteActions {...base} review={{ step: "check", again: true }} onProceed={onProceed} />);
-    fireEvent.click(screen.getByRole("button", { name: "Skip the check" }));
-    rerender(<QuoteActions {...base} review={{ step: "fix", fixes: 1 }} onProceed={onProceed} />);
-    fireEvent.click(screen.getByRole("button", { name: "Ignore" }));
-    expect(onProceed).toHaveBeenCalledTimes(2);
-    rerender(<QuoteActions {...base} review={{ step: "check", again: false }} checking onProceed={onProceed} />);
-    expect(screen.queryByRole("button", { name: "Skip the check" })).toBeNull();
-    rerender(<ReviewWalk review={review([f()])} at={f()} n={1} of={1} busy={false} onAnswer={jest.fn()} onProceed={onProceed} />);
-    fireEvent.click(screen.getByRole("button", { name: "Ignore" }));
-    expect(onProceed).toHaveBeenCalledTimes(3);
-  });
-
-  it("is the finding's card while there's one to go through", () => {
+  it("shows the finding's card over Mark ready to send, and Ignore puts it away", () => {
     render(<QuoteActions {...base} review={{ step: "walk", at: f(), n: 1, of: 1 }} walk={<p>the card</p>} />);
     expect(screen.getByText("the card")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Mark ready to send" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Mark ready to send" })).toBeTruthy();
+    const onIgnore = jest.fn();
+    render(<ReviewWalk review={review([f()])} at={f()} n={1} of={1} busy={false} onAnswer={jest.fn()} onIgnore={onIgnore} />);
+    fireEvent.click(screen.getByRole("button", { name: "Ignore" }));
+    expect(onIgnore).toHaveBeenCalled();
   });
 });

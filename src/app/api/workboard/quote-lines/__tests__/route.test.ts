@@ -144,19 +144,13 @@ it("keeps a line past its fit check as it is, and takes the keep back, for anyon
   expect(keepFit).toHaveBeenCalledTimes(2);
 });
 
-/* TIFF'S CHECK (review.ts, 26 November 2026): Mark ready to send waits on it */
-it("won't mark it ready to send until Tiff's check is clear, and runs the check for money access only", async () => {
+/* TIFF'S CHECK (review.ts): advice, not a gate (Isaac, 27 November 2026) */
+it("marks it ready to send whatever Tiff's check says, and runs the check for money access only", async () => {
   grants.add("workboard").add("financials");
-  reviewLetsApprove.mockResolvedValueOnce(false);
-  const held = await (await post({ op: "approve" })).json();
-  expect(held).toMatchObject({ ok: false, reason: expect.stringMatching(/Tiff checks it first/) });
-  expect(approveProposal).not.toHaveBeenCalled();
+  reviewLetsApprove.mockResolvedValue(false);
   await post({ op: "approve" });
   expect(approveProposal).toHaveBeenCalledTimes(1);
-  /* past the check on the person's word (27 November 2026) */
-  reviewLetsApprove.mockResolvedValueOnce(false);
-  await post({ op: "approve", proceed: true });
-  expect(approveProposal).toHaveBeenCalledTimes(2);
+  reviewLetsApprove.mockResolvedValue(true);
   await post({ op: "review" });
   expect(runReview).toHaveBeenCalledWith("org-a", "job-1", "u-tech");
   const fixed = await (await post({ op: "review-fix" })).json();

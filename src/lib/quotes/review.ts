@@ -213,12 +213,19 @@ export function qualificationsOf(r: QuoteReview | null): string[] {
   return (r?.findings ?? []).filter((f) => f.state === "kept" && f.reason).map((f) => `${f.topic}: ${f.reason.replace(/[.\s]+$/, "")}.`);
 }
 
-/** A new check's findings with the person's decisions on the last one kept:
-    a kept one stays kept, and isn't raised again. */
+/** A new check's findings with the person's decisions on the last ones kept:
+    a kept one stays kept, and isn't raised again; one fixed stays with the
+    quote as sent, asking nothing, so the next check is told it was fixed
+    (Isaac, 27 November 2026, on 3610: "it keeps finding something wrong
+    every time. I've done 3 rounds now": each check forgot the fixes before). */
+export const MAX_FIXED = 24;
 export function carried(prior: QuoteReview | null, fresh: ReviewFinding[]): ReviewFinding[] {
   const kept = (prior?.findings ?? []).filter((f) => f.state === "kept");
   const keptTopics = new Set(kept.map((f) => f.topic.toLowerCase()));
-  return [...kept, ...fresh.filter((f) => !keptTopics.has(f.topic.toLowerCase()))].slice(0, MAX_FINDINGS + kept.length);
+  const now = fresh.filter((f) => !keptTopics.has(f.topic.toLowerCase())).slice(0, MAX_FINDINGS);
+  const ids = new Set([...kept, ...now].map((f) => f.id));
+  const fixed = (prior?.findings ?? []).filter((f) => f.state === "sent" && !ids.has(f.id)).slice(-MAX_FIXED);
+  return [...kept, ...fixed, ...now];
 }
 
 /* ── the checks that are counted, not read ── */
@@ -332,7 +339,11 @@ export function parseReviewRead(raw: unknown, lines: readonly QuoteLine[]): Revi
     .slice(0, MAX_FINDINGS);
 }
 
-const money = (c: number | null) => (c == null ? "no price" : `$${(c / 100).toFixed(2)}`);
+const dollars = (c: number) => `$${(c / 100).toFixed(2)}`;
+/* a line with no sell of its own sells at the business's markup on its
+   cost: it's priced, and saying "no price" had her find every line of 3610
+   unpriced */
+const priceWords = (l: QuoteLine) => (l.sellCents != null ? `sells ${dollars(l.sellCents)} each` : l.costCents > 0 ? `costs ${dollars(l.costCents)} each, sold at the business's markup` : "no price yet");
 
 /** The quote as Tiff reads it for the check: every option's lines with their
     ids, then the proposal's words block by block. */
@@ -343,7 +354,7 @@ export function reviewInput(lines: readonly QuoteLine[], proposal: LinesProposal
     parts.push(`## Option ${i + 1} (index ${i}): ${optionNames[i] || "unnamed"}`);
     for (const l of lines.filter((x) => x.optionIndex === i)) {
       const kw = l.kind === "unit" ? unitKw(l) : null;
-      parts.push(`- [${l.id}] ${l.group} | ${l.kind} | ${l.name}${l.code ? ` (${l.code})` : ""} | ${l.qty} ${l.unit} | sells ${money(l.sellCents ?? null)} each${kw != null ? ` | maker's cooling ${kw} kW` : ""}${l.why ? ` | why: ${l.why.slice(0, 160)}` : ""}`);
+      parts.push(`- [${l.id}] ${l.group} | ${l.kind} | ${l.name}${l.code ? ` (${l.code})` : ""} | ${l.qty} ${l.unit} | ${priceWords(l)}${kw != null ? ` | maker's cooling ${kw} kW` : ""}${l.why ? ` | why: ${l.why.slice(0, 160)}` : ""}`);
     }
   }
   if (proposal) {
@@ -364,18 +375,24 @@ export function reviewInput(lines: readonly QuoteLine[], proposal: LinesProposal
   return parts.join("\n");
 }
 
-export function reviewPrompt(input: { business: string; client: string | null; site: string | null; kept: readonly ReviewFinding[] }): string {
+export function reviewPrompt(input: { business: string; client: string | null; site: string | null; kept: readonly ReviewFinding[]; fixed?: readonly ReviewFinding[] }): string {
   const kept = input.kept.length
-    ? `\nAlready decided on this quote, so don't raise these again:\n${input.kept.map((f) => `- ${f.topic}: kept, "${f.reason || "no reason given"}"`).join("\n")}\n`
+    ? `\nAlready decided on this quote, so don't raise these again, under any topic or in other words:\n${input.kept.map((f) => `- ${f.topic}: kept, "${f.reason || "no reason given"}"`).join("\n")}\n`
+    : "";
+  const fixed = input.fixed?.length
+    ? `\nRaised on an earlier check and fixed since. Raise one again only where the quote above plainly still has the problem:\n${input.fixed.map((f) => `- ${f.topic}: ${f.words}`).join("\n")}\n`
     : "";
   return `You are Tiff, checking a quote from ${input.business}, an air-conditioning business, before it's marked ready to send. The customer is ${input.client ?? "not named"}${input.site ? `, for ${input.site}` : ""}. The quote is above: each option's lines, then the proposal's words, each block tagged with its key in square brackets.
 
 Find what a careful estimator would catch before the customer sees it. Two kinds:
 - "mismatch": the paper says something the lines don't have, or the lines have something the paper doesn't say; a figure on the paper that isn't the line's or the maker's (a unit's kW, a count, a total); the same thing priced twice (ceiling cone diffusers and linear grilles for the same room); the same thing said twice; an outlet, unit or room named that has nothing on the lines.
 - "look": worth a second look, not wrong: a maker's specified part swapped for another; duct, static or noise concerns the lines' "why" admits; terms or conditions that don't suit the customer (a home's payment terms on a builder's tender, no conditions for a staged build: visits included, return visits charged, positions fixed at rough-in, power ready for commissioning, how long the price holds).
-${kept}
+${kept}${fixed}
 Rules:
-- Only real findings. Nothing about style or tone. None at all is a fine answer.
+- Only real findings. Nothing about style or tone. None at all is a fine answer, and the right one for a quote that's been checked and fixed.
+- A finding is something to change. Where your own words would say it's fine, leave it out. A line sold at the business's markup is priced.
+- One finding per problem: never the same thing twice under two topics.
+- The topic says what the words say.
 - At most ${MAX_FINDINGS}, the ones that matter most first.
 - "topic": a few plain words a customer could read ("Unit cooling figures", "Copper tees for CMY joints").
 - "words": one or two sentences saying what's wrong, with the figures. Plain Australian English, no jargon the trade wouldn't use.

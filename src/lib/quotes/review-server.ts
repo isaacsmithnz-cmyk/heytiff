@@ -60,6 +60,7 @@ export async function runReview(orgId: string, cardId: string, by: string, clien
   const [fits, specs] = await Promise.all([linesFit(lines, orgId).catch(() => []), unitSpecsOf(lines, orgId).catch(() => new Map())]);
   const rules = ruleFindings({ lines, proposal, client: facts.client, fits });
   const keptBefore = (prior?.findings ?? []).filter((f) => f.state === "kept");
+  const fixedBefore = (prior?.findings ?? []).filter((f) => f.state === "sent");
 
   let read: ReviewFinding[] = [];
   let usd: number | null = null;
@@ -74,7 +75,7 @@ export async function runReview(orgId: string, cardId: string, by: string, clien
           role: "user",
           content: [
             { type: "text", text: reviewInput(lines, proposal, byHand.names, (l) => specs.get(l.id)?.coolKw ?? null) },
-            { type: "text", text: reviewPrompt({ business: facts.business, client: facts.client, site: facts.site, kept: keptBefore }) },
+            { type: "text", text: reviewPrompt({ business: facts.business, client: facts.client, site: facts.site, kept: keptBefore, fixed: fixedBefore }) },
           ],
         },
       ],

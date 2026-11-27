@@ -12,6 +12,7 @@ import {
   reopened,
   reviewClear,
   reviewOf,
+  reviewPrompt,
   reviewStep,
   ruleFindings,
   type QuoteReview,
@@ -124,6 +125,17 @@ describe("the fixes and the qualifications", () => {
     expect(qualificationsOf(r)).toEqual(["Copper tees for CMY joints: Budget estimate; CMY joints on the firm price."]);
     const next = carried(r, [finding({ id: "n1", topic: "copper tees for cmy joints" }), finding({ id: "n2", topic: "Labour hours" })]);
     expect(next.map((f) => f.id)).toEqual(["k", "x", "n2"]);
+  });
+  /* 3610 (Isaac, 27 November 2026: "I've done 3 rounds now"): what was fixed
+     stays with the quote, asking nothing, and the next check is told */
+  it("carries what was fixed to the next check without asking it again", () => {
+    const r = review([finding({ id: "s", topic: "Trunking words", words: "Colorbond on the paper, metal on the lines.", state: "sent", picked: 0 }), finding({ id: "o", topic: "Hours", state: "open" })]);
+    const next = carried(r, [finding({ id: "n", topic: "Drain length" })]);
+    expect(next.map((f) => [f.id, f.state])).toEqual([["s", "sent"], ["n", "open"]]);
+    expect(reviewStep({ ...r, findings: next }, r.stamp)).toEqual(expect.objectContaining({ step: "walk", n: 1, of: 1 }));
+    const prompt = reviewPrompt({ business: "B", client: null, site: null, kept: [], fixed: next.filter((f) => f.state === "sent") });
+    expect(prompt).toContain("fixed since");
+    expect(prompt).toContain("- Trunking words: Colorbond on the paper, metal on the lines.");
   });
   it("reads a kept check back as it was, and nothing where there's none", () => {
     const r = review([finding({ id: "a", state: "fix", picked: 0 })]);

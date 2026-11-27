@@ -878,7 +878,10 @@ export function QuoteLinesFace({
 
   /* the quote's buttons, pinned at the rail's foot: the paper, and the next
      step. Approve quote is the main one (layout B) */
-  const pdfHref = money && view?.approved && !variation ? `/api/workboard/quote-pdf?job=${encodeURIComponent(job)}` : null;
+  /* the PDF whenever there's a quote to print, ready to send or not (Isaac,
+     27 November 2026: "I can't download this proposal as a PDF"; it waited
+     on approval since 21 October) */
+  const pdfHref = money && all.length > 0 && !variation ? `/api/workboard/quote-pdf?job=${encodeURIComponent(job)}` : null;
   /* the job's photos with an address, for the bar's Add a photo */
   const barPhotos: BarPhoto[] = (photos ?? []).flatMap((m) => (m.kind === "photo" && m.url ? [{ id: m.remoteId, url: m.url, name: m.name }] : []));
   const acceptable = !!view?.approved || accepted.length > 0;

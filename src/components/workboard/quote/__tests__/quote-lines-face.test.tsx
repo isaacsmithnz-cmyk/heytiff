@@ -879,12 +879,13 @@ describe("the proposal (7.1)", () => {
     await waitFor(() => expect(headActs(onStage)).toEqual([{ key: "update", label: "Update quote" }]));
   });
 
-  /* Isaac, 21 October 2026: "share becomes available once approved" */
-  it("offers Share only once it's approved: the PDF, or the quote's link", async () => {
+  /* Isaac, 27 November 2026: "I can't download this proposal as a PDF":
+     Share is there before it's ready to send, not only after */
+  it("offers Share before and after it's ready to send: the PDF, or the quote's link", async () => {
     const first = render(<QuoteLinesFace job="job-3377" price={pricedWhole} onPriced={jest.fn()} />);
     expect(await screen.findByRole("button", { name: "Mark ready to send" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: "Proposal" }));
-    expect(screen.queryByRole("button", { name: "Share" })).toBeNull();
+    expect(await screen.findByRole("button", { name: "Share" })).toBeInTheDocument();
     first.unmount();
     (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => ({ json: async () => ({ ...view([indoor]), approved: true, proposal: null }) }));
     render(<QuoteLinesFace job="job-3377" price={pricedWhole} onPriced={jest.fn()} />);

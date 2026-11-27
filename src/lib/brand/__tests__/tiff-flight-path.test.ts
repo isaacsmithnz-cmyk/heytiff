@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { FLIGHT, flightAt, orbitAt, throwAt } from "../tiff-flight-path";
+import { FLIGHT, flightAt, landAt, orbitAt, throwAt } from "../tiff-flight-path";
 
 /* The front page's 3D boomerang flies the app's own flight. The numbers live
    twice, in scripts/tiff-flight.mjs (which writes the app's keyframes) and in
@@ -39,6 +39,13 @@ describe("the front page's boomerang flies the app's flight", () => {
     let nearest = Infinity;
     for (let i = 0; i <= 200; i++) { const p = orbitAt(i / 200); nearest = Math.min(nearest, Math.hypot(p.x, p.y, p.z)); }
     expect(nearest).toBeGreaterThan(10);
+  });
+
+  /* "before eventually making its way back to the rest of the TIFF logo at the very end" (27 November 2026) */
+  it("lands from where a lap ends, home in her hand", () => {
+    const d = (a: { x: number; y: number; z: number }, b: { x: number; y: number; z: number }) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+    expect(d(landAt(0), orbitAt(0))).toBeLessThan(1e-6);
+    expect(Math.hypot(landAt(1).x, landAt(1).y, landAt(1).z)).toBeLessThan(1e-9);
   });
 
   it("leaves her hand and comes home square, a whole number of turns later", () => {

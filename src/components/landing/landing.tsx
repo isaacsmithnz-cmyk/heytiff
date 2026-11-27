@@ -60,6 +60,7 @@ export function Landing() {
   const canvas = useRef<HTMLCanvasElement>(null);
   const root = useRef<HTMLDivElement>(null);
   const at = useRef(0);
+  const pace = useRef(0);
   const [flat, setFlat] = useState(false);
 
   useEffect(() => {
@@ -69,10 +70,15 @@ export function Landing() {
     if (list.length === 0) return;
     const onScroll = () => {
       const vh = window.innerHeight, y = window.scrollY;
+      /* a scene is held while it fills the screen (|p| up to a third, the first screen's 0.26 at the very top); the page is moving between scenes past that */
+      let held = 1;
       for (const el of list) {
         const r = el.getBoundingClientRect(), c = r.top + r.height / 2;
-        el.style.setProperty("--p", reduced ? "0" : clamp((vh / 2 - c) / (r.height / 2 + vh / 2), -1, 1).toFixed(4));
+        const p = clamp((vh / 2 - c) / (r.height / 2 + vh / 2), -1, 1);
+        held = Math.min(held, Math.abs(p));
+        el.style.setProperty("--p", reduced ? "0" : p.toFixed(4));
       }
+      pace.current = clamp((held - 0.3) / 0.1, 0, 1);
       let i = 0;
       while (i < list.length - 1 && y >= list[i + 1].offsetTop) i++;
       const span = (list[i + 1]?.offsetTop ?? list[i].offsetTop + list[i].offsetHeight) - list[i].offsetTop;
@@ -84,7 +90,7 @@ export function Landing() {
 
     let stop: (() => void) | null = null, gone = false;
     if (canvas.current && typeof WebGLRenderingContext !== "undefined") {
-      startStage(canvas.current, { scene: () => at.current, poses: POSES, reduced })
+      startStage(canvas.current, { scene: () => at.current, pace: () => pace.current, home: () => at.current > POSES.wide.length - 1.3, poses: POSES, reduced })
         .then((s) => {
           if (gone) s?.();
           else if (s) stop = s;

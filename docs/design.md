@@ -1046,9 +1046,13 @@ What the guard cannot count is noted here on the same word:
   this page is not inside it), its letter-spacing is a display title's, its
   horizon's edge is a light (frame-still keeps the frame's light gone, not
   this), and its mark moves: thrown as the page opens, then round its loop
-  for as long as the page is open, never coming home (Isaac, 2026-11-27:
-  "instead of just continuing to circle around"), and never under reduced
-  motion. The boomerang flies the app's own throw and thinking lap:
+  in slow motion while a part is held on screen and quick as the page moves
+  to the next, and home to the chevron on the last part, thrown again if you
+  scroll back (Isaac, 2026-11-27: "it kind of circles around the different
+  sections in slow motion ... Then it speeds up as the transition to the
+  next page ... before eventually making its way back to the rest of the
+  TIFF logo at the very end"), never under reduced motion. The boomerang
+  flies the app's own throw, thinking lap and landing:
   `lib/brand/tiff-flight-path` reads `scripts/tiff-flight.mjs`'s loop live,
   thrown 1.1 times as far, and its test holds the two to the same numbers.
   It is styled with utilities on the component, with no stylesheet, so no

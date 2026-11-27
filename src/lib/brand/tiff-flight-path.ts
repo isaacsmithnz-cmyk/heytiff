@@ -131,6 +131,14 @@ export function orbitAt(f: number, reach = 1, spin = 0): FlightPoint {
   return onLoop(thinkLap(((f % 1) + 1) % 1), 1, reach, spin);
 }
 
+const landLap = paced(fast, FLIGHT.JOIN, 1);
+
+/** The landing: from where a thinking lap ends (lap JOIN) home to her hand, quick home; `f` is the share of the landing's time. */
+export function landAt(f: number, reach = 1, spin = 0): FlightPoint {
+  const p = landLap(f);
+  return onLoop(p, smooth((1 - p) / 0.2), reach, spin);
+}
+
 /** One lap from her hand and home: `f` is the share of the lap's time, 0 to 1. */
 export function flightAt(f: number, reach = 1): FlightPoint {
   const t = Math.max(0, Math.min(1, f));

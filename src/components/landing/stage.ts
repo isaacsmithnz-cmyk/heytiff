@@ -1,6 +1,6 @@
 import type * as THREE_NS from "three";
 import { CHEVRON_STROKES } from "@/components/logo";
-import { FLIGHT, orbitAt, throwAt } from "@/lib/brand/tiff-flight-path";
+import { FLIGHT, landAt, orbitAt, throwAt } from "@/lib/brand/tiff-flight-path";
 
 /* THE FRONT PAGE'S STAGE: Tiff's mark in 3D, a pearl chevron and a metal boomerang, behind the
    giant words and the app's own screens (Isaac, 26 November 2026, after five
@@ -25,6 +25,10 @@ export type Pose = { x: number; y: number; ry: number; rx: number; s: number };
 export type StageInput = {
   /** which scene is on screen, and how far into the next one: 1.5 is halfway from the second to the third */
   scene: () => number;
+  /** 0 while a scene is held on screen, 1 while the page moves from one scene to the next */
+  pace: () => number;
+  /** the last scene is on screen: the boomerang comes home */
+  home: () => boolean;
   /** the mark's place in each scene, wide and narrow */
   poses: { wide: Pose[]; narrow: Pose[] };
   reduced: boolean;
@@ -32,9 +36,12 @@ export type StageInput = {
 
 /* The loop is thrown further than the app's, so it goes out wide and round */
 const REACH = 1.1;
-/* the throw out onto the loop, then each lap of it, at the app's thinking pace */
+/* the throw out onto the loop, each lap of it, and the landing, at the app's thinking pace */
 const LAP_MS = FLIGHT.OPEN_MS * 1.35 * FLIGHT.SLOWER;
 const THROW_MS = LAP_MS * 0.62;
+const LAND_MS = LAP_MS * 0.4;
+/* how fast the lap runs: slow motion while a scene is held, quick between scenes */
+const SLOW = 0.22, FAST = 2.4;
 /* logo units (the 100 box) to the stage's */
 const K = 0.028;
 
@@ -172,12 +179,19 @@ export async function startStage(canvas: HTMLCanvasElement, input: StageInput): 
 
   const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
-  /* THE FLIGHT'S CLOCK: thrown once as the page opens, then round the loop for
-     as long as the page is open, never coming home (Isaac, 27 November 2026:
-     "The boomerang keeps returning to the chevron and stopping instead of
-     just continuing to circle around"). The spin runs at the app's thinking
-     rate the whole way, so it never jolts between the throw and the laps. */
-  const thrownAt = performance.now() + 350;
+  /* THE FLIGHT'S CLOCK (Isaac, 27 November 2026: "the boomerang gets thrown
+     once at the beginning, and then it kind of circles around the different
+     sections in slow motion ... Then it speeds up as the transition to the
+     next page ... before eventually making its way back to the rest of the
+     TIFF logo at the very end"). Thrown as the page opens; then round its
+     loop with the time running slow while a scene is held and fast while
+     the page moves on, the spin slowing and quickening with it; on the last
+     scene it finishes the lap it is on and lands; scroll back up and it is
+     thrown again. */
+  type Flight = "wait" | "throw" | "orbit" | "homing" | "land" | "rest";
+  let flight: Flight = input.reduced ? "rest" : "wait";
+  let u = 0, lap = 0, spin = 0, rate = SLOW, landFrom = 0, landTo = 0, prevNow = performance.now();
+  const startAt = prevNow + 350;
 
   let cur: Pose | null = null;
   let raf = 0;
@@ -199,15 +213,48 @@ export async function startStage(canvas: HTMLCanvasElement, input: StageInput): 
     mark.scale.setScalar(cur.s);
     mark.rotation.set(cur.rx + my * 0.35, cur.ry + mx * 0.55, 0);
 
-    const since = now - thrownAt;
-    if (input.reduced || since < 0) {
+    const dt = Math.min(100, Math.max(0, now - prevNow));
+    prevNow = now;
+    rate += ((SLOW + (FAST - SLOW) * Math.max(0, Math.min(1, input.pace()))) - rate) * 0.08;
+    const home = input.home();
+    if (!input.reduced) {
+      if (flight === "wait" && now >= startAt) { flight = "throw"; u = 0; }
+      else if ((flight === "rest" || flight === "land") && !home) { flight = "throw"; u = 0; }
+      if (flight === "throw") {
+        u += dt / THROW_MS;
+        spin += dt * FLIGHT.THINK_RATE * 2 * Math.PI;
+        if (u >= 1) { flight = "orbit"; lap = 0; }
+      } else if (flight === "orbit" || flight === "homing") {
+        if (flight === "orbit" && home) flight = "homing";
+        if (flight === "homing" && !home) flight = "orbit";
+        const r = flight === "homing" ? Math.max(rate, 1) : rate;
+        const before = lap;
+        lap += (dt / LAP_MS) * r;
+        spin += dt * FLIGHT.THINK_RATE * 2 * Math.PI * r;
+        /* home once the lap comes round to where the landing starts */
+        if (flight === "homing" && Math.floor(lap) > Math.floor(before)) {
+          flight = "land"; u = 0; lap = Math.floor(lap);
+          landFrom = spin; landTo = Math.ceil(spin / (2 * Math.PI)) * 2 * Math.PI + 2 * Math.PI;
+        }
+      } else if (flight === "land") {
+        u += dt / LAND_MS;
+        if (u >= 1) { flight = "rest"; spin = 0; }
+      }
+    }
+    let at: { x: number; y: number; z: number; rx: number; ry: number } | null = null;
+    if (flight === "throw") at = throwAt(u, REACH);
+    else if (flight === "orbit" || flight === "homing") at = orbitAt(lap, REACH);
+    else if (flight === "land") {
+      at = landAt(u, REACH);
+      const e = 1 - Math.pow(1 - Math.min(1, u), 3);
+      spin = landFrom + (landTo - landFrom) * e;
+    }
+    if (at) {
+      boom.position.set(at.x * K, -at.y * K, at.z * K);
+      boom.rotation.set(at.rx, at.ry, -spin);
+    } else {
       boom.position.set(0, 0, 0);
       boom.rotation.set(0, 0, 0);
-    } else {
-      const spin = 2 * Math.PI * FLIGHT.THINK_RATE * since;
-      const p = since < THROW_MS ? throwAt(since / THROW_MS, REACH, spin) : orbitAt((since - THROW_MS) / LAP_MS, REACH, spin);
-      boom.position.set(p.x * K, -p.y * K, p.z * K);
-      boom.rotation.set(p.rx, p.ry, -p.spin);
     }
 
     dust.rotation.y = now / 60000;

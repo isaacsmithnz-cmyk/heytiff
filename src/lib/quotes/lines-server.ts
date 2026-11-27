@@ -13,6 +13,7 @@ import {
   type LineFields,
   type QuoteLine,
 } from "./lines";
+import { joinOf, type LineJoin } from "./design-join";
 
 /* A QUOTE'S LINES, READ AND CHANGED ONE AT A TIME (lines.ts says why).
 
@@ -24,7 +25,7 @@ import {
    line carries a cost. */
 
 const COLS =
-  "id, option_index, system, grp, position, name, code, supplier_key, kind, qty, unit, cost_cents, sell_cents, source, why, duct, visit, estimate, version, updated_at, updated_by";
+  "id, option_index, system, grp, position, name, code, supplier_key, kind, qty, unit, cost_cents, sell_cents, source, why, duct, visit, estimate, version, updated_at, updated_by, design_unit";
 
 export type LineResult = { ok: true; line: QuoteLine | null } | { ok: false; reason: string; stale?: true };
 
@@ -65,7 +66,7 @@ async function record(
 }
 
 /** A new line, at the end of its option unless it names a place. */
-export async function addLine(orgId: string, jobUuid: string, input: unknown, by: string, why = ""): Promise<LineResult> {
+export async function addLine(orgId: string, jobUuid: string, input: unknown, by: string, why = "", join: LineJoin | null = null): Promise<LineResult> {
   const f = normaliseLine(input);
   if (!f) return { ok: false, reason: "A line needs a name and a group." };
   const raw = input && typeof input === "object" ? (input as Record<string, unknown>) : {};
@@ -82,7 +83,7 @@ export async function addLine(orgId: string, jobUuid: string, input: unknown, by
   }
   const { data, error } = await supabaseAdmin
     .from("quote_lines")
-    .insert({ org_id: orgId, sm8_job_uuid: jobUuid, ...lineRow(f), updated_by: by })
+    .insert({ org_id: orgId, sm8_job_uuid: jobUuid, ...lineRow(f), updated_by: by, ...(join ? { design_unit: join } : {}) })
     .select(COLS)
     .single();
   if (error || !data) return { ok: false, reason: "The line couldn't be added. Try again." };
@@ -104,17 +105,22 @@ export async function changeLine(
   version: number,
   patch: unknown,
   by: string,
-  why = ""
+  why = "",
+  /** the line's join to the design, set with the change (design-units.ts) */
+  join?: LineJoin | null
 ): Promise<LineResult> {
   const line = await readOne(orgId, jobUuid, id);
   if (!line) return { ok: false, reason: "That line has gone. Reload the quote." , stale: true };
   if (line.version !== version) return { ok: false, reason: "Someone changed that line just now. It's been reloaded.", stale: true };
   const applied = applyPatch(line, patch);
   if (!applied) return { ok: false, reason: "A line needs a name and a group." };
-  if (applied.changed.length === 0) return { ok: true, line };
+  if (applied.changed.length === 0) {
+    if (join === undefined) return { ok: true, line };
+    return (await setJoins(orgId, jobUuid, [{ id, join }])) ? { ok: true, line: { ...line, design: join } } : { ok: false, reason: "The line couldn't be changed. Try again." };
+  }
   const { data, error } = await supabaseAdmin
     .from("quote_lines")
-    .update({ ...lineRow(applied.next), version: version + 1, updated_by: by, updated_at: new Date().toISOString() })
+    .update({ ...lineRow(applied.next), version: version + 1, updated_by: by, updated_at: new Date().toISOString(), ...(join !== undefined ? { design_unit: join } : {}) })
     .eq("org_id", orgId)
     .eq("sm8_job_uuid", jobUuid)
     .eq("id", id)
@@ -197,10 +203,22 @@ export async function undoChange(orgId: string, jobUuid: string, changeId: numbe
     const line = await readOne(orgId, jobUuid, data.line_id as string);
     return line ? removeLine(orgId, jobUuid, line.id, line.version, by, why) : { ok: true, line: null };
   }
-  if (data.action === "remove") return addLine(orgId, jobUuid, data.before, by, why);
+  /* a line put back is joined as it was */
+  if (data.action === "remove") return addLine(orgId, jobUuid, data.before, by, why, joinOf((data.before as Record<string, unknown> | null)?.design));
   const line = await readOne(orgId, jobUuid, data.line_id as string);
   if (!line) return { ok: false, reason: "That line has gone since, so the change can't be undone." };
   return changeLine(orgId, jobUuid, line.id, line.version, data.before ?? {}, by, why);
+}
+
+/** Unit lines joined to the design, or their joins taken off (null): the
+    join alone, so neither the line's version nor its updated_at moves; a
+    join isn't a change to the quote, and an approval stands through it. */
+export async function setJoins(orgId: string, jobUuid: string, joins: readonly { id: string; join: LineJoin | null }[]): Promise<boolean> {
+  for (const j of joins) {
+    const { error } = await supabaseAdmin.from("quote_lines").update({ design_unit: j.join }).eq("org_id", orgId).eq("sm8_job_uuid", jobUuid).eq("id", j.id);
+    if (error) return false;
+  }
+  return true;
 }
 
 /** Which engine prices this quote; a quote with no draft is on the old one. */

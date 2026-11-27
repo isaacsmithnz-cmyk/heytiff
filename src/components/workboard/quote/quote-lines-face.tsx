@@ -13,6 +13,8 @@ import { leftOn, priceState } from "./quote-parts";
 import { answerWord, confirmWord, priceWord } from "@/lib/quotes/quote-left";
 import { estimatesOf, unpricedOf } from "@/lib/quotes/quote-card";
 import { TiffPanel } from "./tiff-panel";
+import { JoinCard } from "./join-card";
+import type { JoinView } from "@/lib/quotes/design-units";
 import { ReviewWalk } from "./quote-review";
 import { qualificationsOf, reviewStep, type QuoteReview } from "@/lib/quotes/review";
 import { LinesProposalPaper } from "./lines-proposal-paper";
@@ -169,6 +171,36 @@ export function useQuoteLines(job: string, enabled: boolean) {
   return { view, post, reload: () => setRev((n) => n + 1) };
 }
 
+const JOIN_ROUTE = "/api/workboard/quote-join";
+
+/** ONE LIST OF UNITS (design-units.ts): how the quote and the job's design
+    share their units, read whenever the lines are, while the job has a
+    design; an answer carried out, then the lines read again. */
+function useDesignJoin(job: string, enabled: boolean, lines: unknown, onChanged: () => void) {
+  const [join, setJoin] = useState<JoinView | null>(null);
+  useEffect(() => {
+    if (!enabled) return;
+    let live = true;
+    fetch(`${JOIN_ROUTE}?job=${encodeURIComponent(job)}`)
+      .then((r) => r.json() as Promise<{ ok: boolean; join?: JoinView | null }>)
+      .then((a) => live && setJoin(a.ok ? (a.join ?? null) : null))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [job, enabled, lines]);
+  const answer = async (id: string, index: number): Promise<{ ok: boolean; reason?: string }> => {
+    const r = await fetch(JOIN_ROUTE, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ job, question: id, answer: index }) }).catch(() => null);
+    const a = r ? ((await r.json().catch(() => null)) as { ok: boolean; reason?: string; join?: JoinView | null } | null) : null;
+    if (a?.ok) {
+      setJoin(a.join ?? null);
+      onChanged();
+    }
+    return { ok: !!a?.ok, reason: a?.reason };
+  };
+  return { join: enabled ? join : null, answer };
+}
+
 /** Who a quote went to, as the Update dialog says it: "Bloggs, Jo" is Jo,
     any other name as it's written (a business has no first name), and the
     customer where the job names nobody. */
@@ -314,8 +346,16 @@ export function QuoteLinesFace({
     view && designs
       ? designState({ designs: designs.length, noDesign: !!view.noDesign, onWithout: !!view.approved || !!view.sent || accepted.length > 0 || pastQuote })
       : null;
+  const { join, answer: answerJoin } = useDesignJoin(job, !!designs && designs.length > 0, view?.lines, () => {
+    reload();
+    onPriced();
+  });
+  /* her questions and the design's, for what's left to answer */
+  const joinOpen = join?.asks.length ?? 0;
+  const toAnswer = asked + joinOpen;
   const steps = linesSteps({
     design,
+    designJoin: join ? { open: joinOpen, waiting: join.waiting } : null,
     accepted,
     approved: view?.approved ?? false,
     version,
@@ -404,7 +444,7 @@ export function QuoteLinesFace({
      and Proposal, the paper as the customer gets it, which is the money's.
      Tiff's questions still open turn Build amber (rule 31). */
   const tabsOffered: TabItem[] = [
-    ...(chat ? [{ key: "build", label: "Build", ...(asked > 0 ? { tone: "look" as const } : {}) }] : []),
+    ...(chat ? [{ key: "build", label: "Build", ...(toAnswer > 0 ? { tone: "look" as const } : {}) }] : []),
     { key: "breakdown", label: "Breakdown" },
     ...(money && all.length > 0 ? [{ key: "proposal", label: "Proposal" }] : []),
   ];
@@ -431,8 +471,8 @@ export function QuoteLinesFace({
         ? { word: "Sent", settle: false, good: true }
         : view.approved
           ? { word: "Ready to send", settle: false, good: true }
-          : asked > 0
-            ? { word: answerWord(asked), settle: true }
+          : toAnswer > 0
+            ? { word: answerWord(toAnswer), settle: true }
             : toPriceAll > 0
               ? { word: priceWord(toPriceAll), settle: true }
               : estimatesOf(all) > 0
@@ -785,6 +825,7 @@ export function QuoteLinesFace({
       onRemove={(ls) => void removeLines(ls)}
       swapAsk={swapAsk}
       optionRows={optionRows}
+      designStand={join && join.option === at ? join.lines : null}
       spot={walking && walking.tab === "breakdown" ? walking.lineIds : []}
     />
   );
@@ -820,9 +861,9 @@ export function QuoteLinesFace({
      B, 21 October 2026): her questions still open, and what's left to
      price; a variation is priced as the difference, and may add no labour */
   const toPrice = !priced ? 0 : variation ? priced.unpriced.length : leftOn(priced).length;
-  const ready = !!priced && lines.length > 0 && toPrice === 0 && asked === 0;
+  const ready = !!priced && lines.length > 0 && toPrice === 0 && toAnswer === 0;
   const why = [
-    asked > 0 ? `${asked} ${asked === 1 ? "question" : "questions"} to answer` : "",
+    toAnswer > 0 ? `${toAnswer} ${toAnswer === 1 ? "question" : "questions"} to answer` : "",
     price && !price.ok ? "Set Quoting to price it" : lines.length === 0 ? "Nothing on this option yet" : toPrice > 0 ? `${toPrice} ${toPrice === 1 ? "line" : "lines"} to price` : "",
   ]
     .filter(Boolean)
@@ -935,7 +976,7 @@ export function QuoteLinesFace({
         approved={view?.approved ?? false}
         ready={ready}
         why={why}
-        asked={asked}
+        asked={toAnswer}
         /* to her questions: Settle, over Build */
         onAnswer={
           chat
@@ -1000,6 +1041,12 @@ export function QuoteLinesFace({
             onOpen={setAsked}
             onPlan={setPlan}
             settle={settleAsk}
+            joins={money ? (join?.asks ?? []) : []}
+            onJoin={async (id, i) => {
+              const r = await answerJoin(id, i);
+              if (!r.ok) setNote(r.reason ?? "That didn't save. Try again.");
+              return r.ok;
+            }}
             say={say}
             onSaid={() => {
               takeOff(
@@ -1076,6 +1123,19 @@ export function QuoteLinesFace({
           ) : (
             linesUp && (
               <div className="qc-lines">
+                {!chat && money && join && join.asks.length > 0 && (
+                  <JoinCard
+                    asks={join.asks}
+                    busy={busy}
+                    onPick={(id, i) => {
+                      setBusy(true);
+                      void answerJoin(id, i).then((r) => {
+                        setBusy(false);
+                        if (!r.ok) setNote(r.reason ?? "That didn't save. Try again.");
+                      });
+                    }}
+                  />
+                )}
                 <div className="hd-face qp-face ql-face">{lineItems}</div>
               </div>
             )

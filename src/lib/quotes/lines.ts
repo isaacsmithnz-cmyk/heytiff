@@ -15,6 +15,7 @@
    Pure: the gate every edit and every stored row passes through. */
 
 import { sameVisit, visitHours, visitName, visitOf, type LineVisit } from "./line-visit";
+import { joinOf, type LineJoin } from "./design-join";
 
 export type LineKind = "unit" | "material" | "labour";
 export type LineUnit = "" | "m" | "h";
@@ -57,6 +58,8 @@ export type QuoteLine = LineFields & {
   version: number;
   updatedAt: string;
   updatedBy: string;
+  /** a unit line's join to the job's design (design-units.ts); null: none yet */
+  design?: LineJoin | null;
 };
 
 export const MAX_OPTIONS = 20;
@@ -123,6 +126,7 @@ export function lineFromRow(row: unknown): QuoteLine | null {
     version: Math.max(1, Math.round(num(r.version) ?? 1)),
     updatedAt: typeof r.updated_at === "string" ? r.updated_at : "",
     updatedBy: typeof r.updated_by === "string" ? r.updated_by : "",
+    ...(joinOf(r.design_unit) ? { design: joinOf(r.design_unit) } : {}),
   };
 }
 

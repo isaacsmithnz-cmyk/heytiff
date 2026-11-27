@@ -3669,6 +3669,8 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .fg .qt-box:focus-within { border-color:var(--ink); }
 .fg .qt-in { flex:1; min-width:0; min-height:32px; max-height:160px; padding:4px 0; border:0; background:none; font:inherit; font-size:14px; line-height:1.5; color:var(--hd-ink); resize:none; }
 .fg .qt-in:focus { outline:none; }
+/* a unit line's source against the job's design: From the design, Quote only (design-units.ts) */
+.fg .ql-from { margin-left:8px; font-style:normal; }
 .fg .ql-not { margin-left:8px; font-style:normal; font-size:12px; font-weight:600; color:var(--warn-t); }
 /* a hard job's loading: the Labour group's last line, hidden from the customer */
 .fg tr.ql-load td { background:var(--tint); }
@@ -6366,6 +6368,8 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .qx-step.done .qx-dot { background:var(--green); }
 .fg .qx-step.look .qx-dot { background:var(--orange); }
 .fg .qx-step.look .qx-r { color:var(--orange-w); }
+/* the Design row, the quote and the design the same: its word green (design-units.ts) */
+.fg .qx-step.done.kept .qx-r { color:var(--green-w); }
 .fg .qx-rows .ql-checks { margin:0; }
 .fg .qx-rows .ql-checks li { grid-template-columns:auto minmax(0, 1fr); gap:12px; align-items:start; padding:12px 16px; font-size:16px; line-height:24px; color:var(--ink); }
 .fg .qx-rows .ql-checks li + li { border-top:1px solid var(--line); }

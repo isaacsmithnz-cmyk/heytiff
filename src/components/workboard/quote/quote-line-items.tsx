@@ -21,6 +21,13 @@ import { Globe } from "./tiff-panel";
 import { CompareCard } from "./compare-card";
 import { Typed } from "./typed";
 import type { LinesView } from "./quote-lines-face";
+import type { LineStand } from "@/lib/quotes/design-units";
+
+/** Where a unit line came from, as its second line says it (the units mock,
+    27 November 2026): the design's, the quote's only, or waiting for the
+    Studio to take it; nothing for one not joined yet. */
+const standWords = (s: LineStand | undefined): string =>
+  !s ? "" : s.from === "design" ? "From the design" : s.from === "quote" ? "Quote only" : "For the Studio to take";
 
 /* THE LINE ITEMS: the quote by hand, on its kept lines (the engine rebuild,
    slice 2.3, to the mock-ups Isaac shaped on 7 October), the main column's
@@ -289,6 +296,7 @@ export function QuoteLineItems({
   onRemove,
   swapAsk = null,
   optionRows = [],
+  designStand = null,
   spot = [],
 }: {
   job: string;
@@ -316,6 +324,9 @@ export function QuoteLineItems({
   swapAsk?: { id: string; n: number } | null;
   /** every option and its total, for the slider */
   optionRows?: { option: number; name: string; total: string | null; on: boolean }[];
+  /** ONE LIST OF UNITS (design-units.ts): where each unit line of the open
+      option stands against the job's design; null with no design joined */
+  designStand?: Readonly<Record<string, LineStand>> | null;
   /** the lines Tiff's check is on (review.ts): their groups open, outlined */
   spot?: readonly string[];
 }) {
@@ -774,9 +785,11 @@ export function QuoteLineItems({
                                       <em className="ql-vs">{againstFirst(l, all, base) === "added" ? " Added" : " Changed"}</em>
                                     )}
                                   </span>
+                                  {!l.code && standWords(designStand?.[l.id]) && <span className="cd">{standWords(designStand?.[l.id])}</span>}
                                   {l.code && (
                                     <span className="cd">
                                       {l.code}
+                                      {standWords(designStand?.[l.id]) && <em className="ql-from">{standWords(designStand?.[l.id])}</em>}
                                       {buyFrom && l.supplierKey && l.supplierKey !== buyFrom && (
                                         <em className="ql-not">{`Not at ${supplierName(buyFrom)}: ${supplierName(l.supplierKey)}`}</em>
                                       )}

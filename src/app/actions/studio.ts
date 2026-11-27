@@ -231,6 +231,25 @@ export async function readQuotedUnits(jobRemoteId: string): Promise<{
   return { lines: [...units, ...materials], accepted: byHand.accepted, names, brands: await quotedBrands(units.map((l) => l.code!)) };
 }
 
+/* WHAT THE DESIGN TAKES FROM THE QUOTE (take-from-quote.ts): the units a
+   person said the quote has right, waiting for this design to take them,
+   and the units they said go. Read as the design opens and when its tab is
+   come back to; Undo of what it took sends the quote back to asking. */
+export async function readQuoteTakes(jobRemoteId: string, designId: string): Promise<{ takes: import("@/lib/studio/take-from-quote").QuoteTake[]; drop: string[] }> {
+  const { orgId } = await requireOrg("studio");
+  if (!(await can("workboard")) || typeof jobRemoteId !== "string" || !jobRemoteId || typeof designId !== "string") return { takes: [], drop: [] };
+  const { quoteTakes } = await import("@/lib/quotes/design-units-server");
+  return quoteTakes(orgId, jobRemoteId, designId);
+}
+
+export async function refuseQuoteTakes(jobRemoteId: string, lineIds: string[], dropped: string[]): Promise<boolean> {
+  const { orgId, userId } = await requireOrg("studio");
+  if (!(await can("workboard")) || typeof jobRemoteId !== "string" || !jobRemoteId) return false;
+  const ids = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string").slice(0, 200) : []);
+  const { refuseTakes } = await import("@/lib/quotes/design-units-server");
+  return refuseTakes(orgId, jobRemoteId, ids(lineIds), ids(dropped), userId);
+}
+
 /** the installed brands whose books have one of these codes, newest edition */
 async function quotedBrands(codes: readonly string[]): Promise<string[]> {
   if (codes.length === 0) return [];

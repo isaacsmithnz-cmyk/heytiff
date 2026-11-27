@@ -55,7 +55,8 @@ export function AskCard({
   draft: string;
   onDraft: (words: string) => void;
   onPick: (index: number) => void;
-  onOwn: () => void;
+  /** your own words to her; none where she isn't on, and then no box */
+  onOwn?: () => void;
   /** set while an answered one is being changed */
   onLeave?: () => void;
   /** in Settle: the question large */
@@ -85,9 +86,11 @@ export function AskCard({
             </Button>
           );
         })}
-        <div className="qx-own">
-          <CvBox value={draft} onChange={onDraft} onSubmit={onOwn} label={`Your own answer to: ${ask.question}`} placeholder="Your own answer" sendWord="Send" sendLabel="Send your answer to Tiff" waiting={busy} dict={null} tiff={false} />
-        </div>
+        {onOwn && (
+          <div className="qx-own">
+            <CvBox value={draft} onChange={onDraft} onSubmit={onOwn} label={`Your own answer to: ${ask.question}`} placeholder="Your own answer" sendWord="Send" sendLabel="Send your answer to Tiff" waiting={busy} dict={null} tiff={false} />
+          </div>
+        )}
         {onLeave && (
           <Button kind="second" size={44} className="qx-answer" disabled={busy} onClick={onLeave}>
             Leave it as it is

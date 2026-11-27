@@ -17,6 +17,14 @@ import { latestAsked } from "@/lib/quotes/session/answers";
 import { buildingFirst, liveWords, stepOf, stepOfTool, timeLeft, turnStartOf, type LiveNow, type Took } from "@/lib/quotes/session/time-left";
 import { waitingIds } from "@/lib/quotes/session/queued";
 import { fmtAud } from "@/lib/workboard/project-money";
+import type { JoinAsk } from "@/lib/quotes/design-units";
+
+/** A join question's place among hers: a number of its own, below hers, kept as the list changes. */
+const joinAskId = (id: string) => {
+  let h = 5381;
+  for (let i = 0; i < id.length; i++) h = ((h * 33) ^ id.charCodeAt(i)) | 0;
+  return -1 - (Math.abs(h) % 1_000_000_000);
+};
 
 /* TIFF ON THE QUOTE: the page's main column (the chat-first quote page,
    Isaac, 2026-10-13; it was a grey card in the rail, slice 5.1). The
@@ -165,6 +173,8 @@ export function TiffPanel({
   say = null,
   onSaid,
   settle = 0,
+  joins = [],
+  onJoin,
 }: {
   job: string;
   onChanged: () => void;
@@ -185,6 +195,11 @@ export function TiffPanel({
   onSaid?: () => void;
   /** bumped by the panel's Settle button: Settle opens over the talk */
   settle?: number;
+  /** ONE LIST OF UNITS (design-units.ts): where the quote and the job's
+      design don't agree, asked as hers are, before them */
+  joins?: readonly JoinAsk[];
+  /** an answer to one of those: true once it's carried out */
+  onJoin?: (id: string, index: number) => Promise<boolean>;
 }) {
   /* null until her thread is first read: the page lays out nothing of hers
      or the lines' until it knows which */
@@ -480,7 +495,7 @@ export function TiffPanel({
   const asking = new Set(latestAsked(events));
   /* in the talk itself: while one is open, every question of hers still
      open and the ones of the same asking already answered */
-  const asks: Ask[] = (open.length > 0 || changing != null ? events.filter((e) => e.kind === "question" && (!doneOf(e.id) || asking.has(e.id) || e.id === changing)) : []).map((e) => ({
+  const herAsks: Ask[] = (open.length > 0 || changing != null ? events.filter((e) => e.kind === "question" && (!doneOf(e.id) || asking.has(e.id) || e.id === changing)) : []).map((e) => ({
     id: e.id,
     question: String(e.body.question ?? ""),
     topic: typeof e.body.topic === "string" && e.body.topic ? e.body.topic : String(e.body.question ?? ""),
@@ -489,6 +504,12 @@ export function TiffPanel({
     deltas: questions[e.id]?.deltas ?? [],
     done: doneOf(e.id),
   }));
+  /* the design's questions first: what's on the quote follows from them */
+  const joinKey = new Map(joins.map((j) => [joinAskId(j.id), j.id]));
+  const asks: Ask[] = [
+    ...(onJoin ? joins.map((j) => ({ id: joinAskId(j.id), question: j.question, topic: j.topic, put: j.put, answers: j.answers, deltas: j.deltas, done: mine[joinAskId(j.id)] ?? null })) : []),
+    ...herAsks,
+  ];
   /* the one you're on: the first still open you haven't skipped, or the
      first open once all left are skipped */
   const openAsks = asks.filter((a) => !a.done);
@@ -506,7 +527,8 @@ export function TiffPanel({
     /* a change goes to her: she changes the quote for it */
     if (a.done) return void toTiff(a, label, false);
     setMine((m) => ({ ...m, [a.id]: { label, typed: false } }));
-    void answer(a.id, index).then((ok) => {
+    const key = joinKey.get(a.id);
+    void (key && onJoin ? onJoin(key, index) : answer(a.id, index)).then((ok) => {
       if (!ok)
         setMine((m) => Object.fromEntries(Object.entries(m).filter(([k]) => Number(k) !== a.id)));
     });

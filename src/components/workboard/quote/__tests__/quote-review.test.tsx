@@ -101,6 +101,22 @@ describe("the panel's one button", () => {
     expect(base.onApprove).toHaveBeenCalled();
   });
 
+  /* Isaac, 27 November 2026, on 3610: "make a way to skip it or say that
+     you are happy to proceed" */
+  it("goes past the check on your word, at every step of it", () => {
+    const onProceed = jest.fn();
+    const { rerender } = render(<QuoteActions {...base} review={{ step: "check", again: true }} onProceed={onProceed} />);
+    fireEvent.click(screen.getByRole("button", { name: "Skip the check" }));
+    rerender(<QuoteActions {...base} review={{ step: "fix", fixes: 1 }} onProceed={onProceed} />);
+    fireEvent.click(screen.getByRole("button", { name: "Happy to proceed" }));
+    expect(onProceed).toHaveBeenCalledTimes(2);
+    rerender(<QuoteActions {...base} review={{ step: "check", again: false }} checking onProceed={onProceed} />);
+    expect(screen.queryByRole("button", { name: "Skip the check" })).toBeNull();
+    rerender(<ReviewWalk review={review([f()])} at={f()} n={1} of={1} busy={false} onAnswer={jest.fn()} onProceed={onProceed} />);
+    fireEvent.click(screen.getByRole("button", { name: "Happy to proceed" }));
+    expect(onProceed).toHaveBeenCalledTimes(3);
+  });
+
   it("is the finding's card while there's one to go through", () => {
     render(<QuoteActions {...base} review={{ step: "walk", at: f(), n: 1, of: 1 }} walk={<p>the card</p>} />);
     expect(screen.getByText("the card")).toBeTruthy();

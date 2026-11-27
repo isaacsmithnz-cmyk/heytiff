@@ -153,6 +153,10 @@ it("won't mark it ready to send until Tiff's check is clear, and runs the check 
   expect(approveProposal).not.toHaveBeenCalled();
   await post({ op: "approve" });
   expect(approveProposal).toHaveBeenCalledTimes(1);
+  /* past the check on the person's word (27 November 2026) */
+  reviewLetsApprove.mockResolvedValueOnce(false);
+  await post({ op: "approve", proceed: true });
+  expect(approveProposal).toHaveBeenCalledTimes(2);
   await post({ op: "review" });
   expect(runReview).toHaveBeenCalledWith("org-a", "job-1", "u-tech");
   const fixed = await (await post({ op: "review-fix" })).json();

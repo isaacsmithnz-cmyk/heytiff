@@ -894,6 +894,8 @@ export function QuoteLinesFace({
     setChecking(false);
   };
   const answerFinding = (id: string, pick: number | "keep", reason: string) => void act({ op: "review-answer", id, pick, reason });
+  /* past the check, ready to send on your word */
+  const proceed = () => void act({ op: "approve", proceed: true });
   const sendFixes = async () => {
     const v = await act({ op: "review-fix" });
     if (v?.ok && v.fixes) {
@@ -916,7 +918,7 @@ export function QuoteLinesFace({
     if (walking.tab === "breakdown") setTab("lines");
   }
   const walkCard =
-    walking && rstep?.step === "walk" && view?.review ? <ReviewWalk review={view.review} at={walking} n={rstep.n} of={rstep.of} busy={busy || checking} onAnswer={answerFinding} /> : null;
+    walking && rstep?.step === "walk" && view?.review ? <ReviewWalk review={view.review} at={walking} n={rstep.n} of={rstep.of} busy={busy || checking} onAnswer={answerFinding} onProceed={proceed} /> : null;
 
   const actions =
     tiff === null ? null : (
@@ -958,6 +960,7 @@ export function QuoteLinesFace({
         walk={walkCard}
         onCheck={() => void runCheck()}
         onFix={() => void sendFixes()}
+        onProceed={proceed}
       />
     );
 

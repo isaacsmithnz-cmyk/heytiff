@@ -256,8 +256,11 @@ export async function POST(req: Request) {
       break;
     }
     case "approve": {
-      /* checked as it stands, nothing left in the check but what was kept */
-      if (!(await reviewLetsApprove(g.orgId, jobUuid))) {
+      /* checked as it stands, nothing left in the check but what was kept;
+         or past it, on the person's word (Isaac, 27 November 2026, on 3610:
+         "make a way to skip it or say that you are happy to proceed") */
+      const proceed = body.proceed === true;
+      if (!proceed && !(await reviewLetsApprove(g.orgId, jobUuid))) {
         result = { ok: false, reason: "Tiff checks it first: press Mark ready to send." };
         break;
       }
@@ -266,7 +269,7 @@ export async function POST(req: Request) {
       /* marked in Tiff's thread, where there is one (slice 6.2) */
       if (approved.ok) {
         const session = await readSession(g.orgId, jobUuid).catch(() => null);
-        if (session) await addEvents(g.orgId, session.id, null, [{ kind: "milestone", author: g.userId, body: { text: "Proposal approved" } }]);
+        if (session) await addEvents(g.orgId, session.id, null, [{ kind: "milestone", author: g.userId, body: { text: proceed ? "Proposal approved past Tiff's check" : "Proposal approved" } }]);
       }
       break;
     }

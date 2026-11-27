@@ -22,6 +22,7 @@ export function ReviewWalk({
   of,
   busy,
   onAnswer,
+  onProceed,
 }: {
   review: QuoteReview;
   at: ReviewFinding;
@@ -30,6 +31,8 @@ export function ReviewWalk({
   busy: boolean;
   /** a fix picked by its index, or kept with its reason */
   onAnswer: (id: string, pick: number | "keep", reason: string) => void;
+  /** past the check as it is, marked ready to send on your word */
+  onProceed?: () => void;
 }) {
   const [keeping, setKeeping] = useState<string | null>(null);
   const [why, setWhy] = useState("");
@@ -93,6 +96,13 @@ export function ReviewWalk({
               Back to the fixes
             </Button>
           </>
+        )}
+        {/* past what's left, on your word (Isaac, 27 November 2026: "make
+            a way to skip it or say that you are happy to proceed") */}
+        {!open && onProceed && (
+          <Button kind="quiet" size={44} className="qx-answer" disabled={busy} onClick={onProceed}>
+            Happy to proceed
+          </Button>
         )}
       </div>
     </div>

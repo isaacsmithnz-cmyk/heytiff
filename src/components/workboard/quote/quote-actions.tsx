@@ -89,6 +89,7 @@ export function QuoteActions({
   walk,
   onCheck,
   onFix,
+  onProceed,
 }: {
   money: boolean;
   /** how many lines the quote has, every option */
@@ -133,6 +134,8 @@ export function QuoteActions({
   walk?: ReactNode;
   onCheck?: () => void;
   onFix?: () => void;
+  /** past the check, marked ready to send on your word */
+  onProceed?: () => void;
 }) {
   const { step } = panelFoot({ money, lines, kept, variation, approved, sending: !!send && !sent, acceptable, accepted, update, paper });
   const answering = step === "approve" && asked > 0 && !!onAnswer;
@@ -152,13 +155,29 @@ export function QuoteActions({
         review.step === "walk" ? (
           (walk ?? null)
         ) : review.step === "fix" ? (
-          <Button kind="main" disabled={busy || checking} onClick={onFix}>
-            {`Fix ${review.fixes} with Tiff`}
-          </Button>
+          <>
+            <Button kind="main" disabled={busy || checking} onClick={onFix}>
+              {`Fix ${review.fixes} with Tiff`}
+            </Button>
+            {onProceed && (
+              <Button kind="quiet" disabled={busy || checking} onClick={onProceed}>
+                Happy to proceed
+              </Button>
+            )}
+          </>
         ) : (
-          <Button kind="main" disabled={busy || checking} onClick={onCheck}>
-            {checking ? "Checking the quote" : review.again ? "Check again" : "Mark ready to send"}
-          </Button>
+          <>
+            <Button kind="main" disabled={busy || checking} onClick={onCheck}>
+              {checking ? "Checking the quote" : review.again ? "Check again" : "Mark ready to send"}
+            </Button>
+            {/* past the check on your word (Isaac, 27 November 2026, on
+                3610: "make a way to skip it") */}
+            {onProceed && !checking && (
+              <Button kind="quiet" disabled={busy} onClick={onProceed}>
+                Skip the check
+              </Button>
+            )}
+          </>
         )
       ) : (
         <Button kind="main" disabled={busy || !ready} onClick={onApprove}>

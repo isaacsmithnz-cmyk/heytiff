@@ -22,6 +22,7 @@ export function ReviewWalk({
   of,
   busy,
   onAnswer,
+  onIgnore,
 }: {
   review: QuoteReview;
   at: ReviewFinding;
@@ -30,6 +31,8 @@ export function ReviewWalk({
   busy: boolean;
   /** a fix picked by its index, or kept with its reason */
   onAnswer: (id: string, pick: number | "keep", reason: string) => void;
+  /** the check put away: it's advice, and Mark ready to send is under it */
+  onIgnore?: () => void;
 }) {
   const [keeping, setKeeping] = useState<string | null>(null);
   const [why, setWhy] = useState("");
@@ -93,6 +96,12 @@ export function ReviewWalk({
               Back to the fixes
             </Button>
           </>
+        )}
+        {/* put away: it's advice, not a gate (Isaac, 27 November 2026) */}
+        {!open && onIgnore && (
+          <Button kind="quiet" size={44} className="qx-answer" disabled={busy} onClick={onIgnore}>
+            Ignore
+          </Button>
         )}
       </div>
     </div>

@@ -393,9 +393,11 @@ Rules:
 - A finding is something to change. Where your own words would say it's fine, leave it out. A line sold at the business's markup is priced.
 - One finding per problem: never the same thing twice under two topics.
 - The topic says what the words say.
+- Before raising that the lines don't have something, look for it under another name: a plenum box is a plenum, a pair coil is the pipe, a kit holds its parts. Found, it's not a finding.
+- Your words never contradict themselves: "nothing on the lines is X" and then naming X on the lines is no finding at all.
 - At most ${MAX_FINDINGS}, the ones that matter most first.
 - "topic": a few plain words a customer could read ("Unit cooling figures", "Copper tees for CMY joints").
-- "words": one or two sentences saying what's wrong, with the figures. Plain Australian English, no jargon the trade wouldn't use.
+- "words": ONE short sentence, under 20 words, saying what to change, as a tradie would say it across the bench ("The paper says 14 kW; Mitsubishi says 15.5 kW."). No "but", no "only", no list of what's fine. Plain Australian English.
 - "put": what's on the quote now, in a few words ("14, 8, 2.5 and 2 kW"), or "".
 - "tab": "proposal" when it's about the paper's words, "breakdown" when it's about the lines. "block": the paper's block key it's in (for example "summary-0", "work-1", "units-0", "payment", "notIncluded"), or "" on the lines. "lineIds": the ids in square brackets of the lines it's about, or [].
 - "option": the option's index, or -1 for the whole quote.

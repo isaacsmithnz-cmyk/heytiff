@@ -21,7 +21,7 @@ import { readQuoteSettings } from "@/lib/quotes/settings-query";
 import { readOrgDay } from "@/lib/quotes/org-day-server";
 import { taskCheck } from "@/lib/quotes/task-hours";
 import { quoteStamp } from "@/lib/quotes/review";
-import { answerReview, applyReviewFixes, reviewLetsApprove, runReview } from "@/lib/quotes/review-server";
+import { answerReview, applyReviewFixes, runReview } from "@/lib/quotes/review-server";
 import { changesWithoutMoney, lineWithoutMoney, patchWithoutMoney } from "@/lib/quotes/money-hidden";
 
 /* A quote's kept lines (the engine rebuild, slices 2.1–2.3): read them with
@@ -256,11 +256,7 @@ export async function POST(req: Request) {
       break;
     }
     case "approve": {
-      /* checked as it stands, nothing left in the check but what was kept */
-      if (!(await reviewLetsApprove(g.orgId, jobUuid))) {
-        result = { ok: false, reason: "Tiff checks it first: press Mark ready to send." };
-        break;
-      }
+      /* Tiff's check is advice, not a gate (Isaac, 27 November 2026) */
       const approved = await approveProposal(g.orgId, jobUuid, g.userId);
       result = approved;
       /* marked in Tiff's thread, where there is one (slice 6.2) */

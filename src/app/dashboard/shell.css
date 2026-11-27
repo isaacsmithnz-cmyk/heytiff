@@ -3671,6 +3671,8 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .fg .qt-in:focus { outline:none; }
 /* a unit line's source against the job's design: From the design, Quote only (design-units.ts) */
 .fg .ql-from { margin-left:8px; font-style:normal; }
+/* sent, then changed in the design: said in orange, as what needs a look */
+.fg .ql-from.ql-look { color:var(--orange-w); font-weight:600; }
 .fg .ql-not { margin-left:8px; font-style:normal; font-size:12px; font-weight:600; color:var(--warn-t); }
 /* a hard job's loading: the Labour group's last line, hidden from the customer */
 .fg tr.ql-load td { background:var(--tint); }

@@ -355,7 +355,7 @@ export function QuoteLinesFace({
   const toAnswer = asked + joinOpen;
   const steps = linesSteps({
     design,
-    designJoin: join ? { open: joinOpen, waiting: join.waiting } : null,
+    designJoin: join ? { open: joinOpen, waiting: join.waiting, since: join.sent ? (join.changes?.count ?? 0) : 0, sinceCents: join.changes?.deltaCents ?? null } : null,
     accepted,
     approved: view?.approved ?? false,
     version,
@@ -826,6 +826,8 @@ export function QuoteLinesFace({
       swapAsk={swapAsk}
       optionRows={optionRows}
       designStand={join && join.option === at ? join.lines : null}
+      designSent={!!join?.sent}
+      designMoney={join?.changes?.lines ?? null}
       spot={walking && walking.tab === "breakdown" ? walking.lineIds : []}
     />
   );
@@ -880,6 +882,8 @@ export function QuoteLinesFace({
   /* the job's photos with an address, for the bar's Add a photo */
   const barPhotos: BarPhoto[] = (photos ?? []).flatMap((m) => (m.kind === "photo" && m.url ? [{ id: m.remoteId, url: m.url, name: m.name }] : []));
   const acceptable = !!view?.approved || accepted.length > 0;
+  /* the design changed since it was sent: Update quote takes it (design-units.ts) */
+  const designSince = !!join?.sent && (join.changes?.count ?? 0) > 0;
   /* once something's landed since it was sent, the rail's own Update
      quote, with it written in, is the one */
   const updateOffered = (accepted.length > 0 || !!view?.approved) && !variation && !(chat && after && added.length > 0);
@@ -900,6 +904,7 @@ export function QuoteLinesFace({
           accepted: accepted.includes(at),
           update: updateOffered,
           paper,
+          updateFirst: designSince,
         }).moved
       : [];
   const movedLabel: Record<Moved, string> = { accept: acceptWords, update: "Update quote" };
@@ -992,6 +997,7 @@ export function QuoteLinesFace({
         /* the client can say yes once it's approved, or on another option */
         acceptable={acceptable}
         update={updateOffered}
+        updateFirst={designSince}
         options={options}
         at={at}
         accepted={accepted.includes(at)}

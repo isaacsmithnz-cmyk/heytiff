@@ -27,7 +27,7 @@ import { joinOf, type LineJoin } from "./design-join";
 const COLS =
   "id, option_index, system, grp, position, name, code, supplier_key, kind, qty, unit, cost_cents, sell_cents, source, why, duct, visit, estimate, version, updated_at, updated_by, design_unit";
 
-export type LineResult = { ok: true; line: QuoteLine | null } | { ok: false; reason: string; stale?: true };
+export type LineResult = { ok: true; line: QuoteLine | null; /** the change kept in its history */ changeId?: number } | { ok: false; reason: string; stale?: true };
 
 export async function readLines(orgId: string, jobUuid: string): Promise<QuoteLine[]> {
   const { data, error } = await supabaseAdmin
@@ -52,17 +52,22 @@ async function record(
   by: string,
   why: string
 ) {
-  const { error } = await supabaseAdmin.from("quote_line_changes").insert({
-    org_id: orgId,
-    sm8_job_uuid: jobUuid,
-    line_id: lineId,
-    action,
-    before,
-    after,
-    why: why.slice(0, 400),
-    made_by: by,
-  });
+  const { data, error } = await supabaseAdmin
+    .from("quote_line_changes")
+    .insert({
+      org_id: orgId,
+      sm8_job_uuid: jobUuid,
+      line_id: lineId,
+      action,
+      before,
+      after,
+      why: why.slice(0, 400),
+      made_by: by,
+    })
+    .select("id")
+    .maybeSingle();
   if (error) throw new Error(`quote line change: ${error.message}`);
+  return (data as { id: number } | null)?.id;
 }
 
 /** A new line, at the end of its option unless it names a place. */
@@ -88,8 +93,8 @@ export async function addLine(orgId: string, jobUuid: string, input: unknown, by
     .single();
   if (error || !data) return { ok: false, reason: "The line couldn't be added. Try again." };
   const line = lineFromRow(data)!;
-  await record(orgId, jobUuid, line.id, "add", null, f, by, why);
-  return { ok: true, line };
+  const changeId = await record(orgId, jobUuid, line.id, "add", null, f, by, why);
+  return { ok: true, line, changeId };
 }
 
 async function readOne(orgId: string, jobUuid: string, id: string): Promise<QuoteLine | null> {
@@ -129,8 +134,8 @@ export async function changeLine(
   if (error) return { ok: false, reason: "The line couldn't be changed. Try again." };
   if (!data || data.length === 0) return { ok: false, reason: "Someone changed that line just now. It's been reloaded.", stale: true };
   const d = diffOf(line, applied.next);
-  await record(orgId, jobUuid, id, "change", d.before, d.after, by, why);
-  return { ok: true, line: lineFromRow(data[0])! };
+  const changeId = await record(orgId, jobUuid, id, "change", d.before, d.after, by, why);
+  return { ok: true, line: lineFromRow(data[0])!, changeId };
 }
 
 /** One line taken off, against the version it was read at; kept in its
@@ -150,8 +155,8 @@ export async function removeLine(orgId: string, jobUuid: string, id: string, ver
   if (error) return { ok: false, reason: "The line couldn't be taken off. Try again." };
   if (!data || data.length === 0) return { ok: false, reason: "Someone changed that line just now. It's been reloaded.", stale: true };
   const { id: _id, version: _v, updatedAt: _a, updatedBy: _b, ...fields } = line;
-  await record(orgId, jobUuid, id, "remove", fields, null, by, why);
-  return { ok: true, line: null };
+  const changeId = await record(orgId, jobUuid, id, "remove", fields, null, by, why);
+  return { ok: true, line: null, changeId };
 }
 
 export type LineChange = {

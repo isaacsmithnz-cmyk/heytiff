@@ -34,7 +34,15 @@ export type QuoteStep = {
 
 /** How the quote's units stand with the design's (design-units.ts): the
     questions where they don't agree, and the units the design waits to take. */
-export type DesignJoinState = { open: number; waiting: number };
+export type DesignJoinState = {
+  open: number;
+  waiting: number;
+  /** sent, then changed in the design: how many, and what they come to (null without money) */
+  since?: number;
+  sinceCents?: number | null;
+};
+
+const signedCents = (c: number) => `${c > 0 ? "+" : "−"}$${(Math.abs(c) / 100).toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 /** Where the job's design is, for the Design step: drawn, a design of the
     job's is in the Studio; skipped, No design was pressed, or the quote was
@@ -79,7 +87,14 @@ const LABELS: Record<StepKey, string> = {
     mock, 27 November 2026). */
 const designStep = (d: DesignState, join: DesignJoinState | null = null): QuoteStep =>
   d === "drawn" && join
-    ? join.open > 0
+    ? (join.since ?? 0) > 0
+      ? {
+          key: "design",
+          label: LABELS.design,
+          state: "due",
+          words: `${join.since} ${join.since === 1 ? "change" : "changes"} since sent${join.sinceCents ? `, ${signedCents(join.sinceCents)}` : ""}`,
+        }
+      : join.open > 0
       ? { key: "design", label: LABELS.design, state: "due", words: `${join.open} to join` }
       : join.waiting > 0
         ? { key: "design", label: LABELS.design, state: "due", words: `${join.waiting} for the Studio` }

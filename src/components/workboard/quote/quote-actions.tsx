@@ -161,7 +161,7 @@ export function QuoteActions({
             </Button>
             {onProceed && (
               <Button kind="quiet" disabled={busy || checking} onClick={onProceed}>
-                Happy to proceed
+                Ignore
               </Button>
             )}
           </>

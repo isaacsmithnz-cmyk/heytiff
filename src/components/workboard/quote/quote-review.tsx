@@ -101,7 +101,7 @@ export function ReviewWalk({
             a way to skip it or say that you are happy to proceed") */}
         {!open && onProceed && (
           <Button kind="quiet" size={44} className="qx-answer" disabled={busy} onClick={onProceed}>
-            Happy to proceed
+            Ignore
           </Button>
         )}
       </div>

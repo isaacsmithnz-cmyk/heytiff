@@ -108,12 +108,12 @@ describe("the panel's one button", () => {
     const { rerender } = render(<QuoteActions {...base} review={{ step: "check", again: true }} onProceed={onProceed} />);
     fireEvent.click(screen.getByRole("button", { name: "Skip the check" }));
     rerender(<QuoteActions {...base} review={{ step: "fix", fixes: 1 }} onProceed={onProceed} />);
-    fireEvent.click(screen.getByRole("button", { name: "Happy to proceed" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ignore" }));
     expect(onProceed).toHaveBeenCalledTimes(2);
     rerender(<QuoteActions {...base} review={{ step: "check", again: false }} checking onProceed={onProceed} />);
     expect(screen.queryByRole("button", { name: "Skip the check" })).toBeNull();
     rerender(<ReviewWalk review={review([f()])} at={f()} n={1} of={1} busy={false} onAnswer={jest.fn()} onProceed={onProceed} />);
-    fireEvent.click(screen.getByRole("button", { name: "Happy to proceed" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ignore" }));
     expect(onProceed).toHaveBeenCalledTimes(3);
   });
 

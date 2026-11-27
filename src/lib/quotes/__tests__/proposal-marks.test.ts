@@ -23,6 +23,8 @@ describe("blocksOf", () => {
     const md = "# What we found\nThe leak is at the **flare**.\n- Find it\n- Fix it\n1. First\n2. Then\n![](photo:abc-123)";
     expect(blocksOf(md).map((b) => b.kind)).toEqual(["h", "p", "ul", "ol", "photo"]);
     expect(photosIn(md)).toEqual(["abc-123"]);
+    /* a photo of ours goes by doc:<uuid> (bug 123) */
+    expect(photosIn("![](photo:doc:6f1c2b9e-1111-4222-8333-944455556666)")).toEqual(["doc:6f1c2b9e-1111-4222-8333-944455556666"]);
   });
   it("reads words kept before formatting as they were: a line a paragraph", () => {
     expect(blocksOf("We have two ways forward.\nOption 1 installs a split.")).toEqual([

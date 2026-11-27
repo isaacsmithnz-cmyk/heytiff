@@ -14,6 +14,7 @@ import { orgTemplates } from "@/lib/templates/query";
 import { familyMediaSources, readMirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import { photosIn } from "@/lib/quotes/proposal-marks";
 import { readJobMediaGroups } from "@/lib/workboard/job-media-query";
+import { proposalPictures } from "@/lib/workboard/job-media";
 import { todayInZone } from "@/lib/workboard/dates";
 import { getSm8Timezone } from "@/lib/workboard/query";
 import { PrintQuote } from "./print-quote";
@@ -68,7 +69,7 @@ export default async function PrintQuotePage({ searchParams }: { searchParams: P
     jobNumber: detail.jobNumber ?? null,
     preparedBy: names[by] ?? null,
     brand,
-    photos: (media?.photos ?? []).map((m) => ({ id: m.remoteId, url: m.url })),
+    photos: (media ? proposalPictures(media) : []).map((m) => ({ id: m.remoteId, url: m.url })),
   };
   return <PrintQuote {...paper} />;
 }

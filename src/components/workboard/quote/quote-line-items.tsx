@@ -921,7 +921,10 @@ export function QuoteLineItems({
         <>
           <h2 className="qx-head">This option</h2>
           <div className="qx-card qx-rows">
-            {systems.some(Boolean) && <OptRow buttonRef={sysRef} name="System" word={system || "No system"} menu disabled={busy} open={menu === "system"} onClick={() => setMenu(menu === "system" ? null : "system")} />}
+            {/* where a line you add goes: a system, or the job's own lines,
+                 named as the list above names them (bug 124, Isaac, 26
+                 November 2026: "system no system vrf: what does this mean?") */}
+            {systems.some(Boolean) && <OptRow buttonRef={sysRef} name="New lines go in" word={system || "Whole job"} menu disabled={busy} open={menu === "system"} onClick={() => setMenu(menu === "system" ? null : "system")} />}
             {(view?.suppliers ?? []).length > 0 && (
               <OptRow buttonRef={supRef} name="Buy from" word={view?.supplier ? supplierName(view.supplier) : "Any supplier"} menu disabled={busy} open={menu === "supplier"} onClick={() => setMenu(menu === "supplier" ? null : "supplier")} />
             )}
@@ -948,7 +951,7 @@ export function QuoteLineItems({
               setMenu(null);
               setSystem(k === "_none" ? "" : k);
             }}
-            items={[{ key: "_none", label: "No system" }, ...systems.filter(Boolean).map((s) => ({ key: s, label: s }))]}
+            items={[{ key: "_none", label: "Whole job" }, ...systems.filter(Boolean).map((s) => ({ key: s, label: s }))]}
           />
           <Menu
             open={menu === "supplier"}

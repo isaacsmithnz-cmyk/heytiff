@@ -805,7 +805,7 @@ describe("the proposal (7.1)", () => {
       open();
       const slider = await screen.findByRole("tablist", { name: "Options" });
       fireEvent.click(within(slider).getByRole("tab", { name: /^Option 2/ }));
-      expect(screen.getByRole("button", { name: /^System/ })).toHaveTextContent("SystemNo system");
+      expect(screen.getByRole("button", { name: /^New lines go in/ })).toHaveTextContent("New lines go inWhole job");
       fireEvent.click(screen.getByRole("button", { name: /^Buy from/ }));
       await act(async () => {
         fireEvent.click(screen.getByRole("menuitem", { name: "Reece, else the lowest" }));

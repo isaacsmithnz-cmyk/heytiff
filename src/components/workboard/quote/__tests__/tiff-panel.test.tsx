@@ -582,6 +582,25 @@ it("folds her working notes in with her steps, open while she works", async () =
   expect(fold).toHaveAttribute("aria-expanded", "true");
 });
 
+/* bug 121 (Isaac, 26 November 2026: "too much text displayed while
+   working"): while she works only her last three lines show, the rest
+   under "Working through it", which opens them all */
+it("shows only her last three lines while she works", async () => {
+  const tool = (id: number) => ({ id, turnId: "t1", kind: "tool", author: "tiff", at: "", body: { name: "search_book", label: "Searched your book", ok: true, said: `part ${id}` } });
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async () =>
+    respond({ ...thread, working: true, questions: {}, events: [{ id: 1, turnId: "t1", kind: "message", author: "u-isaac", at: "", body: { text: "Price it" } }, ...[2, 3, 4, 5, 6].map(tool)] })
+  );
+  render(<TiffPanel job="j" onChanged={jest.fn()} />);
+  expect(await screen.findByText("Searched your book: part 6")).toBeInTheDocument();
+  expect(screen.getByText("Searched your book: part 4")).toBeInTheDocument();
+  expect(screen.queryByText("Searched your book: part 3")).toBeNull();
+  const fold = screen.getByRole("button", { name: "Working through it 5 steps" });
+  expect(fold).toHaveAttribute("aria-expanded", "false");
+  fireEvent.click(fold);
+  expect(screen.getByText("Searched your book: part 2")).toBeInTheDocument();
+  expect(fold).toHaveAttribute("aria-expanded", "true");
+});
+
 /* layout C (Isaac, 18 October), Q6: the reply box at the conversation's
    foot, the microphone on its own and a blue Send that carries its word */
 /* every Tiff box is Conversations' box (Isaac, 20 October 2026: "the input

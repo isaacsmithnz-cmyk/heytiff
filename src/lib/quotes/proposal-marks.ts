@@ -73,7 +73,9 @@ export const inlinePlain = (s: string) =>
     .map((r) => r.text)
     .join("");
 
-const PHOTO = /^!\[[^\]]*\]\(photo:([A-Za-z0-9_-]{1,80})\)$/;
+/* a photo of ours goes by "doc:<uuid>" (job-media-query ourDocumentRemoteId):
+   without the colon a phone's photo came off the proposal as it was put on (bug 123) */
+const PHOTO = /^!\[[^\]]*\]\(photo:([A-Za-z0-9_:-]{1,80})\)$/;
 const BULLET = /^[-•*]\s+(.*)$/;
 const NUMBER = /^\d{1,3}[.)]\s+(.*)$/;
 const HEAD = /^#{1,3}\s+(.*)$/;

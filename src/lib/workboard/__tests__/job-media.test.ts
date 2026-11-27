@@ -4,6 +4,7 @@
    than imagined. */
 
 import {
+  proposalPictures,
   documentGroupOf,
   groupJobMedia,
   isCacheableMedia,
@@ -270,5 +271,15 @@ describe("storageNote", () => {
   it("survives an error with no message at all", () => {
     expect(storageNote(undefined)).toContain("the log has the reason");
     expect(storageNote(null)).toContain("the log has the reason");
+  });
+});
+
+/* bug 123: a quote's Add a photo offers a picture filed with the papers,
+   as an emailed photo of a rating plate is, and never a PDF */
+describe("proposalPictures", () => {
+  const item = (remoteId: string, fileType: string, kind: "photo" | "video" | "document") => ({ remoteId, name: remoteId, fileType, kind, origin: null, takenAt: null, url: `https://x/${remoteId}`, width: null, height: null, fromClaim: null });
+  it("takes the photos and the papers' pictures, not a video or a PDF", () => {
+    const got = proposalPictures({ photos: [item("p1", ".jpg", "photo"), item("v1", ".mp4", "video")], documents: [item("doc:a", ".jpg", "document"), item("doc:b", ".pdf", "document")] });
+    expect(got.map((m) => m.remoteId)).toEqual(["p1", "doc:a"]);
   });
 });

@@ -64,9 +64,13 @@ describe("which pages are floors, by their words", () => {
     expect(guessPageByWords(words("B", "307 DESERUNT ROAD", "1103", "GF PLAN", "A102"))).toEqual({ kind: "floor", name: "Ground floor", level: 0 });
     expect(guessPageByWords(words("B", "307 DESERUNT ROAD", "1103", "FF PLAN", "A103"))).toEqual({ kind: "floor", name: "Level 1", level: 1 });
     expect(guessPageByWords(words("2ND FLOOR PLAN"))).toEqual({ kind: "floor", name: "Level 2", level: 2 });
-    /* and a building of its own on the site isn't taken for a floor of the house, so the 3D doesn't stack it on top */
-    expect(guessPageByWords(words("GARGE GROUND FLOOR PLAN", "1", "GARAGE PLAN", "A105"))).toEqual({ kind: "other", name: "", level: null });
-    expect(guessPageByWords(words("POOL & CABANA GROUND FLOOR PLAN", "1", "POOL & CABANA PLAN", "A106"))).toEqual({ kind: "other", name: "", level: null });
+    /* and a building of its own on the site isn't taken for a floor of the house, so the 3D doesn't stack it on top:
+       it's a floor of its own building (studio/buildings.ts, 28 November 2026) */
+    expect(guessPageByWords(words("GARGE GROUND FLOOR PLAN", "1", "GARAGE PLAN", "A105"))).toEqual({ kind: "floor", name: "Garage", level: 0, building: "Garage" });
+    expect(guessPageByWords(words("POOL & CABANA GROUND FLOOR PLAN", "1", "POOL & CABANA PLAN", "A106"))).toEqual({ kind: "floor", name: "Pool & cabana", level: 0, building: "Pool & cabana" });
+    /* 3570's A105 draws the garage's ground floor and its first floor, the guest wing, side by side: one floor of the garage, named for both */
+    expect(guessPageByWords(words("GARGE GROUND FLOOR PLAN", "GARGE ROOF PLAN", "GARAGE FIRST FLOOR PLAN", "A105"))).toEqual({ kind: "floor", name: "Garage, ground floor and level 1", level: 0, building: "Garage" });
+    expect(guessPageByWords(words("GRANNY FLAT FIRST FLOOR PLAN"))).toEqual({ kind: "floor", name: "Granny flat, level 1", level: 1, building: "Granny flat" });
     /* a room's name beside a house's plan doesn't make it another building's */
     expect(guessPageByWords(words("POOL", "GROUND FLOOR PLAN", "A102"))).toEqual({ kind: "floor", name: "Ground floor", level: 0 });
     expect(guessPageByWords(words("LEVEL 2 PLAN"))).toEqual({ kind: "floor", name: "Level 2", level: 2 });

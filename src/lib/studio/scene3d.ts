@@ -444,6 +444,8 @@ export function indoorHeight(form: string, underFloor: boolean, base: number, ce
     The design's own things, and Tiff's spaces when she has read them, with a
     margin round them: never the title block or the next drawing over. */
 const TILE_MARGIN_M = 2;
+/** how far beside the house a building not yet placed on the site stands, metres */
+const BESIDE_M = 4;
 function tilesOf(doc: DesignDocument, f: Floor, raw: Raw, move: XZ): PlanTile[] {
   const k = f.scaleMmPerUnit;
   if (!k) return [];
@@ -533,11 +535,37 @@ export function sceneOf(doc: DesignDocument, unitRow?: (model: string) => UnitRo
   /* a building drawn on a floor's own sheet (buildings.ts, a wing moved off
      Level 1) stands where that sheet puts it: it moves with the floor it
      was drawn on */
+  /* one drawn on a sheet of its own (a garage's page) isn't placed on the
+     site yet: it stands beside the house, clear of it, rather than on it */
+  const extent = (fs: Floor[]) => {
+    const xs: number[] = [];
+    const zs: number[] = [];
+    for (const f of fs) {
+      const r = raws.get(f.id);
+      const mv = moves.get(f.id) ?? [0, 0];
+      for (const s of r?.spaces ?? [])
+        for (const [x, z] of s.pts) {
+          xs.push(x + mv[0]);
+          zs.push(z + mv[1]);
+        }
+    }
+    return xs.length ? { x0: Math.min(...xs), x1: Math.max(...xs), z0: Math.min(...zs) } : null;
+  };
+  let right = extent(house)?.x1 ?? 0;
+  const houseTop = extent(house)?.z0 ?? 0;
   for (const f of ordered) {
-    if (!f.buildingId) continue;
+    if (!f.buildingId || !moves.has(f.id)) continue;
     const refs = new Set(f.plans.map((p) => p.imageRef));
     const on = house.find((h) => h.plans.some((p) => refs.has(p.imageRef)));
-    if (on && moves.has(on.id) && moves.has(f.id)) moves.set(f.id, moves.get(on.id)!);
+    if (on && moves.has(on.id)) {
+      moves.set(f.id, moves.get(on.id)!);
+      continue;
+    }
+    moves.set(f.id, [0, 0]);
+    const own = extent([f]);
+    if (!own) continue;
+    moves.set(f.id, [right + BESIDE_M - own.x0, houseTop - own.z0]);
+    right += BESIDE_M + (own.x1 - own.x0);
   }
 
   /* A SUBFLOOR (floor-spaces.ts): the house stands on it, so every floor goes

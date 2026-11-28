@@ -492,8 +492,9 @@ export async function roofFacesOf(bytes: Uint8Array, pages: readonly JobPlanPage
     /* the floors drawn on a sheet of the roof plan's size, in that sheet's pixels to a point */
     const W = Math.round(v.width * v.rasterScale);
     const H = Math.round(v.height * v.rasterScale);
+    /* the house's floors: a garage's or a cabana's own roof isn't over them */
     const under: FloorUnder[] = read
-      .filter((p) => Math.abs(p.width - W) <= 2 && Math.abs(p.height - H) <= 2)
+      .filter((p) => !p.building && Math.abs(p.width - W) <= 2 && Math.abs(p.height - H) <= 2)
       .map((p) => {
         const sheet = reading.floors[pageKey(p.n)][0];
         return {
@@ -706,12 +707,13 @@ async function guessPagesByLook(previews: readonly DrawnPreview[], client: Anthr
         items: {
           type: "object",
           additionalProperties: false,
-          required: ["page", "kind", "level_name", "level"],
+          required: ["page", "kind", "level_name", "level", "building"],
           properties: {
             page: { type: "number" },
             kind: { type: "string", enum: KINDS },
             level_name: { type: "string", description: 'for a floor plan, the level as the set names it: "Ground floor", "Level 1", "Basement"; else ""' },
-            level: { type: "number", description: "for a floor plan, its place in the stack: the ground 0, the floor above 1, a basement -1; else 0" },
+            level: { type: "number", description: "for a floor plan, its place in its building's stack: the ground 0, the floor above 1, a basement -1; else 0" },
+            building: { type: "string", description: 'for a floor plan of a building on the site other than the main house, its name as the set gives it: "Garage", "Pool & cabana", "Granny flat"; else ""' },
           },
         },
       },
@@ -719,7 +721,7 @@ async function guessPagesByLook(previews: readonly DrawnPreview[], client: Anthr
   };
   const text =
     `These are the pages of a building's drawing set, small. For each page say what it is: a floor plan (the rooms of one level, seen from above), a site plan, a roof plan, elevations, sections, or other (a cover, notes, details, a schedule, electrical or drainage, a demolition plan). ` +
-    `A floor plan of the existing building before the work is "other"; only the proposed floors are floor plans. Give one entry per page, in order.`;
+    `A floor plan of the existing building before the work is "other"; only the proposed floors are floor plans. A floor plan of another building on the site (a garage, a cabana, a granny flat) is a floor plan too: give its building, and its level in that building. Give one entry per page, in order.`;
   const response = await client.beta.messages.create({
     model: CLASSIFY_MODEL,
     max_tokens: 4000,
@@ -728,11 +730,14 @@ async function guessPagesByLook(previews: readonly DrawnPreview[], client: Anthr
     messages: [{ role: "user", content: [...blocks, { type: "text", text }] }],
   });
   const block = [...response.content].reverse().find((b) => b.type === "text");
-  const raw = block && block.type === "text" ? (JSON.parse(block.text) as { pages?: { page: number; kind: string; level_name: string; level: number }[] }) : {};
+  const raw = block && block.type === "text" ? (JSON.parse(block.text) as { pages?: { page: number; kind: string; level_name: string; level: number; building?: string }[] }) : {};
   const out = new Map<number, PageGuess>();
   for (const p of raw.pages ?? []) {
     const kind = (KINDS as string[]).includes(p.kind) ? (p.kind as PlanPageKind) : "other";
-    out.set(p.page, { kind, name: kind === "floor" ? p.level_name.trim() || "" : "", level: kind === "floor" ? Math.round(Number(p.level) || 0) : null });
+    const building = kind === "floor" ? (p.building ?? "").trim().slice(0, 40) : "";
+    const level = kind === "floor" ? Math.round(Number(p.level) || 0) : null;
+    const name = kind === "floor" ? p.level_name.trim() || "" : "";
+    out.set(p.page, { kind, name: building ? (level === 0 || !name ? building : `${building}, ${name.toLowerCase()}`) : name, level, ...(building ? { building } : {}) });
   }
   return out;
 }
@@ -1198,6 +1203,7 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
           kind: g.kind,
           name: floor ? g.name : "",
           level: floor ? (g.level ?? 0) : null,
+          ...(floor && g.building ? { building: g.building } : {}),
           ref: null,
           preview: previewRefs.get(pv.n) ?? null,
           width: pv.width,

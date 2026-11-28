@@ -1,8 +1,8 @@
 import type * as THREE_NS from "three";
 import { CHEVRON_STROKES } from "@/components/logo";
-import { FLIGHT, flightAt } from "@/lib/brand/tiff-flight-path";
+import { FLIGHT, landAt, orbitAt, throwAt } from "@/lib/brand/tiff-flight-path";
 
-/* THE FRONT PAGE'S STAGE: Tiff's mark in black chrome, in 3D, behind the
+/* THE FRONT PAGE'S STAGE: Tiff's mark in 3D, a pearl chevron and a metal boomerang, behind the
    giant words and the app's own screens (Isaac, 26 November 2026, after five
    rounds of mocks: "your first loud one was still best", then "With app's
    flight"). The mock is https://claude.ai/artifact/BRVbBq25HzeQk7r46LQaAb.
@@ -10,9 +10,9 @@ import { FLIGHT, flightAt } from "@/lib/brand/tiff-flight-path";
    The chevron is the logo's own outline (CHEVRON_STROKES), extruded and
    bevelled; the boomerang is its stroke as a tube. It lives on a fixed canvas
    and moves between scenes as the page scrolls, and its boomerang flies the
-   app's flight (lib/brand/tiff-flight-path): one lap as the page opens, a lap
-   now and then while you read the first screen, lap after lap while you
-   scroll through the parts, as she does while she works, and home at the end.
+   app's flight (lib/brand/tiff-flight-path): thrown as the page opens, then
+   round its loop for as long as the page is open, as hers flies while she
+   works.
 
    three.js is the one the Studio's 3D already uses, loaded only here. */
 
@@ -25,20 +25,23 @@ export type Pose = { x: number; y: number; ry: number; rx: number; s: number };
 export type StageInput = {
   /** which scene is on screen, and how far into the next one: 1.5 is halfway from the second to the third */
   scene: () => number;
+  /** 0 while a scene is held on screen, 1 while the page moves from one scene to the next */
+  pace: () => number;
+  /** the last scene is on screen: the boomerang comes home */
+  home: () => boolean;
   /** the mark's place in each scene, wide and narrow */
   poses: { wide: Pose[]; narrow: Pose[] };
-  /** scenes in this range are the parts: she's working, so the boomerang keeps flying */
-  working: [number, number];
   reduced: boolean;
 };
 
-/* The loop is thrown further than the app's, so it goes out and comes home */
-const REACH = 1.25;
-/* one lap's time at the opening's pace, longer for the further reach */
-const OPEN_LAP = FLIGHT.OPEN_MS * 1.35;
-const WORK_LAP = OPEN_LAP * FLIGHT.SLOWER;
-const IDLE_EVERY = 10_000;
-const CATCH_MS = 380;
+/* The loop is thrown further than the app's, so it goes out wide and round */
+const REACH = 1.1;
+/* the throw out onto the loop, each lap of it, and the landing, at the app's thinking pace */
+const LAP_MS = FLIGHT.OPEN_MS * 1.35 * FLIGHT.SLOWER;
+const THROW_MS = LAP_MS * 0.62;
+const LAND_MS = LAP_MS * 0.4;
+/* how fast the lap runs: slow motion while a scene is held, quick between scenes */
+const SLOW = 0.22, FAST = 2.4;
 /* logo units (the 100 box) to the stage's */
 const K = 0.028;
 
@@ -80,6 +83,11 @@ export async function startStage(canvas: HTMLCanvasElement, input: StageInput): 
   const env = pmrem.fromScene(room, 0.02).texture;
   pmrem.dispose();
   scene.environment = env;
+  /* a soft fill and a key from the top left, so the pearl reads white and not grey; the softboxes still draw its edges */
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x1c1c22, 0.7));
+  const key = new THREE.DirectionalLight(0xfff8f2, 1.4);
+  key.position.set(-4, 5, 6);
+  scene.add(key);
 
   /* THE MARK, from the logo's own numbers, centred on the chevron's middle */
   const CX = 56, CY = 50;
@@ -91,8 +99,18 @@ export async function startStage(canvas: HTMLCanvasElement, input: StageInput): 
     depth: 0.32, bevelEnabled: true, bevelThickness: 0.09, bevelSize: 0.085, bevelSegments: 8, curveSegments: 4,
   });
   chevGeo.translate(0, 0, -0.16);
-  const chrome = new THREE.MeshPhysicalMaterial({ color: 0x16171b, metalness: 1, roughness: 0.2, clearcoat: 1, clearcoatRoughness: 0.08 });
-  const grey = new THREE.MeshPhysicalMaterial({ color: 0x8d939c, metalness: 1, roughness: 0.3, clearcoat: 0.6 });
+  /* THE LOGO'S COLOURS on the ink: the chevron white and the boomerang its
+     grey (Isaac, 27 November 2026: "Make the logo its correct colors. Don't
+     change the actual 3D itself. Give it that same light capturing
+     reflection ... like a pearlescent white and a metallic grey"). The same
+     room and softboxes light it, so the edges still catch their long lines
+     of light; the white is a pearl, a clearcoat over a pale sheen with a
+     little iridescence, and the grey is a metal. */
+  const chrome = new THREE.MeshPhysicalMaterial({
+    color: 0xf6f4f0, metalness: 0.45, roughness: 0.14, clearcoat: 1, clearcoatRoughness: 0.03, envMapIntensity: 1.8,
+    sheen: 0.6, sheenColor: new THREE.Color(0xeee6f4), sheenRoughness: 0.4, iridescence: 0.35, iridescenceIOR: 1.3,
+  });
+  const grey = new THREE.MeshPhysicalMaterial({ color: 0x9ea3ab, metalness: 1, roughness: 0.2, clearcoat: 0.8, clearcoatRoughness: 0.06, envMapIntensity: 1.6 });
 
   const mark = new THREE.Group();
   scene.add(mark);
@@ -161,13 +179,19 @@ export async function startStage(canvas: HTMLCanvasElement, input: StageInput): 
 
   const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
-  /* THE FLIGHT'S CLOCK: rest, a lap (the opening, a lap now and then, or lap
-     after lap while she works), and the catch as it comes home */
-  type Lap = { start: number; ms: number };
-  let lap: Lap | null = null;
-  let lastHome = performance.now();
-  let caughtAt = -1e9;
-  if (!input.reduced) lap = { start: performance.now() + 350, ms: OPEN_LAP };
+  /* THE FLIGHT'S CLOCK (Isaac, 27 November 2026: "the boomerang gets thrown
+     once at the beginning, and then it kind of circles around the different
+     sections in slow motion ... Then it speeds up as the transition to the
+     next page ... before eventually making its way back to the rest of the
+     TIFF logo at the very end"). Thrown as the page opens; then round its
+     loop with the time running slow while a scene is held and fast while
+     the page moves on, the spin slowing and quickening with it; on the last
+     scene it finishes the lap it is on and lands; scroll back up and it is
+     thrown again. */
+  type Flight = "wait" | "throw" | "orbit" | "homing" | "land" | "rest";
+  let flight: Flight = input.reduced ? "rest" : "wait";
+  let u = 0, lap = 0, spin = 0, rate = SLOW, landFrom = 0, landTo = 0, prevNow = performance.now();
+  const startAt = prevNow + 350;
 
   let cur: Pose | null = null;
   let raf = 0;
@@ -189,36 +213,49 @@ export async function startStage(canvas: HTMLCanvasElement, input: StageInput): 
     mark.scale.setScalar(cur.s);
     mark.rotation.set(cur.rx + my * 0.35, cur.ry + mx * 0.55, 0);
 
-    const working = s > input.working[0] && s < input.working[1];
+    const dt = Math.min(100, Math.max(0, now - prevNow));
+    prevNow = now;
+    rate += ((SLOW + (FAST - SLOW) * Math.max(0, Math.min(1, input.pace()))) - rate) * 0.08;
+    const home = input.home();
     if (!input.reduced) {
-      if (!lap && working) lap = { start: now, ms: WORK_LAP };
-      if (!lap && !working && s < 0.5 && now - lastHome > IDLE_EVERY) lap = { start: now, ms: WORK_LAP };
-    }
-    if (lap && now >= lap.start) {
-      let u = (now - lap.start) / lap.ms;
-      if (u >= 1) {
-        if (working) {
-          lap = { start: lap.start + lap.ms, ms: WORK_LAP };
-          u = (now - lap.start) / lap.ms;
-        } else {
-          lap = null;
-          lastHome = now;
-          caughtAt = now;
+      if (flight === "wait" && now >= startAt) { flight = "throw"; u = 0; }
+      else if ((flight === "rest" || flight === "land") && !home) { flight = "throw"; u = 0; }
+      if (flight === "throw") {
+        u += dt / THROW_MS;
+        spin += dt * FLIGHT.THINK_RATE * 2 * Math.PI;
+        if (u >= 1) { flight = "orbit"; lap = 0; }
+      } else if (flight === "orbit" || flight === "homing") {
+        if (flight === "orbit" && home) flight = "homing";
+        if (flight === "homing" && !home) flight = "orbit";
+        const r = flight === "homing" ? Math.max(rate, 1) : rate;
+        const before = lap;
+        lap += (dt / LAP_MS) * r;
+        spin += dt * FLIGHT.THINK_RATE * 2 * Math.PI * r;
+        /* home once the lap comes round to where the landing starts */
+        if (flight === "homing" && Math.floor(lap) > Math.floor(before)) {
+          flight = "land"; u = 0; lap = Math.floor(lap);
+          landFrom = spin; landTo = Math.ceil(spin / (2 * Math.PI)) * 2 * Math.PI + 2 * Math.PI;
         }
-      }
-      if (lap) {
-        const p = flightAt(u, REACH);
-        boom.position.set(p.x * K, -p.y * K, p.z * K);
-        boom.rotation.set(p.rx, p.ry, -p.spin);
+      } else if (flight === "land") {
+        u += dt / LAND_MS;
+        if (u >= 1) { flight = "rest"; spin = 0; }
       }
     }
-    if (!lap) {
+    let at: { x: number; y: number; z: number; rx: number; ry: number } | null = null;
+    if (flight === "throw") at = throwAt(u, REACH);
+    else if (flight === "orbit" || flight === "homing") at = orbitAt(lap, REACH);
+    else if (flight === "land") {
+      at = landAt(u, REACH);
+      const e = 1 - Math.pow(1 - Math.min(1, u), 3);
+      spin = landFrom + (landTo - landFrom) * e;
+    }
+    if (at) {
+      boom.position.set(at.x * K, -at.y * K, at.z * K);
+      boom.rotation.set(at.rx, at.ry, -spin);
+    } else {
       boom.position.set(0, 0, 0);
       boom.rotation.set(0, 0, 0);
     }
-    /* the catch: the chevron gives a little as it lands, as the app's does */
-    const g = (now - caughtAt) / CATCH_MS;
-    chev.position.x = g >= 0 && g < 1 ? -0.07 * Math.sin(Math.PI * g) : 0;
 
     dust.rotation.y = now / 60000;
     dust.position.y = -s * 0.6;

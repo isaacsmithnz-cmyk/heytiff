@@ -8,9 +8,8 @@ import { startStage, type Pose } from "./stage";
 /* THE FRONT PAGE, for anyone signed out (Isaac, 26 November 2026). After
    five rounds of mocks he picked the first loud one: "your first loud one
    was still best", https://claude.ai/artifact/BRVbBq25HzeQk7r46LQaAb. On the
-   ink, Tiff's mark in black chrome in front of a giant HeyTiff, then four
-   parts as you scroll, each a giant word behind the mark and one of the
-   app's own screens in front of it. Two things joined on his word: the
+   ink, Tiff's mark in 3D over a giant HeyTiff, then four parts as you
+   scroll, each a giant word and one of the app's own screens. Two things joined on his word: the
    boomerang flies the app's own flight ("With app's flight"), and the quote
    rises from behind a lit horizon ("the horizon one you made was cool too.
    maybe incorporate", https://claude.ai/artifact/NJJJfbRxAfj1JqSMKx2eww).
@@ -24,25 +23,26 @@ import { startStage, type Pose } from "./stage";
    docs/design.md, under Named exemptions: its type is display type, its
    ground is the ink, and its mark moves. Every figure on it is made up.
 
-   THREE LAYERS. The giant words sit under the canvas, so the mark passes in
-   front of them; the screens and the words you read sit over it. Each scene
+   THREE LAYERS, THE MARK AT THE BACK. Every word is in front of it: the giant
+   words, the screens and the words you read (Isaac, 27 November 2026: "It
+   should never go in front of it. Any text, it should always be behind it"),
+   and on the first screen it sits above HeyTiff, not over it ("the TIFF
+   logo should sit higher than the actual word"). Each scene
    pins one screen while its stretch of the page scrolls past, and sets --p:
    -1 coming in, 0 in the middle, 1 leaving. */
 
-const SCENES = 6;
-
 const POSES: { wide: Pose[]; narrow: Pose[] } = {
   wide: [
-    { x: 0, y: 0.09, ry: -0.22, rx: 0.08, s: 1.25 },
+    { x: 0, y: 0.24, ry: -0.22, rx: 0.08, s: 0.85 },
     { x: 0.33, y: 0.27, ry: -0.6, rx: 0.1, s: 0.5 },
-    { x: -0.22, y: 0, ry: 0.75, rx: -0.1, s: 0.95 },
-    { x: 0.22, y: 0, ry: -0.5, rx: 0.25, s: 0.95 },
-    { x: -0.22, y: 0, ry: 0.9, rx: -0.05, s: 0.95 },
-    { x: 0, y: 0.1, ry: Math.PI * 2, rx: 0, s: 1.06 },
+    { x: -0.22, y: 0.1, ry: 0.75, rx: -0.1, s: 0.85 },
+    { x: 0.22, y: 0.1, ry: -0.5, rx: 0.25, s: 0.85 },
+    { x: -0.22, y: 0.1, ry: 0.9, rx: -0.05, s: 0.85 },
+    { x: 0, y: 0.14, ry: Math.PI * 2, rx: 0, s: 0.9 },
   ],
   narrow: [
-    { x: 0, y: 0.09, ry: -0.22, rx: 0.08, s: 0.69 },
-    { x: 0.24, y: 0.34, ry: -0.6, rx: 0.1, s: 0.28 },
+    { x: 0, y: 0.19, ry: -0.22, rx: 0.08, s: 0.62 },
+    { x: 0.22, y: 0, ry: -0.6, rx: 0.1, s: 0.26 },
     { x: 0, y: 0.13, ry: 0.6, rx: -0.1, s: 0.38 },
     { x: 0, y: 0.13, ry: -0.5, rx: 0.2, s: 0.38 },
     { x: 0, y: 0.13, ry: 0.7, rx: 0, s: 0.38 },
@@ -60,6 +60,7 @@ export function Landing() {
   const canvas = useRef<HTMLCanvasElement>(null);
   const root = useRef<HTMLDivElement>(null);
   const at = useRef(0);
+  const pace = useRef(0);
   const [flat, setFlat] = useState(false);
 
   useEffect(() => {
@@ -69,10 +70,15 @@ export function Landing() {
     if (list.length === 0) return;
     const onScroll = () => {
       const vh = window.innerHeight, y = window.scrollY;
+      /* a scene is held while it fills the screen (|p| up to a third, the first screen's 0.26 at the very top); the page is moving between scenes past that */
+      let held = 1;
       for (const el of list) {
         const r = el.getBoundingClientRect(), c = r.top + r.height / 2;
-        el.style.setProperty("--p", reduced ? "0" : clamp((vh / 2 - c) / (r.height / 2 + vh / 2), -1, 1).toFixed(4));
+        const p = clamp((vh / 2 - c) / (r.height / 2 + vh / 2), -1, 1);
+        held = Math.min(held, Math.abs(p));
+        el.style.setProperty("--p", reduced ? "0" : p.toFixed(4));
       }
+      pace.current = clamp((held - 0.3) / 0.1, 0, 1);
       let i = 0;
       while (i < list.length - 1 && y >= list[i + 1].offsetTop) i++;
       const span = (list[i + 1]?.offsetTop ?? list[i].offsetTop + list[i].offsetHeight) - list[i].offsetTop;
@@ -84,7 +90,7 @@ export function Landing() {
 
     let stop: (() => void) | null = null, gone = false;
     if (canvas.current && typeof WebGLRenderingContext !== "undefined") {
-      startStage(canvas.current, { scene: () => at.current, poses: POSES, working: [0.55, SCENES - 1.4], reduced })
+      startStage(canvas.current, { scene: () => at.current, pace: () => pace.current, home: () => at.current > POSES.wide.length - 1.3, poses: POSES, reduced })
         .then((s) => {
           if (gone) s?.();
           else if (s) stop = s;
@@ -102,7 +108,7 @@ export function Landing() {
 
   return (
     <div ref={root} className="relative bg-[var(--ink)] text-[var(--white)] antialiased [overflow-x:clip]">
-      <canvas ref={canvas} aria-hidden="true" className="pointer-events-none fixed inset-0 z-[1] block h-full w-full" />
+      <canvas ref={canvas} aria-hidden="true" className="pointer-events-none fixed inset-0 z-0 block h-full w-full" />
 
       <header className="fixed inset-x-0 top-0 z-[6] flex items-center justify-between py-4" style={{ ...GUTTER, top: "env(safe-area-inset-top, 0px)" }}>
         <Link href="/" className="inline-flex items-center gap-2 text-xl font-bold" aria-label="HeyTiff">
@@ -119,7 +125,7 @@ export function Landing() {
             <p
               aria-hidden="true"
               className="absolute inset-x-0 top-1/2 m-0 whitespace-nowrap text-center font-bold"
-              style={{ ...DISPLAY, fontSize: "clamp(88px, 23vw, 400px)", transform: "translateY(calc(-50% - 9vh)) scale(calc(1 + var(--p, 0) * .25))" }}
+              style={{ ...DISPLAY, fontSize: "clamp(76px, 17vw, 300px)", transform: "translateY(calc(-50% + 3vh)) scale(calc(1 + var(--p, 0) * .25))" }}
             >
               HeyTiff
             </p>
@@ -202,7 +208,7 @@ export function Landing() {
 /* ---- the layers ---- */
 
 function Under({ children }: { children: ReactNode }) {
-  return <div className="sticky top-0 z-0 h-screen overflow-hidden [height:100svh]">{children}</div>;
+  return <div className="sticky top-0 z-[1] h-screen overflow-hidden [height:100svh]">{children}</div>;
 }
 
 function Over({ children, className = "", style }: { children: ReactNode; className?: string; style?: CSSProperties }) {
@@ -277,8 +283,8 @@ function QuoteScreen() {
       <div className="flex items-center gap-3 border-b border-[var(--line)] px-4 py-3">
         <span className="inline-flex h-7 min-w-11 items-center justify-center rounded-md bg-[var(--orange-card)] px-1.5 text-[13px] font-bold text-[var(--white)]">2860</span>
         <span className="flex min-w-0 flex-col">
-          <b className="text-sm font-semibold">Priya Shah</b>
-          <span className="text-xs text-[var(--q)]">Ducted, 4 bed, Box Hill</span>
+          <b className="text-sm font-semibold">Ashgrove Constructions</b>
+          <span className="text-xs text-[var(--q)]">Ducted, 4 bed new build, Box Hill</span>
         </span>
         <span className="ml-auto flex items-center text-[13px] font-semibold text-[var(--orange-w)]">
           <Dot c="var(--orange)" />2 to answer
@@ -343,7 +349,7 @@ const BOOKINGS: Array<{ n: string; who: string; at: string; when: string; c: str
   { n: "2841", who: "Lena Ortiz", at: "Kellyville", when: "7:30", c: "var(--green-w)", i: 0 },
   { n: "2841", who: "Lena Ortiz", at: "Kellyville", when: "7:30", c: "var(--green-w)", i: 1 },
   { n: "2856", who: "Northgate", at: "Castle Hill", when: "8:00", c: "var(--purple-w)", i: 2 },
-  { n: "2860", who: "Priya Shah", at: "Box Hill", when: "Quote 9:00", c: "var(--orange-card)", i: 1 },
+  { n: "2860", who: "Ashgrove", at: "Box Hill", when: "Quote 9:00", c: "var(--orange-card)", i: 1 },
   { n: "2849", who: "Ridge St", at: "Rouse Hill", when: "7:00", c: "var(--pink-card)", i: 2 },
   { n: "2849", who: "Ridge St", at: "Rouse Hill", when: "7:00", c: "var(--pink-card)", i: 3 },
 ];

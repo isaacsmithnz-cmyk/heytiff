@@ -16,6 +16,8 @@ import { ToastProvider, useToast } from "@/components/parts/toast";
    building has it now: Grand Hall height 6.4 m", with Undo, which puts the
    zone back and the building with it. Draws nothing but the toast. */
 
+const actions = () => import("@/app/actions/job-plans");
+
 /** how long a zone sits still before what was set on it is kept, ms */
 const SETTLE_MS = 1500;
 
@@ -82,7 +84,7 @@ function Keep({ job, doc, docRef, mutate, plans, onPlans }: Props) {
     const writes = keptChanges(b, d, plans);
     base.current = d;
     if (!writes.length) return;
-    const a = await import("@/app/actions/job-plans");
+    const a = await actions();
     const why = await a.keepZonesOnPlans(job, d.id, writes).catch(() => "The building couldn't be kept on the job. Try again.");
     if (why) {
       /* asked again on the next change */

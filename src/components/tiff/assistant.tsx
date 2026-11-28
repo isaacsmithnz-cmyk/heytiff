@@ -425,7 +425,6 @@ export function TiffAssistant({
     onTranscript: (spoken, { capped }) => {
       setVoiceErr(null);
       setRanOut(capped);
-      voiceAsked.current = true;
       setTyped((prev) => appendSpoken(prev ?? prefill ?? "", spoken));
     },
     onError: setVoiceErr,
@@ -553,11 +552,10 @@ export function TiffAssistant({
      ask (/api/brain/ask), with her readers and her moves, so a chat begun on
      Home goes on here as the same Tiff, as the phone's do. What she reaches
      for is her steps; a screen she opens is the end of the turn. */
-  /* ASKED OUT LOUD, ANSWERED OUT LOUD (the mock's first decision): a
-     question that came through the microphone has its answer read out as it
-     arrives, by the same reader as Read out, so the door under it says Stop
-     reading while she does. Typed, she only writes. */
-  const voiceAsked = useRef(false);
+  /* READ ONLY WHEN ASKED (Isaac, 28 November 2026: "do the speaker
+     button"): a question said into the mic is answered in writing, as a typed
+     one is, and Read out under it says it. Only a talk's turns are read as
+     they arrive, by the same reader, so the door says Stop reading. */
   const readerRef = useRef<Reader | null>(null);
   /* A TALK, open: when it began, which every turn said in it carries. */
   const [talking, setTalking] = useState<number | null>(null);
@@ -648,7 +646,6 @@ export function TiffAssistant({
 
   const send = (text: string, { aloud = false, talk }: { aloud?: boolean; talk?: number } = {}): Promise<void> => {
     const trimmed = text.trim();
-    voiceAsked.current = false;
     if (!trimmed) return Promise.resolve();
 
     const at = nowMs();
@@ -886,12 +883,12 @@ export function TiffAssistant({
       <CvBox
         value={input}
         onChange={setTyped}
-        onSubmit={() => void send(input, { aloud: voiceAsked.current })}
+        onSubmit={() => void send(input)}
         label="Ask Tiff"
         placeholder={email ? "Ask Tiff about this email" : active ? "Reply to Tiff" : "Ask Tiff about this document"}
         sendWord="Send"
         waiting={working}
-        dict={voiceEnabled ? { ...dict, start: () => (unlockSpeech(), dict.start()) } : null}
+        dict={voiceEnabled ? dict : null}
         onTalk={
           voiceEnabled && !email
             ? () => {

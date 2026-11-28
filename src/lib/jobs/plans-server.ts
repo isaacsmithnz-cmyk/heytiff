@@ -26,6 +26,7 @@ import { staffDisplayNames } from "@/lib/workboard/job-notes-query";
 import type { DrawnFull, DrawnPreview, PlanPagesAnswer } from "@/app/print/plan-pages/plan-pages";
 import { chooseFloors, guessPageByWords, type ChooseHow, pageKey, pageScale, stateOfRead, type JobPlan, type JobPlanKind, type SpecWords, type JobPlanPage, type JobPlanRead, type PageGuess, type PlanPageKind, type PlanPick, type PlanProgress , type PageWalled } from "./plans";
 import { planRoomsOf, planRoomsSaid, type JobPlanRooms } from "./plan-rooms";
+import { plansWith, type KeptWrite } from "@/lib/studio/building-kept";
 
 /* PLANS ON THE JOB, THE SERVER SIDE (lib/jobs/plans.ts says what a plan is).
 
@@ -926,6 +927,27 @@ export async function keepSubfloorHeight(orgId: string, planId: string, heightMm
   } catch {
     return "The height couldn't be kept on the job. Try again.";
   }
+}
+
+/** What a design set on its zones by hand, kept on the rooms of the job's
+    plans they were read off (building-kept.ts): every other design, a
+    design made from the plans and the quote start with it. Null once kept,
+    or the reason. */
+export async function keepSpaceSets(orgId: string, jobUuid: string, writes: readonly KeptWrite[], staffId: string | null, design: string): Promise<string | null> {
+  const by = staffId ? ((await staffDisplayNames(orgId, [staffId])).get(staffId) ?? null) : null;
+  const meta = { by: by?.split(" ")[0] ?? null, design: design.slice(0, 80), at: new Date().toISOString() };
+  for (const planId of [...new Set(writes.map((w) => w.planId))]) {
+    const plan = await readJobPlan(orgId, planId);
+    if (!plan || plan.jobUuid !== jobUuid) return "That isn't one of this job's plans.";
+    if (!plan.reading) continue;
+    const [next] = plansWith([plan], writes, meta);
+    try {
+      await write(orgId, planId, { reading: next.reading });
+    } catch {
+      return "The building couldn't be kept on the job. Try again.";
+    }
+  }
+  return null;
 }
 
 /* ── the rooms off the job's plans, for a quote and the heat load ── */

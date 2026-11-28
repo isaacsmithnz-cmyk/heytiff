@@ -31,6 +31,31 @@ export type ReadSpace = {
   openTo: string;
   /** a stair's numbering, "risers 19, treads 18, bottom Hall, top Landing" */
   stair: string;
+  /** what somebody set on the zone drawn from it in a design, kept on the job's plan (building-kept.ts) */
+  set?: SpaceSet;
+};
+
+/* WHAT A DESIGN SET ON A ROOM, THE BUILDING'S NOW (join 2, "the building":
+   Isaac, 27 November 2026, "Go head" to https://claude.ai/artifact/6xDKm8xV6f2PGZJKVo6M46,
+   board 5). A zone's name, height, what's above it, glazing and insulation,
+   set by hand in a design, kept on the job's plan on the room it was read
+   off: every other design of the job, a design made from the plans and the
+   quote start with it. Only what was set is here. */
+export type SpaceValues = {
+  name?: string;
+  /** its ceiling, floor to ceiling, mm */
+  ceilingMm?: number;
+  /** a floor over it, not a roof */
+  roomAbove?: boolean;
+  glazing?: "low" | "moderate" | "high";
+  condition?: "well_insulated" | "standard" | "poor";
+};
+export type SpaceSet = SpaceValues & {
+  /** who set it, their first name */
+  by: string | null;
+  /** the design it was set in, by id */
+  design: string;
+  at: string;
 };
 
 /** A gap in a wall the drawing file draws: a door's or a window's place. */

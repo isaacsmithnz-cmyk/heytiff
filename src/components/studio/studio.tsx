@@ -85,6 +85,7 @@ import { canLeaveOut, leaveOut, putBack } from "@/lib/studio/left-out";
 import { addQuotedOption, canAddQuoted, quotedInDesign, quotedOptions, type QuotedLine } from "@/lib/studio/from-quote";
 import { SystemScreen, SystemsList } from "./systems-stack";
 import { BuildingScreen, BuildingsScreen, MoveZonesScreen } from "./buildings-stack";
+import { BuildingKeeper } from "./building-keeper";
 import { addBuilding, addFloorTo, apartOn, buildingsOf, floorRowName, floorWord, HOUSE, keepApart, levelWords, makeBuilding, moveZones, nameForApart, tidyBuildings } from "@/lib/studio/buildings";
 import { AirPanel, type AirShow } from "./air-panel";
 import { airRows, airTags } from "@/lib/studio/air-view";
@@ -2444,6 +2445,8 @@ function Editor({
           2 November 2026: she looked out of place in the tool bar) */}
       {(flow !== "next" || step !== 1 || !activeFloor) && <AskTiffPill />}
       {/* what the quote's answers left for the design to take (take-from-quote.ts); not where the pack is a test's */}
+      {/* what a zone's set on goes back to the job's plans, and comes from them (building-kept.ts) */}
+      {flow === "next" && doc.jobLink && <BuildingKeeper job={doc.jobLink.remoteId} doc={doc} docRef={docRef} mutate={mutate} plans={jobPlans} onPlans={setJobPlans} />}
       {quoteJob && !packLoader && <QuoteTakes job={quoteJob} designId={doc.id} pack={pack} doc={doc} docRef={docRef} mutate={mutate} onQuote={() => setQuoteRev((n) => n + 1)} />}
       {/* three tracks so the tab switcher sits dead-centre: the flanks share
           the leftover width equally, whatever each of them holds */}

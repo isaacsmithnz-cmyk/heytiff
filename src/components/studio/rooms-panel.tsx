@@ -26,6 +26,7 @@ import { kwWords } from "@/lib/studio/system-rows";
 import { useRef } from "react";
 import { Tick } from "@/components/parts/tick";
 import { leftOutRooms } from "@/lib/studio/left-out";
+import { markHand, type KeptField } from "@/lib/studio/building-kept";
 import { StackDot, StackGroup, StackHead, StackRow, StackScreen } from "./stack";
 
 const KIND_WORD: Partial<Record<Suggestion["kind"], string>> = {
@@ -236,8 +237,10 @@ export function RoomPanel({
   const mm = floor?.scaleMmPerUnit ?? null;
   const pts = room.geometry.points;
   const p = room.props;
-  const set = (props: Record<string, unknown>) =>
-    onMutate((d) => ({ ...d, objects: d.objects.map((o) => (o.id === roomId ? { ...o, props: { ...o.props, ...props } } : o)) }));
+  /* a value set here is the person's, and the building's (building-kept.ts):
+     `fields` marked set by hand, `back` no longer (gone back to the plans') */
+  const setByHand = (props: Record<string, unknown>, fields: KeptField[], back: KeptField[] = []) =>
+    onMutate((d) => ({ ...d, objects: d.objects.map((o) => (o.id === roomId ? { ...o, props: markHand({ ...o.props, ...props }, fields, back) } : o)) }));
 
   const area = roomAreaM2(doc, room);
   const load = roomLoadKw(doc, room);
@@ -267,7 +270,7 @@ export function RoomPanel({
         <StackHead
           back={back}
           onBack={onBack}
-          name={<input ref={nameRef} className="ds-stack-titlein" aria-label="Name" value={String(p.name ?? "")} onChange={(e) => set({ name: e.target.value })} />}
+          name={<input ref={nameRef} className="ds-stack-titlein" aria-label="Name" value={String(p.name ?? "")} onChange={(e) => setByHand({ name: e.target.value }, ["name"])} />}
           nav={{ label: "Rename", onPress: () => nameRef.current?.select() }}
         />
         <StackGroup>
@@ -305,23 +308,23 @@ export function RoomPanel({
                 key={`${roomId}-${height}`}
                 onBlur={(e) => {
                   const v = parseFloat(e.target.value);
-                  if (v > 1.8 && v < 12 && v !== height) set({ ceilingHeightM: v, heightFrom: null });
+                  if (v > 1.8 && v < 12 && v !== height) setByHand({ ceilingHeightM: v, heightFrom: null }, ["ceilingMm"]);
                 }}
               />
               m
             </span>
           </StackRow>
           {read && read.m !== height ? (
-            <StackRow blue name={`Use ${read.m} m, from ${read.from}`} onPress={() => set({ ceilingHeightM: read.m, heightFrom: read.from })} />
+            <StackRow blue name={`Use ${read.m} m, from ${read.from}`} onPress={() => setByHand({ ceilingHeightM: read.m, heightFrom: read.from }, [], ["ceilingMm"])} />
           ) : null}
           <StackRow name="Above">
-            <Tray ariaLabel="Above the zone" options={ABOVE} value={p.roomAbove === true ? "floor" : "roof"} onChange={(v) => set({ roomAbove: v === "floor" })} />
+            <Tray ariaLabel="Above the zone" options={ABOVE} value={p.roomAbove === true ? "floor" : "roof"} onChange={(v) => setByHand({ roomAbove: v === "floor" }, ["roomAbove"])} />
           </StackRow>
           <StackRow name="Glazing">
-            <Tray ariaLabel="Glazing" options={GLAZING} value={(p.glazing as GlazingLevel) ?? "moderate"} onChange={(v) => set({ glazing: v })} />
+            <Tray ariaLabel="Glazing" options={GLAZING} value={(p.glazing as GlazingLevel) ?? "moderate"} onChange={(v) => setByHand({ glazing: v }, ["glazing"])} />
           </StackRow>
           <StackRow name="Insulation">
-            <Tray ariaLabel="Insulation" options={CONDITION} value={(p.condition as RoomCondition) ?? "standard"} onChange={(v) => set({ condition: v })} />
+            <Tray ariaLabel="Insulation" options={CONDITION} value={(p.condition as RoomCondition) ?? "standard"} onChange={(v) => setByHand({ condition: v }, ["condition"])} />
           </StackRow>
           <StackRow
             name="Outside walls"

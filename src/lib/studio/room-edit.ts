@@ -10,6 +10,7 @@
    Pure. Points are world units on the floor, as everywhere in the Studio. */
 
 import { subfloorFromReading } from "./floor-spaces";
+import { KEPT_FIELDS, markHand, withValues } from "./building-kept";
 import { releaseZones } from "./builder";
 import type { DesignDocument, DesignObject, Point } from "./document";
 import { distToSegment, isAxisAlignedRect } from "./geometry";
@@ -124,16 +125,19 @@ export function keepFound(doc: DesignDocument, floorId: string, keys: string[], 
     const openings = (s.openings ?? []).map((o) => ({ ...o, a: at(o.a), b: at(o.b) }));
     const walls = room.geometry.kind === "polygon" ? wallsWithOpenings(room.geometry.points, openings, WALL_REACH_MM / mm) : [];
     const height = readHeightOf(doc, floorId, s.name);
+    /* what a design set on the room she read, kept on the job's plan: the building's (building-kept.ts) */
+    const kept = sheet?.spaces[Number(s.key.slice(sheet.sheetId.length + 1))]?.set;
+    const props = {
+      ...room.props,
+      readKey: s.key,
+      externalWalls: walls,
+      hasExternalWalls: walls.length > 0 || room.props.hasExternalWalls === true,
+      ...(height ? { ceilingHeightM: height.m, heightFrom: height.from } : {}),
+    };
     added.push({
       ...room,
       id: ids[s.key] ?? room.id,
-      props: {
-        ...room.props,
-        readKey: s.key,
-        externalWalls: walls,
-        hasExternalWalls: walls.length > 0 || room.props.hasExternalWalls === true,
-        ...(height ? { ceilingHeightM: height.m, heightFrom: height.from } : {}),
-      },
+      props: kept ? markHand(withValues(props, kept, "the building"), KEPT_FIELDS.filter((f) => kept[f] !== undefined)) : props,
     });
   }
   return added.length ? { ...doc, objects: [...doc.objects, ...added] } : doc;

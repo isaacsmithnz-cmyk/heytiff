@@ -161,8 +161,50 @@ export type Reader = {
 
 let stopCurrent: (() => void) | null = null;
 
-/** Stop whatever is being read. */
+/* ── her first words in a talk (lib/voice/first-words) ── */
+
+/** The first words playing, until they've been said or stopped. */
+let opener: { done: Promise<void>; end: () => void } | null = null;
+/** First words that haven't ended in this long never hold her answer longer. */
+const FIRST_MOST_MS = 6_000;
+
+/** Say a kept clip at once, while she looks; her answer, read after it, waits for it to finish. */
+export function sayFirstWords(url: string): void {
+  const el = theAudio();
+  if (!el) return;
+  endFirst();
+  let resolve!: () => void;
+  const done = new Promise<void>((r) => (resolve = r));
+  const end = () => {
+    el.removeEventListener("ended", end);
+    el.removeEventListener("error", end);
+    clearTimeout(most);
+    if (opener?.done === done) opener = null;
+    resolve();
+  };
+  const most = setTimeout(end, FIRST_MOST_MS);
+  opener = { done, end };
+  el.addEventListener("ended", end);
+  el.addEventListener("error", end);
+  try {
+    el.src = url;
+    Promise.resolve(el.play()).catch(end);
+  } catch {
+    end();
+  }
+}
+
+function endFirst(): void {
+  const f = opener;
+  if (!f) return;
+  const el = theAudio();
+  if (el && !el.paused) el.pause();
+  f.end();
+}
+
+/** Stop whatever is being read, her first words too. */
 export function stopSpeaking(): void {
+  endFirst();
   stopCurrent?.();
 }
 
@@ -269,7 +311,8 @@ export function startReading(id: string): Reader {
     stopped = true;
     ctl.abort();
     const el = theAudio();
-    if (el && !el.paused) el.pause();
+    /* while first words play, the sound is theirs, not this reading's */
+    if (el && !el.paused && !opener) el.pause();
     nudge();
     finishUp();
   };
@@ -290,6 +333,8 @@ export function startReading(id: string): Reader {
       }
       /* the next piece is waited for and made while this one plays */
       const after = nextPiece(false).then((p) => (p ? fetchSound(p, ctl.signal) : null));
+      /* her first words in a talk are said out before her answer starts */
+      if (opener) await opener.done;
       await play(now, isStopped);
       const next = await after;
       if (stopped && next?.kind === "audio") URL.revokeObjectURL(next.url);

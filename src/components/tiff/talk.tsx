@@ -7,7 +7,8 @@ import { LiveWords, saidSomething, useDictation } from "@/components/notes/dicta
 import { TiffGlyph } from "@/components/notes/tiff-mark";
 import { Wave } from "@/components/conversations/speak-bar";
 import { quietLimit } from "@/components/tiff/modal/quiet";
-import { stopSpeaking, useReadingOut, useVoiceUnavailable, VOICE_UNAVAILABLE } from "@/lib/voice/speaker";
+import { firstWordsPicker, firstWordsUrl } from "@/lib/voice/first-words";
+import { sayFirstWords, stopSpeaking, useReadingOut, useVoiceUnavailable, VOICE_UNAVAILABLE } from "@/lib/voice/speaker";
 
 /* TALKING TO TIFF, HANDS-FREE (Isaac, 26 November 2026: "both", then
    "Flow's right" to https://claude.ai/artifact/2vtUgVFZHbJf5gamXZZBPm,
@@ -60,6 +61,7 @@ export function TalkDialog({
   const [error, setError] = useState<string | null>(null);
   const ended = useRef(false);
   const muted = useRef(false);
+  const pickFirst = useRef(firstWordsPicker());
 
   /* The hook's callbacks reach the latest `heard` through a ref: the take
      that ends was started renders ago. */
@@ -88,6 +90,9 @@ export function TalkDialog({
     if (ended.current) return;
     if (!saidSomething(words)) return listen();
     setPhase("thinking");
+    /* her first words while she looks, then her answer (lib/voice/first-words) */
+    const n = pickFirst.current(words);
+    if (n !== null) sayFirstWords(firstWordsUrl(n));
     void onSay(words.trim()).finally(() => {
       if (!ended.current && !muted.current) listenRef.current();
     });

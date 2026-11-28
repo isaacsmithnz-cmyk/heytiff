@@ -6858,6 +6858,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jc-bmmeta .wb2-evreply { flex-basis:100%; }
 .fg .jc-bmmic { display:inline-flex; }
 .fg .jc-bmdoor, .fg .jc-bmmeta .wb2-evdoor { margin:0; padding:0; border:0; background:none; font:inherit; font-size:12px; line-height:16px; font-weight:500; color:var(--q); text-decoration:none; cursor:pointer; }
+.fg .jc-bmdoor--read { display:inline-flex; align-items:center; gap:4px; }
 .fg .jc-bmmeta .wb2-evdoor--remove { color:var(--red-w); }
 .fg .jc-said { margin:0; max-width:100%; font-size:14px; line-height:20px; color:var(--q); white-space:pre-line; overflow-wrap:anywhere; }
 .fg .jc-tiffturn { display:flex; flex-direction:column; gap:8px; min-width:0; }

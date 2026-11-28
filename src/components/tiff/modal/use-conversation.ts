@@ -4,8 +4,7 @@ import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { withoutPlaceTag } from "@/lib/brain/place-tag";
 import { appendSpoken, useDictation } from "@/components/notes/dictation";
 import { askBrain, TIFF_APPLY } from "@/lib/brain/ask-client";
-import { readOut, startReading, stopSpeaking, unlockSpeech } from "@/lib/voice/speaker";
-import { readKey } from "@/components/tiff/read-out";
+import { stopSpeaking, unlockSpeech } from "@/lib/voice/speaker";
 import { looksLikeMove, looksLikeWorkForSomeone, looksLikeQuestion, priceIntent } from "@/lib/brain/intent";
 import {
   answerVisit,
@@ -582,19 +581,6 @@ export function useConversation({
     const ctl = new AbortController();
     asking.current = ctl;
     const key = nextKey("tiff");
-    /* ASKED OUT LOUD, ANSWERED OUT LOUD (Tiff speaks, 26 November 2026):
-       words you said have her answer read out as it arrives, by the reader
-       her Read out door uses, so the door says Stop reading meanwhile. Fed
-       what the page shows, so a place tag is never said either. */
-    const reader = listenBack.current ? startReading(readKey(key)) : null;
-    let fed = "";
-    const feed = () => {
-      if (!reader) return;
-      const words = withoutPlaceTag(run.text);
-      if (!words.startsWith(fed)) return;
-      reader.feed(words.slice(fed.length));
-      fed = words;
-    };
     const run: { text: string; shown: boolean; pending: boolean; done: boolean; moveTo: string | null; offer: unknown } = {
       text: "",
       shown: false,
@@ -636,7 +622,6 @@ export function useConversation({
         onDelta: (t) => {
           if (!on()) return;
           run.text += t;
-          feed();
           if (run.shown) patchTurn(key, () => ({ text: withoutPlaceTag(run.text) }));
           else if (!run.pending) {
             run.pending = true;
@@ -661,7 +646,6 @@ export function useConversation({
         onError: (message) => {
           if (!on()) return;
           run.done = true;
-          reader?.finish();
           if (run.shown) {
             patchTurn(key, () => ({ streaming: false }));
             tiffSays(message, "failed");
@@ -670,7 +654,6 @@ export function useConversation({
         onDone: () => {
           if (!on()) return;
           run.done = true;
-          reader?.finish();
           /* HER QUESTION BACK. An answer that ends asking something ("Which
              Dane?") is waiting on the reply, so the next words go back to
              the ask loop rather than being filed as a note. */
@@ -1037,21 +1020,11 @@ export function useConversation({
     listenBack.current = false;
     talk(null);
   });
-  /* Said out loud, her question is asked out loud too, and the microphone
-     opens once she has finished asking it, so she never hears herself. */
-  const askBack = useEffectEvent((): (() => void) | void => {
-    const q = [...turns].reverse().find((t) => t.who === "tiff");
-    if (!q?.text.trim()) return listenNow();
-    let gone = false;
-    void readOut(readKey(q.key), q.text).then(() => {
-      if (!gone && alive.current && listenBack.current) listenNow();
-    });
-    return () => {
-      gone = true;
-    };
-  });
+  /* Her question is written, never read out by itself (Isaac, 28 November
+     2026: "do the speaker button"): the microphone opens on it, and Read out
+     under it says it. */
   useEffect(() => {
-    if (stage === "asking" && listenBack.current) return askBack();
+    if (stage === "asking" && listenBack.current) listenNow();
   }, [stage]);
 
   /** Typing into the listening dock's box: the recording stops as the first

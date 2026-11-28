@@ -9,10 +9,12 @@
    is unavailable at the moment"). */
 
 import { act, renderHook } from "@testing-library/react";
-import { readOut, startReading, stopSpeaking, useVoiceUnavailable } from "../speaker";
+import { readOut, sayFirstWords, startReading, stopSpeaking, useVoiceUnavailable } from "../speaker";
 
 let asked: string[] = [];
 let played = 0;
+let srcs: string[] = [];
+let lastEl: HTMLMediaElement | null = null;
 let status = 200;
 let hold = false;
 
@@ -21,7 +23,9 @@ beforeAll(() => {
     configurable: true,
     value(this: HTMLMediaElement) {
       played++;
-      if (!hold) setTimeout(() => this.onended?.(new Event("ended")), 0);
+      srcs.push(this.src);
+      lastEl = this;
+      if (!hold) setTimeout(() => this.dispatchEvent(new Event("ended")), 0);
       return Promise.resolve();
     },
   });
@@ -43,6 +47,7 @@ beforeAll(() => {
 beforeEach(() => {
   asked = [];
   played = 0;
+  srcs = [];
   status = 200;
   hold = false;
 });
@@ -72,6 +77,23 @@ it("reads one answer at a time: a second stops the first", async () => {
   await first;
   await second;
   expect(asked[asked.length - 1]).toBe("The second answer.");
+});
+
+it("in a talk, her first words are said at once and her answer only after them", async () => {
+  hold = true;
+  sayFirstWords("/brand/tiff-voice/first-words/01.mp3");
+  const r = startReading("t1");
+  r.feed("E5 is the compressor's overload trip. Check the supply voltage first.");
+  r.finish();
+  await tick();
+  /* her answer is made meanwhile, but nothing of it plays over the first words */
+  expect(asked.length).toBeGreaterThan(0);
+  expect(srcs).toEqual([expect.stringContaining("first-words/01.mp3")]);
+  lastEl!.dispatchEvent(new Event("ended"));
+  await tick();
+  expect(srcs[1]).toBe("blob:x");
+  stopSpeaking();
+  await r.done;
 });
 
 it("with her voice unavailable nothing plays, the answer says so, and the route rests a minute", async () => {

@@ -16,7 +16,8 @@ export type SpaceKind = "under" | "over";
 export const SPACE_NAME: Record<SpaceKind, string> = { under: "Subfloor", over: "Roof space" };
 export const SPACE_LEVEL: Record<SpaceKind, string> = { under: "SF", over: "RS" };
 
-const byLevel = (doc: Pick<DesignDocument, "floors">) => [...doc.floors].sort((a, b) => a.level - b.level);
+/* the house's floors: a subfloor and a roof space are the house's, not another building's (buildings.ts) */
+const byLevel = (doc: Pick<DesignDocument, "floors">) => [...doc.floors].filter((f, _, all) => !f.buildingId || all.every((g) => g.buildingId)).sort((a, b) => a.level - b.level);
 export const lowestFloor = (doc: Pick<DesignDocument, "floors">): Floor | undefined => byLevel(doc)[0];
 export const topFloor = (doc: Pick<DesignDocument, "floors">): Floor | undefined => byLevel(doc).at(-1);
 

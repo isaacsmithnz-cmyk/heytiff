@@ -1140,7 +1140,7 @@ export function systemVrfTree(
     (graph.ts). None when the outdoor isn't placed. */
 function placedLevels(doc: DesignDocument, oduId: string, tree: VrfTree): Record<string, number> | undefined {
   const byId = new Map(doc.objects.map((o) => [o.id, o]));
-  const base = floorBasesM(doc.floors);
+  const base = floorBasesM(doc.floors, doc.buildings);
   const at = (id: string): number | null => {
     const o = byId.get(id);
     return o ? (base.get(o.floorId) ?? 0) + mountOf(o) : null;

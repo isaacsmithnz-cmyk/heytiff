@@ -67,7 +67,8 @@ export function withJobPlans(
 
   const made: string[] = [];
   const floorAt = (level: number, at: At): Floor => {
-    const there = floors.find((f) => f.level === level);
+    /* the house's floor at that level: another building's ground floor is its own (buildings.ts) */
+    const there = floors.find((f) => f.level === level && !f.buildingId);
     if (there) return there;
     const { page } = at;
     const scale = page.set && page.set.mmPerPx > 0 ? page.set.mmPerPx : page.mmPerPx;

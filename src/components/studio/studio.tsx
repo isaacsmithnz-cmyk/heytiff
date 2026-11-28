@@ -84,6 +84,8 @@ import { SystemsPanel } from "./systems-panel";
 import { canLeaveOut, leaveOut, putBack } from "@/lib/studio/left-out";
 import { addQuotedOption, canAddQuoted, quotedInDesign, quotedOptions, type QuotedLine } from "@/lib/studio/from-quote";
 import { SystemScreen, SystemsList } from "./systems-stack";
+import { BuildingScreen, BuildingsScreen, MoveZonesScreen } from "./buildings-stack";
+import { addBuilding, addFloorTo, apartOn, buildingsOf, floorRowName, floorWord, HOUSE, keepApart, levelWords, makeBuilding, moveZones, nameForApart, tidyBuildings } from "@/lib/studio/buildings";
 import { AirPanel, type AirShow } from "./air-panel";
 import { airRows, airTags } from "@/lib/studio/air-view";
 import { SetupPanel } from "./setup-panel";
@@ -1694,6 +1696,11 @@ function Editor({
   const [combining, setCombining] = useState(false);
   /* every room Tiff found on the plan, or the living spaces only */
   const [showAllFound, setShowAllFound] = useState(false);
+  /* THE JOB'S BUILDINGS (buildings.ts): the Buildings screen ("list") or a
+     building's, by its id; and the building whose floor zones are being
+     ticked to move onto */
+  const [bldgScreen, setBldgScreen] = useState<string | null>(null);
+  const [movingInto, setMovingInto] = useState<string | null>(null);
   const promptedFloors = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (step !== 1 || !activeFloorId || flow === "next") return;
@@ -1724,6 +1731,18 @@ function Editor({
   const openRoom = (id: string | null) => {
     setHeldRoomId(null);
     setSelectedId(id);
+  };
+  /* parts of a floor standing apart from the rest of it, to be a building (buildings.ts) */
+  const apart = useMemo(() => (flow === "next" ? apartOn(doc) : []), [flow, doc]);
+  /* Move zones here: onto the floor of the building you're on, else its first */
+  const into = movingInto ? buildingsOf(doc).find((b) => b.id === movingInto) : undefined;
+  const moveFloorId = into ? (into.floors.find((f) => f.id === activeFloorId) ?? into.floors[0])?.id ?? null : null;
+  const moveHere = (ids: string[]) => {
+    if (!moveFloorId) return;
+    const to = moveFloorId;
+    mutate((d) => moveZones(d, ids, to) ?? d);
+    setMovingInto(null);
+    setPickedFloorId(to);
   };
   const showRooms =
     roomsOpen ||
@@ -2160,25 +2179,22 @@ function Editor({
     [activeFloorId, mutate]
   );
 
+  /* a floor over the top one of the building you're on: the house's, or
+     another building's (buildings.ts) */
   const addFloor = useCallback(() => {
-    mutate((d) => {
-      const maxLevel = d.floors.reduce((m, f) => Math.max(m, f.level), -1);
-      return {
-        ...d,
-        floors: [
-          ...d.floors,
-          {
-            id: newId("flr"),
-            name: maxLevel < 0 ? "Ground floor" : `Level ${maxLevel + 1}`,
-            level: maxLevel + 1,
-            scaleMmPerUnit: 10,
-            northDeg: null,
-            northPos: null,
-            plans: [],
-          },
-        ],
-      };
-    });
+    const on = docRef.current.floors.find((f) => f.id === activeFloorId)?.buildingId ?? null;
+    mutate((d) => addFloorTo(d, on && d.buildings?.some((b) => b.id === on) ? on : null).doc);
+  }, [mutate, activeFloorId]);
+
+  /* A BUILDING ADDED BY HAND: its ground floor blank, its screen open to name it */
+  const addBuildingNow = useCallback(() => {
+    const d = docRef.current;
+    const made = addBuilding(d, `Building ${(d.buildings?.length ?? 0) + 2}`);
+    mutate(() => made.doc);
+    setPickedFloorId(made.floorId);
+    setSelectedId(null);
+    setMovingInto(null);
+    setBldgScreen(made.id);
   }, [mutate]);
 
   /* delete a floor: drop it, its rooms/units/pipework, its plan images from
@@ -2194,7 +2210,8 @@ function Editor({
       mutate((doc0) => {
         // the floor's zones leave every system that claims them first
         const d = releaseZones(doc0, pack, removedRoomIds(doc0.objects, keep));
-        return {
+        /* a building whose last floor this was goes with it (buildings.ts) */
+        return tidyBuildings({
           ...d,
           floors: d.floors.filter((f) => f.id !== id),
           // cross-floor runs (risers) lose attaches to what went with the floor
@@ -2207,7 +2224,7 @@ function Editor({
                 ),
               }
             : d.planImport,
-        };
+        });
       });
       for (const ref of goneRefs) void planImages.remove(ref).catch(() => {});
     },
@@ -2366,6 +2383,8 @@ function Editor({
         <CanvasControls
           onSetup={flow === "next" ? () => setSetupOpen(true) : undefined}
           floors={doc.floors}
+          buildings={doc.buildings}
+          onAddBuilding={flow === "next" ? addBuildingNow : undefined}
           floor={activeFloor}
           onFloor={setPickedFloorId}
           onAddFloor={addFloor}
@@ -2771,6 +2790,34 @@ function Editor({
               onRemoveZone={onRemoveZone}
               onClaimZone={onClaimZone}
             />
+          ) : flow === "next" && movingInto && moveFloorId ? (
+            <MoveZonesScreen doc={doc} id={movingInto} floorId={moveFloorId} onCancel={() => setMovingInto(null)} onMove={moveHere} />
+          ) : flow === "next" && (bldgScreen === "list" || (bldgScreen && bldgScreen !== HOUSE && !doc.buildings?.some((b) => b.id === bldgScreen))) ? (
+            <BuildingsScreen doc={doc} onBack={() => setBldgScreen(null)} onOpen={setBldgScreen} onAdd={addBuildingNow} />
+          ) : flow === "next" && bldgScreen ? (
+            <BuildingScreen
+              key={bldgScreen}
+              doc={doc}
+              id={bldgScreen}
+              onBack={() => setBldgScreen("list")}
+              onMutate={mutate}
+              onFloor={(id) => {
+                setSelectedId(null);
+                setPickedFloorId(id);
+              }}
+              onOpenZone={(id) => {
+                const z = doc.objects.find((o) => o.id === id);
+                if (z) setPickedFloorId(z.floorId);
+                openRoom(id);
+              }}
+              onMoveHere={() => setMovingInto(bldgScreen)}
+              onDelete={() => {
+                const gone = doc.floors.filter((f) => f.buildingId === bldgScreen);
+                for (const f of gone) deleteFloor(f.id);
+                setBldgScreen("list");
+                setPickedFloorId(null);
+              }}
+            />
           ) : flow === "next" && showRooms ? (
             <RoomsPanel
               back="Systems"
@@ -2862,6 +2909,17 @@ function Editor({
                 mutate((d) => addQuotedOption(d, pack, d.settings.sizingBasis, o).doc);
               }}
               onLeaveOut={(ids) => mutate((d) => leaveOut(d, ids))}
+              apart={apart}
+              onKeepApart={(f) => mutate((d) => keepApart(d, f.zoneIds))}
+              onMakeBuilding={(f) => {
+                const made = makeBuilding(docRef.current, nameForApart(f), f.zoneIds, f.under);
+                if (!made) return;
+                mutate(() => made.doc);
+                setSelectedId(null);
+                setPickedFloorId(made.floorId);
+                setBldgScreen(made.id);
+              }}
+              onOpenBuildings={() => setBldgScreen("list")}
             />
           ) : (
           <SystemsPanel
@@ -3760,6 +3818,8 @@ function ThreeDControls({
 
 function CanvasControls({
   floors,
+  buildings,
+  onAddBuilding,
   floor,
   onFloor,
   onAddFloor,
@@ -3795,6 +3855,10 @@ function CanvasControls({
   onFullscreen?: () => void;
   fullscreen?: boolean;
   floors: DesignDocument["floors"];
+  /** the buildings other than the house (buildings.ts): the floor menu holds each over its floors */
+  buildings?: DesignDocument["buildings"];
+  /** Add a building, under the floors */
+  onAddBuilding?: () => void;
   floor: DesignDocument["floors"][number];
   onFloor: (id: string) => void;
   onAddFloor: () => void;
@@ -3832,7 +3896,12 @@ function CanvasControls({
   const wheelMode = useWheelMode();
   const hintsOn = useHintsOn();
   const pipeUnits = usePipeUnits();
-  const sorted = [...floors].sort((a, b) => a.level - b.level);
+  /* the house's floors, then each building's, each lowest first; a heading over each building's first */
+  const grouped = !!buildings?.length;
+  const views = buildingsOf({ floors, objects: [], buildings });
+  const sorted = views.flatMap((v) => v.floors);
+  const houseFloors = views[0].floors;
+  const headOf = new Map(grouped ? views.filter((v) => v.floors.length).map((v) => [v.floors[0].id, { name: v.name, note: v.building ? levelWords(v.building.floorMm) : "" }]) : []);
   // two-step delete of a floor — armed per floor id so switching floors
   // mid-arm can't delete the wrong one
   const [armedDelFloor, setArmedDelFloor] = useState<string | null>(null);
@@ -3913,15 +3982,23 @@ function CanvasControls({
           }}
         >
           <Icon name="layers" size={13} />
-          {formatLevel(floor.level)}
+          {floorWord({ floors, buildings }, floor)}
           <Icon name="chevD" size={12} />
         </button>
         {floorMenuOpen && (
-          <div className="ds-layers-menu ds-floor-menu" role="menu" ref={floorMenuRef}>
-            {sorted.map((f, fi) => (
+          <div className={`ds-layers-menu ds-floor-menu${grouped ? " grouped" : ""}`} role="menu" ref={floorMenuRef}>
+            {/* EACH BUILDING OVER ITS FLOORS (the building mock, board 3): its
+                name and where it sits against the house, then its floors */}
+            {sorted.map((f) => (
               <Fragment key={f.id}>
-              {/* the subfloor rides under the lowest floor, the roof space over the top one */}
-              {fi === 0 && spaces && spaceRow("under")}
+              {grouped && headOf.get(f.id) && (
+                <p className="ds-floor-bldg">
+                  <b>{headOf.get(f.id)!.name}</b>
+                  {headOf.get(f.id)!.note ? <span>{headOf.get(f.id)!.note}</span> : null}
+                </p>
+              )}
+              {/* the subfloor rides under the house's lowest floor, the roof space over its top one */}
+              {f.id === houseFloors[0]?.id && spaces && spaceRow("under")}
               <div className={`ds-floor-row${f.id === floor.id ? " on" : ""}`}>
                 <button
                   className="ds-floor-pick"
@@ -3931,7 +4008,7 @@ function CanvasControls({
                   }}
                 >
                   <span className="lvl">{formatLevel(f.level)}</span>
-                  <span className="nm">{floorDisplayName(f)}</span>
+                  <span className="nm">{floorRowName({ buildings }, f)}</span>
                 </button>
                 {/* its height, floor to the floor above: a riser up from it
                     is this tall, and the VRF lift limits stack the floors by
@@ -3982,7 +4059,7 @@ function CanvasControls({
                   )
                 )}
               </div>
-              {fi === sorted.length - 1 && spaces && spaceRow("over")}
+              {f.id === houseFloors.at(-1)?.id && spaces && spaceRow("over")}
               </Fragment>
             ))}
             <button
@@ -3993,8 +4070,20 @@ function CanvasControls({
               }}
             >
               <Icon name="plus" size={13} />
-              Add floor
+Add floor
             </button>
+            {onAddBuilding && (
+              <button
+                className="ds-floor-add"
+                onClick={() => {
+                  onAddBuilding();
+                  setFloorMenuOpen(false);
+                }}
+              >
+                <Icon name="plus" size={13} />
+                Add a building
+              </button>
+            )}
             {spaces &&
               (["under", "over"] as const).map(
                 (kind) =>

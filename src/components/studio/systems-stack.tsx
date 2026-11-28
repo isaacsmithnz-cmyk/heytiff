@@ -34,6 +34,8 @@ import { Icon } from "@/components/shell/icon";
 import { RACK_DRAG, type PlacingUnit } from "./canvas";
 import { StackDot, StackGroup, StackHead, StackRow, StackScreen, StackSection } from "./stack";
 import { VariationButton } from "./variation-menu";
+import { nameForApart, type ApartFind } from "@/lib/studio/buildings";
+import { floorDisplayName } from "@/lib/studio/plans";
 
 const kwText = kwWords;
 const zonesWord = (n: number) => (n === 1 ? "1 zone" : `${n} zones`);
@@ -61,7 +63,16 @@ export function SystemsList({
   onLeaveOut,
   quoted = [],
   onAddQuoted,
+  apart = [],
+  onMakeBuilding,
+  onKeepApart,
+  onOpenBuildings,
 }: {
+  /** parts of a floor standing apart from the rest of it (buildings.ts) */
+  apart?: ApartFind[];
+  onMakeBuilding?: (f: ApartFind) => void;
+  onKeepApart?: (f: ApartFind) => void;
+  onOpenBuildings?: () => void;
   doc: DesignDocument;
   pack: DataPack | null;
   basis: SizingBasis;
@@ -99,6 +110,25 @@ export function SystemsList({
             <StackRow blue lead={<Lead icon="plus" />} name="Add to the design" onPress={() => onAddQuoted(o)} />
           </StackGroup>
         ))}
+      {/* WHAT THE PLANS HAVE THAT THE DESIGN HASN'T (the building mock, board 2):
+          a part of a floor standing apart, to be a building of its own */}
+      {onMakeBuilding &&
+        apart.map((f) => {
+          const floor = doc.floors.find((x) => x.id === f.floorId);
+          return (
+            <StackGroup key={`${f.floorId}:${f.zoneIds[0]}`}>
+              <StackRow wrap lead={<Lead icon="home" />} name={nameForApart(f)} sub={f.names.join(", ")} />
+              <StackRow wrap name={`On the house's ${floor ? floorDisplayName(floor) : "floor"}`} sub={`${f.apartM} m clear of the rest of it`} tone="look">
+                {onKeepApart ? (
+                  <button type="button" className="ds-stack-navact" onClick={() => onKeepApart(f)}>
+                    Keep it there
+                  </button>
+                ) : null}
+              </StackRow>
+              <StackRow blue lead={<Lead icon="plus" />} name="Make it a building" onPress={() => onMakeBuilding(f)} />
+            </StackGroup>
+          );
+        })}
       {doc.systems.length > 0 && (
         <StackGroup>
           {doc.systems.map((sys) => {
@@ -140,6 +170,7 @@ export function SystemsList({
       )}
       <StackGroup>
         <StackRow name="Zones" value={String(zones)} chevron onPress={onOpenRooms} />
+        {onOpenBuildings ? <StackRow name="Buildings" value={doc.buildings?.length ? String(doc.buildings.length + 1) : "House"} chevron onPress={onOpenBuildings} /> : null}
         <StackRow name="Options">
           <VariationButton doc={doc} onAddVariant={onAddVariant} onSwitchVariant={onSwitchVariant} onRenameVariant={onRenameVariant} />
         </StackRow>

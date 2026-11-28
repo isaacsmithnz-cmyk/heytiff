@@ -11037,3 +11037,11 @@ html:not([data-ds-display]) .fg:has(#fg-topbar) .dstudio.editing:has(> .ds-edito
   font-weight: 500;
   color: var(--ds-amber-d);
 }
+
+/* THE FLOOR MENU, EACH BUILDING OVER ITS FLOORS (buildings.ts; the building
+   mock, board 3): the building's name, where it sits against the house on
+   the right, a line over each building after the house */
+.dstudio .ds-floor-menu.grouped { min-width: 300px; }
+.dstudio .ds-floor-bldg { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 8px 8px 4px; font: 600 13px/18px var(--font); color: var(--ink); }
+.dstudio .ds-floor-bldg span { font-weight: 500; color: var(--gray500); }
+.dstudio .ds-floor-menu .ds-floor-row + .ds-floor-bldg { margin-top: 4px; border-top: 1px solid var(--line); }

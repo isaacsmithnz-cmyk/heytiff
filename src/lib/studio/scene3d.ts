@@ -496,9 +496,11 @@ function tilesOf(doc: DesignDocument, f: Floor, raw: Raw, move: XZ): PlanTile[] 
 /** Everything the 3D view draws for this design. `unitRow` is the pack's word
     on a model, when the caller has the pack. */
 export function sceneOf(doc: DesignDocument, unitRow?: (model: string) => UnitRow | null): Scene3D {
-  const bases = floorBasesM(doc.floors);
+  const bases = floorBasesM(doc.floors, doc.buildings);
   const ordered = [...doc.floors].sort((a, b) => a.level - b.level);
-  const groundFloor = ordered.find((f) => f.level === 0) ?? ordered[0];
+  /* the house's: another building's ground floor stands where it's set against it (buildings.ts) */
+  const house = ordered.filter((f) => !f.buildingId);
+  const groundFloor = house.find((f) => f.level === 0) ?? house[0] ?? ordered[0];
   const ground0 = groundFloor ? (bases.get(groundFloor.id) ?? 0) : 0;
   /* her heights off the sections win over the storey's default */
   const levelOf = new Map((doc.reading?.roof?.levels ?? []).map((l) => [l.floorId, l]));
@@ -528,10 +530,19 @@ export function sceneOf(doc: DesignDocument, unitRow?: (model: string) => UnitRo
     const oneFile = !!pages && !!groundPages && pages.size === groundPages.size && pages.scale === groundPages.scale && !pages.refs.some((ref) => groundPages.refs.includes(ref));
     moves.set(id, groundRaw && r !== groundRaw ? lineUp(groundRaw, r, { near: !oneFile }) : [0, 0]);
   }
+  /* a building drawn on a floor's own sheet (buildings.ts, a wing moved off
+     Level 1) stands where that sheet puts it: it moves with the floor it
+     was drawn on */
+  for (const f of ordered) {
+    if (!f.buildingId) continue;
+    const refs = new Set(f.plans.map((p) => p.imageRef));
+    const on = house.find((h) => h.plans.some((p) => refs.has(p.imageRef)));
+    if (on && moves.has(on.id) && moves.has(f.id)) moves.set(f.id, moves.get(on.id)!);
+  }
 
   /* A SUBFLOOR (floor-spaces.ts): the house stands on it, so every floor goes
      up by its height and it stands on the ground under the lowest one */
-  const lowest = ordered[0];
+  const lowest = house[0] ?? ordered[0];
   const lift = lowest?.under?.heightMm && lowest.under.heightMm > 0 ? lowest.under.heightMm / 1000 : 0;
   const floors: Floor3D[] = [];
   for (const f of ordered) {
@@ -573,7 +584,7 @@ export function sceneOf(doc: DesignDocument, unitRow?: (model: string) => UnitRo
 
   const subfloor = subfloorOf(doc, floors, lowest, lift, moves);
   /* A ROOF SPACE (floor-spaces.ts): over the top floor's ceiling, where the plans gave no roof */
-  const top = ordered.at(-1);
+  const top = house.at(-1) ?? ordered.at(-1);
   const roofSpace = roofSpaceOf(doc, floors, top, moves);
 
   const floorById = new Map(floors.map((f) => [f.id, f]));

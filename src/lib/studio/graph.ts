@@ -28,7 +28,7 @@
 
    Pure functions: (objects, floors) in → nodes/edges/paths out. No React. */
 
-import type { DesignDocument, DesignObject, Floor, Point } from "./document";
+import type { Building, DesignDocument, DesignObject, Floor, Point } from "./document";
 import { unitsToMeters } from "./geometry";
 import { runLengthUnits } from "./run-legs";
 
@@ -94,18 +94,37 @@ export const DEFAULT_FLOOR_HEIGHT_M = 3;
 export const floorHeightM = (f: Floor): number =>
   typeof f.heightM === "number" && f.heightM > 0 ? f.heightM : DEFAULT_FLOOR_HEIGHT_M;
 
-/** each floor's height above the lowest floor, metres: floors stack in level
-    order, each on the one below; floors sharing a level share it (the
-    taller one sets how high the next level starts) */
-export function floorBasesM(floors: readonly Floor[]): Map<string, number> {
-  const levels = [...new Set(floors.map((f) => f.level))].sort((a, b) => a - b);
-  const baseOfLevel = new Map<number, number>();
-  let at = 0;
-  for (const l of levels) {
-    baseOfLevel.set(l, at);
-    at += Math.max(...floors.filter((f) => f.level === l).map(floorHeightM));
+/** each floor's height above the house's lowest floor, metres: floors stack
+    in level order, each on the one below; floors sharing a level share it
+    (the taller one sets how high the next level starts). A building's floors
+    (buildings.ts) stack on their own, its ground floor `floorMm` off the
+    house's; one not given sits level with it. */
+export function floorBasesM(floors: readonly Floor[], buildings: readonly Pick<Building, "id" | "floorMm">[] = []): Map<string, number> {
+  const stack = (mine: readonly Floor[]) => {
+    const levels = [...new Set(mine.map((f) => f.level))].sort((a, b) => a - b);
+    const baseOfLevel = new Map<number, number>();
+    let at = 0;
+    for (const l of levels) {
+      baseOfLevel.set(l, at);
+      at += Math.max(...mine.filter((f) => f.level === l).map(floorHeightM));
+    }
+    return baseOfLevel;
+  };
+  const house = floors.filter((f) => !f.buildingId);
+  const houseLevels = stack(house);
+  const out = new Map(house.map((f) => [f.id, houseLevels.get(f.level) ?? 0]));
+  if (out.size === floors.length) return out;
+  /* the house's ground floor, else its lowest, is where a building is measured from */
+  const ground = houseLevels.get(0) ?? 0;
+  const ids = [...new Set(floors.flatMap((f) => (f.buildingId ? [f.buildingId] : [])))];
+  for (const id of ids) {
+    const mine = floors.filter((f) => f.buildingId === id);
+    const levels = stack(mine);
+    const zero = levels.get(0) ?? levels.get(Math.min(...mine.map((f) => f.level))) ?? 0;
+    const off = (buildings.find((b) => b.id === id)?.floorMm ?? 0) / 1000;
+    for (const f of mine) out.set(f.id, ground + off + (levels.get(f.level) ?? 0) - zero);
   }
-  return new Map(floors.map((f) => [f.id, baseOfLevel.get(f.level) ?? 0]));
+  return out;
 }
 
 /** a placed object's height above its own floor, metres (props.mountM) */

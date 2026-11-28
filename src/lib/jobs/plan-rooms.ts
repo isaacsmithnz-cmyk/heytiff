@@ -32,6 +32,13 @@ export type PlanRoom = {
   about?: string;
   /** the size as written in it, where the plan writes one */
   written?: string;
+  /** what a design set on it, the building's (building-kept.ts): its ceiling, what's above, glazing and insulation */
+  ceiling_m?: number;
+  above?: "roof" | "floor";
+  glazing?: string;
+  insulation?: string;
+  /** "set in a design": these, and its name, were set by hand, not read */
+  set_by_hand?: true;
 };
 
 export type PlanFloorRooms = {
@@ -73,7 +80,17 @@ export function planRoomsOf(plan: JobPlan): PlanRooms {
     const scale = pageScale(page, spaces, plan.pages);
     const rooms = spaces.map((s): PlanRoom => {
       const written = parseWritten(s.written);
-      const base = { name: s.name, kind: s.kind as PlanRoom["kind"], ...(s.written ? { written: s.written } : {}) };
+      const k = s.set;
+      const kept = k
+        ? {
+            ...(k.ceilingMm ? { ceiling_m: k.ceilingMm / 1000 } : {}),
+            ...(k.roomAbove !== undefined ? { above: k.roomAbove ? ("floor" as const) : ("roof" as const) } : {}),
+            ...(k.glazing ? { glazing: k.glazing } : {}),
+            ...(k.condition ? { insulation: k.condition } : {}),
+            set_by_hand: true as const,
+          }
+        : {};
+      const base = { name: k?.name ?? s.name, kind: s.kind as PlanRoom["kind"], ...(s.written ? { written: s.written } : {}), ...kept };
       if (scale) {
         const b = box(s.outline);
         const [long, short] = [Math.max(b.w, b.h), Math.min(b.w, b.h)].map((px) => r1((px * scale.mmPerPx) / 1000));

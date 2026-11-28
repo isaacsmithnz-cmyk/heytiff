@@ -469,7 +469,7 @@ function headHeightFinding(
   limitM: number | undefined
 ): SystemFinding | null {
   if (limitM == null) return null;
-  const base = floorBasesM(doc.floors);
+  const base = floorBasesM(doc.floors, doc.buildings);
   const ids = new Set(allocationsOf(sys).filter((a) => a.role === "idu" && a.model).map((a) => a.id));
   const levels = doc.objects
     .filter((o) => ids.has(o.id) && o.type === "unit")

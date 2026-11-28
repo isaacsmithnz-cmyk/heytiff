@@ -3,9 +3,10 @@
 import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
 import { staffProfileIdFor } from "@/lib/fleet/query";
-import { addJobPlans, choosePlanFloors, readPlanAgain, keepSubfloorHeight, planPageForScale, planPagesToView, readJobPlans, setPlanScale, type AddPlansResult, type PageForScale, type PageToView } from "@/lib/jobs/plans-server";
+import { addJobPlans, choosePlanFloors, readPlanAgain, keepSubfloorHeight, keepSpaceSets, planPageForScale, planPagesToView, readJobPlans, setPlanScale, type AddPlansResult, type PageForScale, type PageToView } from "@/lib/jobs/plans-server";
 import type { ChooseHow, JobPlanRead, PlanPick } from "@/lib/jobs/plans";
 import type { LinkPlansResult } from "@/lib/jobs/plans-link-server";
+import { KEPT_FIELDS, type KeptWrite } from "@/lib/studio/building-kept";
 
 /* PLANS ON THE JOB: the job card's actions (lib/jobs/plans-server.ts).
    Behind `workboard`, the card's own tier, as the Documents face's upload
@@ -126,6 +127,36 @@ export async function keepSubfloorOnPlan(jobUuid: string, planId: string, height
   const mm = Math.round(Number(heightMm));
   if (!ctx || !job || !plan || !(mm > 0 && mm <= 20000)) return "You can't change the plan's subfloor.";
   return keepSubfloorHeight(ctx.orgId, plan, mm, ctx.staffId, String(design ?? "").trim(), job);
+}
+
+/** What a design set on its zones by hand, kept on the rooms of the job's
+    plans they were read off (building-kept.ts). Null once kept, or the reason. */
+export async function keepZonesOnPlans(jobUuid: string, design: string, writes: KeptWrite[]): Promise<string | null> {
+  const ctx = await context();
+  const job = trim(jobUuid);
+  const id = trim(design);
+  if (!ctx || !job || !id || !(await can("studio"))) return "You can't change the job's building.";
+  const GLAZING = ["low", "moderate", "high"];
+  const CONDITION = ["well_insulated", "standard", "poor"];
+  /* only what a zone can set, each as its kind */
+  const clean = (Array.isArray(writes) ? writes : []).slice(0, 200).flatMap((w): KeptWrite[] => {
+    const n = Number(w?.n);
+    const i = Number(w?.i);
+    const planId = trim(w?.planId);
+    if (!planId || !Number.isInteger(n) || !Number.isInteger(i) || n < 1 || i < 0) return [];
+    const v = w.values ?? {};
+    const values: KeptWrite["values"] = {
+      ...(typeof v.name === "string" && v.name.trim() ? { name: v.name.trim().slice(0, 80) } : {}),
+      ...(typeof v.ceilingMm === "number" && v.ceilingMm >= 1800 && v.ceilingMm <= 12000 ? { ceilingMm: Math.round(v.ceilingMm) } : {}),
+      ...(typeof v.roomAbove === "boolean" ? { roomAbove: v.roomAbove } : {}),
+      ...(typeof v.glazing === "string" && GLAZING.includes(v.glazing) ? { glazing: v.glazing } : {}),
+      ...(typeof v.condition === "string" && CONDITION.includes(v.condition) ? { condition: v.condition } : {}),
+    };
+    const clear = (Array.isArray(w.clear) ? w.clear : []).filter((f): f is KeptWrite["clear"][number] => (KEPT_FIELDS as readonly string[]).includes(f));
+    return [{ planId, n, i, zoneId: trim(w.zoneId), values, clear }];
+  });
+  if (!clean.length) return null;
+  return keepSpaceSets(ctx.orgId, job, clean, ctx.staffId, id);
 }
 
 export async function chooseFloorsOnPlan(jobUuid: string, planId: string, chosen: Record<number, string>, how: ChooseHow = "all"): Promise<string | null> {

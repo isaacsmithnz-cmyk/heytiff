@@ -84,6 +84,24 @@ export interface Floor {
   under?: FloorSpace;
   /** a roof space added by hand over the top floor (floor-spaces.ts) */
   over?: FloorSpace;
+  /** the building it's a floor of (`DesignDocument.buildings`); absent = the house */
+  buildingId?: string;
+}
+
+/* A BUILDING OF THE JOB'S OTHER THAN THE HOUSE (join 2, "the building",
+   Isaac 27 November 2026: "Go head" to https://claude.ai/artifact/6xDKm8xV6f2PGZJKVo6M46):
+   a guest wing over the garage, a cabana, a granny flat. Its floors are the
+   design's floors with its id; their levels count from its own ground
+   floor, which sits `floorMm` above or below the house's (buildings.ts). */
+export interface Building {
+  id: string;
+  name: string;
+  /** its ground floor against the house's ground floor, mm: up is more, down less; null = level with it */
+  floorMm: number | null;
+  /** what's under it, in words ("Garage"); absent = the ground */
+  under?: string | null;
+  /** the house's zone it joins the house at; absent = it stands apart */
+  joinsAt?: string | null;
 }
 
 /* A SPACE THE PLANS RARELY DRAW (Isaac, 15 November 2026: "subfloor should
@@ -281,6 +299,8 @@ export interface DesignDocument {
   /** rooms left out of the design (left-out.ts): off the plan, the lists
       and the loads, kept as they were to put back. Absent = none. */
   leftOut?: DesignObject[];
+  /** the buildings other than the house (buildings.ts). Absent = the house alone. */
+  buildings?: Building[];
 }
 
 import type { PlanReading } from "./reading";

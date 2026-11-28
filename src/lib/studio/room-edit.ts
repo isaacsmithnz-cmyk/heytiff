@@ -10,6 +10,7 @@
    Pure. Points are world units on the floor, as everywhere in the Studio. */
 
 import { subfloorFromReading } from "./floor-spaces";
+import { KEPT_FIELDS, markHand, withValues } from "./building-kept";
 import { releaseZones } from "./builder";
 import type { DesignDocument, DesignObject, Point } from "./document";
 import { distToSegment, isAxisAlignedRect } from "./geometry";
@@ -86,16 +87,17 @@ export function foundOn(doc: DesignDocument, floorId: string): Suggestion[] {
   if (!floor || !sheets?.length) return [];
   /* a joined room holds the keys of every read room it took in */
   /* a room left out is still hers, kept: she never offers it again */
+  /* a key names its sheet, so one moved to another building's floor (buildings.ts) is still kept */
   const kept = new Set(
     [...doc.objects, ...(doc.leftOut ?? [])]
-      .filter((o) => o.type === "room" && o.floorId === floorId)
+      .filter((o) => o.type === "room")
       .flatMap((o) => [o.props.readKey, ...(Array.isArray(o.props.joinedKeys) ? o.props.joinedKeys : [])])
       .filter((k): k is string => typeof k === "string"),
   );
   /* a room kept before rooms remembered their key: matched by name */
   const named = new Set(
     [...doc.objects, ...(doc.leftOut ?? [])]
-      .filter((o) => o.type === "room" && o.floorId === floorId && o.props.fromReading === true && o.props.readKey == null)
+      .filter((o) => o.type === "room" && (o.floorId === floorId || o.props.readFloor === floorId) && o.props.fromReading === true && o.props.readKey == null)
       .map((o) => norm(String(o.props.name ?? ""))),
   );
   return suggestionsFor(floor, sheets).filter((s) => !kept.has(s.key) && !named.has(norm(s.name)));
@@ -123,16 +125,19 @@ export function keepFound(doc: DesignDocument, floorId: string, keys: string[], 
     const openings = (s.openings ?? []).map((o) => ({ ...o, a: at(o.a), b: at(o.b) }));
     const walls = room.geometry.kind === "polygon" ? wallsWithOpenings(room.geometry.points, openings, WALL_REACH_MM / mm) : [];
     const height = readHeightOf(doc, floorId, s.name);
+    /* what a design set on the room she read, kept on the job's plan: the building's (building-kept.ts) */
+    const kept = sheet?.spaces[Number(s.key.slice(sheet.sheetId.length + 1))]?.set;
+    const props = {
+      ...room.props,
+      readKey: s.key,
+      externalWalls: walls,
+      hasExternalWalls: walls.length > 0 || room.props.hasExternalWalls === true,
+      ...(height ? { ceilingHeightM: height.m, heightFrom: height.from } : {}),
+    };
     added.push({
       ...room,
       id: ids[s.key] ?? room.id,
-      props: {
-        ...room.props,
-        readKey: s.key,
-        externalWalls: walls,
-        hasExternalWalls: walls.length > 0 || room.props.hasExternalWalls === true,
-        ...(height ? { ceilingHeightM: height.m, heightFrom: height.from } : {}),
-      },
+      props: kept ? markHand(withValues(props, kept, "the building"), KEPT_FIELDS.filter((f) => kept[f] !== undefined)) : props,
     });
   }
   return added.length ? { ...doc, objects: [...doc.objects, ...added] } : doc;

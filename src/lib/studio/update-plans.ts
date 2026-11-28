@@ -3,7 +3,8 @@ import type { DesignDocument, DesignObject, PlanSheet } from "./document";
 import { areaUnitsToM2, polygonArea } from "./geometry";
 import { plansInDesign, withJobPlans } from "./job-plan-floors";
 import { roomLoadKw, type RoomObj } from "./loads-room";
-import { keepFound, readyFloor } from "./room-edit";
+import { keepFound, readHeightOf, readyFloor } from "./room-edit";
+import { handFields, keptRow, markHand, valuesOf, type KeptField } from "./building-kept";
 import { glassM2, glassOf } from "./rooms-from-reading";
 import type { PlanReading, ReadOpening, ReadSpace } from "./reading";
 
@@ -52,7 +53,13 @@ export type PlanUpdate = NewerPlan & {
   offers: RoomOffer[];
   /** what it does that isn't asked: a room gone from the plans, a floor new on them */
   said: { title: string; line: string }[];
+  /** what somebody set by hand that the new plans say otherwise, kept as they set it;
+      each id ticked in takes the plans' instead (building-kept.ts) */
+  kept: RoomOffer[];
 };
+
+/** The id that takes the plans' value over what was set by hand on a zone. */
+export const plansValueId = (roomId: string) => `plans:${roomId}`;
 
 const read = (p: JobPlan) => p.state === "read" || p.state === "check";
 const drawingsOf = (plans: readonly JobPlan[]) => plans.filter((p) => p.kind !== "spec" && read(p) && floorPagesOf(p).length > 0);
@@ -434,7 +441,21 @@ export function planUpdate(doc: DesignDocument, plans: readonly JobPlan[], up: N
     const load = loadOf(o.roomId);
     offers.push({ id: o.id, title: o.title, line: load ? `${o.line}. Its load is ${load}` : o.line });
   }
-  return { ...up, pages: pages.filter((p) => p.lines.length > 0), offers, said };
+  /* KEPT AS YOU SET THEM (the building mock, board 6): a value set by hand
+     stays when the new plans say otherwise, each with Use the plans' */
+  const handRooms = doc.objects.filter((o) => o.type === "room" && handFields(o).length > 0);
+  const theirs = handRooms.length ? updatePlans(doc, plans, up, new Set([...all, ...handRooms.map((o) => plansValueId(o.id))])) : after;
+  const kept: RoomOffer[] = handRooms.flatMap((room) => {
+    const a = after.objects.find((o) => o.id === room.id);
+    const t = theirs.objects.find((o) => o.id === room.id);
+    if (!a || !t) return [];
+    const mine = valuesOf(a);
+    const their = valuesOf(t);
+    const differ = handFields(room).filter((f) => their[f] !== undefined && mine[f] !== their[f]);
+    if (!differ.length) return [];
+    return [{ id: plansValueId(room.id), ...keptRow(String(room.props.name ?? "Zone"), mine, their, differ, up.plan.name) }];
+  });
+  return { ...up, pages: pages.filter((p) => p.lines.length > 0), offers, said, kept };
 }
 
 function andWords(words: (string | null)[]): string {
@@ -481,6 +502,7 @@ export function updatePlans(doc: DesignDocument, plans: readonly JobPlan[], up: 
         if (!p) continue;
         const key = keyOf(p.now.i);
         const c = roomChange(p, m.k, null);
+        const usePlans = ticked.has(plansValueId(room.id));
         if (ticked.has(room.id) && c) {
           const fresh = freshRoom(d, is.floorId, key);
           if (fresh) {
@@ -489,18 +511,24 @@ export function updatePlans(doc: DesignDocument, plans: readonly JobPlan[], up: 
             d = replaceRoom(d, {
               ...room,
               geometry: glass ? room.geometry : fresh.geometry,
-              props: {
-                ...room.props,
-                ...pick(fresh.props, glass ? ["glazing", "orientation"] : ["externalWalls", "hasExternalWalls", "glazing", "orientation", "shape", "roomAbove"]),
-                ...(renamed ? { name: p.now.s.name } : {}),
-                readKey: key,
-                ...(joined ? { joinedKeys: joined } : {}),
-              },
+              props: handKept(
+                {
+                  ...room.props,
+                  ...pick(fresh.props, glass ? ["glazing", "orientation"] : ["externalWalls", "hasExternalWalls", "glazing", "orientation", "shape", "roomAbove"]),
+                  ...(renamed ? { name: p.now.s.name } : {}),
+                  readKey: key,
+                  ...(joined ? { joinedKeys: joined } : {}),
+                },
+                room,
+                usePlans,
+                d,
+                is.floorId,
+              ),
             });
             continue;
           }
         }
-        d = replaceRoom(d, { ...room, props: { ...room.props, readKey: key, ...(joined ? { joinedKeys: joined } : {}) } });
+        d = replaceRoom(d, { ...room, props: handKept({ ...room.props, readKey: key, ...(joined ? { joinedKeys: joined } : {}) }, room, usePlans, d, is.floorId) });
       }
     }
     /* rooms new on the plans, ticked: marked as Tiff found them */
@@ -517,6 +545,26 @@ function freshRoom(d: DesignDocument, floorId: string, key: string): DesignObjec
   const id = "__update_plans__";
   const made = keepFound({ ...d, objects: d.objects.filter((o) => o.props.readKey !== key) }, floorId, [key], { [key]: id });
   return made.objects.find((o) => o.id === id) ?? null;
+}
+
+/** A room's new props with what was set on it by hand kept as it was set,
+    or, where the plans' is taken instead, the plans' and no longer marked:
+    its height off the new read. */
+function handKept(props: DesignObject["props"], room: DesignObject, usePlans: boolean, d: DesignDocument, floorId: string): DesignObject["props"] {
+  const hand = handFields(room);
+  if (!hand.length) return props;
+  if (usePlans) {
+    const read = hand.includes("ceilingMm") ? readHeightOf(d, floorId, String(props.name ?? "")) : null;
+    return markHand({ ...props, ...(read ? { ceilingHeightM: read.m, heightFrom: read.from } : {}) }, [], hand);
+  }
+  const own: Record<KeptField, string[]> = { name: ["name"], ceilingMm: ["ceilingHeightM", "heightFrom"], roomAbove: ["roomAbove"], glazing: ["glazing"], condition: ["condition"] };
+  const out = { ...props };
+  for (const f of hand)
+    for (const k of own[f]) {
+      if (room.props[k] === undefined) delete out[k];
+      else out[k] = room.props[k];
+    }
+  return out;
 }
 
 const replaceRoom = (d: DesignDocument, room: DesignObject): DesignDocument => ({ ...d, objects: d.objects.map((o) => (o.id === room.id ? room : o)) });

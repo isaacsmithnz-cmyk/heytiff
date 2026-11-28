@@ -19,7 +19,10 @@ const dayOf = (iso: string | null | undefined) => (iso ? fmtAuWeekdayDayMonth(is
 
 export function UpdatePlansDialog({ update, onUpdate, onClose }: { update: PlanUpdate; onUpdate: (ticked: Set<string>) => void; onClose: () => void }) {
   const [off, setOff] = useState<ReadonlySet<string>>(() => new Set());
+  /* what was set by hand, the plans' taken instead (the building mock, board 6) */
+  const [theirs, setTheirs] = useState<ReadonlySet<string>>(() => new Set());
   const { plan, was, pages, offers, said, again } = update;
+  const kept = update.kept ?? [];
   const day = dayOf(again ? plan.reading?.at : plan.addedAt);
   const lede = again
     ? `${plan.name}${day ? `, read again ${day}` : ""}, against her read${dayOf(was?.reading?.at) ? ` of ${dayOf(was?.reading?.at)}` : ""}, which this design was drawn from.`
@@ -41,7 +44,7 @@ export function UpdatePlansDialog({ update, onUpdate, onClose }: { update: PlanU
       foot={
         <>
           <Button onClick={onClose}>Cancel</Button>
-          <Button kind="main" onClick={() => onUpdate(new Set(offers.map((o) => o.id).filter((id) => !off.has(id))))}>
+          <Button kind="main" onClick={() => onUpdate(new Set([...offers.map((o) => o.id).filter((id) => !off.has(id)), ...kept.map((k) => k.id).filter((id) => theirs.has(id))]))}>
             {go}
           </Button>
         </>
@@ -103,6 +106,35 @@ export function UpdatePlansDialog({ update, onUpdate, onClose }: { update: PlanU
             </ul>
           </div>
         </Field>
+        {kept.length > 0 && (
+          <Field label="Kept as you set them">
+            <div className="ds2-nd-plans">
+              <ul className="pt-rows" aria-label="Kept as you set them">
+                {kept.map((k) => {
+                  const on = theirs.has(k.id);
+                  const flip = () =>
+                    setTheirs((cur) => {
+                      const next = new Set(cur);
+                      if (on) next.delete(k.id);
+                      else next.add(k.id);
+                      return next;
+                    });
+                  return (
+                    <li key={k.id} className="pt-row pt-row--wrap">
+                      <span className="pt-row-text">
+                        <span className="pt-row-name">{k.title}</span>
+                        <span className="pt-row-line">{k.line}</span>
+                      </span>
+                      <Button size={32} aria-pressed={on} onClick={flip}>
+                        {on ? "Keep mine" : "Use the plans'"}
+                      </Button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </Field>
+        )}
       </div>
     </Dialog>
   );

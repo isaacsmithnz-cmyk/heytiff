@@ -16,6 +16,7 @@ const update: PlanUpdate = {
     { id: "new:4:3", title: "Mark Ensuite", line: "New on First floor, page 4. Its load is 0.6 kW" },
   ],
   said: [{ title: "Bedroom 01 isn't on the new plans", line: "It stays as you drew it" }],
+  kept: [],
 };
 
 describe("Update plans", () => {
@@ -42,5 +43,17 @@ describe("Update plans", () => {
     fireEvent.click(within(does).getByRole("checkbox", { name: "Mark Ensuite" }));
     fireEvent.click(within(dialog).getByRole("button", { name: "Update plans" }));
     expect([...take.mock.calls[0][0]]).toEqual(["obj_study"]);
+  });
+
+  it("keeps what was set by hand, each with Use the plans'", () => {
+    const onUpdate = jest.fn();
+    const kept = { id: "plans:obj_hall", title: "Grand Hall height 6.4 m", line: "You set it in the design. Issue H.pdf has Grand Hall height 3.2 m" };
+    render(<UpdatePlansDialog update={{ ...update, kept: [kept] }} onUpdate={onUpdate} onClose={() => {}} />);
+    const list = screen.getByRole("list", { name: "Kept as you set them" });
+    expect(within(list).getByText("Grand Hall height 6.4 m")).toBeInTheDocument();
+    fireEvent.click(within(list).getByRole("button", { name: "Use the plans'" }));
+    expect(within(list).getByRole("button", { name: "Keep mine" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Update plans" }));
+    expect([...onUpdate.mock.calls[0][0]]).toEqual(["obj_study", "new:4:3", "plans:obj_hall"]);
   });
 });

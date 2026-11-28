@@ -14,7 +14,7 @@ import { readOut, sayFirstWords, startReading, stopSpeaking, useVoiceUnavailable
 let asked: string[] = [];
 let played = 0;
 let srcs: string[] = [];
-let lastEl: HTMLMediaElement | null = null;
+let endLast: (() => void) | null = null;
 let status = 200;
 let hold = false;
 
@@ -24,7 +24,7 @@ beforeAll(() => {
     value(this: HTMLMediaElement) {
       played++;
       srcs.push(this.src);
-      lastEl = this;
+      endLast = () => this.dispatchEvent(new Event("ended"));
       if (!hold) setTimeout(() => this.dispatchEvent(new Event("ended")), 0);
       return Promise.resolve();
     },
@@ -89,7 +89,7 @@ it("in a talk, her first words are said at once and her answer only after them",
   /* her answer is made meanwhile, but nothing of it plays over the first words */
   expect(asked.length).toBeGreaterThan(0);
   expect(srcs).toEqual([expect.stringContaining("first-words/01.mp3")]);
-  lastEl!.dispatchEvent(new Event("ended"));
+  endLast!();
   await tick();
   expect(srcs[1]).toBe("blob:x");
   stopSpeaking();

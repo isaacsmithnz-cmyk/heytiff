@@ -1,5 +1,5 @@
-import { designFromPlan, floorPagesOf, pageKey, type JobPlan, type JobPlanPage } from "@/lib/jobs/plans";
-import { newId, type DesignDocument, type Floor, type PlanSheet } from "./document";
+import { designFromPlan, floorLevelOf, floorPagesOf, pageKey, type JobPlan, type JobPlanPage } from "@/lib/jobs/plans";
+import { newId, type Building, type DesignDocument, type Floor, type PlanSheet } from "./document";
 import { defaultFloorName, placeSheets, SHEET_GAP } from "./plans";
 import type { PlanReading, SheetReading } from "./reading";
 
@@ -66,13 +66,28 @@ export function withJobPlans(
   }
 
   const made: string[] = [];
+  /* a page of a building other than the house goes to that building's floor
+     at its level, the building made where the design hasn't it (buildings.ts) */
+  const buildings: Building[] = [...(doc.buildings ?? [])];
+  const buildingFor = (name: string, at: At): Building => {
+    const had = buildings.find((b) => b.name.toLowerCase() === name.toLowerCase());
+    if (had) return had;
+    /* its ground floor against the house's, by the floor levels each prints */
+    const own = floorLevelOf(at.page.words);
+    const house = floorLevelOf(at.plan.pages.find((p) => p.kind === "floor" && !p.building && (p.level ?? 0) === 0)?.words);
+    const up = own != null && house != null ? Math.round((own - house) * 1000) : null;
+    const b: Building = { id: newId("bld"), name, floorMm: up && Math.abs(up) < 30000 ? up : null };
+    buildings.push(b);
+    return b;
+  };
   const floorAt = (level: number, at: At): Floor => {
-    /* the house's floor at that level: another building's ground floor is its own (buildings.ts) */
-    const there = floors.find((f) => f.level === level && !f.buildingId);
+    const b = at.page.building ? buildingFor(at.page.building, at) : null;
+    /* the house's floor at that level: another building's ground floor is its own */
+    const there = floors.find((f) => f.level === level && (b ? f.buildingId === b.id : !f.buildingId));
     if (there) return there;
     const { page } = at;
     const scale = page.set && page.set.mmPerPx > 0 ? page.set.mmPerPx : page.mmPerPx;
-    const floor: Floor = { id: newId("flr"), name: page.name || defaultFloorName(level), level, scaleMmPerUnit: scale ?? null, northDeg: null, northPos: null, plans: [] };
+    const floor: Floor = { id: newId("flr"), name: page.name || (b ? b.name : defaultFloorName(level)), level, ...(b ? { buildingId: b.id } : {}), scaleMmPerUnit: scale ?? null, northDeg: null, northPos: null, plans: [] };
     floors.push(floor);
     made.push(floor.id);
     return floor;
@@ -158,8 +173,9 @@ export function withJobPlans(
   const lead = after.find((p) => p.id === doc.planImport?.jobPlanId && on.has(p.id)) ?? after.find((p) => on.has(p.id));
   const planImport = lead ? designFromPlan(lead).planImport : doc.planImport?.jobPlanId ? null : doc.planImport;
 
+  const standing = buildings.filter((b) => kept.some((f) => f.buildingId === b.id));
   return {
-    doc: { ...doc, floors: kept, planImport, ...(reading !== undefined ? { reading } : {}) },
+    doc: { ...doc, floors: kept, planImport, ...(reading !== undefined ? { reading } : {}), ...(standing.length || doc.buildings ? { buildings: standing } : {}) },
     made: made.filter((id) => ids.has(id)),
   };
 }

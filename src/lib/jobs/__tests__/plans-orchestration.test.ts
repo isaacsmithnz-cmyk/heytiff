@@ -559,11 +559,24 @@ describe("which pages are floors, in a set bigger than one look", () => {
   });
 
   it("takes no answer for a page its look wasn't shown", async () => {
-    /* page 1 is a garage's ground floor plan, which its words say isn't the house's */
+    /* page 1 is a garage's ground floor plan, which its words say is the garage's, not the house's */
     titles.now = ["GARAGE GROUND FLOOR PLAN", "A101"];
-    look.mockImplementationOnce(async () => ({ content: [{ type: "text", text: JSON.stringify({ pages: [{ page: 1, kind: "floor", level_name: "Ground floor", level: 0 }, { page: 2, kind: "floor", level_name: "Level 1", level: 1 }] }) }] }));
+    look.mockImplementationOnce(async () => ({ content: [{ type: "text", text: JSON.stringify({ pages: [{ page: 1, kind: "floor", level_name: "Ground floor", level: 0, building: "" }, { page: 2, kind: "floor", level_name: "Level 1", level: 1, building: "" }] }) }] }));
     await runAll();
-    expect((plan().pages as { n: number; kind: string }[]).map((p) => p.kind)).toEqual(["other", "floor"]);
+    expect((plan().pages as { n: number; kind: string; building?: string }[]).map((p) => [p.kind, p.building])).toEqual([
+      ["floor", "Garage"],
+      ["floor", undefined],
+    ]);
+  });
+
+  it("takes a building of the look's, its floor that building's", async () => {
+    titles.now = ["A101", "A102"];
+    look.mockImplementationOnce(async () => ({ content: [{ type: "text", text: JSON.stringify({ pages: [{ page: 1, kind: "floor", level_name: "Ground floor", level: 0, building: "" }, { page: 2, kind: "floor", level_name: "Ground floor", level: 0, building: "Granny flat" }] }) }] }));
+    await runAll();
+    expect((plan().pages as { n: number; name: string; building?: string }[]).map((p) => [p.name, p.building])).toEqual([
+      ["Ground floor", undefined],
+      ["Granny flat", "Granny flat"],
+    ]);
   });
 });
 

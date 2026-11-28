@@ -1049,7 +1049,7 @@ export function Studio({
               /* the floors and Tiff's reading come with the job's plan
                  (lib/jobs/plans.ts): nothing is read again */
               const made = designFromPlans(plans);
-              const d: DesignDocument = { ...newDesignFor(name, "plan", job), floors: made.floors, planImport: made.planImport };
+              const d: DesignDocument = { ...newDesignFor(name, "plan", job), floors: made.floors, planImport: made.planImport, ...(made.buildings ? { buildings: made.buildings } : {}) };
               /* and it opens with its scale and its rooms on: the loads are there to look at */
               const withReading = made.reading ? readyFromPlans({ ...d, reading: withChecks(made.reading, d) }) : d;
               return throughSwap(async () => {

@@ -189,16 +189,17 @@ function readUnder(doc: DesignDocument, plan: JobPlan): DesignDocument {
 
 /** The new set's floor pages, each beside the old set's page on its floor, in page order. */
 function pagePairs(was: JobPlan | null, plan: JobPlan): PagePair[] {
+  /* by building, then level: a garage's ground floor is no house's (buildings.ts) */
+  const where = (pg: JobPlanPage) => `${(pg.building ?? "").toLowerCase()}:${pg.level ?? 0}`;
   const byLevel = (p: JobPlan | null) => {
-    const out = new Map<number, JobPlanPage[]>();
-    for (const pg of p ? floorPagesOf(p) : []) out.set(pg.level ?? 0, [...(out.get(pg.level ?? 0) ?? []), pg]);
+    const out = new Map<string, JobPlanPage[]>();
+    for (const pg of p ? floorPagesOf(p) : []) out.set(where(pg), [...(out.get(where(pg)) ?? []), pg]);
     return out;
   };
   const olds = byLevel(was);
   return floorPagesOf(plan).map((now) => {
-    const level = now.level ?? 0;
-    const at = floorPagesOf(plan).filter((p) => (p.level ?? 0) === level).indexOf(now);
-    return { old: olds.get(level)?.[at] ?? null, now };
+    const at = floorPagesOf(plan).filter((p) => where(p) === where(now)).indexOf(now);
+    return { old: olds.get(where(now))?.[at] ?? null, now };
   });
 }
 
@@ -471,7 +472,9 @@ export function updatePlans(doc: DesignDocument, plans: readonly JobPlan[], up: 
   const drawings = drawingsOf(plans);
   const { pairs, matched } = planOf(doc, up);
   const on = [...plansInDesign(doc, drawings).filter((id) => id !== up.was?.id), up.plan.id];
-  const swapped = up.again ? { doc: readUnder(doc, up.plan), made: [] as string[] } : withJobPlans(doc, drawings, drawings, on);
+  /* a set read again keeps its sheets, and a page it now finds a floor (a
+     garage's, a cabana's: buildings.ts) comes onto the design as a new set's would */
+  const swapped = up.again ? withJobPlans(readUnder(doc, up.plan), drawings, drawings, on) : withJobPlans(doc, drawings, drawings, on);
   let d: DesignDocument = { ...swapped.doc, planImport: swapped.doc.planImport ? { ...swapped.doc.planImport, ...(doc.planImport?.passed ? { passed: doc.planImport.passed } : {}) } : swapped.doc.planImport };
   /* the design holds the new set's read now: not offered it again as read again */
   const readAt = up.plan.reading?.at;

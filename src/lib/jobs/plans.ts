@@ -13,7 +13,7 @@
 
    Pure: no I/O. The server side is plans-server.ts. */
 
-import type { Floor, PlanImport, PlanImportSource } from "@/lib/studio/document";
+import type { Building, Floor, PlanImport, PlanImportSource } from "@/lib/studio/document";
 import { newId } from "@/lib/studio/document";
 import { defaultFloorName, placeSheets, type UploadedSheet } from "@/lib/studio/plans";
 import type { TrimRect } from "@/lib/studio/plan-trim";
@@ -38,6 +38,9 @@ export type JobPlanPage = {
   name: string;
   /** a floor's level in the stack, the ground 0; null for a page that isn't a floor */
   level: number | null;
+  /** the building of the job's other than the house this floor page draws
+      ("Garage", "Pool & cabana"), its level that building's own; absent = the house */
+  building?: string;
   /** the full raster, in the studio-plans bucket: floor pages only */
   ref: string | null;
   /** the small raster for its thumbnail: floor pages only */
@@ -176,6 +179,13 @@ const FLOOR_TITLE = new RegExp(`\\b(?:(${LEVEL_WORDS})\\s+(?:FLOOR\\s+)?PLAN\\b|
 /** ...named just before the title, as "GARAGE GROUND FLOOR PLAN" names it:
     a room called Pool beside a house's plan is not one */
 const OUTBUILDING_BEFORE = /\b(GARAGE|GARGE|CARPORT|CABANA|POOL\s+HOUSE|SHED|GRANNY\s+FLAT|SECONDARY\s+DWELLING|WORKSHOP|BARN)\b[\s&A-Z]{0,12}$/;
+/** ...and its name as the set gives it, with the word joined before it: "POOL & CABANA" */
+const OUTBUILDING_NAME = /\b((?:[A-Z]+\s*(?:&|AND)\s*)?(?:GARAGE|GARGE|CARPORT|CABANA|POOL\s+HOUSE|SHED|GRANNY\s+FLAT|SECONDARY\s+DWELLING|WORKSHOP|BARN))\b[\s&A-Z]{0,12}$/;
+/** a building's name in words: "GARGE" is the garage, "POOL & CABANA" is "Pool & cabana" */
+const buildingWord = (raw: string): string => {
+  const t = raw.replace(/\bGARGE\b/, "GARAGE").replace(/\s+/g, " ").trim().toLowerCase();
+  return t.charAt(0).toUpperCase() + t.slice(1);
+};
 /** the building as it stands before the work, named against the title:
     "EXISTING GROUND FLOOR PLAN", "GF PLAN - EXISTING". Only a PROPOSED
     joined to the EXISTING ("PROPOSED/EXISTING", "EXISTING & PROPOSED")
@@ -225,7 +235,7 @@ export function levelOfTitle(title: string): { level: number; name: string } | n
   return null;
 }
 
-export type PageGuess = { kind: PlanPageKind; name: string; level: number | null };
+export type PageGuess = { kind: PlanPageKind; name: string; level: number | null; building?: string };
 
 /** What a page is, by the words printed on it. The title block names the
     sheet ("GROUND FLOOR PLAN" beside "A-103"), and the words are read in
@@ -251,10 +261,20 @@ export function guessPageByWords(words: readonly Word[] | null | undefined): Pag
   const notAFloor = (m: RegExpMatchArray) => NOT_A_FLOOR.test(text.slice(Math.max(0, m.index! - 24), m.index! + m[0].length + 24));
   if (floor && !notAFloor(floor)) {
     /* a garage's or a cabana's floor is that building's, not the house's:
-       stacked with the house it would stand on its top floor in the 3D
-       (3570: the garage as level 2 over the first floor). Not a floor of
-       the house; Choose floors can still take it. */
-    if (OUTBUILDING_BEFORE.test(before(floor))) return { kind: "other", name: "", level: null };
+       stacked with the house it stood on its top floor in the 3D (3570: the
+       garage as level 2 over the first floor), so it was filed as other and
+       never drawn. Now a design holds buildings (studio/buildings.ts): it's
+       a floor of its own building, its level that building's. A sheet that
+       draws two of its floors (3570's A105, the garage's ground and first
+       floors side by side) is one floor of it, named for both. */
+    if (OUTBUILDING_BEFORE.test(before(floor))) {
+      const building = buildingWord(before(floor).match(OUTBUILDING_NAME)?.[1] ?? "Outbuilding");
+      const mine = titles.filter((m) => !notAFloor(m) && OUTBUILDING_BEFORE.test(before(m)));
+      const lvs = [...new Map(mine.flatMap((m) => { const l = levelOfTitle(m[0]); return l ? [[l.level, l.name] as const] : []; })).entries()].sort((a, b) => a[0] - b[0]);
+      const level = lvs[0]?.[0] ?? 0;
+      const name = lvs.length > 1 ? `${building}, ${lvs.map(([, n]) => n.toLowerCase()).join(" and ")}` : level === 0 ? building : `${building}, ${(lvs[0]?.[1] ?? defaultFloorName(level)).toLowerCase()}`;
+      return { kind: "floor", name, level, building };
+    }
     const house = titles.filter((m) => !notAFloor(m) && !OUTBUILDING_BEFORE.test(before(m)));
     /* the house as it stands before the work isn't the floor that's built
        (the look's own rule, plans-server.ts): an alterations set draws both,
@@ -477,7 +497,7 @@ export const NOT_A_FLOOR_PLAN = "none";
     floor plan (the mock of 14 November 2026: Basement 1, Ground floor,
     Level 1, Level 2, Not a floor plan). */
 export function floorOptions(plan: { pages: readonly JobPlanPage[] }): { value: string; label: string }[] {
-  const floors = plan.pages.filter((p) => p.kind === "floor" && p.level !== null);
+  const floors = plan.pages.filter((p) => p.kind === "floor" && p.level !== null && !p.building);
   const levels = floors.map((p) => p.level as number);
   const low = Math.min(-1, ...levels);
   const high = Math.max(1, ...levels.map((l) => l + 1));
@@ -490,7 +510,7 @@ export function floorOptions(plan: { pages: readonly JobPlanPage[] }): { value: 
 /** A level's name in a set: what its floor page there is called, else the
     plain name for the level. */
 function floorNameAt(plan: { pages: readonly JobPlanPage[] }, level: number): string {
-  return plan.pages.find((p) => p.kind === "floor" && p.level === level && p.name)?.name || defaultFloorName(level);
+  return plan.pages.find((p) => p.kind === "floor" && p.level === level && p.name && !p.building)?.name || defaultFloorName(level);
 }
 
 /** A page's place in its floor menu. */
@@ -519,8 +539,9 @@ export function chooseFloors(pages: readonly JobPlanPage[], chosen: Readonly<Rec
   /* a page moved to a level is called what the set calls that level */
   return next.map((p) => {
     const was = pages.find((q) => q.n === p.n)!;
-    if (p.kind !== "floor" || p.level === null || (was.kind === "floor" && was.level === p.level)) return p;
-    const named = next.find((q) => q.n !== p.n && q.kind === "floor" && q.level === p.level && q.name)?.name;
+    /* a building's floor keeps the building's name for it */
+    if (p.kind !== "floor" || p.level === null || p.building || (was.kind === "floor" && was.level === p.level)) return p;
+    const named = next.find((q) => q.n !== p.n && q.kind === "floor" && q.level === p.level && q.name && !q.building)?.name;
     return { ...p, name: named || defaultFloorName(p.level) };
   });
 }
@@ -658,6 +679,8 @@ export type DesignFromPlan = {
   floors: Floor[];
   planImport: PlanImport;
   reading: PlanReading | null;
+  /** the buildings other than the house its floor pages draw (studio/buildings.ts) */
+  buildings?: Building[];
 };
 
 /** The floors a design opens with from a job's plan, one per floor page at
@@ -694,7 +717,8 @@ export function floorLevelOf(words: readonly { text: string }[] | null | undefin
 export function designFromPlan(plan: JobPlan): DesignFromPlan {
   const floors = floorPagesOf(plan);
   const byLevel = new Map<number, JobPlanPage[]>();
-  for (const p of floors) {
+  /* the house's floors stack and line up here; a building's are its own, after */
+  for (const p of floors.filter((pg) => !pg.building)) {
     const level = p.level ?? 0;
     byLevel.set(level, [...(byLevel.get(level) ?? []), p]);
   }
@@ -782,8 +806,30 @@ export function designFromPlan(plan: JobPlan): DesignFromPlan {
     jobPlanId: plan.id,
   };
 
+  /* EACH BUILDING'S FLOORS (studio/buildings.ts): its pages at its own
+     levels, its ground floor set against the house's by the floor levels
+     each prints, where both print one */
+  const buildings: Building[] = [];
+  const houseGround = ffl.get(0) ?? null;
+  for (const name of [...new Set(floors.flatMap((p) => (p.building ? [p.building] : [])))]) {
+    const id = newId("bld");
+    const pages = floors.filter((p) => p.building === name);
+    for (const p of pages) {
+      const level = p.level ?? 0;
+      const [sheet] = placeSheets([], [{ label: p.name || name, ref: p.ref!, pageNumber: plan.sourceKind === "pdf" ? p.n : null, width: p.width, height: p.height, ...(p.trim ? { crop: { ...p.trim } } : {}) }]);
+      const scale = pageScale(p, spacesOn(plan.reading, p.n), plan.pages);
+      const fid = newId("flr");
+      sheetOf.set(p.n, { floorId: fid, sheetId: sheet.id });
+      made.push({ id: fid, name: p.name || name, level, buildingId: id, scaleMmPerUnit: ownSure(p) ?? (scale?.of != null ? scale.mmPerPx : null), northDeg: null, northPos: null, plans: [sheet] });
+    }
+    const ground = pages.find((p) => (p.level ?? 0) === 0) ?? pages[0];
+    const own = floorLevelOf(ground.words);
+    const up = own != null && houseGround != null ? Math.round((own - houseGround) * 1000) : null;
+    buildings.push({ id, name, floorMm: up && Math.abs(up) < 30000 ? up : null });
+  }
+
   const reading = plan.reading ? readingOnto(plan.reading, (key) => sheetOf.get(Number(key.replace(/^p/, ""))) ?? null) : null;
-  return { floors: made, planImport, reading };
+  return { floors: made, planImport, reading, ...(buildings.length ? { buildings } : {}) };
 }
 
 /** Her read of a plan onto a design's floors and sheets: `at` is the floor and
@@ -829,11 +875,18 @@ export function designFromPlans(plans: readonly JobPlan[]): DesignFromPlan {
   if (!first) return { floors: [], planImport: { sources: [], placed: {}, chosen: [], names: {} }, reading: null };
   const made = designFromPlan(first);
   const floors = [...made.floors];
-  const used = new Set(floors.map((f) => f.level));
+  const buildings = [...(made.buildings ?? [])];
+  const used = new Set(floors.filter((f) => !f.buildingId).map((f) => f.level));
   let reading = made.reading;
   for (const plan of rest) {
     const more = designFromPlan(plan);
+    buildings.push(...(more.buildings ?? []));
     for (const f of more.floors) {
+      /* a building's floors are its own, at its levels */
+      if (f.buildingId) {
+        floors.push(f);
+        continue;
+      }
       let level = f.level;
       while (used.has(level)) level += 1;
       used.add(level);
@@ -846,7 +899,7 @@ export function designFromPlans(plans: readonly JobPlan[]): DesignFromPlan {
     }
   }
   floors.sort((a, b) => a.level - b.level);
-  return { floors, planImport: made.planImport, reading };
+  return { floors, planImport: made.planImport, reading, ...(buildings.length ? { buildings } : {}) };
 }
 
 /** The plans a design can start from: read, or read with something to check. */
